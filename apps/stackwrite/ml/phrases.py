@@ -108,6 +108,9 @@ class PhraseSynth(Synth):
         """One letter as a list of point arrays, with joins where the finger stays down."""
         strokes = [s.copy() for s in self.styles[style][ch]]
         cx = (min(s[:, 0].min() for s in strokes) + max(s[:, 0].max() for s in strokes)) / 2
+        # Real i and j dots are usually a single touch, not a little circle.
+        strokes = [s.mean(0, keepdims=True) if ch in "ij" and len(strokes) > 1 and _length(s) < 0.5
+                   and rng.random() < 0.85 else s for s in strokes]
         A = affine(rng)
         out = []
         for i, s in enumerate(strokes):
@@ -123,7 +126,7 @@ class PhraseSynth(Synth):
         w = w or self.writer(rng)
         style = w["style"]
         W = affine(rng, scale=(0.9, 1.1), shear=0.35, rot=0.15)
-        xh = rng.uniform(0.25, 0.5)
+        xh = rng.uniform(0.15, 0.5)      # real finger writing is often small
         base = np.array([0.5, rng.uniform(0.25, 0.4)])
         drift_sd = rng.uniform(0.0, 0.12)
 
@@ -172,7 +175,8 @@ class PhraseSynth(Synth):
                 pause = rng.random() < w["p_pause"]
                 g = lift() * (rng.uniform(2.5, 8) if pause else 1.0)
                 if rng.random() < w["p_tap"]:
-                    tap = rng.uniform(0.15, 0.85, 2) + rng.normal(0, 0.003, (rng.integers(1, 4), 2))
+                    n = 1 if rng.random() < 0.6 else rng.integers(2, 4)
+                    tap = rng.uniform(0.15, 0.85, 2) + rng.normal(0, 0.003, (n, 2))
                     out_strokes.append(tap)
                     out_gaps.append(lift() * rng.uniform(0.5, 1.5))
                     g = lift()
@@ -186,10 +190,14 @@ class PhraseSynth(Synth):
             d = np.linalg.norm(np.diff(s, axis=0), axis=1) if len(s) > 1 else np.zeros(0)
             ts = t + np.concatenate([[0], np.cumsum(d)]) / (w["speed"] * rng.uniform(0.8, 1.2))
             if len(s) <= 3:                       # taps last a moment
-                ts = t + np.linspace(0, rng.uniform(0.03, 0.1), len(s))
+                ts = t + np.linspace(0, rng.uniform(0.0, 0.1), len(s))
             timed.append(np.column_stack([s, ts]))
             t = ts[-1]
         return timed, " ".join(words)
+
+
+def _length(s):
+    return float(np.linalg.norm(np.diff(s[:, :2], axis=0), axis=1).sum()) if len(s) > 1 else 0.0
 
 
 def random_phrase(rng, words, probs, n=(1, 4), p_random=0.15):

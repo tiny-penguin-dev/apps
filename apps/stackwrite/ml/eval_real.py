@@ -17,6 +17,30 @@ from synth import lexicon
 from train_phrases import greedy
 
 
+def writer_scales(samples):
+    """Each writer's usual lift, from all of their recordings (as the app does)."""
+    lifts = defaultdict(list)
+    for s in samples:
+        st = strokes_of(s)
+        lifts[s.get("writer")] += [b[0, 2] - p[-1, 2] for p, b in zip(st, st[1:])]
+    return {w: writer_lift_scale([l for l in ls if l < 5]) for w, ls in lifts.items()}
+
+
+@torch.no_grad()
+def read(model, samples, scales, trie):
+    """(labels, greedy readings, decoded readings) for each sample."""
+    model.eval()
+    dev = next(model.parameters()).device
+    truths, greedies, decoded = [], [], []
+    for s in samples:
+        f = featurize_strokes(strokes_of(s), lift_scale=scales.get(s.get("writer")))
+        lp = model(torch.from_numpy(f)[None].to(dev))[0].cpu()
+        truths.append(s["label"])
+        greedies.append(greedy(lp[None], torch.tensor([len(lp)]))[0])
+        decoded.append((beam_search(lp.numpy(), trie) or [("", 0)])[0][0])
+    return truths, greedies, decoded
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("paths", nargs="+")
@@ -28,24 +52,13 @@ def main():
     print(f"{len(samples)} phrase recordings")
     if not samples:
         return
-    lifts = defaultdict(list)
-    for s in samples:
-        st = strokes_of(s)
-        lifts[s.get("writer")] += [b[0, 2] - p[-1, 2] for p, b in zip(st, st[1:])]
-    scales = {w: writer_lift_scale([l for l in ls if l < 5]) for w, ls in lifts.items()}
+    scales = writer_scales(samples)
     print("usual lift per writer (s):", {w[:8]: round(v, 3) for w, v in scales.items()})
 
     m = ConvStrokeNet(features=FEATURES, classes=N_CLASSES)
     m.load_state_dict(torch.load(a.model, map_location="cpu")); m.eval()
     trie = build_trie(*lexicon())
-    truths, greedies, decoded = [], [], []
-    for s in samples:
-        f = featurize_strokes(strokes_of(s), lift_scale=scales[s.get("writer")])
-        with torch.no_grad():
-            lp = m(torch.from_numpy(f)[None])[0]
-        truths.append(s["label"])
-        greedies.append(greedy(lp[None], torch.tensor([len(lp)]))[0])
-        decoded.append((beam_search(lp.numpy(), trie) or [("", 0)])[0][0])
+    truths, greedies, decoded = read(m, samples, scales, trie)
     print("greedy: ", score(greedies, truths))
     print("decoder:", score(decoded, truths))
     words = sum(len(t.split()) for t in truths)

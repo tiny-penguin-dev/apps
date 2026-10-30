@@ -72,12 +72,15 @@ python3 export.py --model runs/phrase.pt --out export/StackWrite
 python3 make_golden.py --model runs/phrase.pt                    # Swift parity cases
 cp -R export/StackWrite.mlpackage ../ios/StackWrite/Model/StrokeModel.mlpackage  # after rm -rf the old one
 python3 download_samples.py                                      # uploaded samples → samples/cloud
+python3 eval_real.py samples/cloud --model runs/phrase.pt        # how it reads recorded phrases
+python3 finetune_phrases.py samples/cloud [--ship]               # fine-tune on them (+ copy into the app)
 ```
 
 See `ml/README.md` for building data, training and personalizing. `data/` and
 intermediate `runs/` are gitignored. Only `runs/final.pt` and the logs are committed;
-`runs/phrase.pt` lives on Gabriel's Mac. Fine-tuning the phrase model on recorded v2 samples
-isn't written yet (`finetune.py` only handles one-stroke v1 samples).
+`runs/phrase.pt` lives on Gabriel's Mac. `finetune_phrases.py` trains on recorded phrases
+(v2) and the older one-word recordings (v1) mixed with synthetic phrases; `finetune.py` is
+for the old one-stroke model.
 
 ## Rules
 

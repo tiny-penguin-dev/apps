@@ -7,8 +7,9 @@ to ask Gabriel before Phase 3.
 ## Layout
 
 - `ml/`: Python reference implementation. It's the source of truth for features
-  (`synth.featurize`), the model (`model.ConvStrokeNet`) and the decoder
-  (`decode.beam_search`).
+  (`phrases.featurize_strokes`), the model (`model.ConvStrokeNet`, 9 features in, blank +
+  a–z + space out) and the decoder (`decode_phrase.beam_search`). The single-word versions
+  (`synth.featurize`, `decode.py`, `train.py`, `finetune.py`) predate finger lifts.
 - `ml/export/`: what the iOS side consumes. Rebuild `lexicon.tsv` and `golden.json` with `python3 make_golden.py`.
   - `StackWrite.mlpackage`: the Core ML model
   - `lexicon.tsv`: the word list
@@ -21,14 +22,14 @@ to ask Gabriel before Phase 3.
     - `Try/`: "Try the keyboard": a text view whose `inputView` is the StackWrite pad.
       `KeyboardController` holds the typing logic behind a `TextTarget` protocol shaped
       like `UITextDocumentProxy`, so the keyboard extension can reuse it.
-    - `Train/`: the training screen: prompts words and saves each stroke as a sample
+    - `Train/`: the training screen: prompts 1–4 words and saves their strokes as one sample
     - `Shared/`: the writing pad, model loading, sample storage and the CloudKit upload
       (`SampleUploader`, off until the user turns it on)
     - `Model/`: copies of `ml/export/StackWrite.mlpackage` (as `StrokeModel.mlpackage`)
-      and `lexicon.tsv`. `ml/finetune.py --ship` refreshes them.
+      and `lexicon.tsv`. Copy them over after `export.py` (see Python below).
   - `StackWriteKit/`: local Swift package shared by the app and (later) the keyboard:
-    the sample format (`StrokeSample`, see `SAMPLES.md`), `Features.featurize`,
-    `Lexicon` (flat-array trie), `WordDecoder` (beam search) and `Recognizer` (Core ML).
+    the sample format (`StrokeSample`, see `SAMPLES.md`), `Recording`, `Features.featurize`,
+    `Lexicon` (flat-array trie), `PhraseDecoder` (beam search) and `Recognizer` (Core ML).
     Its tests replay `ml/export/golden.json`.
   - `Config/`: `StackWrite.xcconfig` (bundle ID `com.tinypenguin.stackwrite`, version,
     display name), `Project.xcconfig`, `Info.plist`, `StackWrite.entitlements` (iCloud
@@ -65,14 +66,18 @@ cd ml
 pip install -r requirements.txt
 python3 viz.py                                   # render sample synthetic words → out/samples.png
 python3 evaluate.py --model runs/final.pt --sets data/test_all.npz   # needs data built first
-python3 export.py --model runs/final.pt --out export/StackWrite
-python3 finetune.py ~/Downloads/StackWrite-samples-*.zip          # train on recorded samples, score
-python3 finetune.py samples/ --ship                               # ...and copy the model into the app
-python3 download_samples.py && python3 finetune.py samples/cloud  # train on everything uploaded
+python3 train_phrases.py --init runs/final.pt --out runs/phrase.pt --minutes 60   # Mac GPU, ~1 h
+python3 eval_phrases.py runs/phrase.pt --n 300 [--tune]          # word error rate, word breaks
+python3 export.py --model runs/phrase.pt --out export/StackWrite
+python3 make_golden.py --model runs/phrase.pt                    # Swift parity cases
+cp -R export/StackWrite.mlpackage ../ios/StackWrite/Model/StrokeModel.mlpackage  # after rm -rf the old one
+python3 download_samples.py                                      # uploaded samples → samples/cloud
 ```
 
 See `ml/README.md` for building data, training and personalizing. `data/` and
-intermediate `runs/` are gitignored. Only `runs/final.pt` and the logs are committed.
+intermediate `runs/` are gitignored. Only `runs/final.pt` and the logs are committed;
+`runs/phrase.pt` lives on Gabriel's Mac. Fine-tuning the phrase model on recorded v2 samples
+isn't written yet (`finetune.py` only handles one-stroke v1 samples).
 
 ## Rules
 

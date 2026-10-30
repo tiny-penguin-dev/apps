@@ -1,53 +1,64 @@
 import StackWriteKit
 import SwiftUI
 
-/// Shows words to write and saves each stroke as a labeled training sample.
+/// Shows a short phrase to write and saves the strokes as a labeled training
+/// sample when the writer taps Done.
 struct TrainView: View {
     @Environment(RecognitionService.self) private var recognition
     @Environment(SampleStore.self) private var samples
     @Environment(SampleUploader.self) private var uploader
 
     @State private var phrase: [String] = []
-    @State private var index = 0
-    /// Samples saved for the current phrase, so Back can remove them.
-    @State private var saved: [Int: UUID] = [:]
-    @State private var feedback: Feedback?
+    @State private var recording = Recording()
+    @State private var padSize = CGSize.zero
+    /// What the model reads so far, live.
+    @State private var reading: String?
+    /// The last saved sample, so Undo can take it back out.
+    @State private var lastSaved: (id: UUID, feedback: Feedback)?
     @State private var sessionCount = 0
     @State private var session = UUID().uuidString
     @State private var errorMessage: String?
     @State private var confirmDelete = false
 
-    struct Feedback: Equatable {
-        var word: String
+    struct Feedback {
+        var text: String
         var read: [String]
-        var right: Bool { read.first == word }
+        var right: Bool { read.first == text }
     }
 
-    private var current: String? { phrase.indices.contains(index) ? phrase[index] : nil }
+    private var text: String { phrase.joined(separator: " ") }
 
     var body: some View {
         VStack(spacing: 16) {
-            phraseView
-            Text(current ?? " ")
-                .font(.system(size: 44, weight: .semibold, design: .rounded))
+            Text(text.isEmpty ? " " : text)
+                .font(.system(size: 34, weight: .semibold, design: .rounded))
+                .multilineTextAlignment(.center)
+                .lineLimit(2)
+                .minimumScaleFactor(0.5)
                 .contentTransition(.opacity)
-                .animation(.default, value: current)
-            feedbackView
+                .animation(.default, value: text)
+            statusView
             Spacer(minLength: 0)
-            Text("\(sessionCount) words this time · \(samples.count) saved")
+            Text("\(sessionCount) phrases this time · \(samples.count) saved")
                 .font(.footnote.monospacedDigit())
                 .foregroundStyle(.secondary)
             HStack {
-                Button("Back", systemImage: "arrow.uturn.backward", action: back)
-                    .disabled(index == 0)
+                Button("Redo", systemImage: "arrow.uturn.backward") { clear() }
+                    .disabled(recording.isEmpty)
                 Spacer()
-                Button("Skip", systemImage: "forward", action: advance)
+                Button("Skip", systemImage: "forward", action: newPhrase)
                 Spacer()
-                Button("New words", systemImage: "arrow.clockwise", action: newPhrase)
+                Button("Done", systemImage: "checkmark", action: save)
+                    .buttonStyle(.borderedProminent)
+                    .disabled(recording.isEmpty)
             }
             .labelStyle(.titleAndIcon)
             .font(.callout)
-            WritingPad { points, size in record(points, size: size) }
+            WritingPad { points, size in
+                padSize = size
+                recording.add(points)
+                reading = recognition.recognize(recording.strokes, partial: true)?.texts.first
+            }
         }
         .padding()
         .navigationTitle("Training")
@@ -74,52 +85,46 @@ struct TrainView: View {
         }
     }
 
-    private var phraseView: some View {
-        HStack(spacing: 8) {
-            ForEach(Array(phrase.enumerated()), id: \.offset) { i, word in
-                Text(word)
-                    .foregroundStyle(i == index ? Color.accentColor : i < index ? .secondary : .primary)
-                    .fontWeight(i == index ? .semibold : .regular)
-            }
-        }
-        .font(.title3)
-        .lineLimit(1)
-        .minimumScaleFactor(0.5)
-        .frame(maxWidth: .infinity)
-    }
-
-    @ViewBuilder private var feedbackView: some View {
-        if let feedback {
-            Label {
-                Text(feedback.read.isEmpty ? "Couldn't read “\(feedback.word)”"
-                     : "“\(feedback.word)” read as \(feedback.read.prefix(3).joined(separator: ", "))")
-            } icon: {
-                Image(systemName: feedback.right ? "checkmark.circle.fill" : "questionmark.circle")
-                    .foregroundStyle(feedback.right ? .green : .orange)
+    @ViewBuilder private var statusView: some View {
+        if !recording.isEmpty {
+            Text("Reading “\(reading ?? "…")”")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        } else if let feedback = lastSaved?.feedback {
+            HStack {
+                Label {
+                    Text(feedback.read.isEmpty ? "Saved. Couldn't read it"
+                         : "Saved. Read as “\(feedback.read[0])”")
+                } icon: {
+                    Image(systemName: feedback.right ? "checkmark.circle.fill" : "questionmark.circle")
+                        .foregroundStyle(feedback.right ? .green : .orange)
+                }
+                Button("Undo", action: undo)
             }
             .font(.footnote)
             .foregroundStyle(.secondary)
         } else {
-            Text("Write the highlighted word as one stroke.")
+            Text("Write each letter on top of the last, lifting your finger whenever you like. Between words, pause or tap. Then tap Done.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
         }
     }
 
-    private func record(_ points: [StrokePoint], size: CGSize) {
-        guard let word = current, Features.length(points) > 0.05 else { return }
-        let read = recognition.recognize(points)?.words ?? []
+    private func save() {
+        guard !text.isEmpty, !recording.isEmpty else { return }
+        let read = recognition.recognize(recording.strokes)?.texts ?? []
         let sample = StrokeSample(
-            label: word,
+            label: text,
             labelSource: .prompt,
-            points: points,
-            padSize: size,
+            strokes: recording.strokes,
+            padSize: padSize,
             writer: DeviceInfo.writerID,
             session: session,
             device: DeviceInfo.model,
             system: DeviceInfo.system,
             app: DeviceInfo.appVersion,
-            prompt: phrase.joined(separator: " "),
+            prompt: text,
             recognized: read
         )
         do {
@@ -128,36 +133,31 @@ struct TrainView: View {
             errorMessage = error.localizedDescription
             return
         }
-        saved[index] = sample.id
+        recognition.learnLifts(recording.lifts)
+        lastSaved = (sample.id, Feedback(text: text, read: read))
         sessionCount += 1
-        // Upload in batches; the last few words wait so Back can still take them out.
+        // Upload in batches; the last few wait so Undo can still take them out.
         if samples.pendingCount >= 25 { uploader.upload() }
-        feedback = Feedback(word: word, read: read)
-        advance()
+        newPhrase()
     }
 
-    private func advance() {
-        if index + 1 < phrase.count {
-            index += 1
-        } else {
-            newPhrase()
-        }
+    /// Removes the last saved phrase and asks for it again.
+    private func undo() {
+        guard let saved = lastSaved else { return }
+        if samples.delete(saved.id) { uploader.remove(saved.id) }
+        sessionCount -= 1
+        lastSaved = nil
+        phrase = saved.feedback.text.split(separator: " ").map(String.init)
+        clear()
     }
 
-    /// Goes back one word and removes what was saved for it.
-    private func back() {
-        guard index > 0 else { return }
-        index -= 1
-        if let id = saved.removeValue(forKey: index) {
-            if samples.delete(id) { uploader.remove(id) }
-            sessionCount -= 1
-        }
-        feedback = nil
+    private func clear() {
+        recording.removeAll()
+        reading = nil
     }
 
     private func newPhrase() {
         phrase = PromptGenerator(entries: recognition.entries).phrase()
-        index = 0
-        saved = [:]
+        clear()
     }
 }

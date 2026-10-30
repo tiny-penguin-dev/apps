@@ -104,6 +104,16 @@ public struct Lexicon: Sendable {
         return node
     }
 
+    /// The node one letter (1...26) below `node`, if any.
+    @inline(__always)
+    func child(of node: Int32, label k: Int) -> Int32? {
+        let start = Int(edgeStart[Int(node)])
+        for i in start..<(start + Int(edgeCount[Int(node)])) where Int(edgeLabels[i]) == k {
+            return edgeTargets[i]
+        }
+        return nil
+    }
+
     public func contains(_ word: String) -> Bool {
         guard let n = node(for: word) else { return false }
         return !wordLogPrior[Int(n)].isNaN

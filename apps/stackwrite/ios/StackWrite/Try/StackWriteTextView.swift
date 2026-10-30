@@ -71,6 +71,12 @@ final class TextBox: TextTarget {
     func insertText(_ text: String) { textView?.insertText(text) }
     func deleteBackward() { textView?.deleteBackward() }
 
+    func setMarkedText(_ text: String) {
+        textView?.setMarkedText(text, selectedRange: NSRange(location: (text as NSString).length, length: 0))
+    }
+
+    func unmarkText() { textView?.unmarkText() }
+
     func focus() { textView?.becomeFirstResponder() }
     func unfocus() { textView?.resignFirstResponder() }
     func clear() { textView?.text = "" }

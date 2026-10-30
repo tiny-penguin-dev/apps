@@ -1,7 +1,33 @@
 # StackWrite — model prototype
 
-A handwriting recognizer for a keyboard where you write a whole word as **one finger
-stroke**, with every letter **stacked in the same spot** (no finger lifts, no looking).
+A handwriting recognizer for a keyboard where every letter is **stacked in the same spot**
+(no looking).
+
+## Phrases with finger lifts (current)
+
+You lift your finger whenever you like, and the model decides where words end.
+
+- `phrases.py` synthesizes 1–4 word phrases as timed strokes. Each synthetic writer has a
+  speed, a usual lift, how often they join letters, tap between words, pause between words,
+  or stop to think mid-word, so no single cue decides a word break.
+- Features (`featurize_strokes`, 9 per point): the 5 below plus stroke start, the lift
+  before the stroke (absolute and relative to the writer's usual lift) and stroke length.
+- The model is `ConvStrokeNet` with 9 inputs and 28 outputs (blank, a–z, space).
+  `train_phrases.py` generates fresh phrases in worker processes as it trains, starting
+  from the single-word model.
+- `decode_phrase.py` searches the dictionary with word transitions: a space after a word
+  commits it, a space mid-word can be ignored ("televi sion" → "television"), and a word can
+  end with no space at all, each for a penalty.
+
+Result after 1 hour on an M-series GPU, 300 synthetic phrases: 98.7% exactly right with the
+decoder, word error rate 1.1% (83.7% exact without the dictionary).
+
+```bash
+python3 train_phrases.py --init runs/final.pt --out runs/phrase.pt --minutes 60
+python3 eval_phrases.py runs/phrase.pt --n 300 --tune
+```
+
+The rest of this file describes the original one-stroke-per-word model.
 
 ## How it works
 

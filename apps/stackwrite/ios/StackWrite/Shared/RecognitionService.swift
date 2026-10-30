@@ -2,13 +2,18 @@ import Foundation
 import Observation
 import StackWriteKit
 
-/// Loads the model and dictionary once, off the main thread, and recognizes strokes.
+/// Loads the model and dictionary once, off the main thread, and reads strokes.
+/// Also keeps the writer's recent lifts between letters, so a slow writer's
+/// pauses are judged against their own pace.
 @MainActor @Observable
 final class RecognitionService {
     private(set) var recognizer: Recognizer?
     /// The dictionary, also used to pick training prompts.
     private(set) var entries: [Lexicon.Entry] = []
     private(set) var loadError: String?
+
+    private static let liftsKey = "recentLifts"
+    private var recentLifts: [Double] = UserDefaults.standard.array(forKey: liftsKey) as? [Double] ?? []
 
     var statusText: String {
         if recognizer != nil { return "Ready" }
@@ -33,8 +38,23 @@ final class RecognitionService {
         }
     }
 
-    func recognize(_ points: [StrokePoint]) -> Recognizer.Result? {
-        try? recognizer?.recognize(points)
+    /// `partial` allows an unfinished last word, for reading while the writer
+    /// is still going.
+    func recognize(_ strokes: [[StrokePoint]], partial: Bool = false) -> Recognizer.Result? {
+        guard !strokes.isEmpty else { return nil }
+        return try? recognizer?.recognize(strokes, liftScale: liftScale, partial: partial)
+    }
+
+    /// The writer's usual lift, once there are enough to tell; until then the
+    /// model measures it from the strokes it's reading.
+    var liftScale: Double? {
+        recentLifts.count >= 8 ? Features.writerLiftScale(recentLifts) : nil
+    }
+
+    /// Remembers the lifts of finished writing (the last 100).
+    func learnLifts(_ lifts: [Double]) {
+        recentLifts = Array((recentLifts + lifts.filter { $0 > 0 && $0 < 5 }).suffix(100))
+        UserDefaults.standard.set(recentLifts, forKey: Self.liftsKey)
     }
 }
 

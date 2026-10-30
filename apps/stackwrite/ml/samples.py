@@ -8,7 +8,7 @@ from pathlib import Path
 import numpy as np
 from letters import ALPHABET
 
-FORMAT_VERSION = 1
+FORMAT_VERSION = 2
 
 
 def _from_bytes(raw, where):
@@ -17,8 +17,10 @@ def _from_bytes(raw, where):
     except json.JSONDecodeError as e:
         print(f"skipping {where}: {e}")
         return None
-    if not isinstance(s, dict) or "points" not in s or "label" not in s:
+    if not isinstance(s, dict) or "label" not in s or ("points" not in s and "strokes" not in s):
         return None
+    if "strokes" not in s:                      # version 1: one stroke
+        s["strokes"] = [s.pop("points")]
     if s.get("version", 1) > FORMAT_VERSION:
         print(f"skipping {where}: format version {s['version']} is newer than this script")
         return None
@@ -53,15 +55,18 @@ def read(paths):
             if s: yield s
 
 
-def load(paths, dedupe=True):
-    """All usable samples: label is a-z only and the stroke has at least 2 points."""
+def load(paths, dedupe=True, phrases=False):
+    """All usable samples: label is a-z only and the stroke has at least 2 points.
+    phrases=True also keeps multi-word, multi-stroke recordings (labels with spaces)."""
     out, seen, skipped = [], set(), 0
     for s in read(paths):
         if dedupe and s.get("id") in seen:
             continue
         seen.add(s.get("id"))
-        label = s["label"].lower()
-        if not label or any(c not in ALPHABET for c in label) or len(s["points"]) < 2:
+        label = " ".join(s["label"].lower().split())
+        allowed = ALPHABET + (" " if phrases else "")
+        one_stroke = len(s["strokes"]) == 1 and len(s["strokes"][0]) >= 2
+        if not label or any(c not in allowed for c in label) or not (phrases or one_stroke):
             skipped += 1
             continue
         s["label"] = label
@@ -72,5 +77,10 @@ def load(paths, dedupe=True):
 
 
 def path_of(sample):
-    """The stroke as an (N, 2) array in box units, y up."""
-    return np.asarray(sample["points"], dtype=float)[:, :2]
+    """A one-stroke sample's stroke as an (N, 2) array in box units, y up."""
+    return np.asarray(sample["strokes"][0], dtype=float)[:, :2]
+
+
+def strokes_of(sample):
+    """The strokes as (N, 3) arrays of x, y, t (for phrases.featurize_strokes)."""
+    return [np.asarray(s, dtype=float) for s in sample["strokes"] if len(s)]

@@ -3,3 +3,4 @@ data/
 runs/*
 !runs/final.pt
 !runs/*.log
+samples/

@@ -15,6 +15,7 @@
 		5A0000000000000000000011 /* Project.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Project.xcconfig; sourceTree = "<group>"; };
 		5A0000000000000000000012 /* StackWrite.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = StackWrite.xcconfig; sourceTree = "<group>"; };
 		5A0000000000000000000013 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		5A0000000000000000000015 /* StackWrite.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = StackWrite.entitlements; sourceTree = "<group>"; };
 		5A0000000000000000000014 /* StackWriteKit */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = StackWriteKit; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -58,6 +59,7 @@
 				5A0000000000000000000011 /* Project.xcconfig */,
 				5A0000000000000000000012 /* StackWrite.xcconfig */,
 				5A0000000000000000000013 /* Info.plist */,
+				5A0000000000000000000015 /* StackWrite.entitlements */,
 			);
 			path = Config;
 			sourceTree = "<group>";

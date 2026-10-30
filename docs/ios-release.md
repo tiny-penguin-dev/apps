@@ -16,6 +16,20 @@ iOS apps build and ship with GitHub Actions on macOS runners. There's no Xcode C
 - Signing is automatic. The upload step uses an App Store Connect API key with
   cloud-managed signing, so no certificates or profiles live in the repo or in secrets.
 
+## Entitlements (iCloud and other capabilities)
+
+An app that sets `CODE_SIGN_ENTITLEMENTS` in its xcconfig is archived with an ad hoc
+signature instead of unsigned, because export only keeps entitlements the archived app
+was signed with. The workflow then checks that every key in the entitlements file is in
+the archive, and stops before uploading if one is missing. Export uses the production
+CloudKit environment.
+
+For iCloud, the workflow turns the capability on for the bundle ID through the API
+(`scripts/ios/asc-prepare-app.py`) and expects automatic signing at export to register
+the container and link it. If export fails on the container, create it by hand as a
+fallback: developer.apple.com → Identifiers → iCloud Containers → +, then turn on iCloud
+(CloudKit) for the App ID and tick that container.
+
 ## Shared build settings
 
 - `config/ios/Project.xcconfig`: project-level settings for every app (team, iOS

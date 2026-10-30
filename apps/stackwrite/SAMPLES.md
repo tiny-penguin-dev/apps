@@ -32,6 +32,9 @@ type is `StrokeSample` (`ios/StackWriteKit`); the Python reader is `ml/samples.p
 | `prompt` | The words shown together, when prompted. |
 | `recognized` | What the model read at the time, best first. |
 
-Today the app keeps samples in `Documents/Samples/<id>.json` (also visible in the Files
-app) and exports them as a zip. `ml/import_captures.py` and `ml/finetune.py` read
-folders, zips and `.jsonl` files of them.
+The app keeps samples in `Documents/Samples/<id>.json` (also visible in the Files app)
+and can export them as a zip. With uploads on, it sends each one to the public CloudKit
+database as a `Sample` record named after its `id`, with the JSON in its `json` field
+(`cloudkit/`), then moves the file to `Documents/Samples/Uploaded/`.
+`ml/download_samples.py` saves them back as JSON files. `ml/import_captures.py` and
+`ml/finetune.py` read folders, zips and `.jsonl` files of them.

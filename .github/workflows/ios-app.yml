@@ -132,6 +132,15 @@ jobs:
         if: steps.secrets.outputs.ready == 'true'
         run: |
           set -o pipefail
+          # Export keeps only the entitlements the archived app was signed with,
+          # so an app with entitlements is signed ad hoc here (export re-signs it
+          # properly); one without is archived unsigned.
+          if [ -n "$ENTITLEMENTS" ]; then
+            SIGNING=(CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=- AD_HOC_CODE_SIGNING_ALLOWED=YES
+                     PROVISIONING_PROFILE_SPECIFIER= DEVELOPMENT_TEAM="$TEAM_ID")
+          else
+            SIGNING=(CODE_SIGNING_ALLOWED=NO)
+          fi
           xcodebuild archive \
             -project "${{ inputs.scheme }}.xcodeproj" \
             -scheme "${{ inputs.scheme }}" \
@@ -139,15 +148,32 @@ jobs:
             -destination 'generic/platform=iOS' \
             -archivePath "$ARCHIVE" \
             CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
-            CODE_SIGNING_ALLOWED=NO
+            "${SIGNING[@]}"
+
+      - name: Check entitlements
+        if: steps.secrets.outputs.ready == 'true' && env.ENTITLEMENTS != ''
+        # Stop before uploading if any entitlement the app asks for is missing.
+        run: |
+          APP="$(find "$ARCHIVE/Products/Applications" -maxdepth 1 -name '*.app' | head -1)"
+          codesign -d --entitlements - --xml "$APP" > "$RUNNER_TEMP/archived.plist"
+          python3 - "$ENTITLEMENTS" "$RUNNER_TEMP/archived.plist" <<'PY'
+          import plistlib, sys
+          wanted = plistlib.load(open(sys.argv[1], "rb"))
+          got = plistlib.load(open(sys.argv[2], "rb"))
+          missing = [k for k in wanted if k not in got]
+          if missing:
+              sys.exit(f"::error::The archive is missing entitlements: {', '.join(missing)}")
+          print("Archive has entitlements:", ", ".join(wanted))
+          PY
 
       - name: Export and upload
         if: steps.secrets.outputs.ready == 'true'
         run: |
           set -o pipefail
-          # The archive is unsigned, so it carries no team: the export options
-          # name it. Export signs with cloud-managed distribution signing and uploads
-          # straight to App Store Connect.
+          # The archive is unsigned or ad hoc, so it carries no team: the export
+          # options name it. Export signs with cloud-managed distribution signing
+          # and uploads straight to App Store Connect. iCloud apps get the
+          # production CloudKit environment.
           cat > "$RUNNER_TEMP/ExportOptions.plist" <<PLIST
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -159,6 +185,7 @@ jobs:
             <key>teamID</key><string>$TEAM_ID</string>
             <key>manageAppVersionAndBuildNumber</key><false/>
             <key>uploadSymbols</key><true/>
+            <key>iCloudContainerEnvironment</key><string>Production</string>
           </dict>
           </plist>
           PLIST

@@ -6,11 +6,16 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		5A0000000000000000000082 /* StackWriteKit in Frameworks */ = {isa = PBXBuildFile; productRef = 5A0000000000000000000081 /* StackWriteKit */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		5A0000000000000000000010 /* StackWrite.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = StackWrite.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		5A0000000000000000000011 /* Project.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Project.xcconfig; sourceTree = "<group>"; };
 		5A0000000000000000000012 /* StackWrite.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = StackWrite.xcconfig; sourceTree = "<group>"; };
 		5A0000000000000000000013 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		5A0000000000000000000014 /* StackWriteKit */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = StackWriteKit; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -22,6 +27,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				5A0000000000000000000082 /* StackWriteKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -32,6 +38,7 @@
 			isa = PBXGroup;
 			children = (
 				5A0000000000000000000020 /* StackWrite */,
+				5A0000000000000000000014 /* StackWriteKit */,
 				5A0000000000000000000003 /* Config */,
 				5A0000000000000000000002 /* Products */,
 			);
@@ -75,6 +82,7 @@
 			);
 			name = StackWrite;
 			packageProductDependencies = (
+				5A0000000000000000000081 /* StackWriteKit */,
 			);
 			productName = StackWrite;
 			productReference = 5A0000000000000000000010 /* StackWrite.app */;
@@ -104,6 +112,9 @@
 			);
 			mainGroup = 5A0000000000000000000001;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				5A0000000000000000000080 /* XCLocalSwiftPackageReference "StackWriteKit" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 5A0000000000000000000002 /* Products */;
 			projectDirPath = "";
@@ -185,6 +196,20 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		5A0000000000000000000080 /* XCLocalSwiftPackageReference "StackWriteKit" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = StackWriteKit;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		5A0000000000000000000081 /* StackWriteKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = StackWriteKit;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 5A0000000000000000000050 /* Project object */;
 }

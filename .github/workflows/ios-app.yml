@@ -14,6 +14,11 @@ on:
         description: Xcode scheme (also the .xcodeproj name)
         required: true
         type: string
+      test-package:
+        description: Local Swift package to run `swift test` on before the build, relative to app-dir (optional)
+        required: false
+        type: string
+        default: ""
       deploy:
         description: Archive and upload to TestFlight after the build
         required: false
@@ -39,6 +44,10 @@ jobs:
 
       - name: Show Xcode version
         run: xcodebuild -version
+
+      - name: Test Swift package
+        if: inputs.test-package != ''
+        run: swift test --package-path "${{ inputs.test-package }}"
 
       - name: Build for simulator
         run: |

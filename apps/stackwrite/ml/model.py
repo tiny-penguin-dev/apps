@@ -21,15 +21,15 @@ class ConvStrokeNet(nn.Module):
     """All-convolution version: much faster on CPU / Neural Engine, easy Core ML export.
     Receptive field ~5 letters in both directions."""
 
-    def __init__(self, ch=128, dils=(1, 2, 4, 8, 1, 2, 4, 8)):
+    def __init__(self, ch=128, dils=(1, 2, 4, 8, 1, 2, 4, 8), features=FEATURES, classes=N_CLASSES):
         super().__init__()
         self.stem = nn.Sequential(
-            nn.Conv1d(FEATURES, 64, 5, padding=2), nn.GELU(),
+            nn.Conv1d(features, 64, 5, padding=2), nn.GELU(),
             nn.Conv1d(64, 128, 5, stride=2, padding=2), nn.GELU(),
             nn.Conv1d(128, ch, 5, stride=2, padding=2), nn.GELU(),
         )
         self.blocks = nn.Sequential(*[ResBlock(ch, d) for d in dils])
-        self.out = nn.Conv1d(ch, N_CLASSES, 1)
+        self.out = nn.Conv1d(ch, classes, 1)
 
     out_lens = staticmethod(lambda lens: (((lens - 1) // 2 + 1) - 1) // 2 + 1)
 

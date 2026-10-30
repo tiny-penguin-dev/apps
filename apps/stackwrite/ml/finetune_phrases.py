@@ -11,7 +11,7 @@ Every batch is half your writing (slightly reshaped and re-timed each time,
 so the model doesn't memorize exact strokes) and half fresh synthetic
 phrases, so it keeps what it knew.
 """
-import argparse, math, shutil, subprocess, sys, time
+import argparse, json, math, shutil, subprocess, sys, time
 from pathlib import Path
 import numpy as np, torch, torch.nn as nn
 from torch.utils.data import DataLoader
@@ -79,6 +79,8 @@ def main():
     ap.add_argument("--writer", help="only use samples from this writer ID")
     ap.add_argument("--device", default="auto")
     ap.add_argument("--ship", action="store_true", help="export the new model into the iOS app")
+    ap.add_argument("--compare", nargs="*", default=[], help="other models to score on the same held-back samples")
+    ap.add_argument("--report", help="write the scores here as JSON")
     a = ap.parse_args()
 
     items = S.load(a.inputs, phrases=True)
@@ -152,6 +154,30 @@ def main():
         print(f"  ({before['exact']:.1%} → {after['exact']:.1%} exactly right)")
     report("phrases it trained on (optimistic)", model, train_items, scales, trie)
     print(f"\nnew weights: {out}")
+
+    if a.report:
+        phrases = [s for s in test_items if s.get("version", 1) >= 2]
+
+        def scores(m):
+            c, e = synth_score(m)
+            r = {"synthetic_exact": e}
+            for key, group in (("held_back", test_items), ("held_back_phrases", phrases)):
+                if group:
+                    truths, _, decoded = read(m, group, scales, trie)
+                    r[key] = score(decoded, truths)
+            return r
+
+        result = {"samples": len(items), "phrases": sum(s.get("version", 1) >= 2 for s in items),
+                  "trained_on": len(train_items), "held_back": len(test_items),
+                  "held_back_phrase_count": len(phrases), "minutes": a.minutes,
+                  "models": {str(a.out): scores(model)}}
+        for path in a.compare:
+            if (HERE / path).exists():
+                other = ConvStrokeNet(features=FEATURES, classes=N_CLASSES)
+                other.load_state_dict(torch.load(HERE / path, map_location="cpu"))
+                result["models"][str(path)] = scores(other.to(dev))
+        Path(HERE / a.report).write_text(json.dumps(result, indent=1))
+        print(f"scores: {a.report}")
 
     if a.ship:
         run("export.py", "--model", out, "--out", "export/StackWrite")

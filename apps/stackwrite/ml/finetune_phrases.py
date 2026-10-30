@@ -46,6 +46,10 @@ def augment(strokes, rng):
     return out
 
 
+def as_list(batch):
+    return batch
+
+
 def run(*args):
     print("$", " ".join(map(str, args)), flush=True)
     subprocess.run([sys.executable, *map(str, args)], cwd=HERE, check=True)
@@ -82,7 +86,13 @@ def main():
         items = [s for s in items if s.get("writer") == a.writer]
     if len(items) < 20:
         sys.exit(f"Only {len(items)} usable samples. Record at least 50 phrases first.")
-    train_items, test_items = split(items, a.test) if a.test > 0 else (items, [])
+    # Hold back sessions of phrases and of old one-word recordings separately,
+    # so the score covers writing with lifts whenever there is more than one session of it.
+    train_items, test_items = [], []
+    for kind in (True, False):
+        group = [s for s in items if (s.get("version", 1) >= 2) == kind]
+        tr, te = split(group, a.test) if a.test > 0 and group else (group, [])
+        train_items += tr; test_items += te
     scales = writer_scales(items)
     print(f"{len(items)} samples ({sum(len(s['strokes']) > 1 for s in items)} with finger lifts): "
           f"{len(train_items)} to train on, {len(test_items)} held back")
@@ -107,7 +117,7 @@ def main():
 
     # Fine-tune.
     half = a.bs // 2
-    loader = iter(DataLoader(Phrases(2, words, probs), batch_size=half, collate_fn=lambda b: b,
+    loader = iter(DataLoader(Phrases(2, words, probs), batch_size=half, collate_fn=as_list,
                              num_workers=a.workers, persistent_workers=a.workers > 0))
     rng = np.random.default_rng(0)
     opt = torch.optim.AdamW(model.parameters(), lr=a.lr, weight_decay=1e-4)

@@ -98,7 +98,8 @@ Each stroke is resampled on its own, then the rows are concatenated in stroke or
 - Each committed word adds `0.5 * wordPrior + 0.5`. Beams are ranked by CTC probability
   plus that score; keep 32.
 - At the end an unfinished last word is dropped, unless decoding `partial` (live typing),
-  where it stays as typed so far. Return the top 5 texts.
+  where it stays as typed so far. If that leaves nothing, the unfinished readings are
+  returned instead. Return the top 5 texts.
 - `golden.json` checks the same features → logprobs within fp16 tolerance → the same texts.
 
 ## Build plan

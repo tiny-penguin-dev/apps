@@ -156,21 +156,30 @@ public struct PhraseDecoder: Sendable {
             for i in beams.indices { beams[i].order = i }
         }
 
+        // Complete phrases; if none survived (the writing stopped mid-word),
+        // the unfinished ones, so there is always a reading.
         var best = [String: Double]()
+        var unfinished = [String: Double]()
         for b in beams {
             var s = b.score
+            var complete = true
             if b.node != 0 {
                 if isWord(b.node) {
                     s += wordScore(b.node)
                 } else if !partial {
-                    continue
+                    complete = false
                 }
             }
             let text = prefixes.text(b.prefix)
-            guard !text.isEmpty, s.isFinite, s > best[text] ?? -.infinity else { continue }
-            best[text] = s
+            guard !text.isEmpty, s.isFinite else { continue }
+            if complete {
+                if s > best[text] ?? -.infinity { best[text] = s }
+            } else if s > unfinished[text] ?? -.infinity {
+                unfinished[text] = s
+            }
         }
-        let out = best.map { Candidate(text: $0.key, score: $0.value) }.sorted { $0.score > $1.score }
+        let out = (best.isEmpty ? unfinished : best)
+            .map { Candidate(text: $0.key, score: $0.value) }.sorted { $0.score > $1.score }
         return Array(out.prefix(topK))
     }
 }

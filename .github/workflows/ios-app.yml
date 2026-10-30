@@ -86,20 +86,14 @@ jobs:
       - uses: actions/checkout@v5
         if: steps.secrets.outputs.ready == 'true'
 
-      - name: Archive and upload
+      - name: Write API key and read build settings
         if: steps.secrets.outputs.ready == 'true'
         run: |
-          set -o pipefail
           KEY_PATH="$RUNNER_TEMP/AuthKey_$ASC_KEY_ID.p8"
           printf '%s\n' "$ASC_PRIVATE_KEY" > "$KEY_PATH"
-          AUTH=(-allowProvisioningUpdates
-                -authenticationKeyPath "$KEY_PATH"
-                -authenticationKeyID "$ASC_KEY_ID"
-                -authenticationKeyIssuerID "$ASC_ISSUER_ID")
 
           # Build number = commit time in UTC, so it always goes up.
           BUILD_NUMBER="$(TZ=UTC git show -s --format=%cd --date=format-local:'%Y%m%d%H%M' HEAD)"
-          echo "Build number: $BUILD_NUMBER"
 
           SETTINGS="$(xcodebuild -showBuildSettings \
             -project "${{ inputs.scheme }}.xcodeproj" \
@@ -112,14 +106,29 @@ jobs:
             echo "::error::DEVELOPMENT_TEAM or PRODUCT_BUNDLE_IDENTIFIER is not set in the build settings."
             exit 1
           fi
-          echo "Team: $TEAM_ID, bundle ID: $BUNDLE_ID"
+          echo "Build number: $BUILD_NUMBER, team: $TEAM_ID, bundle ID: $BUNDLE_ID"
 
-          # Register the bundle ID if needed, check the app record exists and
-          # sync the TestFlight testers with Config/testflight.json.
-          ASC_KEY_PATH="$KEY_PATH" python3 "$GITHUB_WORKSPACE/scripts/ios/asc-prepare-app.py" \
-            "$BUNDLE_ID" "${{ inputs.scheme }}" Config/testflight.json
+          {
+            echo "ASC_KEY_PATH=$KEY_PATH"
+            echo "BUILD_NUMBER=$BUILD_NUMBER"
+            echo "TEAM_ID=$TEAM_ID"
+            echo "BUNDLE_ID=$BUNDLE_ID"
+            echo "ARCHIVE=$RUNNER_TEMP/${{ inputs.scheme }}.xcarchive"
+          } >> "$GITHUB_ENV"
 
-          ARCHIVE="$RUNNER_TEMP/${{ inputs.scheme }}.xcarchive"
+      - name: Prepare App Store Connect
+        if: steps.secrets.outputs.ready == 'true'
+        # Registers the bundle ID if needed and checks the app record exists.
+        run: python3 "$GITHUB_WORKSPACE/scripts/ios/asc-prepare-app.py" "$BUNDLE_ID" "${{ inputs.scheme }}"
+
+      - name: Sync TestFlight testers
+        if: steps.secrets.outputs.ready == 'true' && hashFiles(format('{0}/Config/testflight.json', inputs.app-dir)) != ''
+        run: python3 "$GITHUB_WORKSPACE/scripts/ios/asc-sync-testers.py" "$BUNDLE_ID" Config/testflight.json
+
+      - name: Archive
+        if: steps.secrets.outputs.ready == 'true'
+        run: |
+          set -o pipefail
           xcodebuild archive \
             -project "${{ inputs.scheme }}.xcodeproj" \
             -scheme "${{ inputs.scheme }}" \
@@ -129,6 +138,10 @@ jobs:
             CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
             CODE_SIGNING_ALLOWED=NO
 
+      - name: Export and upload
+        if: steps.secrets.outputs.ready == 'true'
+        run: |
+          set -o pipefail
           # The archive is unsigned, so it carries no team: the export options
           # name it. Export signs with cloud-managed distribution signing and uploads
           # straight to App Store Connect.
@@ -151,7 +164,10 @@ jobs:
             -archivePath "$ARCHIVE" \
             -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
             -exportPath "$RUNNER_TEMP/export" \
-            "${AUTH[@]}"
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$ASC_KEY_PATH" \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID"
 
           echo "Uploaded ${{ inputs.scheme }} build $BUILD_NUMBER to App Store Connect." >> "$GITHUB_STEP_SUMMARY"
 

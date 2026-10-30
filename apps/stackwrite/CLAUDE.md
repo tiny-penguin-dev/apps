@@ -84,8 +84,9 @@ python3 finetune_phrases.py samples/cloud [--ship]               # fine-tune on 
 and update `models/shipped.pt` and `models/shipped.json`. Two ways to run it:
 
 - **GitHub:** Actions → "StackWrite train" → Run workflow (`stackwrite-train.yml`). It
-  commits to main and starts the TestFlight build. Needs the repo secrets
-  `CLOUDKIT_KEY_ID` and `CLOUDKIT_PRIVATE_KEY`. `machine: mac` runs it on Gabriel's Mac as a
+  commits to main and starts the TestFlight build. On GitHub's runner it needs the repo
+  secrets `CLOUDKIT_KEY_ID` and `CLOUDKIT_PRIVATE_KEY`; the Mac runner uses the key in
+  `~/.config/stackwrite`. `machine: mac` runs it on Gabriel's Mac as a
   self-hosted runner (label `stackwrite`), with its GPU; `cloud` uses GitHub's macOS runner
   (CPU, slower).
 - **Mac:** `ml/train_and_ship.sh [--minutes 15]` from the main checkout. Same steps,

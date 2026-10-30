@@ -55,12 +55,17 @@ jobs:
           CLOUDKIT_KEY_ID: ${{ secrets.CLOUDKIT_KEY_ID }}
           CLOUDKIT_PRIVATE_KEY: ${{ secrets.CLOUDKIT_PRIVATE_KEY }}
         run: |
-          export CLOUDKIT_KEY_PATH="$RUNNER_TEMP/cloudkit-key.pem"
-          printf '%s\n' "$CLOUDKIT_PRIVATE_KEY" > "$CLOUDKIT_KEY_PATH"
+          # Without the secrets (the Mac runner), the key in ~/.config/stackwrite is used.
+          if [ -n "$CLOUDKIT_PRIVATE_KEY" ]; then
+            export CLOUDKIT_KEY_PATH="$RUNNER_TEMP/cloudkit-key.pem"
+            printf '%s\n' "$CLOUDKIT_PRIVATE_KEY" > "$CLOUDKIT_KEY_PATH"
+            trap 'rm -f "$CLOUDKIT_KEY_PATH"' EXIT
+          else
+            unset CLOUDKIT_KEY_ID
+          fi
           args=(--minutes "${{ inputs.minutes }}")
           if [ "${{ inputs.force }}" = "true" ]; then args+=(--force); fi
           python3 train_and_ship.py "${args[@]}"
-          rm -f "$CLOUDKIT_KEY_PATH"
 
       - name: Check the app's recognizer still matches
         if: steps.train.outputs.shipped == 'true'

@@ -92,6 +92,19 @@ jobs:
           BUILD_NUMBER="$(TZ=UTC git show -s --format=%cd --date=format-local:'%Y%m%d%H%M' HEAD)"
           echo "Build number: $BUILD_NUMBER"
 
+          # The archive is unsigned, so it carries no team. Read the team from
+          # the build settings and give it to the export step instead.
+          TEAM_ID="$(xcodebuild -showBuildSettings \
+            -project "${{ inputs.scheme }}.xcodeproj" \
+            -scheme "${{ inputs.scheme }}" \
+            -configuration Release 2>/dev/null \
+            | awk '$1 == "DEVELOPMENT_TEAM" { print $3; exit }')"
+          if [ -z "$TEAM_ID" ]; then
+            echo "::error::DEVELOPMENT_TEAM is not set in the build settings."
+            exit 1
+          fi
+          echo "Team: $TEAM_ID"
+
           ARCHIVE="$RUNNER_TEMP/${{ inputs.scheme }}.xcarchive"
           xcodebuild archive \
             -project "${{ inputs.scheme }}.xcodeproj" \
@@ -112,6 +125,7 @@ jobs:
             <key>method</key><string>app-store-connect</string>
             <key>destination</key><string>upload</string>
             <key>signingStyle</key><string>automatic</string>
+            <key>teamID</key><string>$TEAM_ID</string>
             <key>manageAppVersionAndBuildNumber</key><false/>
             <key>uploadSymbols</key><true/>
           </dict>

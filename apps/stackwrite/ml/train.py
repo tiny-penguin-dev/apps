@@ -7,6 +7,17 @@ from letters import ALPHABET
 torch.set_num_threads(2)
 
 
+def pick_device(name="auto"):
+    """cuda, then Apple's GPU (mps), then CPU."""
+    if name != "auto":
+        return torch.device(name)
+    if torch.cuda.is_available():
+        return torch.device("cuda")
+    if torch.backends.mps.is_available():
+        return torch.device("mps")
+    return torch.device("cpu")
+
+
 def batches(feats, labels, bs, rng):
     order = np.argsort([len(f) + rng.uniform(0, 30) for f in feats])
     chunks = [order[i:i + bs] for i in range(0, len(order), bs)]
@@ -50,15 +61,20 @@ def edit(a, b):
 @torch.no_grad()
 def evaluate(model, feats, labels, n=None):
     model.eval()
-    n = n or len(feats)
+    dev = next(model.parameters()).device
+    n = min(n or len(feats), len(feats))
     errs = chars = exact = 0
     for i in range(0, n, 128):
         x, lens, _, _, ls = collate(feats[i:i + 128], labels[i:i + 128])
-        lp = model(x, lens)
+        lp = model(x.to(dev), lens).cpu()
         for p, t in zip(greedy(lp, model.out_lens(lens)), ls):
             errs += edit(p, t); chars += len(t); exact += p == t
     model.train()
     return errs / chars, exact / n
+
+
+def save(model, path):
+    torch.save({k: v.cpu() for k, v in model.state_dict().items()}, path)
 
 
 def main():
@@ -70,7 +86,10 @@ def main():
     ap.add_argument("--bs", type=int, default=64)
     ap.add_argument("--init")
     ap.add_argument("--out", required=True)
+    ap.add_argument("--device", default="auto", help="auto, cpu, mps or cuda")
     a = ap.parse_args()
+    dev = pick_device(a.device)
+    print(f"device: {dev}", flush=True)
 
     feats, labels = [], []
     for p in a.train:
@@ -80,7 +99,8 @@ def main():
 
     model = StrokeNet()
     if a.init:
-        model.load_state_dict(torch.load(a.init))
+        model.load_state_dict(torch.load(a.init, map_location="cpu"))
+    model.to(dev)
     print(f"params: {sum(p.numel() for p in model.parameters()):,}", flush=True)
     opt = torch.optim.AdamW(model.parameters(), lr=a.lr, weight_decay=1e-4)
     ctc = nn.CTCLoss(blank=0, zero_infinity=True)
@@ -96,8 +116,9 @@ def main():
             # warmup then cosine decay, driven by wall-clock budget
             lr = a.lr * min(1, step / 300) * 0.5 * (1 + math.cos(math.pi * frac))
             for g in opt.param_groups: g["lr"] = lr
-            lp = model(x, lens)
-            loss = ctc(lp.transpose(0, 1), tgt, model.out_lens(lens), tlens)
+            lp = model(x.to(dev), lens)
+            # CTC loss runs on the CPU: MPS doesn't implement it.
+            loss = ctc(lp.transpose(0, 1).cpu(), tgt, model.out_lens(lens), tlens)
             opt.zero_grad(); loss.backward()
             nn.utils.clip_grad_norm_(model.parameters(), 1.0)
             opt.step()
@@ -107,8 +128,8 @@ def main():
                 msg = " ".join(f"{p.split('/')[-1][:-4]}: cer={c:.3f} exact={e:.3f}"
                                for p, (vf, vl) in vals.items() for c, e in [evaluate(model, vf, vl, 512)])
                 print(f"step {step} {(time.time()-t0)/60:.1f}m lr={lr:.2e} loss={ema:.3f} | {msg}", flush=True)
-                torch.save(model.state_dict(), a.out)
-    torch.save(model.state_dict(), a.out)
+                save(model, a.out)
+    save(model, a.out)
     for p, (vf, vl) in vals.items():
         c, e = evaluate(model, vf, vl)
         print(f"FINAL {p}: cer={c:.4f} exact={e:.4f}", flush=True)

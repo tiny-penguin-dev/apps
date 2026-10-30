@@ -5,6 +5,7 @@ import SwiftUI
 struct TrainView: View {
     @Environment(RecognitionService.self) private var recognition
     @Environment(SampleStore.self) private var samples
+    @Environment(SampleUploader.self) private var uploader
 
     @State private var phrase: [String] = []
     @State private var index = 0
@@ -67,6 +68,7 @@ struct TrainView: View {
             Text(errorMessage ?? "")
         }
         .sensoryFeedback(.success, trigger: sessionCount)
+        .onDisappear { uploader.upload() }
         .onChange(of: recognition.entries.count, initial: true) {
             if phrase.isEmpty { newPhrase() }
         }
@@ -128,6 +130,8 @@ struct TrainView: View {
         }
         saved[index] = sample.id
         sessionCount += 1
+        // Upload in batches; the last few words wait so Back can still take them out.
+        if samples.pendingCount >= 25 { uploader.upload() }
         feedback = Feedback(word: word, read: read)
         advance()
     }
@@ -145,7 +149,7 @@ struct TrainView: View {
         guard index > 0 else { return }
         index -= 1
         if let id = saved.removeValue(forKey: index) {
-            samples.delete(id)
+            if samples.delete(id) { uploader.remove(id) }
             sessionCount -= 1
         }
         feedback = nil

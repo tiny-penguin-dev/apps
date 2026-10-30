@@ -108,6 +108,7 @@ jobs:
           setting() { awk -v k="$1" '$1 == k { print $3; exit }' <<<"$SETTINGS"; }
           TEAM_ID="$(setting DEVELOPMENT_TEAM)"
           BUNDLE_ID="$(setting PRODUCT_BUNDLE_IDENTIFIER)"
+          ENTITLEMENTS="$(setting CODE_SIGN_ENTITLEMENTS)"
           if [ -z "$TEAM_ID" ] || [ -z "$BUNDLE_ID" ]; then
             echo "::error::DEVELOPMENT_TEAM or PRODUCT_BUNDLE_IDENTIFIER is not set in the build settings."
             exit 1
@@ -119,6 +120,15 @@ jobs:
           ASC_KEY_PATH="$KEY_PATH" python3 "$GITHUB_WORKSPACE/scripts/ios/asc-prepare-app.py" \
             "$BUNDLE_ID" "${{ inputs.scheme }}" Config/testflight.json
 
+          # Entitlements only survive export if the archive is signed, so an app
+          # with entitlements is signed ad hoc here; export re-signs it properly.
+          if [ -n "$ENTITLEMENTS" ]; then
+            ARCHIVE_SIGNING=(CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=- AD_HOC_CODE_SIGNING_ALLOWED=YES
+                             PROVISIONING_PROFILE_SPECIFIER= DEVELOPMENT_TEAM="$TEAM_ID")
+          else
+            ARCHIVE_SIGNING=(CODE_SIGNING_ALLOWED=NO)
+          fi
+
           ARCHIVE="$RUNNER_TEMP/${{ inputs.scheme }}.xcarchive"
           xcodebuild archive \
             -project "${{ inputs.scheme }}.xcodeproj" \
@@ -127,11 +137,27 @@ jobs:
             -destination 'generic/platform=iOS' \
             -archivePath "$ARCHIVE" \
             CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
-            CODE_SIGNING_ALLOWED=NO
+            "${ARCHIVE_SIGNING[@]}"
 
-          # The archive is unsigned, so it carries no team: the export options
-          # name it. Export signs with cloud-managed distribution signing and uploads
-          # straight to App Store Connect.
+          # Export keeps only the entitlements the archived app was signed with.
+          # Check every one the app asks for made it, so nothing ships without them.
+          if [ -n "$ENTITLEMENTS" ]; then
+            APP="$(find "$ARCHIVE/Products/Applications" -maxdepth 1 -name '*.app' | head -1)"
+            codesign -d --entitlements - --xml "$APP" > "$RUNNER_TEMP/archived.plist"
+            python3 - "$ENTITLEMENTS" "$RUNNER_TEMP/archived.plist" <<'PY'
+          import plistlib, sys
+          wanted = plistlib.load(open(sys.argv[1], "rb"))
+          got = plistlib.load(open(sys.argv[2], "rb"))
+          missing = [k for k in wanted if k not in got]
+          if missing:
+              sys.exit(f"::error::The archive is missing entitlements: {', '.join(missing)}")
+          print("Archive has entitlements:", ", ".join(wanted))
+          PY
+          fi
+
+          # Export names the team (the archive's ad hoc signature has none),
+          # signs with cloud-managed distribution signing and uploads straight
+          # to App Store Connect. iCloud apps use the production CloudKit environment.
           cat > "$RUNNER_TEMP/ExportOptions.plist" <<PLIST
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -143,6 +169,7 @@ jobs:
             <key>teamID</key><string>$TEAM_ID</string>
             <key>manageAppVersionAndBuildNumber</key><false/>
             <key>uploadSymbols</key><true/>
+            <key>iCloudContainerEnvironment</key><string>Production</string>
           </dict>
           </plist>
           PLIST

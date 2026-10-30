@@ -2,35 +2,65 @@ import Foundation
 import Observation
 import StackWriteKit
 
-/// Training samples on disk: one JSON file per word in Documents/Samples,
-/// which also shows up in the Files app.
+/// Training samples on disk: one JSON file per word in Documents/Samples
+/// (also visible in the Files app). Once uploaded, a file moves to
+/// Samples/Uploaded, so the folder itself is the upload queue.
 @MainActor @Observable
 final class SampleStore {
     private(set) var count = 0
+    /// Samples not uploaded yet.
+    private(set) var pendingCount = 0
     private let folder: URL
+    private let uploaded: URL
 
     init() {
         let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
         folder = documents.appendingPathComponent("Samples", isDirectory: true)
-        try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        count = files().count
+        uploaded = folder.appendingPathComponent("Uploaded", isDirectory: true)
+        try? FileManager.default.createDirectory(at: uploaded, withIntermediateDirectories: true)
+        refreshCounts()
     }
 
     func save(_ sample: StrokeSample) throws {
         let data = try StrokeSample.encoder.encode(sample)
         try data.write(to: url(for: sample.id), options: .atomic)
-        count += 1
+        refreshCounts()
     }
 
-    func delete(_ id: UUID) {
-        if (try? FileManager.default.removeItem(at: url(for: id))) != nil {
-            count -= 1
-        }
+    /// Removes a sample. Returns true if it had already been uploaded.
+    @discardableResult
+    func delete(_ id: UUID) -> Bool {
+        let fm = FileManager.default
+        try? fm.removeItem(at: url(for: id))
+        let wasUploaded = (try? fm.removeItem(at: url(for: id, in: uploaded))) != nil
+        refreshCounts()
+        return wasUploaded
     }
 
     func deleteAll() {
-        for file in files() { try? FileManager.default.removeItem(at: file) }
-        count = 0
+        for file in files(in: folder) + files(in: uploaded) { try? FileManager.default.removeItem(at: file) }
+        refreshCounts()
+    }
+
+    /// Samples waiting to upload, oldest first, as (id, JSON data).
+    func pending(limit: Int) -> [(id: UUID, data: Data)] {
+        let files = files(in: folder).sorted {
+            let a = (try? $0.resourceValues(forKeys: [.creationDateKey]).creationDate) ?? .distantPast
+            let b = (try? $1.resourceValues(forKeys: [.creationDateKey]).creationDate) ?? .distantPast
+            return a < b
+        }
+        return files.prefix(limit).compactMap { file in
+            guard let id = UUID(uuidString: file.deletingPathExtension().lastPathComponent),
+                  let data = try? Data(contentsOf: file) else { return nil }
+            return (id, data)
+        }
+    }
+
+    func markUploaded(_ ids: [UUID]) {
+        for id in ids {
+            try? FileManager.default.moveItem(at: url(for: id), to: url(for: id, in: uploaded))
+        }
+        refreshCounts()
     }
 
     /// Zips the samples folder into a temporary file for the share sheet.
@@ -52,12 +82,17 @@ final class SampleStore {
         return destination
     }
 
-    private func url(for id: UUID) -> URL {
-        folder.appendingPathComponent("\(id.uuidString).json")
+    private func refreshCounts() {
+        pendingCount = files(in: folder).count
+        count = pendingCount + files(in: uploaded).count
     }
 
-    private func files() -> [URL] {
-        let all = (try? FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil)) ?? []
+    private func url(for id: UUID, in directory: URL? = nil) -> URL {
+        (directory ?? folder).appendingPathComponent("\(id.uuidString).json")
+    }
+
+    private func files(in directory: URL) -> [URL] {
+        let all = (try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)) ?? []
         return all.filter { $0.pathExtension == "json" }
     }
 }

@@ -22,7 +22,8 @@ to ask Gabriel before Phase 3.
       `KeyboardController` holds the typing logic behind a `TextTarget` protocol shaped
       like `UITextDocumentProxy`, so the keyboard extension can reuse it.
     - `Train/`: the training screen: prompts words and saves each stroke as a sample
-    - `Shared/`: the writing pad, model loading, sample storage
+    - `Shared/`: the writing pad, model loading, sample storage and the CloudKit upload
+      (`SampleUploader`, off until the user turns it on)
     - `Model/`: copies of `ml/export/StackWrite.mlpackage` (as `StrokeModel.mlpackage`)
       and `lexicon.tsv`. `ml/finetune.py --ship` refreshes them.
   - `StackWriteKit/`: local Swift package shared by the app and (later) the keyboard:
@@ -30,7 +31,9 @@ to ask Gabriel before Phase 3.
     `Lexicon` (flat-array trie), `WordDecoder` (beam search) and `Recognizer` (Core ML).
     Its tests replay `ml/export/golden.json`.
   - `Config/`: `StackWrite.xcconfig` (bundle ID `com.tinypenguin.stackwrite`, version,
-    display name), `Project.xcconfig`, `Info.plist`, `testflight.json` (TestFlight
+    display name), `Project.xcconfig`, `Info.plist`, `StackWrite.entitlements` (iCloud
+    container `iCloud.com.tinypenguin.stackwrite`, CloudKit)
+- `cloudkit/`: the CloudKit schema for uploaded samples and the one-time console setup, `testflight.json` (TestFlight
     testers, synced on every upload; see `docs/ios-release.md`)
   - Still to add: the keyboard extension target (`com.tinypenguin.stackwrite.keyboard`)
 
@@ -65,6 +68,7 @@ python3 evaluate.py --model runs/final.pt --sets data/test_all.npz   # needs dat
 python3 export.py --model runs/final.pt --out export/StackWrite
 python3 finetune.py ~/Downloads/StackWrite-samples-*.zip          # train on recorded samples, score
 python3 finetune.py samples/ --ship                               # ...and copy the model into the app
+python3 download_samples.py && python3 finetune.py samples/cloud  # train on everything uploaded
 ```
 
 See `ml/README.md` for building data, training and personalizing. `data/` and

@@ -3,6 +3,7 @@ import SwiftUI
 struct HomeView: View {
     @Environment(RecognitionService.self) private var recognition
     @Environment(SampleStore.self) private var samples
+    @Environment(SampleUploader.self) private var uploader
     @State private var exportURL: URL?
     @State private var exportError: String?
 
@@ -24,8 +25,23 @@ struct HomeView: View {
                     Text("Write a whole word as one stroke, each letter on top of the last. Lift your finger to finish the word.")
                 }
 
-                Section("Training data") {
+                Section {
                     LabeledContent("Words recorded", value: samples.count.formatted())
+                    Toggle("Upload to help train StackWrite", isOn: Bindable(uploader).isEnabled)
+                    if uploader.isEnabled {
+                        Button {
+                            uploader.upload()
+                        } label: {
+                            LabeledContent("Upload now") {
+                                if uploader.isUploading {
+                                    ProgressView()
+                                } else {
+                                    Text("\(samples.pendingCount) waiting")
+                                }
+                            }
+                        }
+                        .disabled(samples.pendingCount == 0 || uploader.isUploading)
+                    }
                     Button("Export samples…", systemImage: "square.and.arrow.up") {
                         do {
                             exportURL = try samples.exportArchive()
@@ -34,6 +50,11 @@ struct HomeView: View {
                         }
                     }
                     .disabled(samples.count == 0)
+                } header: {
+                    Text("Training data")
+                } footer: {
+                    Text((uploader.status.map { $0 + "\n" } ?? "")
+                         + "Uploads go to StackWrite's iCloud database: the strokes you write and the word they spell, with no name or account attached. Nothing you type on the keyboard is sent.")
                 }
 
                 Section {

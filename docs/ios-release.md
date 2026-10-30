@@ -25,10 +25,14 @@ the archive, and stops before uploading if one is missing. Export uses the produ
 CloudKit environment.
 
 For iCloud, the workflow turns the capability on for the bundle ID through the API
-(`scripts/ios/asc-prepare-app.py`) and expects automatic signing at export to register
-the container and link it. If export fails on the container, create it by hand as a
-fallback: developer.apple.com → Identifiers → iCloud Containers → +, then turn on iCloud
-(CloudKit) for the App ID and tick that container.
+(`scripts/ios/asc-prepare-app.py`). The container itself is a one-time manual step:
+Apple's API has no way to create one, and automatic signing with the API key doesn't
+either (export fails with "No profiles for <bundle ID>"). Before the first upload:
+
+1. developer.apple.com → Identifiers → **+** → iCloud Containers. Register
+   `iCloud.<bundle ID>`.
+2. Open the App ID, tick iCloud with CloudKit support, click Configure, tick that
+   container and save.
 
 ## Shared build settings
 
@@ -62,8 +66,10 @@ build runs.
    the bundle ID through the API if it's missing (`scripts/ios/asc-prepare-app.py`),
    then stops with an error if there's no app record for it yet.
 2. Create the app record: App Store Connect → Apps → **+** → New App, pick that bundle
-   ID. Apple's API can't create app records, so this is the one manual step.
-3. Re-run the workflow. The build appears in TestFlight after Apple finishes processing
+   ID. Apple's API can't create app records.
+3. If the app uses iCloud, register its container and link it to the App ID (see
+   "Entitlements" above). The API can't do this either.
+4. Re-run the workflow. The build appears in TestFlight after Apple finishes processing
    it.
 
 ## TestFlight testers

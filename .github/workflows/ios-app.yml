@@ -190,8 +190,8 @@ jobs:
           </plist>
           PLIST
 
-          # Automatic signing also registers any iCloud container the app's
-          # entitlements name and links it to the app ID, which the API can't.
+          # Signing with the API key can't create an iCloud container or link it
+          # to the app ID; that's a one-time manual step (docs/ios-release.md).
           if ! xcodebuild -exportArchive \
             -archivePath "$ARCHIVE" \
             -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
@@ -201,7 +201,7 @@ jobs:
             -authenticationKeyID "$ASC_KEY_ID" \
             -authenticationKeyIssuerID "$ASC_ISSUER_ID"; then
             if [ -n "$ENTITLEMENTS" ] && grep -q icloud-container "$ENTITLEMENTS"; then
-              echo "::error::Export failed. If the log mentions an iCloud container, register it and add it to the app ID by hand once (see \"Entitlements\" in docs/ios-release.md), then re-run."
+              echo "::error::Export failed. This app uses iCloud: make sure its container is registered and ticked on the app ID in the developer portal (see \"Entitlements\" in docs/ios-release.md), then re-run."
             fi
             exit 1
           fi

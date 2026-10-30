@@ -6,9 +6,9 @@ record uses it. Apple's API can't create app records, so a missing one
 stops the run with the steps to create it by hand.
 
 With an entitlements file, also turns on the matching capabilities for the
-bundle ID (iCloud with CloudKit today). The API can't create iCloud
-containers or link them to an app: Xcode's automatic signing in the export
-step does that, or it's done once by hand (see docs/ios-release.md).
+bundle ID (iCloud with CloudKit today). Neither the API nor signing with
+an API key can create iCloud containers or link them to an app, so that's
+done once by hand (see docs/ios-release.md).
 
 Usage: asc-prepare-app.py <bundle-id> <name> [entitlements-file]
 Env:   see asc.py

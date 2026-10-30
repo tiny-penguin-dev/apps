@@ -1,5 +1,6 @@
 {
  "step": 0.04,
- "alphabet": "abcdefghijklmnopqrstuvwxyz",
+ "features": 9,
+ "classes": "abcdefghijklmnopqrstuvwxyz ",
  "blank": 0
 }

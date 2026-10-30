@@ -15,6 +15,11 @@ turn the strokes into words and work out where one word ends and the next begins
 - **Training on real writing:** `ml/finetune.py` takes exported samples, fine-tunes the
   model (Apple GPU on a Mac), scores it on held-back words and can copy it into the app.
 
+## Commands
+
+Run `make` in this folder to see them: set up, download recordings, retrain and ship, score,
+test, build.
+
 ## Layout
 
 ```

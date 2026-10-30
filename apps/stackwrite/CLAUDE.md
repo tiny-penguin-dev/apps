@@ -41,6 +41,12 @@ to ask Gabriel before Phase 3.
   Keep `StackWriteKit` inside this app. Don't move it to the repo's `packages/` unless a
   second app needs it.
 
+## Commands
+
+`make` in this folder lists the everyday commands (`Makefile`): `make setup`, `make train`,
+`make eval`, `make download`, `make samples`, `make test`, `make build`. Add a target there
+when a new command is worth remembering, with a `##` comment so it shows in the list.
+
 ## iOS (ios/)
 
 ```bash
@@ -83,8 +89,9 @@ python3 finetune_phrases.py samples/cloud [--ship]               # fine-tune on 
 (`ml/models/shipped.pt`) on held-back sessions, and if it's better, export it into the app
 and update `models/shipped.pt` and `models/shipped.json`. Two ways to run it:
 
-- **Mac (now):** `ml/train_and_ship.sh [--minutes 15]` from the main checkout on Gabriel's
-  Mac. It pushes to main itself, which builds and uploads to TestFlight.
+- **Mac (now):** `make train` (or `make train MINUTES=15`) from `apps/stackwrite` on
+  Gabriel's Mac; it runs `ml/train_and_ship.sh`, which pushes to main itself, which builds
+  and uploads to TestFlight. `make train-dry` trains without pushing.
 - **GitHub button (later, off for now):** Actions → "StackWrite train" →
   Run workflow (`stackwrite-train.yml`) runs the same on a dedicated Mac registered as a
   self-hosted runner with the label `stackwrite`, commits to main and starts the

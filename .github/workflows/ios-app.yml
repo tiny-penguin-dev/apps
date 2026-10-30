@@ -86,20 +86,14 @@ jobs:
       - uses: actions/checkout@v5
         if: steps.secrets.outputs.ready == 'true'
 
-      - name: Archive and upload
+      - name: Write API key and read build settings
         if: steps.secrets.outputs.ready == 'true'
         run: |
-          set -o pipefail
           KEY_PATH="$RUNNER_TEMP/AuthKey_$ASC_KEY_ID.p8"
           printf '%s\n' "$ASC_PRIVATE_KEY" > "$KEY_PATH"
-          AUTH=(-allowProvisioningUpdates
-                -authenticationKeyPath "$KEY_PATH"
-                -authenticationKeyID "$ASC_KEY_ID"
-                -authenticationKeyIssuerID "$ASC_ISSUER_ID")
 
           # Build number = commit time in UTC, so it always goes up.
           BUILD_NUMBER="$(TZ=UTC git show -s --format=%cd --date=format-local:'%Y%m%d%H%M' HEAD)"
-          echo "Build number: $BUILD_NUMBER"
 
           SETTINGS="$(xcodebuild -showBuildSettings \
             -project "${{ inputs.scheme }}.xcodeproj" \
@@ -113,23 +107,39 @@ jobs:
             echo "::error::DEVELOPMENT_TEAM or PRODUCT_BUNDLE_IDENTIFIER is not set in the build settings."
             exit 1
           fi
-          echo "Team: $TEAM_ID, bundle ID: $BUNDLE_ID"
+          echo "Build number: $BUILD_NUMBER, team: $TEAM_ID, bundle ID: $BUNDLE_ID"
 
-          # Register the bundle ID if needed, check the app record exists and
-          # sync the TestFlight testers with Config/testflight.json.
-          ASC_KEY_PATH="$KEY_PATH" python3 "$GITHUB_WORKSPACE/scripts/ios/asc-prepare-app.py" \
-            "$BUNDLE_ID" "${{ inputs.scheme }}" Config/testflight.json
+          {
+            echo "ASC_KEY_PATH=$KEY_PATH"
+            echo "BUILD_NUMBER=$BUILD_NUMBER"
+            echo "TEAM_ID=$TEAM_ID"
+            echo "BUNDLE_ID=$BUNDLE_ID"
+            echo "ENTITLEMENTS=$ENTITLEMENTS"
+            echo "ARCHIVE=$RUNNER_TEMP/${{ inputs.scheme }}.xcarchive"
+          } >> "$GITHUB_ENV"
 
-          # Entitlements only survive export if the archive is signed, so an app
-          # with entitlements is signed ad hoc here; export re-signs it properly.
+      - name: Prepare App Store Connect
+        if: steps.secrets.outputs.ready == 'true'
+        # Registers the bundle ID if needed and checks the app record exists.
+        run: python3 "$GITHUB_WORKSPACE/scripts/ios/asc-prepare-app.py" "$BUNDLE_ID" "${{ inputs.scheme }}"
+
+      - name: Sync TestFlight testers
+        if: steps.secrets.outputs.ready == 'true' && hashFiles(format('{0}/Config/testflight.json', inputs.app-dir)) != ''
+        run: python3 "$GITHUB_WORKSPACE/scripts/ios/asc-sync-testers.py" "$BUNDLE_ID" Config/testflight.json
+
+      - name: Archive
+        if: steps.secrets.outputs.ready == 'true'
+        run: |
+          set -o pipefail
+          # Export keeps only the entitlements the archived app was signed with,
+          # so an app with entitlements is signed ad hoc here (export re-signs it
+          # properly); one without is archived unsigned.
           if [ -n "$ENTITLEMENTS" ]; then
-            ARCHIVE_SIGNING=(CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=- AD_HOC_CODE_SIGNING_ALLOWED=YES
-                             PROVISIONING_PROFILE_SPECIFIER= DEVELOPMENT_TEAM="$TEAM_ID")
+            SIGNING=(CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=- AD_HOC_CODE_SIGNING_ALLOWED=YES
+                     PROVISIONING_PROFILE_SPECIFIER= DEVELOPMENT_TEAM="$TEAM_ID")
           else
-            ARCHIVE_SIGNING=(CODE_SIGNING_ALLOWED=NO)
+            SIGNING=(CODE_SIGNING_ALLOWED=NO)
           fi
-
-          ARCHIVE="$RUNNER_TEMP/${{ inputs.scheme }}.xcarchive"
           xcodebuild archive \
             -project "${{ inputs.scheme }}.xcodeproj" \
             -scheme "${{ inputs.scheme }}" \
@@ -137,14 +147,15 @@ jobs:
             -destination 'generic/platform=iOS' \
             -archivePath "$ARCHIVE" \
             CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
-            "${ARCHIVE_SIGNING[@]}"
+            "${SIGNING[@]}"
 
-          # Export keeps only the entitlements the archived app was signed with.
-          # Check every one the app asks for made it, so nothing ships without them.
-          if [ -n "$ENTITLEMENTS" ]; then
-            APP="$(find "$ARCHIVE/Products/Applications" -maxdepth 1 -name '*.app' | head -1)"
-            codesign -d --entitlements - --xml "$APP" > "$RUNNER_TEMP/archived.plist"
-            python3 - "$ENTITLEMENTS" "$RUNNER_TEMP/archived.plist" <<'PY'
+      - name: Check entitlements
+        if: steps.secrets.outputs.ready == 'true' && env.ENTITLEMENTS != ''
+        # Stop before uploading if any entitlement the app asks for is missing.
+        run: |
+          APP="$(find "$ARCHIVE/Products/Applications" -maxdepth 1 -name '*.app' | head -1)"
+          codesign -d --entitlements - --xml "$APP" > "$RUNNER_TEMP/archived.plist"
+          python3 - "$ENTITLEMENTS" "$RUNNER_TEMP/archived.plist" <<'PY'
           import plistlib, sys
           wanted = plistlib.load(open(sys.argv[1], "rb"))
           got = plistlib.load(open(sys.argv[2], "rb"))
@@ -153,11 +164,15 @@ jobs:
               sys.exit(f"::error::The archive is missing entitlements: {', '.join(missing)}")
           print("Archive has entitlements:", ", ".join(wanted))
           PY
-          fi
 
-          # Export names the team (the archive's ad hoc signature has none),
-          # signs with cloud-managed distribution signing and uploads straight
-          # to App Store Connect. iCloud apps use the production CloudKit environment.
+      - name: Export and upload
+        if: steps.secrets.outputs.ready == 'true'
+        run: |
+          set -o pipefail
+          # The archive is unsigned or ad hoc, so it carries no team: the export
+          # options name it. Export signs with cloud-managed distribution signing
+          # and uploads straight to App Store Connect. iCloud apps get the
+          # production CloudKit environment.
           cat > "$RUNNER_TEMP/ExportOptions.plist" <<PLIST
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -178,7 +193,10 @@ jobs:
             -archivePath "$ARCHIVE" \
             -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
             -exportPath "$RUNNER_TEMP/export" \
-            "${AUTH[@]}"
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$ASC_KEY_PATH" \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID"
 
           echo "Uploaded ${{ inputs.scheme }} build $BUILD_NUMBER to App Store Connect." >> "$GITHUB_STEP_SUMMARY"
 

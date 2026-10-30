@@ -72,7 +72,7 @@ Each app lists its testers in `Config/testflight.json` (next to its xcconfig):
 }
 ```
 
-Every TestFlight run syncs this list before uploading. It creates the internal group
+Every TestFlight run syncs this list before uploading (`scripts/ios/asc-sync-testers.py`). It creates the internal group
 if it's missing, sets it to get every new build, adds anyone listed and removes anyone
 in the group who isn't listed. To add or remove a tester, edit the list and push.
 

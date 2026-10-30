@@ -2,46 +2,51 @@
 import CoreML
 import Foundation
 
-/// Turns one stroke into ranked words: featurize → Core ML model → decoder.
-/// Load it once; recognizing a word takes a few milliseconds.
+/// Turns strokes into ranked phrases: featurize → Core ML model → decoder.
+/// Load it once; reading a few words takes a few milliseconds.
 public final class Recognizer: @unchecked Sendable {
     public struct Result: Sendable {
-        public var candidates: [WordDecoder.Candidate]
-        /// Best letters without the dictionary, for words it doesn't know.
+        public var candidates: [PhraseDecoder.Candidate]
+        /// Best letters and spaces without the dictionary, for words it doesn't know.
         public var letters: String
+        /// For each space in `letters`, the stroke the next word starts with.
+        public var breakStrokes: [Int]
         public var modelTime: Duration
         public var decodeTime: Duration
 
-        public var words: [String] { candidates.map(\.word) }
+        public var texts: [String] { candidates.map(\.text) }
     }
 
     private let model: MLModel
-    public let decoder: WordDecoder
+    public let decoder: PhraseDecoder
 
     /// `modelURL` is the compiled model (`.mlmodelc`).
     public init(modelURL: URL, lexicon: Lexicon, computeUnits: MLComputeUnits = .all) throws {
         let config = MLModelConfiguration()
         config.computeUnits = computeUnits
         model = try MLModel(contentsOf: modelURL, configuration: config)
-        decoder = WordDecoder(lexicon: lexicon)
+        decoder = PhraseDecoder(lexicon: lexicon)
     }
 
-    public func recognize(_ points: [StrokePoint]) throws -> Result {
+    /// `partial` allows an unfinished last word (live typing).
+    public func recognize(_ strokes: [[StrokePoint]], liftScale: Double? = nil, partial: Bool = false) throws -> Result {
         let clock = ContinuousClock()
         let start = clock.now
-        let features = Features.padded(Features.featurize(points))
-        let (logprobs, frames) = try run(features: features)
+        let features = Features.featurize(strokes, liftScale: liftScale)
+        let (logprobs, frames) = try run(features: Features.padded(features.values))
         let modelDone = clock.now
-        let candidates = decoder.decode(logprobs: logprobs, frames: frames)
+        let candidates = decoder.decode(logprobs: logprobs, frames: frames, partial: partial)
+        let (letters, spaceFrames) = PhraseDecoder.greedy(logprobs, frames: frames)
         return Result(
             candidates: candidates,
-            letters: Self.greedy(logprobs, frames: frames),
+            letters: letters,
+            breakStrokes: spaceFrames.map { PhraseDecoder.stroke(atRow: $0 * 4, starts: features.strokeStarts) },
             modelTime: modelDone - start,
             decodeTime: clock.now - modelDone
         )
     }
 
-    /// Runs the model on flattened `[T, 5]` features. Returns `frames × 27` log-probs.
+    /// Runs the model on flattened `[T, 9]` features. Returns `frames × 28` log-probs.
     public func run(features: [Float]) throws -> (logprobs: [Float], frames: Int) {
         let rows = features.count / Features.width
         let input = try MLMultiArray(shape: [1, NSNumber(value: rows), NSNumber(value: Features.width)], dataType: .float32)
@@ -79,18 +84,6 @@ public final class Recognizer: @unchecked Sendable {
             }
         }
         return (out, frames)
-    }
-
-    static func greedy(_ logprobs: [Float], frames: Int) -> String {
-        var letters = [UInt8]()
-        var previous = 0
-        for t in 0..<frames {
-            let row = logprobs[(t * 27)..<(t * 27 + 27)]
-            let best = row.indices.max { row[$0] < row[$1] }! - t * 27
-            if best != 0 && best != previous { letters.append(UInt8(96 + best)) }
-            previous = best
-        }
-        return String(decoding: letters, as: UTF8.self)
     }
 }
 

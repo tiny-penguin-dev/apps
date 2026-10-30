@@ -1,7 +1,7 @@
 import Foundation
 
 /// One point of a stroke, in box units: the writing pad is 1×1 with (0,0)
-/// at the bottom-left and y pointing up. `t` is seconds since touch down.
+/// at the bottom-left and y pointing up. `t` is in seconds (see each use).
 /// Encoded as `[x, y, t]` to keep sample files small.
 public struct StrokePoint: Codable, Hashable, Sendable {
     public var x: Double
@@ -42,11 +42,14 @@ public struct StrokePoint: Codable, Hashable, Sendable {
     }
 }
 
-/// One recorded word: a single stroke plus what it was meant to say.
+/// One recording: the strokes of a few words plus what they were meant to say.
 /// This is the format shared by the training screen, the keyboard, the upload
 /// and the Python tools (`ml/samples.py`). See `SAMPLES.md`.
+///
+/// Version 1 held one word written as a single stroke (`points`); reading one
+/// gives a sample with that one stroke.
 public struct StrokeSample: Codable, Identifiable, Hashable, Sendable {
-    public static let currentVersion = 1
+    public static let currentVersion = 2
 
     /// How the label is known.
     public enum LabelSource: String, Codable, Sendable {
@@ -60,10 +63,12 @@ public struct StrokeSample: Codable, Identifiable, Hashable, Sendable {
 
     public var version: Int
     public var id: UUID
-    /// The word the stroke spells, lowercase a–z.
+    /// The words written, lowercase a–z separated by single spaces.
     public var label: String
     public var labelSource: LabelSource
-    public var points: [StrokePoint]
+    /// Each stroke is touch down to lift. `t` is seconds since the first
+    /// stroke's touch down, so the gaps between strokes are the lifts.
+    public var strokes: [[StrokePoint]]
     /// Size of the writing pad in points, for telling pad shapes apart later.
     public var padWidth: Double
     public var padHeight: Double
@@ -75,7 +80,7 @@ public struct StrokeSample: Codable, Identifiable, Hashable, Sendable {
     public var system: String
     public var app: String
     public var createdAt: Date
-    /// The phrase the word came from, when it was prompted.
+    /// The text shown to the writer, when prompted.
     public var prompt: String?
     /// What the model read at the time, best first.
     public var recognized: [String]?
@@ -84,7 +89,7 @@ public struct StrokeSample: Codable, Identifiable, Hashable, Sendable {
         id: UUID = UUID(),
         label: String,
         labelSource: LabelSource,
-        points: [StrokePoint],
+        strokes: [[StrokePoint]],
         padSize: CGSize,
         writer: String,
         session: String,
@@ -99,7 +104,7 @@ public struct StrokeSample: Codable, Identifiable, Hashable, Sendable {
         self.id = id
         self.label = label
         self.labelSource = labelSource
-        self.points = points
+        self.strokes = strokes
         padWidth = padSize.width
         padHeight = padSize.height
         self.writer = writer
@@ -110,6 +115,57 @@ public struct StrokeSample: Codable, Identifiable, Hashable, Sendable {
         self.createdAt = createdAt
         self.prompt = prompt
         self.recognized = recognized
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case version, id, label, labelSource, strokes, points, padWidth, padHeight, writer, session
+        case device, system, app, createdAt, prompt, recognized
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        version = try c.decode(Int.self, forKey: .version)
+        id = try c.decode(UUID.self, forKey: .id)
+        label = try c.decode(String.self, forKey: .label)
+        labelSource = try c.decode(LabelSource.self, forKey: .labelSource)
+        if let strokes = try c.decodeIfPresent([[StrokePoint]].self, forKey: .strokes) {
+            self.strokes = strokes
+        } else {
+            strokes = [try c.decode([StrokePoint].self, forKey: .points)]
+        }
+        padWidth = try c.decode(Double.self, forKey: .padWidth)
+        padHeight = try c.decode(Double.self, forKey: .padHeight)
+        writer = try c.decode(String.self, forKey: .writer)
+        session = try c.decode(String.self, forKey: .session)
+        device = try c.decode(String.self, forKey: .device)
+        system = try c.decode(String.self, forKey: .system)
+        app = try c.decode(String.self, forKey: .app)
+        createdAt = try c.decode(Date.self, forKey: .createdAt)
+        prompt = try c.decodeIfPresent(String.self, forKey: .prompt)
+        recognized = try c.decodeIfPresent([String].self, forKey: .recognized)
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(version, forKey: .version)
+        try c.encode(id, forKey: .id)
+        try c.encode(label, forKey: .label)
+        try c.encode(labelSource, forKey: .labelSource)
+        if version >= 2 {
+            try c.encode(strokes, forKey: .strokes)
+        } else {
+            try c.encode(strokes.first ?? [], forKey: .points)
+        }
+        try c.encode(padWidth, forKey: .padWidth)
+        try c.encode(padHeight, forKey: .padHeight)
+        try c.encode(writer, forKey: .writer)
+        try c.encode(session, forKey: .session)
+        try c.encode(device, forKey: .device)
+        try c.encode(system, forKey: .system)
+        try c.encode(app, forKey: .app)
+        try c.encode(createdAt, forKey: .createdAt)
+        try c.encodeIfPresent(prompt, forKey: .prompt)
+        try c.encodeIfPresent(recognized, forKey: .recognized)
     }
 
     public static let encoder: JSONEncoder = {

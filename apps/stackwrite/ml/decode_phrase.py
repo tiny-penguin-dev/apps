@@ -37,8 +37,8 @@ def text_of(prefix):
     return " ".join("".join(out).split())
 
 
-def beam_search(logp, trie, beam=32, lm_weight=0.35, word_bonus=1.5, break_pen=-4.0,
-                swallow_pen=-3.0, char_prune=-8.0, topk=5, partial=False):
+def beam_search(logp, trie, beam=32, lm_weight=0.5, word_bonus=0.5, break_pen=-4.0,
+                swallow_pen=-1.5, char_prune=-8.0, topk=5, partial=False):
     """logp: (T, 28) log-probs. Returns [(text, score), ...].
 
     partial=True keeps hypotheses whose last word is unfinished (for live
@@ -82,8 +82,8 @@ def beam_search(logp, trie, beam=32, lm_weight=0.35, word_bonus=1.5, break_pen=-
                 add(prefix + (SPACE,), trie, lm + word(node), 1, src + row[SPACE])
             if node is not trie:
                 add(prefix + (SWALLOW,), node, lm + swallow_pen, 1, src + row[SPACE])
-            elif prefix and last != SPACE:
-                add(prefix + (SWALLOW,), node, lm, 1, src + row[SPACE])   # extra space
+            elif last != SPACE:
+                add(prefix + (SWALLOW,), node, lm, 1, src + row[SPACE])   # extra or leading space
         beams = dict(sorted(nxt.items(),
                             key=lambda kv: -(_lse(kv[1][0], kv[1][1]) + kv[1][3]))[:beam])
 

@@ -7,10 +7,10 @@ token or key that only the team can make. `ml/download_samples.py` pulls them do
 
 ## One-time setup
 
-1. **Container.** It's created by Xcode's automatic signing the first time the app is
-   built with the iCloud entitlement (`Config/StackWrite.entitlements`), or by hand in
-   developer.apple.com → Identifiers → iCloud Containers. The App ID
-   `com.tinypenguin.stackwrite` must have iCloud (CloudKit) on, with this container.
+1. **Container.** The TestFlight workflow turns iCloud on for the App ID and lets
+   automatic signing register the container (see `docs/ios-release.md`). If that fails,
+   create it by hand in developer.apple.com → Identifiers → iCloud Containers, then turn
+   on iCloud (CloudKit) for `com.tinypenguin.stackwrite` with this container.
 2. **Schema.** In the CloudKit Console (icloud.developer.apple.com) → this container →
    Settings → Tokens, create a management token, then on the Mac:
 

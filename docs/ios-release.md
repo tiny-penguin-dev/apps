@@ -22,8 +22,13 @@ An app that sets `CODE_SIGN_ENTITLEMENTS` in its xcconfig is archived with an ad
 signature instead of unsigned, because export only keeps entitlements the archived app
 was signed with. The workflow then checks that every key in the entitlements file is in
 the archive, and stops before uploading if one is missing. Export uses the production
-CloudKit environment. New capabilities (like an iCloud container) may need registering
-once in the developer portal or by building in Xcode with automatic signing.
+CloudKit environment.
+
+For iCloud, the workflow turns the capability on for the bundle ID through the API
+(`scripts/ios/asc-prepare-app.py`) and expects automatic signing at export to register
+the container and link it. If export fails on the container, create it by hand as a
+fallback: developer.apple.com → Identifiers → iCloud Containers → +, then turn on iCloud
+(CloudKit) for the App ID and tick that container.
 
 ## Shared build settings
 

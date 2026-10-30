@@ -5,10 +5,14 @@ Registers the bundle ID if it doesn't exist yet, then checks that an app
 record uses it. Apple's API can't create app records, so a missing one
 stops the run with the steps to create it by hand.
 
+Then syncs the app's internal TestFlight group with its testers file
+(the app's Config/testflight.json): creates the group if needed, gives it
+every build, adds the testers it lists and removes anyone else.
+
 Uses only the standard library plus the `openssl` command, so CI needs
 nothing installed.
 
-Usage: asc-prepare-app.py <bundle-id> <name>
+Usage: asc-prepare-app.py <bundle-id> <name> <testers-file>
 Env:   ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_PATH (path to the .p8 file)
 """
 
@@ -23,6 +27,12 @@ import urllib.parse
 import urllib.request
 
 API = "https://api.appstoreconnect.apple.com/v1"
+
+
+class ApiError(Exception):
+    def __init__(self, method, path, code, body):
+        super().__init__(f"App Store Connect {method} {path} failed ({code}): {body}")
+        self.code = code
 
 
 def b64url(data):
@@ -68,17 +78,26 @@ def token():
 
 def call(method, path, body=None):
     req = urllib.request.Request(
-        API + path,
+        path if path.startswith("https:") else API + path,
         method=method,
         data=json.dumps(body).encode() if body else None,
         headers={"Authorization": "Bearer " + token(), "Content-Type": "application/json"},
     )
     try:
         with urllib.request.urlopen(req) as resp:
-            return json.load(resp)
+            raw = resp.read()
+            return json.loads(raw) if raw else {}
     except urllib.error.HTTPError as e:
-        print(f"::error::App Store Connect {method} {path} failed ({e.code}): {e.read().decode()}")
-        sys.exit(1)
+        raise ApiError(method, path, e.code, e.read().decode()) from None
+
+
+def get_all(path):
+    items = []
+    while path:
+        page = call("GET", path)
+        items += page["data"]
+        path = page.get("links", {}).get("next")
+    return items
 
 
 def find(path, identifier, key):
@@ -88,8 +107,103 @@ def find(path, identifier, key):
     return [d for d in data if d["attributes"][key] == identifier]
 
 
+def tester_group(app_id, name):
+    """The app's internal group with this name, set to get every build."""
+    query = urllib.parse.urlencode({"filter[app]": app_id, "filter[name]": name})
+    for group in call("GET", f"/betaGroups?{query}")["data"]:
+        attrs = group["attributes"]
+        if attrs["name"] != name or not attrs.get("isInternalGroup"):
+            continue
+        if not attrs.get("hasAccessToAllBuilds"):
+            call(
+                "PATCH",
+                f"/betaGroups/{group['id']}",
+                {"data": {"type": "betaGroups", "id": group["id"],
+                          "attributes": {"hasAccessToAllBuilds": True}}},
+            )
+            print(f"Tester group {name} now gets every build.")
+        return group["id"]
+
+    group = call(
+        "POST",
+        "/betaGroups",
+        {
+            "data": {
+                "type": "betaGroups",
+                "attributes": {"name": name, "isInternalGroup": True, "hasAccessToAllBuilds": True},
+                "relationships": {"app": {"data": {"type": "apps", "id": app_id}}},
+            }
+        },
+    )["data"]
+    print(f"Created internal tester group {name}.")
+    return group["id"]
+
+
+def add_tester(group_id, email):
+    try:
+        call(
+            "POST",
+            "/betaTesters",
+            {
+                "data": {
+                    "type": "betaTesters",
+                    "attributes": {"email": email},
+                    "relationships": {"betaGroups": {"data": [{"type": "betaGroups", "id": group_id}]}},
+                }
+            },
+        )
+    except ApiError as e:
+        if e.code != 409:
+            raise
+        # Already a tester elsewhere in the account: add them to this group.
+        tester = find("/betaTesters", email, "email")[0]
+        call(
+            "POST",
+            f"/betaGroups/{group_id}/relationships/betaTesters",
+            {"data": [{"type": "betaTesters", "id": tester["id"]}]},
+        )
+
+
+def sync_testers(app_id, testers_file):
+    if not os.path.exists(testers_file):
+        print(f"No {testers_file}: skipping TestFlight testers.")
+        return
+    with open(testers_file) as f:
+        config = json.load(f)
+    name = config.get("group", "Team")
+    wanted = {email.strip().lower() for email in config.get("testers", [])}
+    group_id = tester_group(app_id, name)
+
+    current = {t["attributes"]["email"].lower(): t["id"]
+               for t in get_all(f"/betaGroups/{group_id}/betaTesters?limit=200")}
+    for email in sorted(wanted - current.keys()):
+        try:
+            add_tester(group_id, email)
+            print(f"Added {email} to {name}.")
+        except ApiError as e:
+            # One tester shouldn't stop the upload. Internal testers must be
+            # App Store Connect users who can see this app.
+            print(f"::warning::Couldn't add {email} to TestFlight group {name}: {e}")
+    removed = sorted(current.keys() - wanted)
+    if removed:
+        call(
+            "DELETE",
+            f"/betaGroups/{group_id}/relationships/betaTesters",
+            {"data": [{"type": "betaTesters", "id": current[email]} for email in removed]},
+        )
+        print(f"Removed {', '.join(removed)} from {name}.")
+    print(f"Tester group {name} is in sync: {len(wanted)} tester(s).")
+
+
 def main():
-    bundle_id, name = sys.argv[1], sys.argv[2]
+    try:
+        prepare(sys.argv[1], sys.argv[2], sys.argv[3])
+    except ApiError as e:
+        print(f"::error::{e}")
+        sys.exit(1)
+
+
+def prepare(bundle_id, name, testers_file):
 
     if find("/bundleIds", bundle_id, "identifier"):
         print(f"Bundle ID {bundle_id} is registered.")
@@ -106,8 +220,10 @@ def main():
         )
         print(f"Registered bundle ID {bundle_id}.")
 
-    if find("/apps", bundle_id, "bundleId"):
+    apps = find("/apps", bundle_id, "bundleId")
+    if apps:
         print(f"App record for {bundle_id} exists.")
+        sync_testers(apps[0]["id"], testers_file)
     else:
         print(
             f"::error::No App Store Connect app uses {bundle_id} yet. Apple's API can't "

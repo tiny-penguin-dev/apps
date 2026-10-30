@@ -21,3 +21,6 @@ DerivedData
 xcuserdata
 *.xcuserstate
 build
+
+# Python
+__pycache__

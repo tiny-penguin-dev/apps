@@ -30,7 +30,8 @@ to ask Gabriel before Phase 3.
     `Lexicon` (flat-array trie), `WordDecoder` (beam search) and `Recognizer` (Core ML).
     Its tests replay `ml/export/golden.json`.
   - `Config/`: `StackWrite.xcconfig` (bundle ID `com.tinypenguin.stackwrite`, version,
-    display name), `Project.xcconfig`, `Info.plist`
+    display name), `Project.xcconfig`, `Info.plist`, `testflight.json` (TestFlight
+    testers, synced on every upload; see `docs/ios-release.md`)
   - Still to add: the keyboard extension target (`com.tinypenguin.stackwrite.keyboard`)
 
   Keep `StackWriteKit` inside this app. Don't move it to the repo's `packages/` unless a

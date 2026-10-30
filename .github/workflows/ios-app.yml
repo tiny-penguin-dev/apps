@@ -114,9 +114,10 @@ jobs:
           fi
           echo "Team: $TEAM_ID, bundle ID: $BUNDLE_ID"
 
-          # Register the bundle ID if needed and check the app record exists.
+          # Register the bundle ID if needed, check the app record exists and
+          # sync the TestFlight testers with Config/testflight.json.
           ASC_KEY_PATH="$KEY_PATH" python3 "$GITHUB_WORKSPACE/scripts/ios/asc-prepare-app.py" \
-            "$BUNDLE_ID" "${{ inputs.scheme }}"
+            "$BUNDLE_ID" "${{ inputs.scheme }}" Config/testflight.json
 
           ARCHIVE="$RUNNER_TEMP/${{ inputs.scheme }}.xcarchive"
           xcodebuild archive \

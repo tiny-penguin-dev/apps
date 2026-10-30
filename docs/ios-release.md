@@ -52,12 +52,37 @@ build runs.
 3. Re-run the workflow. The build appears in TestFlight after Apple finishes processing
    it.
 
+## TestFlight testers
+
+Each app lists its testers in `Config/testflight.json` (next to its xcconfig):
+
+```json
+{
+  "group": "Team",
+  "testers": ["someone@example.com"]
+}
+```
+
+Every TestFlight run syncs this list before uploading. It creates the internal group
+if it's missing, sets it to get every new build, adds anyone listed and removes anyone
+in the group who isn't listed. To add or remove a tester, edit the list and push.
+
+- These are internal testers, so each one must be a user on the App Store Connect team
+  (Users and Access) who can see the app. Builds reach them without Beta App Review.
+  An email that can't be added shows a warning in the run but doesn't stop the upload.
+- Only that one group is synced. Other groups and testers you add in App Store Connect
+  are left alone.
+- With no `testflight.json`, the step is skipped.
+- `config/ios/App.xcconfig` sets `ITSAppUsesNonExemptEncryption = NO`, so builds don't
+  wait on the export compliance question. Change it per app if an app adds its own
+  encryption.
+
 ## Adding a new iOS app
 
 1. Copy `apps/stackwrite/ios/` as a starting point: the `.xcodeproj`, `Config/` and the
    source folder.
 2. Rename the target, scheme and folders, and set the bundle ID, version and display
-   name in the app's xcconfig.
+   name in the app's xcconfig, and list the testers in `Config/testflight.json`.
 3. Copy `.github/workflows/stackwrite-ios.yml` and change the name, paths, `app-dir` and
    `scheme`.
 4. Do the per-app Apple setup above.

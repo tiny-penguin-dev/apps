@@ -1,0 +1,17 @@
+
+== data/test_all.npz  (1000 words)
+letters only (no dictionary): char error 0.2%, whole word right 99.1%
+with dictionary:               top-1 99.9%, in top-3 100.0%
+speed: model 2.4 ms/word (batched CPU), decoder 1.9 ms/word (python)
+   nude         letters→ nude         words→ ['nude', 'nu', 'ud']
+   directing    letters→ directing    words→ ['directing', 'dieting', 'direct']
+   numerically  letters→ numerically  words→ ['numerically', 'numerical', 'numeral']
+   engagements  letters→ engagements  words→ ['engagements', 'engagement', 'engages']
+   alliance     letters→ alliance     words→ ['alliance', 'lance', 'alice']
+   introductory letters→ introductory words→ ['introductory', 'trout', 'intro']
+   constipated  letters→ constipated  words→ ['constipated', 'stipe', 'onsite']
+   low          letters→ low          words→ ['low', 'lo', 'ow']
+   adrift       letters→ adrift       words→ ['adrift', 'drift', 'rift']
+   afraid       letters→ afraid       words→ ['afraid', 'raid', 'arid']
+   peninsula    letters→ peninsula    words→ ['peninsula', 'penis', 'pins']
+   selection    letters→ selection    words→ ['selection', 'election', 'section']

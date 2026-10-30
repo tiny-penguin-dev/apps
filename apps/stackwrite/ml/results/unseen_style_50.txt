@@ -1,0 +1,17 @@
+
+== data/test_scripts_heldout.npz  (1000 words)
+letters only (no dictionary): char error 11.6%, whole word right 48.1%
+with dictionary:               top-1 87.4%, in top-3 92.8%
+speed: model 12.6 ms/word (batched CPU), decoder 3.4 ms/word (python)
+   brains       letters→ bains        words→ ['brains', 'rains', 'bain']
+   answered     letters→ ansgwered    words→ ['answered', 'angered', 'arsed']
+   penalized    letters→ penalied     words→ ['penalized', 'penalize', 'peaked']
+   vibe         letters→ uibe         words→ ['vibe', 'vie', 'ie']
+   humane       letters→ humane       words→ ['humane', 'human', 'hume']
+   thrown       letters→ thrown       words→ ['thrown', 'throw', 'thon']
+   listening    letters→ listening    words→ ['listening', 'stoning', 'listing']
+   survived     letters→ suuiued      words→ ['survived', 'survive', 'sued']
+   finances     letters→ inances      words→ ['finances', 'finance', 'nance']
+   favour       letters→ qavouwr      words→ ['favour', 'favor', 'avon']
+   confront     letters→ coznfront    words→ ['confront', 'corn', 'conn']
+   soya         letters→ soya         words→ ['soya', 'soa', 'soy']

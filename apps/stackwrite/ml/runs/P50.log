@@ -1,0 +1,5 @@
+train samples: 8000
+params: 663,835
+step 250 1.7m lr=1.80e-04 loss=0.092 | val_seen: cer=0.003 exact=0.982 test_scripts_heldout: cer=0.132 exact=0.463
+FINAL data/val_seen.npz: cer=0.0036 exact=0.9770
+FINAL data/test_scripts_heldout.npz: cer=0.1170 exact=0.4797

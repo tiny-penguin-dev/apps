@@ -1,0 +1,17 @@
+
+== data/test_scripts_heldout.npz  (1000 words)
+letters only (no dictionary): char error 63.9%, whole word right 1.3%
+with dictionary:               top-1 7.8%, in top-3 11.6%
+speed: model 2.7 ms/word (batched CPU), decoder 3.1 ms/word (python)
+   brains       letters→ uaikwo       words→ ['ain', 'air', 'cairo']
+   answered     letters→ awgcod       words→ ['aged', 'argued', 'ago']
+   penalized    letters→ ponwaozjod   words→ ['palo', 'pao', 'pale']
+   vibe         letters→ aiac         words→ ['aia', 'ai', 'aac']
+   humane       letters→ hwmawo       words→ ['human', 'hum', 'kumar']
+   thrown       letters→ thaw         words→ ['thaw', 'than', 'tha']
+   listening    letters→ otowrg       words→ ['towing', 'tong', 'toning']
+   survived     letters→ gaxailuo     words→ ['gaia', 'gaul', 'gail']
+   finances     letters→ yowazraoo    words→ ['war', 'nara', 'rana']
+   favour       letters→ qaaawv       words→ ['yaw', 'yadav', 'aaa']
+   confront     letters→ caznqawt     words→ ['carat', 'cant', 'conan']
+   soya         letters→ laga         words→ ['gaga', 'aga', 'lga']

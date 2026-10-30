@@ -1,0 +1,10 @@
+train samples: 150000
+params: 663,835
+step 250 1.4m lr=1.65e-03 loss=0.731 | val_seen: cer=0.066 exact=0.635 test_scripts_heldout: cer=0.647 exact=0.002
+step 500 3.2m lr=1.92e-03 loss=0.178 | val_seen: cer=0.063 exact=0.662 test_scripts_heldout: cer=0.768 exact=0.004
+step 750 4.7m lr=1.83e-03 loss=0.103 | val_seen: cer=0.026 exact=0.855 test_scripts_heldout: cer=0.683 exact=0.004
+step 1000 6.0m lr=1.73e-03 loss=0.059 | val_seen: cer=0.015 exact=0.906 test_scripts_heldout: cer=0.582 exact=0.014
+step 1250 7.4m lr=1.60e-03 loss=0.055 | val_seen: cer=0.010 exact=0.939 test_scripts_heldout: cer=0.642 exact=0.010
+step 1500 8.8m lr=1.45e-03 loss=0.050 | val_seen: cer=0.018 exact=0.900 test_scripts_heldout: cer=0.622 exact=0.012
+step 1750 10.3m lr=1.28e-03 loss=0.028 | val_seen: cer=0.005 exact=0.967 test_scripts_heldout: cer=0.617 exact=0.012
+step 2000 11.8m lr=1.10e-03 loss=0.024 | val_seen: cer=0.007 exact=0.953 test_scripts_heldout: cer=0.650 exact=0.008

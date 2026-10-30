@@ -1,0 +1,9 @@
+train samples: 84000
+params: 663,835
+step 250 1.5m lr=6.28e-04 loss=0.056 | test_all: cer=0.006 exact=0.963
+step 500 3.0m lr=6.38e-04 loss=0.021 | test_all: cer=0.005 exact=0.965
+step 750 4.5m lr=4.62e-04 loss=0.017 | test_all: cer=0.004 exact=0.975
+step 1000 6.0m lr=2.74e-04 loss=0.011 | test_all: cer=0.003 exact=0.982
+step 1250 7.6m lr=1.12e-04 loss=0.009 | test_all: cer=0.001 exact=0.994
+step 1500 9.2m lr=1.49e-05 loss=0.005 | test_all: cer=0.001 exact=0.994
+FINAL data/test_all.npz: cer=0.0021 exact=0.9883

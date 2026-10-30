@@ -1,0 +1,8 @@
+torch
+numpy
+wordfreq
+Hershey-Fonts
+matplotlib
+coremltools
+onnx
+onnxruntime

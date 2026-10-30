@@ -41,6 +41,12 @@ to ask Gabriel before Phase 3.
   Keep `StackWriteKit` inside this app. Don't move it to the repo's `packages/` unless a
   second app needs it.
 
+## Commands
+
+`make` in this folder lists the everyday commands (`Makefile`): `make setup`, `make train`,
+`make eval`, `make download`, `make samples`, `make test`, `make build`. Add a target there
+when a new command is worth remembering, with a `##` comment so it shows in the list.
+
 ## iOS (ios/)
 
 ```bash
@@ -72,12 +78,32 @@ python3 export.py --model runs/phrase.pt --out export/StackWrite
 python3 make_golden.py --model runs/phrase.pt                    # Swift parity cases
 cp -R export/StackWrite.mlpackage ../ios/StackWrite/Model/StrokeModel.mlpackage  # after rm -rf the old one
 python3 download_samples.py                                      # uploaded samples → samples/cloud
+python3 eval_real.py samples/cloud --model runs/phrase.pt        # how it reads recorded phrases
+python3 finetune_phrases.py samples/cloud [--ship]               # fine-tune on them (+ copy into the app)
 ```
+
+### Retraining on recorded samples
+
+`ml/train_and_ship.py` does the whole loop: download samples, fine-tune `ml/models/base.pt`
+(the synthetic-only phrase model) on all of them, score it against the model in the app
+(`ml/models/shipped.pt`) on held-back sessions, and if it's better, export it into the app
+and update `models/shipped.pt` and `models/shipped.json`. Two ways to run it:
+
+- **Mac (now):** `make train` (or `make train MINUTES=15`) from `apps/stackwrite` on
+  Gabriel's Mac; it runs `ml/train_and_ship.sh`, which pushes to main itself, which builds
+  and uploads to TestFlight. `make train-dry` trains without pushing.
+- **GitHub button (later, off for now):** Actions → "StackWrite train" →
+  Run workflow (`stackwrite-train.yml`) runs the same on a dedicated Mac registered as a
+  self-hosted runner with the label `stackwrite`, commits to main and starts the
+  TestFlight build. Turn it on by setting the repo variable `STACKWRITE_TRAINER` to `on`.
+  The runner uses the iCloud key in `~/.config/stackwrite`, or the repo secrets
+  `CLOUDKIT_KEY_ID` and `CLOUDKIT_PRIVATE_KEY` if set.
 
 See `ml/README.md` for building data, training and personalizing. `data/` and
 intermediate `runs/` are gitignored. Only `runs/final.pt` and the logs are committed;
-`runs/phrase.pt` lives on Gabriel's Mac. Fine-tuning the phrase model on recorded v2 samples
-isn't written yet (`finetune.py` only handles one-stroke v1 samples).
+`runs/phrase.pt` lives on Gabriel's Mac. `finetune_phrases.py` trains on recorded phrases
+(v2) and the older one-word recordings (v1) mixed with synthetic phrases; `finetune.py` is
+for the old one-stroke model.
 
 ## Rules
 

@@ -87,15 +87,18 @@ def beam_search(logp, trie, beam=32, lm_weight=0.5, word_bonus=0.5, break_pen=-4
         beams = dict(sorted(nxt.items(),
                             key=lambda kv: -(_lse(kv[1][0], kv[1][1]) + kv[1][3]))[:beam])
 
-    out = {}
+    # Complete phrases; if none survived (the writing stopped mid-word), the
+    # partial ones, so there is always a reading.
+    out, unfinished = {}, {}
     for prefix, (pb, pnb, node, lm) in beams.items():
         s = _lse(pb, pnb) + lm
+        target = out
         if node is not trie:
             if node.word_logp is not None:
                 s += word(node)
             elif not partial:
-                continue
+                target = unfinished
         text = text_of(prefix)
-        if text and s > out.get(text, NEG):
-            out[text] = s
-    return sorted(out.items(), key=lambda x: -x[1])[:topk]
+        if text and s > target.get(text, NEG):
+            target[text] = s
+    return sorted((out or unfinished).items(), key=lambda x: -x[1])[:topk]

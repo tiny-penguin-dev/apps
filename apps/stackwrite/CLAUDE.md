@@ -13,14 +13,30 @@ to ask Gabriel before Phase 3.
   - `StackWrite.mlpackage`: the Core ML model
   - `lexicon.tsv`: the word list
   - `golden.json`: parity test cases
-- `ios/`: not created yet. Suggested layout:
-  - an Xcode project with the containing app (capture + test mode) and the keyboard
-    extension target
-  - a local Swift package (e.g. `ios/StackWriteKit`) for featurize, inference and decoder,
-    shared by both targets
+- `ios/`: the Xcode project. Right now it's a skeleton app that only shows its name and
+  version, used to prove the TestFlight pipeline.
+  - `StackWrite.xcodeproj`: one app target, `StackWrite`, with a shared scheme
+  - `StackWrite/`: app sources and assets (a synchronized folder, so new files are picked
+    up without editing the project)
+  - `Config/`: `StackWrite.xcconfig` (bundle ID `com.tinypenguin.stackwrite`, version,
+    display name), `Project.xcconfig`, `Info.plist`
+  - Still to add: the keyboard extension target (`com.tinypenguin.stackwrite.keyboard`)
+    and a local Swift package (e.g. `ios/StackWriteKit`) for featurize, inference and
+    decoder, shared by both targets
 
   Keep that package inside this app. Don't move it to the repo's `packages/` unless a
   second app needs it.
+
+## iOS (ios/)
+
+```bash
+cd ios
+xcodebuild build -project StackWrite.xcodeproj -scheme StackWrite \
+  -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO
+```
+
+CI is `.github/workflows/stackwrite-ios.yml`. PRs build; pushes to `main` also upload to
+TestFlight. See `docs/ios-release.md` at the repo root.
 
 ## Python (ml/)
 

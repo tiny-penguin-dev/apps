@@ -15,3 +15,11 @@ If an app talks to another service, it does so through that service's public API
 - **Each app has its own `CLAUDE.md`** with how to build, run and test it. Read it before working on that app, and keep it up to date when you change how the app works.
 - **Scope changes to one app** unless the task is about shared code or repo setup.
 - **Never commit secrets.** Use `.env` files (gitignored) and commit a `.env.example`.
+
+## iOS apps
+
+- Build and ship with GitHub Actions on macOS runners (no Xcode Cloud). Read `docs/ios-release.md` before changing CI, signing or project settings.
+- Build settings live in xcconfig files, not in the `.pbxproj`: shared ones in `config/ios/`, app-specific ones in the app's `Config/` folder.
+- Projects use synchronized folders, so adding or removing source files doesn't touch the `.pbxproj`.
+- There's no Xcode in Claude's Linux container. To check that an iOS change builds, push and read the app's workflow run.
+- Pushes to `main` that touch an app upload a TestFlight build.

@@ -3,17 +3,17 @@ name: StackWrite train
 # Retrains the handwriting model on everything recorded in the app and, if
 # the new model scores better, commits it to main and starts a TestFlight
 # build. Start it from the Actions tab (or the GitHub app): Run workflow.
+#
+# Off until a dedicated training Mac is set up: register it as a self-hosted
+# runner with the label `stackwrite`, then set the repo variable
+# STACKWRITE_TRAINER to `on` (Settings → Secrets and variables → Actions →
+# Variables). Until then, train with apps/stackwrite/ml/train_and_ship.sh.
 on:
   workflow_dispatch:
     inputs:
       minutes:
         description: Minutes of training
         default: "6"
-      machine:
-        description: Where to train (mac = Gabriel's Mac runner, with its GPU)
-        type: choice
-        options: [cloud, mac]
-        default: cloud
       force:
         description: Train even if nothing new was recorded
         type: boolean
@@ -29,7 +29,8 @@ permissions:
 
 jobs:
   train:
-    runs-on: ${{ inputs.machine == 'mac' && fromJSON('["self-hosted", "macOS", "stackwrite"]') || 'macos-26' }}
+    if: vars.STACKWRITE_TRAINER == 'on'
+    runs-on: [self-hosted, macOS, stackwrite]
     timeout-minutes: 90
     defaults:
       run:
@@ -55,7 +56,7 @@ jobs:
           CLOUDKIT_KEY_ID: ${{ secrets.CLOUDKIT_KEY_ID }}
           CLOUDKIT_PRIVATE_KEY: ${{ secrets.CLOUDKIT_PRIVATE_KEY }}
         run: |
-          # Without the secrets (the Mac runner), the key in ~/.config/stackwrite is used.
+          # Without these secrets, the key in the Mac's ~/.config/stackwrite is used.
           if [ -n "$CLOUDKIT_PRIVATE_KEY" ]; then
             export CLOUDKIT_KEY_PATH="$RUNNER_TEMP/cloudkit-key.pem"
             printf '%s\n' "$CLOUDKIT_PRIVATE_KEY" > "$CLOUDKIT_KEY_PATH"

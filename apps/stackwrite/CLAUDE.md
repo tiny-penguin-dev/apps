@@ -83,14 +83,14 @@ python3 finetune_phrases.py samples/cloud [--ship]               # fine-tune on 
 (`ml/models/shipped.pt`) on held-back sessions, and if it's better, export it into the app
 and update `models/shipped.pt` and `models/shipped.json`. Two ways to run it:
 
-- **GitHub:** Actions → "StackWrite train" → Run workflow (`stackwrite-train.yml`). It
-  commits to main and starts the TestFlight build. On GitHub's runner it needs the repo
-  secrets `CLOUDKIT_KEY_ID` and `CLOUDKIT_PRIVATE_KEY`; the Mac runner uses the key in
-  `~/.config/stackwrite`. `machine: mac` runs it on Gabriel's Mac as a
-  self-hosted runner (label `stackwrite`), with its GPU; `cloud` uses GitHub's macOS runner
-  (CPU, slower).
-- **Mac:** `ml/train_and_ship.sh [--minutes 15]` from the main checkout. Same steps,
-  pushes to main itself.
+- **Mac (now):** `ml/train_and_ship.sh [--minutes 15]` from the main checkout on Gabriel's
+  Mac. It pushes to main itself, which builds and uploads to TestFlight.
+- **GitHub button (later, off for now):** Actions → "StackWrite train" →
+  Run workflow (`stackwrite-train.yml`) runs the same on a dedicated Mac registered as a
+  self-hosted runner with the label `stackwrite`, commits to main and starts the
+  TestFlight build. Turn it on by setting the repo variable `STACKWRITE_TRAINER` to `on`.
+  The runner uses the iCloud key in `~/.config/stackwrite`, or the repo secrets
+  `CLOUDKIT_KEY_ID` and `CLOUDKIT_PRIVATE_KEY` if set.
 
 See `ml/README.md` for building data, training and personalizing. `data/` and
 intermediate `runs/` are gitignored. Only `runs/final.pt` and the logs are committed;

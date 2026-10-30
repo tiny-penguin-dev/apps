@@ -102,6 +102,7 @@ jobs:
           setting() { awk -v k="$1" '$1 == k { print $3; exit }' <<<"$SETTINGS"; }
           TEAM_ID="$(setting DEVELOPMENT_TEAM)"
           BUNDLE_ID="$(setting PRODUCT_BUNDLE_IDENTIFIER)"
+          ENTITLEMENTS="$(setting CODE_SIGN_ENTITLEMENTS)"
           if [ -z "$TEAM_ID" ] || [ -z "$BUNDLE_ID" ]; then
             echo "::error::DEVELOPMENT_TEAM or PRODUCT_BUNDLE_IDENTIFIER is not set in the build settings."
             exit 1
@@ -113,13 +114,15 @@ jobs:
             echo "BUILD_NUMBER=$BUILD_NUMBER"
             echo "TEAM_ID=$TEAM_ID"
             echo "BUNDLE_ID=$BUNDLE_ID"
+            echo "ENTITLEMENTS=$ENTITLEMENTS"
             echo "ARCHIVE=$RUNNER_TEMP/${{ inputs.scheme }}.xcarchive"
           } >> "$GITHUB_ENV"
 
       - name: Prepare App Store Connect
         if: steps.secrets.outputs.ready == 'true'
-        # Registers the bundle ID if needed and checks the app record exists.
-        run: python3 "$GITHUB_WORKSPACE/scripts/ios/asc-prepare-app.py" "$BUNDLE_ID" "${{ inputs.scheme }}"
+        # Registers the bundle ID if needed, turns on the capabilities its
+        # entitlements need, and checks the app record exists.
+        run: python3 "$GITHUB_WORKSPACE/scripts/ios/asc-prepare-app.py" "$BUNDLE_ID" "${{ inputs.scheme }}" "$ENTITLEMENTS"
 
       - name: Sync TestFlight testers
         if: steps.secrets.outputs.ready == 'true' && hashFiles(format('{0}/Config/testflight.json', inputs.app-dir)) != ''
@@ -160,14 +163,21 @@ jobs:
           </plist>
           PLIST
 
-          xcodebuild -exportArchive \
+          # Automatic signing also registers any iCloud container the app's
+          # entitlements name and links it to the app ID, which the API can't.
+          if ! xcodebuild -exportArchive \
             -archivePath "$ARCHIVE" \
             -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
             -exportPath "$RUNNER_TEMP/export" \
             -allowProvisioningUpdates \
             -authenticationKeyPath "$ASC_KEY_PATH" \
             -authenticationKeyID "$ASC_KEY_ID" \
-            -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID"; then
+            if [ -n "$ENTITLEMENTS" ] && grep -q icloud-container "$ENTITLEMENTS"; then
+              echo "::error::Export failed. If the log mentions an iCloud container, register it and add it to the app ID by hand once (see \"Entitlements\" in docs/ios-release.md), then re-run."
+            fi
+            exit 1
+          fi
 
           echo "Uploaded ${{ inputs.scheme }} build $BUILD_NUMBER to App Store Connect." >> "$GITHUB_STEP_SUMMARY"
 

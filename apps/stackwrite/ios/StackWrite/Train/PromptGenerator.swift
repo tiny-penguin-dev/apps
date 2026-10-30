@@ -26,8 +26,8 @@ struct PromptGenerator {
         return words[lo]
     }
 
-    /// A short "phrase" of distinct words.
-    func phrase(count: Int = 5) -> [String] {
+    /// A short "phrase" of distinct words: 1 to 4, mostly 2 or 3.
+    func phrase(count: Int = [1, 2, 2, 3, 3, 4].randomElement()!) -> [String] {
         guard !isEmpty else { return [] }
         var rng = SystemRandomNumberGenerator()
         var out = [String]()

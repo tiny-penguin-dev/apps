@@ -7,13 +7,18 @@ disagree, the code is right.
 
 ## The idea
 
-An iOS keyboard you can use **without looking**. You write a whole word as **one finger
-stroke**, with **every letter stacked on top of the previous one in the same spot**. Lifting
-the finger ends the word. A small on-device model reads the motion, and a dictionary
-decoder picks the most likely word, so sloppy letters still come out right.
+An iOS keyboard you can use **without looking**. You write with **every letter stacked on
+top of the previous one in the same spot**, lifting your finger whenever you like. Nothing
+special marks the end of a word: the model weighs the evidence (a longer lift than this
+writer usually makes, a tap, or letters that only make sense as two words) and a dictionary
+decoder picks the most likely words, so sloppy letters still come out right.
 
-Example: writing "hello" means drawing h, then e on top of it, then l, l, o, all in one
-continuous stroke in roughly the same square.
+Example: writing "the cat" means drawing t, h, e on top of each other (lifting or not),
+pausing a moment or tapping, then c, a, t in the same spot.
+
+The first version took one word per stroke (lifting ended the word). Gabriel found that
+unnatural, so since 2026-10-30 the model reads multi-stroke writing and predicts the spaces
+itself (`ml/phrases.py`, `ml/train_phrases.py`, `ml/decode_phrase.py`).
 
 ## What already exists (`ml/`)
 
@@ -22,22 +27,27 @@ Paths in this table are relative to `ml/`.
 | Path | What it is |
 |---|---|
 | `letters.py`, `synth.py` | Synthetic data: letter shapes (3 styles), stacking, connectors, augmentation, **feature extraction** (`featurize`) |
-| `model.py` | `ConvStrokeNet`: all-conv 1-D CNN, ~660k params, CTC over blank + a–z |
-| `decode.py` | Dictionary-constrained CTC prefix beam search + word-frequency prior |
+| `model.py` | `ConvStrokeNet`: all-conv 1-D CNN, ~660k params, CTC over blank + a–z + space |
+| `phrases.py` | Multi-stroke phrase synthesis (lifts, taps, pauses, writer habits) and **feature extraction** (`featurize_strokes`) |
+| `train_phrases.py`, `eval_phrases.py` | Phrase training on freshly synthesized data, scoring with and without the decoder |
+| `decode_phrase.py` | The phrase decoder (below) |
+| `decode.py` | The old single-word decoder |
 | `train.py`, `data.py`, `evaluate.py` | Dataset building, time-budgeted training (CPU only), scoring |
-| `runs/final.pt` | Trained weights |
+| `runs/phrase.pt` | Phrase model weights (on Gabriel's Mac; `runs/final.pt` is the old single-word model) |
 | `export/StackWrite.mlpackage` | Core ML model (fp16, mlprogram, iOS 16+). **Never run on a device yet.** |
 | `export/StackWrite.onnx` | Same model; matches PyTorch to ~4e-5 |
 | `export/lexicon.tsv` | 40,000 words with frequencies (`word<TAB>freq`), the decoder's dictionary |
-| `export/golden.json` | 6 test words with raw path, expected features, expected logprobs and expected top words, **for Swift parity tests** |
+| `export/golden.json` | 6 test phrases with raw strokes, expected features, logprobs and decoded phrases (full and cut off halfway), **for Swift parity tests** |
 | `README.md`, `results/` | Commands and accuracy results |
 | `out/samples.png` | Picture of the synthetic training data |
 
 ### Current accuracy (synthetic data only)
 
-- Letter styles seen in training: 99.9% top-1 word, 100% top-3
-- A completely unseen style: 7.8% top-1
-- Same unseen style after fine-tuning on 50 sample words: 87.4% (300 words: 96.3%)
+- Phrase model, 1–4 word synthetic phrases: 98.7% exactly right with the decoder (word
+  error rate 1.1%); without the dictionary 83.7%. The misses were compounds split in two
+  ("water fall").
+- Old single-word model: 99.9% top-1 on styles it saw, 7.8% on an unseen style, 87.4%
+  after fine-tuning on 50 sample words.
 
 **Takeaway:** personalization on real samples matters a lot. Nothing has been tested on
 real finger input yet.
@@ -54,40 +64,50 @@ real finger input yet.
   box and the baseline around y ≈ 0.25–0.4. Position is a model input, so the pad's size
   and shape affect results.
 
-### 2. Features (`synth.featurize`), one stroke → `[T, 5]` Float32
-1. **Resample** by arc length every `STEP = 0.04` box units: compute the cumulative length
-   `s` along the raw path, take sample positions `t = 0, 0.04, 0.08, …` strictly less than
-   the total length, and linearly interpolate x and y at each.
-   - If the total length is under 0.04, use just `[first, last]`.
-   - If there are fewer than 3 points, append `last + 0.001` and `last + 0.002` (both coordinates).
-2. `ang[i] = atan2(p[i+1].y - p[i].y, p[i+1].x - p[i].x)`, then repeat the last angle so
-   `ang` has length T.
+### 2. Features (`phrases.featurize_strokes`), strokes → `[T, 9]` Float32
+Each stroke is resampled on its own, then the rows are concatenated in stroke order.
+1. **Resample** a stroke by arc length every `STEP = 0.04` box units: sample positions
+   `0, 0.04, 0.08, …` strictly less than its length, x and y linearly interpolated.
+   Shorter than 0.04 (a tap): `[first, last]`, or just `[first]` if it moved under 1e-4.
+2. `ang[i] = atan2(dy, dx)` to the next point, last angle repeated; a one-point stroke has
+   angle 0 and no direction.
 3. `turn[0] = 0`, `turn[i] = ang[i] - ang[i-1]`, wrapped into [-π, π).
-4. Each row is `[x - 0.5, y - 0.5, cos(ang), sin(ang), turn / π]`.
-
-Timestamps aren't used yet, but the capture app should still record them (see below).
+4. Each row is `[x - 0.5, y - 0.5, cos(ang), sin(ang), turn / π, start, lift, relLift, len]`:
+   `start` is 1 on a stroke's first row; `lift = log1p(gap / 0.25)` and
+   `relLift = log1p(gap / writerLift)` on a stroke's first row (0 for the first stroke),
+   where `gap` is the seconds the finger was up; `len = log(stroke length + 0.01)` on
+   every row.
+5. `writerLift` is the writer's usual lift between letters: the median of the shorter half
+   of their recent lifts, clamped to 0.05–1 s, or 0.2 s with fewer than 4 lifts. The app
+   keeps the last 100 lifts; Python measures them from the phrase when not given.
 
 ### 3. Model I/O (Core ML)
-- Input `strokes`: shape `(1, T, 5)` Float32, with `16 ≤ T ≤ 2048`. Inputs shorter than 16
-  are untested. Pick a fix (pad or resample finer) and test it.
-- Output `logprobs`: shape `(1, ceil(T/4), 27)`, log-softmax. Index 0 is the CTC blank;
-  1–26 are a–z.
+- Input `strokes`: shape `(1, T, 9)` Float32, `16 ≤ T ≤ 2048`. Shorter inputs are padded by
+  repeating the last row with turn, start and lifts zeroed.
+- Output `logprobs`: shape `(1, ceil(T/4), 28)`, log-softmax. 0 is the CTC blank, 1–26
+  a–z, 27 space.
 
-### 4. Decoder (`decode.beam_search`), port to Swift
-- A trie built from `lexicon.tsv`. Each word's prior is `log(freq / maxFreq)`.
-- CTC prefix beam search, keeping separate blank and non-blank probabilities per prefix,
-  and **only extending prefixes along trie edges**:
-  - A repeated letter (as in "ll") requires a blank between the two.
-  - At each frame, skip letters with logprob ≤ -8.
-  - Keep the best 24 prefixes, ranked by total probability.
-- At the end, keep only prefixes that are complete words. Score each as
-  `ctcLogProb + 0.35 * wordPrior` and return the top 5.
-- Check against `golden.json`: the same features → logprobs within fp16 tolerance → the same
-  top word for every case.
+### 4. Decoder (`decode_phrase.beam_search`), ported as `PhraseDecoder`
+- A trie built from `lexicon.tsv`; each word's prior is `log(freq / maxFreq)`.
+- CTC prefix beam search (separate blank and non-blank probabilities; a repeated label needs
+  a blank between; letters with logprob ≤ -8 skipped), extending along trie edges, plus:
+  - a space after a complete word commits it and returns to the root;
+  - a space inside a word can be ignored for `swallow_pen` (-1.5) ("televi sion" →
+    "television"), and a space at the root (leading or extra) is ignored for free;
+  - after a complete word, a letter can start a new word with no space for `break_pen` (-4).
+- Each committed word adds `0.5 * wordPrior + 0.5`. Beams are ranked by CTC probability
+  plus that score; keep 32.
+- At the end an unfinished last word is dropped, unless decoding `partial` (live typing),
+  where it stays as typed so far. Return the top 5 texts.
+- `golden.json` checks the same features → logprobs within fp16 tolerance → the same texts.
 
 ## Build plan
 
-> **Status (2026-10-30):** Phases 1 and 2 are built: the "Write training words" screen
+> **Status (2026-10-30):** Phases 1 and 2 are built, now for multi-stroke phrases: the
+> training screen prompts 1–4 words and saves the strokes on Done (sample format v2), and
+> "Try the keyboard" reads continuous writing, showing the words as tentative (marked) text
+> until two more words follow, the writer stops for 2 s, or taps a suggestion, space or
+> punctuation. The model is trained on synthetic phrases only. Earlier: the "Write training words" screen
 > (format in `SAMPLES.md`, word groups instead of single words), `ml/import_captures.py`,
 > `ml/finetune.py`, `StackWriteKit` with golden tests, and "Try the keyboard", an in-app
 > version of Phase 3's keyboard. Not yet measured on a device: speed, memory, accuracy on

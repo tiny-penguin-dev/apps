@@ -43,6 +43,8 @@ struct KeyboardView: View {
                     Text(word)
                         .fontWeight(controller.chosen == i ? .semibold : .regular)
                         .lineLimit(1)
+                        .minimumScaleFactor(0.6)
+                        .padding(.horizontal, 4)
                         .frame(maxWidth: .infinity, minHeight: 36)
                         .contentShape(Rectangle())
                 }

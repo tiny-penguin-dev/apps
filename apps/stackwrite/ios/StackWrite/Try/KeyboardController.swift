@@ -9,109 +9,172 @@ protocol TextTarget: AnyObject {
     var documentContextBeforeInput: String? { get }
     func insertText(_ text: String)
     func deleteBackward()
+    /// Shows tentative text (underlined) at the cursor, replacing the last.
+    func setMarkedText(_ text: String)
+    /// Keeps the tentative text as real text.
+    func unmarkText()
 }
 
-/// Keyboard logic: turns strokes into words, adds spaces and capitals, and
-/// lets a suggestion replace the word just written.
+/// Keyboard logic. Writing is continuous: strokes collect into a stretch of
+/// writing that is read again after every stroke, and its words show as
+/// tentative text that can still change. Older words lock in once two more
+/// follow them; the rest lock in when the writer stops for a moment, picks a
+/// suggestion, or taps space, return or punctuation.
 @MainActor @Observable
 final class KeyboardController {
     weak var target: TextTarget?
     private let recognition: RecognitionService
 
-    /// Up to three words for the suggestion bar, best first.
+    /// Up to three readings of the tentative words, best first.
     private(set) var suggestions: [String] = []
     /// Which suggestion is in the text now.
     private(set) var chosen: Int?
     /// What the model read, for the debug line under the text.
     private(set) var lastReading: String?
 
-    /// The text the last word added (with its leading space), so a suggestion
-    /// or delete can take it back out.
+    /// Strokes not locked in yet.
+    private var recording = Recording()
+    /// How the tentative words start: a space before them, a capital.
+    private var lead = (space: "", capitalized: false)
+    private var commitTask: Task<Void, Never>?
+    /// The text the last locked-in words added, so a suggestion or delete can
+    /// take it back out.
     private var lastInsert: (text: String, space: String, capitalized: Bool)?
+
+    /// How long the writer can stop before the tentative words lock in.
+    static let idleCommit: Duration = .seconds(2)
 
     init(recognition: RecognitionService) {
         self.recognition = recognition
     }
 
+    var isWriting: Bool { !recording.isEmpty }
+
     func handleStroke(_ points: [StrokePoint]) {
-        // A tap or a tiny scribble isn't a word.
-        guard Features.length(points) > 0.05 else { return }
-        guard let result = recognition.recognize(points) else {
+        if recording.isEmpty {
+            let before = target?.documentContextBeforeInput ?? ""
+            lead = (Self.needsSpace(before) ? " " : "", Self.startsSentence(before))
+            lastInsert = nil
+        }
+        recording.add(points)
+        read()
+        commitTask?.cancel()
+        commitTask = Task { [weak self] in
+            try? await Task.sleep(for: Self.idleCommit)
+            guard !Task.isCancelled else { return }
+            self?.commit()
+        }
+    }
+
+    /// Reads the tentative strokes again and shows the best reading.
+    private func read() {
+        guard let result = recognition.recognize(recording.strokes, partial: true) else {
             lastReading = recognition.statusText
             return
         }
-        var words = Array(result.words.prefix(3))
-        // Not a dictionary word: offer the raw letters so something still comes out.
-        if words.count < 3, !result.letters.isEmpty, !words.contains(result.letters) {
-            words.append(result.letters)
-        }
         lastReading = "letters “\(result.letters)” · model \(result.modelTime.milliseconds) · decoder \(result.decodeTime.milliseconds)"
-        guard let first = words.first else {
-            suggestions = []
-            chosen = nil
-            return
+        var texts = Array(result.texts.prefix(3))
+        // Nothing in the dictionary fits: offer the raw letters so something still comes out.
+        if texts.count < 3, !result.letters.isEmpty, !texts.contains(result.letters) {
+            texts.append(result.letters)
         }
-        insertWord(first)
-        suggestions = words
+        guard let best = texts.first else { return }
+        if lockOlderWords(best, result) { return read() }
+        suggestions = texts
         chosen = 0
+        target?.setMarkedText(format(best))
+    }
+
+    /// With four or more words, locks in all but the last two, if the model's
+    /// own word breaks say which strokes they used.
+    private func lockOlderWords(_ best: String, _ result: Recognizer.Result) -> Bool {
+        let words = best.split(separator: " ")
+        guard words.count >= 4, result.breakStrokes.count == words.count - 1 else { return false }
+        let keep = 2
+        let firstKept = result.breakStrokes[words.count - keep - 1]
+        guard firstKept > 0, firstKept < recording.count else { return false }
+        target?.setMarkedText(format(words.prefix(words.count - keep).joined(separator: " ")))
+        target?.unmarkText()
+        recording.removeFirst(firstKept)
+        lead = (" ", false)
+        return true
+    }
+
+    /// Locks in the tentative words as they are.
+    private func commit() {
+        commitTask?.cancel()
+        guard !recording.isEmpty else { return }
+        recognition.learnLifts(recording.lifts)
+        recording.removeAll()
+        if let chosen, suggestions.indices.contains(chosen) {
+            lastInsert = (format(suggestions[chosen]), lead.space, lead.capitalized)
+        }
+        target?.unmarkText()
     }
 
     func pick(_ index: Int) {
-        guard suggestions.indices.contains(index), index != chosen else { return }
-        if let last = lastInsert, removeLastInsert() {
-            insert(suggestions[index], space: last.space, capitalized: last.capitalized)
-        } else {
-            insertWord(suggestions[index])
+        guard suggestions.indices.contains(index) else { return }
+        if isWriting {
+            chosen = index
+            target?.setMarkedText(format(suggestions[index]))
+            commit()
+        } else if index != chosen, let last = lastInsert, removeLastInsert() {
+            chosen = index
+            lead = (last.space, last.capitalized)
+            let text = format(suggestions[index])
+            target?.insertText(text)
+            lastInsert = (text, last.space, last.capitalized)
         }
-        chosen = index
     }
 
-    /// Deletes the whole word just written, or one character otherwise.
+    /// While writing, takes back the last stroke. Otherwise deletes the words
+    /// just written, or one character.
     func deleteTapped() {
+        if isWriting {
+            recording.removeLast()
+            if recording.isEmpty {
+                commitTask?.cancel()
+                target?.setMarkedText("")
+                target?.unmarkText()
+                clearSuggestions()
+            } else {
+                read()
+            }
+            return
+        }
         if !removeLastInsert() {
             target?.deleteBackward()
         }
-        reset()
+        clearSuggestions()
     }
 
-    func spaceTapped() {
-        target?.insertText(" ")
-        reset()
+    func spaceTapped() { finish(then: " ") }
+    func returnTapped() { finish(then: "\n") }
+    func punctuationTapped(_ mark: String) { finish(then: mark) }
+
+    private func finish(then text: String) {
+        commit()
+        target?.insertText(text)
+        clearSuggestions()
     }
 
-    func returnTapped() {
-        target?.insertText("\n")
-        reset()
-    }
-
-    func punctuationTapped(_ mark: String) {
-        target?.insertText(mark)
-        reset()
-    }
-
-    private func reset() {
+    private func clearSuggestions() {
         lastInsert = nil
         suggestions = []
         chosen = nil
     }
 
-    private func insertWord(_ word: String) {
-        let before = target?.documentContextBeforeInput ?? ""
-        insert(word, space: Self.needsSpace(before) ? " " : "", capitalized: Self.startsSentence(before))
-    }
-
-    private func insert(_ word: String, space: String, capitalized: Bool) {
-        var text = word
-        if word == "i" {
-            text = "I"
-        } else if capitalized {
-            text = word.prefix(1).uppercased() + word.dropFirst()
+    /// "i" becomes "I", the first word gets a capital at a sentence start,
+    /// and a space goes in front when the text before needs one.
+    private func format(_ text: String) -> String {
+        var words = text.split(separator: " ").map { $0 == "i" ? "I" : String($0) }
+        if lead.capitalized, let first = words.first {
+            words[0] = first.prefix(1).uppercased() + first.dropFirst()
         }
-        target?.insertText(space + text)
-        lastInsert = (space + text, space, capitalized)
+        return lead.space + words.joined(separator: " ")
     }
 
-    /// Removes the last inserted word if it's still right before the cursor.
+    /// Removes the last locked-in words if they're still right before the cursor.
     private func removeLastInsert() -> Bool {
         guard let last = lastInsert, let target,
               (target.documentContextBeforeInput ?? "").hasSuffix(last.text)

@@ -1,57 +1,59 @@
 import StackWriteKit
 import SwiftUI
 
-/// A square pad that records one finger stroke at a time. The live path is
-/// drawn with a fading trail, and fades out after the finger lifts.
+/// A square pad that records finger strokes. Each stroke is reported when the
+/// finger lifts, with `t` in seconds since the reference date, so callers can
+/// measure the lifts between strokes. Ink fades shortly after each lift, so
+/// a letter's earlier strokes stay visible while the next one is drawn.
 struct WritingPad: View {
     /// Called when the finger lifts, with the stroke in box units and the pad size.
     var onStroke: ([StrokePoint], CGSize) -> Void
 
-    @State private var points: [CGPoint] = []
-    @State private var times: [TimeInterval] = []
-    @State private var start: Date?
-    @State private var liftedAt: Date?
+    private struct Ink {
+        var points: [CGPoint] = []
+        var times: [TimeInterval] = []
+        var liftedAt: TimeInterval?
+    }
+
+    @State private var ink: [Ink] = []
+    @State private var drawing = false
 
     private static let trail: TimeInterval = 1.2
-    private static let fadeOut: TimeInterval = 0.45
+    private static let fadeOut: TimeInterval = 0.6
 
     var body: some View {
         GeometryReader { geo in
-            TimelineView(.animation(paused: points.isEmpty)) { timeline in
+            TimelineView(.animation(paused: ink.isEmpty)) { timeline in
                 Canvas { context, size in
                     drawGuides(in: &context, size: size)
-                    drawInk(in: &context, now: timeline.date)
+                    drawInk(in: &context, now: timeline.date.timeIntervalSinceReferenceDate)
                 }
             }
             .contentShape(Rectangle())
             .gesture(
                 DragGesture(minimumDistance: 0, coordinateSpace: .local)
                     .onChanged { value in
-                        if start == nil {
-                            start = value.time
-                            liftedAt = nil
-                            points = []
-                            times = []
+                        let t = value.time.timeIntervalSinceReferenceDate
+                        if !drawing {
+                            drawing = true
+                            ink.removeAll { $0.liftedAt.map { t - $0 > Self.fadeOut } ?? false }
+                            ink.append(Ink())
                         }
-                        points.append(value.location)
-                        times.append(value.time.timeIntervalSince(start ?? value.time))
+                        ink[ink.count - 1].points.append(value.location)
+                        ink[ink.count - 1].times.append(t)
                     }
                     .onEnded { value in
-                        guard start != nil else { return }
-                        let stroke = zip(points, times).map {
+                        guard drawing, let last = ink.last else { return }
+                        drawing = false
+                        let stroke = zip(last.points, last.times).map {
                             StrokePoint(touch: $0.0, padSize: geo.size, t: $0.1)
                         }
-                        start = nil
-                        let lifted = Date()
-                        liftedAt = lifted
+                        let lifted = Date().timeIntervalSinceReferenceDate
+                        ink[ink.count - 1].liftedAt = lifted
                         onStroke(stroke, geo.size)
                         Task {
                             try? await Task.sleep(for: .seconds(Self.fadeOut))
-                            if liftedAt == lifted {
-                                points = []
-                                times = []
-                                liftedAt = nil
-                            }
+                            ink.removeAll { $0.liftedAt.map { $0 <= lifted } ?? false }
                         }
                     }
             )
@@ -73,21 +75,28 @@ struct WritingPad: View {
         }
     }
 
-    private func drawInk(in context: inout GraphicsContext, now: Date) {
-        guard points.count > 1, let first = times.first else { return }
-        let strokeStart = start ?? liftedAt.map { $0.addingTimeInterval(-(times.last ?? 0) + first) } ?? now
-        var fade = 1.0
-        if let liftedAt {
-            fade = max(0, 1 - now.timeIntervalSince(liftedAt) / Self.fadeOut)
-        }
+    private func drawInk(in context: inout GraphicsContext, now: TimeInterval) {
         let style = StrokeStyle(lineWidth: 5, lineCap: .round, lineJoin: .round)
-        for i in 1..<points.count {
-            let age = now.timeIntervalSince(strokeStart) - times[i]
-            let opacity = max(0.2, 1 - age / Self.trail) * fade
-            var segment = Path()
-            segment.move(to: points[i - 1])
-            segment.addLine(to: points[i])
-            context.stroke(segment, with: .color(.accentColor.opacity(opacity)), style: style)
+        for stroke in ink {
+            var fade = 1.0
+            if let liftedAt = stroke.liftedAt {
+                fade = max(0, 1 - (now - liftedAt) / Self.fadeOut)
+            }
+            guard fade > 0, let first = stroke.points.first else { continue }
+            if stroke.points.count == 1 {
+                // A tap: a dot.
+                let dot = Path(ellipseIn: CGRect(x: first.x - 3, y: first.y - 3, width: 6, height: 6))
+                context.fill(dot, with: .color(.accentColor.opacity(fade)))
+                continue
+            }
+            for i in 1..<stroke.points.count {
+                let age = now - stroke.times[i]
+                let opacity = max(0.2, 1 - age / Self.trail) * fade
+                var segment = Path()
+                segment.move(to: stroke.points[i - 1])
+                segment.addLine(to: stroke.points[i])
+                context.stroke(segment, with: .color(.accentColor.opacity(opacity)), style: style)
+            }
         }
     }
 }

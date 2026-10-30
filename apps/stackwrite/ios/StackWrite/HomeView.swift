@@ -19,14 +19,14 @@ struct HomeView: View {
                     NavigationLink {
                         TrainView()
                     } label: {
-                        Label("Write training words", systemImage: "pencil.and.scribble")
+                        Label("Write training phrases", systemImage: "pencil.and.scribble")
                     }
                 } footer: {
-                    Text("Write a whole word as one stroke, each letter on top of the last. Lift your finger to finish the word.")
+                    Text("Write each letter on top of the last, lifting your finger whenever you like. Between words, pause for a moment or tap.")
                 }
 
                 Section {
-                    LabeledContent("Words recorded", value: samples.count.formatted())
+                    LabeledContent("Recordings", value: samples.count.formatted())
                     Toggle("Upload to help train StackWrite", isOn: Bindable(uploader).isEnabled)
                     if uploader.isEnabled {
                         Button {
@@ -54,7 +54,7 @@ struct HomeView: View {
                     Text("Training data")
                 } footer: {
                     Text((uploader.status.map { $0 + "\n" } ?? "")
-                         + "Uploads go to StackWrite's iCloud database: the strokes you write and the word they spell, with no name or account attached. Nothing you type on the keyboard is sent.")
+                         + "Uploads go to StackWrite's iCloud database: the strokes you write and the words they spell, with no name or account attached. Nothing you type on the keyboard is sent.")
                 }
 
                 Section {

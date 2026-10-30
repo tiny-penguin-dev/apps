@@ -44,10 +44,13 @@ build runs.
 
 ## One-time setup for each new app
 
-1. Register the bundle ID: developer.apple.com → Identifiers → **+** → App ID.
-2. Create the app record: App Store Connect → Apps → **+** → New App, pick that bundle ID.
-3. Push to `main` (or run the app's workflow by hand). The build appears in TestFlight
-   after Apple finishes processing it.
+1. Push to `main` (or run the app's workflow by hand). The TestFlight job registers
+   the bundle ID through the API if it's missing (`scripts/ios/asc-prepare-app.py`),
+   then stops with an error if there's no app record for it yet.
+2. Create the app record: App Store Connect → Apps → **+** → New App, pick that bundle
+   ID. Apple's API can't create app records, so this is the one manual step.
+3. Re-run the workflow. The build appears in TestFlight after Apple finishes processing
+   it.
 
 ## Adding a new iOS app
 

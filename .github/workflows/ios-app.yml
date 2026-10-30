@@ -92,18 +92,22 @@ jobs:
           BUILD_NUMBER="$(TZ=UTC git show -s --format=%cd --date=format-local:'%Y%m%d%H%M' HEAD)"
           echo "Build number: $BUILD_NUMBER"
 
-          # The archive is unsigned, so it carries no team. Read the team from
-          # the build settings and give it to the export step instead.
-          TEAM_ID="$(xcodebuild -showBuildSettings \
+          SETTINGS="$(xcodebuild -showBuildSettings \
             -project "${{ inputs.scheme }}.xcodeproj" \
             -scheme "${{ inputs.scheme }}" \
-            -configuration Release 2>/dev/null \
-            | awk '$1 == "DEVELOPMENT_TEAM" { print $3; exit }')"
-          if [ -z "$TEAM_ID" ]; then
-            echo "::error::DEVELOPMENT_TEAM is not set in the build settings."
+            -configuration Release 2>/dev/null)"
+          setting() { awk -v k="$1" '$1 == k { print $3; exit }' <<<"$SETTINGS"; }
+          TEAM_ID="$(setting DEVELOPMENT_TEAM)"
+          BUNDLE_ID="$(setting PRODUCT_BUNDLE_IDENTIFIER)"
+          if [ -z "$TEAM_ID" ] || [ -z "$BUNDLE_ID" ]; then
+            echo "::error::DEVELOPMENT_TEAM or PRODUCT_BUNDLE_IDENTIFIER is not set in the build settings."
             exit 1
           fi
-          echo "Team: $TEAM_ID"
+          echo "Team: $TEAM_ID, bundle ID: $BUNDLE_ID"
+
+          # Register the bundle ID if needed and check the app record exists.
+          ASC_KEY_PATH="$KEY_PATH" python3 "$GITHUB_WORKSPACE/scripts/ios/asc-prepare-app.py" \
+            "$BUNDLE_ID" "${{ inputs.scheme }}"
 
           ARCHIVE="$RUNNER_TEMP/${{ inputs.scheme }}.xcarchive"
           xcodebuild archive \
@@ -115,7 +119,8 @@ jobs:
             CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
             CODE_SIGNING_ALLOWED=NO
 
-          # Export signs with cloud-managed distribution signing and uploads
+          # The archive is unsigned, so it carries no team: the export options
+          # name it. Export signs with cloud-managed distribution signing and uploads
           # straight to App Store Connect.
           cat > "$RUNNER_TEMP/ExportOptions.plist" <<PLIST
           <?xml version="1.0" encoding="UTF-8"?>

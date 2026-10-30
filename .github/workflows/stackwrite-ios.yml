@@ -6,12 +6,14 @@ on:
     paths:
       - apps/stackwrite/ios/**
       - config/ios/**
+      - scripts/ios/**
       - .github/workflows/ios-app.yml
       - .github/workflows/stackwrite-ios.yml
   pull_request:
     paths:
       - apps/stackwrite/ios/**
       - config/ios/**
+      - scripts/ios/**
       - .github/workflows/ios-app.yml
       - .github/workflows/stackwrite-ios.yml
   workflow_dispatch:

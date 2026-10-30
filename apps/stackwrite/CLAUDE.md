@@ -18,13 +18,22 @@ to ask Gabriel before Phase 3.
   - `StackWrite.xcodeproj`: one app target, `StackWrite`, with a shared scheme
   - `StackWrite/`: app sources and assets (a synchronized folder, so new files are picked
     up without editing the project)
+    - `Try/`: "Try the keyboard": a text view whose `inputView` is the StackWrite pad.
+      `KeyboardController` holds the typing logic behind a `TextTarget` protocol shaped
+      like `UITextDocumentProxy`, so the keyboard extension can reuse it.
+    - `Train/`: the training screen: prompts words and saves each stroke as a sample
+    - `Shared/`: the writing pad, model loading, sample storage
+    - `Model/`: copies of `ml/export/StackWrite.mlpackage` (as `StrokeModel.mlpackage`)
+      and `lexicon.tsv`. `ml/finetune.py --ship` refreshes them.
+  - `StackWriteKit/`: local Swift package shared by the app and (later) the keyboard:
+    the sample format (`StrokeSample`, see `SAMPLES.md`), `Features.featurize`,
+    `Lexicon` (flat-array trie), `WordDecoder` (beam search) and `Recognizer` (Core ML).
+    Its tests replay `ml/export/golden.json`.
   - `Config/`: `StackWrite.xcconfig` (bundle ID `com.tinypenguin.stackwrite`, version,
     display name), `Project.xcconfig`, `Info.plist`
   - Still to add: the keyboard extension target (`com.tinypenguin.stackwrite.keyboard`)
-    and a local Swift package (e.g. `ios/StackWriteKit`) for featurize, inference and
-    decoder, shared by both targets
 
-  Keep that package inside this app. Don't move it to the repo's `packages/` unless a
+  Keep `StackWriteKit` inside this app. Don't move it to the repo's `packages/` unless a
   second app needs it.
 
 ## iOS (ios/)
@@ -35,7 +44,14 @@ xcodebuild build -project StackWrite.xcodeproj -scheme StackWrite \
   -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO
 ```
 
-CI is `.github/workflows/stackwrite-ios.yml`. PRs build; pushes to `main` also upload to
+Package tests (featurize and decoder also run on Linux with a Swift toolchain; the
+Core ML test needs macOS):
+
+```bash
+swift test --package-path ios/StackWriteKit
+```
+
+CI is `.github/workflows/stackwrite-ios.yml`. It runs the package tests, then builds. PRs build; pushes to `main` also upload to
 TestFlight. See `docs/ios-release.md` at the repo root.
 
 ## Python (ml/)
@@ -46,6 +62,8 @@ pip install -r requirements.txt
 python3 viz.py                                   # render sample synthetic words → out/samples.png
 python3 evaluate.py --model runs/final.pt --sets data/test_all.npz   # needs data built first
 python3 export.py --model runs/final.pt --out export/StackWrite
+python3 finetune.py ~/Downloads/StackWrite-samples-*.zip          # train on recorded samples, score
+python3 finetune.py samples/ --ship                               # ...and copy the model into the app
 ```
 
 See `ml/README.md` for building data, training and personalizing. `data/` and
@@ -57,6 +75,9 @@ intermediate `runs/` are gitignored. Only `runs/final.pt` and the logs are commi
   the Swift port, `BRIEF.md`, and regenerate `export/golden.json` in the same change.
 - When you retrain, re-export the Core ML model and regenerate `golden.json` so the Swift
   parity tests keep passing.
-- Training currently runs on CPU only. Add `mps` support before doing long runs on a Mac.
+- `train.py` picks cuda, then the Apple GPU (`mps`), then CPU (`--device` to force one).
+  CTC loss always runs on the CPU because MPS doesn't implement it.
+- Recorded samples use the format in `SAMPLES.md`. Change it in `StrokeSample` and
+  `ml/samples.py` together, and bump `version` if a field changes meaning.
 - Keep recognition fully on-device. The keyboard must work without Full Access.
 - Keep this file up to date as the iOS project takes shape (build, run and test commands).

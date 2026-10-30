@@ -87,6 +87,12 @@ Timestamps aren't used yet, but the capture app should still record them (see be
 
 ## Build plan
 
+> **Status (2026-10-30):** Phases 1 and 2 are built: the "Write training words" screen
+> (format in `SAMPLES.md`, word groups instead of single words), `ml/import_captures.py`,
+> `ml/finetune.py`, `StackWriteKit` with golden tests, and "Try the keyboard", an in-app
+> version of Phase 3's keyboard. Not yet measured on a device: speed, memory, accuracy on
+> real writing. Inputs shorter than 16 frames are padded by repeating the last row.
+
 ### Phase 1: Capture app (SwiftUI). Do this first.
 Purpose: collect real finger data for accuracy numbers and personalization.
 - Show a prompt word, then provide a square writing pad. One continuous stroke = one sample.

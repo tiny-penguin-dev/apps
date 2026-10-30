@@ -54,13 +54,18 @@ python3 data.py --n 150000 --seed 1 --styles natural,futural --out data/train_A.
 python3 data.py --n 80000  --seed 4 --styles natural,futural,scripts --out data/train_B.npz
 python3 data.py --n 3000   --seed 5 --styles natural,futural,scripts --p_random 0 --out data/test_all.npz
 
-# train (time-budgeted, CPU only for now; moving it to the "mps" device on Apple Silicon should be much faster)
+# train (time-budgeted; uses the Apple GPU via mps when available, --device cpu to force CPU)
 python3 train.py --train data/train_A.npz --val data/test_all.npz --minutes 25 --out runs/A.pt
 python3 train.py --train data/train_B.npz --val data/test_all.npz --minutes 10 --lr 8e-4 --init runs/A.pt --out runs/final.pt
 
 # personalize: mix your samples (repeated) with some replay data, short low-LR run
 python3 train.py --train data/replay_4k.npz data/mine.npz data/mine.npz ... --val data/test_all.npz \
   --minutes 3 --lr 5e-4 --init runs/final.pt --out runs/mine.pt
+
+# train on samples recorded in the app (one command: import, replay data, fine-tune, score)
+python3 finetune.py ~/Downloads/StackWrite-samples-*.zip
+python3 finetune.py samples/ --minutes 5 --ship    # also export Core ML + golden.json and copy into the iOS app
+python3 import_captures.py samples/ --out data/mine.npz --test 0.15   # just the import step
 
 # score + export
 python3 evaluate.py --model runs/final.pt --sets data/test_all.npz

@@ -50,7 +50,7 @@ h1{font-size:34px;font-weight:900;margin:0}
 
 <main>
   <h1>Squawk, facing forward</h1>
-  <p class="lead">The final two, with mid-size flippers (between the hugging flippers and the tiny nubs). On top: the front icon on light and dark, and the matching side-view logo. Below: five moods.</p>
+  <p class="lead">From most "logo" to most round: the arch (E1), the arch with a rounded bottom (E1b), a soft arch halfway to the pebble (E1c), and the pebble (H1). All have mid-size flippers. On top: the front icon on light and dark, and the matching side-view logo. Below: five moods.</p>
   <div id="list" style="display:flex;flex-direction:column;gap:20px"></div>
 </main>
 
@@ -97,6 +97,9 @@ const ARCH="M50 186 V96 A50 50 0 0 1 150 96 V186 Z", PEB="M100 40 C140 40 158 80
 const sideArch=(b,w)=>`<path d="M54 186 V92 A46 46 0 0 1 146 92 V186 Z" fill="${b}"/><path d="M68 186 V140 A30 30 0 0 1 128 140 V186 Z" fill="${w}"/><path d="M88 186 V174 A10 10 0 0 1 108 174 V186 Z" fill="${b}"/><circle cx="112" cy="88" r="10" fill="${w}"/><path d="M145 84 L171 94 L145 104Z" fill="${BEAK}"/>`;
 const sidePeb=(b,w)=>`<path d="M100 40 C138 40 156 74 156 116 C156 162 134 188 100 188 C64 188 46 164 46 124 C46 76 64 40 100 40Z" fill="${b}"/><path d="M146 96 C160 128 152 178 108 182 C84 184 72 170 76 150 C82 120 118 112 146 96Z" fill="${w}"/><circle cx="118" cy="82" r="10" fill="${w}"/><path d="M152 80 L178 90 L152 100Z" fill="${BEAK}"/>`;
 
+const ARCHR="M50 96 A50 50 0 0 1 150 96 V152 Q150 188 114 188 H86 Q50 188 50 152 Z";
+const SOFT="M100 46 C128 46 150 68 150 98 C151 122 156 146 152 164 C147 183 128 190 100 190 C72 190 53 183 48 164 C44 146 49 122 50 98 C50 68 72 46 100 46Z";
+const sideArchR=(b,w)=>`<path d="M54 92 A46 46 0 0 1 146 92 V152 Q146 188 112 188 H88 Q54 188 54 152 Z" fill="${b}"/><path d="M68 160 V140 A30 30 0 0 1 128 140 V160 Q128 182 106 182 H90 Q68 182 68 160 Z" fill="${w}"/><path d="M88 184 V174 A10 10 0 0 1 108 174 V184 Z" fill="${b}"/><circle cx="112" cy="88" r="10" fill="${w}"/><path d="M145 84 L171 94 L145 104Z" fill="${BEAK}"/>`;
 const OPTIONS=[
 {id:"E1",name:"Logo arch",side:sideArch,
  about:"Your logo facing you, now with flippers that grow out of its sides and hug the body. They lift up when it's proud or squawking.",
@@ -105,6 +108,20 @@ const OPTIONS=[
   <path d="${ARCH}" fill="${b}"/><path d="M66 186 V140 A34 34 0 0 1 134 140 V186 Z" fill="${w}"/><path d="M90 186 V176 A10 10 0 0 1 110 176 V186 Z" fill="${b}"/>
   <g style="--bd:${b}">${darkEyes(m,82,118,90)}</g>${frontBeak(m,104)}
   ${icon?"":`<circle cx="66" cy="110" r="6" fill="${CHEEK}" opacity=".85"/><circle cx="134" cy="110" r="6" fill="${CHEEK}" opacity=".85"/>${feet()}`}`,sq)},
+{id:"E1b",name:"Logo arch, rounded bottom",side:sideArchR,
+ about:"The same arch, but the bottom corners are rounded off, so it sits like a soft toy instead of a block. The belly window follows the curve.",
+ good:"Still clearly the logo shape, but friendlier. Small change, big softness.",watch:"Top and sides stay straight, so it's still more 'logo' than 'plush'.",
+ draw:(m,b="var(--peng)",w="#fff",icon)=>wrap(m,`${wings(b,m,"M57 103 C42 115 36 140 40 161 C49 156 56 142 60 127 Z",56,106)}
+  <path d="${ARCHR}" fill="${b}"/><path d="M66 160 V140 A34 34 0 0 1 134 140 V160 Q134 182 110 182 H90 Q66 182 66 160 Z" fill="${w}"/><path d="M90 184 V176 A10 10 0 0 1 110 176 V184 Z" fill="${b}"/>
+  <g style="--bd:${b}">${darkEyes(m,82,118,90)}</g>${frontBeak(m,104)}
+  ${icon?"":`<circle cx="66" cy="110" r="6" fill="${CHEEK}" opacity=".85"/><circle cx="134" cy="110" r="6" fill="${CHEEK}" opacity=".85"/>${feet(190)}`}`,sq)},
+{id:"E1c",name:"Soft arch",side:sideArchR,
+ about:"Halfway between the arch and the pebble: arch on top, sides that bulge out a little, and a round bottom. Keeps the belly window from the logo.",
+ good:"The best of both: logo-like head, cuddly body.",watch:"The side-view logo would need the same soft bottom to match.",
+ draw:(m,b="var(--peng)",w="#fff",icon)=>wrap(m,`${wings(b,m,"M56 103 C41 115 34 140 38 161 C48 156 55 142 59 127 Z",55,106)}
+  <path d="${SOFT}" fill="${b}"/><path d="M66 162 V142 A34 34 0 0 1 134 142 V162 Q134 184 110 185 H90 Q66 184 66 162 Z" fill="${w}"/><path d="M90 187 V178 A10 10 0 0 1 110 178 V187 Z" fill="${b}"/>
+  <g style="--bd:${b}">${darkEyes(m,82,118,92)}</g>${frontBeak(m,106)}
+  ${icon?"":`<circle cx="66" cy="112" r="6" fill="${CHEEK}" opacity=".85"/><circle cx="134" cy="112" r="6" fill="${CHEEK}" opacity=".85"/>${feet(191)}`}`,sq)},
 {id:"H1",name:"Pebble",side:sidePeb,
  about:"The round pebble with flippers that start inside its sides and curve down along the body, like a real penguin. They flap up for big moments.",
  good:"Cuddly and natural. Flippers give it body language without looking stuck on.",watch:"Slightly wider silhouette for the icon.",

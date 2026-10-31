@@ -8,8 +8,6 @@ SQUAWK if you're still in bed. A little penguin named Squawk runs the show.
 
 Easy by default. Powerful when you want it.
 
-> Guesses marked **(assumed)** are waiting on Gabriel's answers. See "Open questions".
-
 ## 1. The problem
 
 - Most alarm apps give you one alarm. Heavy sleepers fake a plan by setting five alarms
@@ -23,11 +21,13 @@ Easy by default. Powerful when you want it.
 
 ## 2. Who it's for
 
-**Main user (assumed): heavy sleepers and snoozers.** People who set several alarms today,
-sleep through a single one, or snooze for 30 minutes without meaning to.
+**Main user: heavy sleepers and snoozers who don't get out of bed easily.** People who
+set several alarms today, sleep through a single one, or snooze for 30 minutes without
+meaning to.
 
 Also for:
-- People who want a gentler start (soft sound first, loud only if needed).
+- Anyone who wants a happier wake-up: soft sound first, loud only if needed, lights
+  coming on, a penguin saying good morning.
 - Tinkerers who want to tune every detail (sounds, timing, "prove you're awake" steps).
 
 Not for (now): sleep tracking fans, people who want bedtime stories or sleep sounds.
@@ -50,8 +50,11 @@ Not for (now): sleep tracking fans, people who want bedtime stories or sleep sou
    "Customize". The main screen never gets crowded.
 4. **Encouraging, not punishing.** Squawk cheers you on. Even the hard mode feels like a
    game, not a fine.
-5. **Your data stays yours.** No account, no server. Everything is on the phone, synced
-   with iCloud **(assumed)**.
+5. **Your data stays yours.** No account, no server. Everything lives on the phone.
+   iCloud sync only if it turns out we need it (for example, to keep alarms after
+   switching phones).
+6. **Built to grow.** v1 is small, but the pieces are made so new checks, actions and
+   conditions can be added without redoing the app (see "Built to grow").
 
 ## 4. Key ideas (the words we use)
 
@@ -106,7 +109,7 @@ Pick one or more. When there are several, you must do all of them.
 |---|---|---|
 | Scan a tag | Tap your phone on an NFC sticker you placed somewhere far from bed. | v1 |
 | Scan a code | Scan any QR code or barcode you picked (your coffee bag, a toothpaste tube). Works on every iPhone, no sticker needed. | v1 |
-| Penguin game | A quick tap game with Squawk (catch the fish, count the penguins). Wakes up your brain. | v1 **(assumed)** |
+| Penguin game | A quick tap game with Squawk (catch the fish, count the penguins). Wakes up your brain. | v1 |
 | Run a Shortcut | Use the "Turn off Squawk" action in any Shortcut or automation. | later |
 | Walk it off | Take a number of steps. | later |
 
@@ -115,7 +118,7 @@ cap), so nobody is ever stuck with a ringing phone.
 
 ## 6. Basics vs powerful features
 
-| Basics (free) | Powerful (Pro, assumed) |
+| Basics (free) | Powerful (Pro subscription) |
 |---|---|
 | Unlimited alarms, repeat days or one date | Fully custom steps (any number, any timing) |
 | 3 wake-up styles | Wake-up checks |
@@ -146,7 +149,7 @@ not a paywall on reliability.
 
 These shape the design, so they're listed here, not just in the build doc.
 
-- **iOS 26 or later**, iPhone first **(assumed)**. Apple Watch later.
+- **iOS 26 or later**, iPhone only to start. Apple Watch later.
 - The person must allow alarms (system permission). If they say no, we can't ring
   reliably, so the app explains this clearly and shows a fix.
 - **The ringing screen is drawn by iOS, not by us.** We control the title, the button
@@ -162,6 +165,21 @@ These shape the design, so they're listed here, not just in the build doc.
   alarms might not be set. We should plan a few mornings ahead to be safe.
 - App blocking (later) needs Apple's Screen Time permission and a special entitlement.
 
+## 8b. Built to grow
+
+v1 ships few features, but its shape must make the later ones easy. Like Lanata's
+Morning model, these are open lists, so adding a new kind is adding one case, not a redesign:
+
+- **Wake-up checks** (tag, code, game; later Shortcut, steps).
+- **Actions** when the alarm starts or ends (later HomeKit lights, music, Shortcut).
+- **Conditions** for whether an alarm rings at all (later "only when home").
+- **Storage** sits behind one layer, so iCloud sync can be added without touching screens.
+- **Pro** is checked in one place, so moving a feature between free and Pro is one change.
+- One piece owns turning saved alarms into AlarmKit alarms, so every feature uses the
+  same reliable path.
+
+The build doc turns this into the real structure.
+
 ## 9. Scope
 
 ### v1
@@ -171,13 +189,14 @@ These shape the design, so they're listed here, not just in the build doc.
 - Wake-up checks: scan a tag, scan a code, penguin game.
 - Penguin home screen, reactions, streaks.
 - Widget showing the next alarm.
-- iCloud sync between your devices.
-- Free + Pro (one-time or subscription, see open questions).
+- Everything stored on the phone, no account.
+- Free basics + Pro subscription.
 
 ### Later
 - "Only ring when I'm home" (location).
 - App blocking during the morning (Screen Time).
-- Morning actions: turn on lights (HomeKit), start music, run a Shortcut.
+- Morning actions: turn on lights with HomeKit (first in line), start music, run a Shortcut.
+- iCloud sync, if people need it.
 - Shortcut and step-count wake-up checks.
 - Apple Watch app.
 - Morning summary (weather, first calendar event) after you get up.
@@ -198,14 +217,14 @@ These shape the design, so they're listed here, not just in the build doc.
 
 ## 11. Open questions
 
-1. Main audience: heavy sleepers vs "better mornings" crowd? (assumed heavy sleepers)
-2. Pricing: free + Pro, and is Pro a one-time purchase or a subscription?
-3. No account, iCloud only? (assumed yes)
-4. Is the mascot called Squawk, same as the app? (assumed yes)
-5. v1 scope: are wake-up checks in v1, and app blocking / location later? (assumed yes)
-6. iPhone only for v1? (assumed yes)
-7. Emergency way out of a wake-up check: what should it be?
-8. Step names: keep Peep / Squawk / SQUAWK! or let people name them from the start?
+1. Emergency way out of a wake-up check: what should it be?
+2. Step names: keep Peep / Squawk / SQUAWK! or let people name them from the start?
+3. Should HomeKit lights move up into v1, or stay first in line for the next version?
+4. Pro price and trial (for example a weekly/yearly plan with a free trial)?
+
+Answered (31 Oct 2026): heavy sleepers plus anyone who wants a happier wake-up; free
+basics with a Pro subscription; on-device, no account, iCloud only if needed; mascot
+named Squawk; v1 scope as above, built to grow; iPhone only to start.
 
 ## 12. Where the ideas came from
 
@@ -221,4 +240,4 @@ iOS app) for normal people:
 | Start condition: location zone | "Only when home" (later) |
 | App block window around the alarm | App blocking (later, Pro) |
 | Webhook actions on start / dismiss | Morning actions via HomeKit / Shortcuts (later) |
-| Server-synced, user accounts | On-device, iCloud sync, no account |
+| Server-synced, user accounts | On-device, no account (iCloud later if needed) |

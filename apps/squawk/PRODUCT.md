@@ -32,6 +32,14 @@ Also for:
 
 Not for (now): sleep tracking fans, people who want bedtime stories or sleep sounds.
 
+## 2b. What makes it different
+
+- **A plan, not five alarms.** One alarm holds the whole wake-up sequence, set up in one tap.
+- **As reliable as the Clock app.** AlarmKit lets it ring through silent mode and Focus.
+- **Fun instead of punishment.** A penguin who cheers you on, instead of grey puzzle screens and ads.
+- **The penguin twist:** the app is named after the sound a penguin makes, the steps go
+  from a tiny peep to a full colony squawk, and Squawk the penguin reacts to every morning.
+
 ## 3. Principles
 
 1. **One tap to a good alarm.** A new alarm already has a smart wake-up plan. You only
@@ -174,7 +182,7 @@ These shape the design, so they're listed here, not just in the build doc.
 - Apple Watch app.
 - Morning summary (weather, first calendar event) after you get up.
 
-### Not doing
+### Never
 - Sleep tracking, sleep sounds, bedtime stories.
 - Social features, sharing alarms with friends.
 - Android.

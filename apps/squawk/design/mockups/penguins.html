@@ -1,0 +1,133 @@
+<title>Squawk Penguin Options</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;800;900&display=swap">
+<style>
+/* Layout: a column of option cards; each card shows one penguin style in four moods. */
+:root{
+  --bg:#F4F7FF; --card:#FFFFFF; --ink:#1E2945; --muted:#6B7594; --line:#E1E7F5; --ice:#DCE7FF;
+  --accent:#FF8A4C; --sun:#FFC24D; --coral:#FF5C63; --beak:#FF9F43; --cheek:#FFB3B8;
+  --navy:#1E2945; --belly:#FFFFFF; --chick:#B9C2D6; --chickdark:#2A2F3F; --blue:#5C7FB8; --mochi:#2C3A63;
+  --font:ui-rounded,"SF Pro Rounded","Nunito",system-ui,sans-serif; --spring:cubic-bezier(.34,1.56,.64,1)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#11182E; --card:#1B2443; --ink:#EEF2FF; --muted:#9AA5C6; --line:#28345A; --ice:#24305A;
+  --navy:#33426F; --belly:#F3F6FF; --chick:#C5CDE0; --chickdark:#3A4158; --blue:#7A9BD3; --mochi:#3E4E80; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#11182E; --card:#1B2443; --ink:#EEF2FF; --muted:#9AA5C6; --line:#28345A; --ice:#24305A;
+  --navy:#33426F; --belly:#F3F6FF; --chick:#C5CDE0; --chickdark:#3A4158; --blue:#7A9BD3; --mochi:#3E4E80; color-scheme:dark}
+body{background:var(--bg);color:var(--ink);font-family:var(--font);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+main{max-width:860px;margin:0 auto;padding-block:28px 48px;display:flex;flex-direction:column;gap:20px}
+h1{font-size:34px;font-weight:900;margin:0}
+.lead{color:var(--muted);font-size:16px;line-height:1.5;margin:0;max-width:60ch}
+.opt{background:var(--card);border-radius:28px;padding:20px;display:flex;flex-direction:column;gap:14px}
+.head{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.tag{font-weight:900;font-size:13px;letter-spacing:.06em;color:#fff;background:var(--accent);border-radius:8px;padding:3px 9px}
+.head h2{margin:0;font-size:22px;font-weight:900}
+.head span.cur{font-size:12px;font-weight:800;color:var(--muted);border:2px solid var(--line);border-radius:999px;padding:2px 8px}
+.opt p{margin:0;color:var(--muted);line-height:1.45;max-width:65ch}
+.moods{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.mood{background:var(--ice);border-radius:20px;padding:10px 6px 8px;display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0}
+.mood svg{width:100%;max-width:150px;height:auto}
+.mood b{font-size:13px;color:var(--muted)}
+@media (max-width:560px){.moods{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.pro{display:flex;gap:16px;flex-wrap:wrap;font-size:14px}
+.pro div{min-width:0;flex:1 1 220px}
+.pro b{display:block;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+/* animation */
+.b{animation:breathe 3.2s ease-in-out infinite;transform-origin:50% 92%;transform-box:view-box}
+@keyframes breathe{50%{transform:scale(1.035,.965)}}
+.hop{animation:hop .7s var(--spring) infinite alternate;transform-box:view-box}
+@keyframes hop{to{transform:translateY(-9px)}}
+.wave{animation:wave .6s ease-in-out infinite alternate;transform-box:fill-box;transform-origin:20% 20%}
+@keyframes wave{to{transform:rotate(-45deg)}}
+.zz{font-weight:900;fill:var(--muted);animation:zz 2.6s ease-in infinite;opacity:0;font-family:var(--font)}
+.zz2{animation-delay:1.3s}
+@keyframes zz{30%{opacity:1}100%{opacity:0;transform:translate(14px,-30px)}}
+.wob{animation:wob 1.6s ease-in-out infinite;transform-box:view-box;transform-origin:50% 95%}
+@keyframes wob{25%{transform:rotate(-4deg)}75%{transform:rotate(4deg)}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}}
+</style>
+
+<main>
+  <h1>Who is Squawk?</h1>
+  <p class="lead">Four takes on the penguin, each shown asleep, awake, proud and grumpy. All are made of simple shapes so every part can move in the app. Tell me a letter, or mix bits ("B's fluff with D's scarf").</p>
+  <div id="list"></div>
+</main>
+
+<script>
+const E="#1A2240";
+const zz=`<text class="zz" x="150" y="44" font-size="22">z</text><text class="zz zz2" x="162" y="32" font-size="16">z</text>`;
+function eyes(m,lx,rx,y,r=7,col=E){
+  if(m==="sleep")return `<path d="M${lx-8} ${y} q8 6 16 0 M${rx-8} ${y} q8 6 16 0" stroke="${col}" stroke-width="4" fill="none" stroke-linecap="round"/>`;
+  if(m==="proud")return `<path d="M${lx-8} ${y+2} q8 -8 16 0 M${rx-8} ${y+2} q8 -8 16 0" stroke="${col}" stroke-width="4" fill="none" stroke-linecap="round"/>`;
+  if(m==="grumpy")return `<path d="M${lx-9} ${y-6} l16 5 M${rx+9} ${y-6} l-16 5" stroke="${col}" stroke-width="4" stroke-linecap="round"/><circle cx="${lx}" cy="${y+4}" r="${r-2}" fill="${col}"/><circle cx="${rx}" cy="${y+4}" r="${r-2}" fill="${col}"/>`;
+  return `<circle cx="${lx}" cy="${y}" r="${r}" fill="${col}"/><circle cx="${rx}" cy="${y}" r="${r}" fill="${col}"/><circle cx="${lx+2}" cy="${y-3}" r="${r/3}" fill="#fff"/><circle cx="${rx+2}" cy="${y-3}" r="${r/3}" fill="#fff"/>`}
+const shadow=`<ellipse cx="100" cy="190" rx="50" ry="7" fill="rgba(20,30,60,.12)"/>`;
+const cls=m=>m==="proud"?"hop":"";
+
+const OPTIONS=[
+{id:"A",name:"Round buddy",current:true,
+ about:"The one in the mockups. A classic navy-and-white penguin with pink cheeks and a nightcap for sleeping. Friendly, familiar, easy to read at small sizes.",
+ good:"Clear at icon size. Feels like a classic penguin.",watch:"Close to many penguin mascots, so less unique.",
+ draw:m=>`<g class="${cls(m)}"><g class="b">
+  <ellipse cx="52" cy="128" rx="14" ry="34" fill="var(--navy)" transform="rotate(18 52 128)"/>
+  <g class="${m==="awake"?"wave":""}"><ellipse cx="148" cy="128" rx="14" ry="34" fill="var(--navy)" transform="rotate(-18 148 128)"/></g>
+  <ellipse cx="100" cy="118" rx="54" ry="66" fill="var(--navy)"/><ellipse cx="100" cy="130" rx="38" ry="50" fill="var(--belly)"/><ellipse cx="100" cy="94" rx="36" ry="26" fill="var(--belly)"/>
+  ${eyes(m,86,114,92)}<circle cx="74" cy="106" r="7" fill="var(--cheek)" opacity=".8"/><circle cx="126" cy="106" r="7" fill="var(--cheek)" opacity=".8"/>
+  <path d="M92 104 L108 104 L100 115Z" fill="var(--beak)"/>
+  ${m==="sleep"?`<path d="M62 64 Q100 6 140 60 Q100 50 62 64Z" fill="var(--accent)"/><circle cx="146" cy="58" r="9" fill="var(--sun)"/>`:""}
+  <ellipse cx="82" cy="184" rx="14" ry="6" fill="var(--beak)"/><ellipse cx="118" cy="184" rx="14" ry="6" fill="var(--beak)"/></g></g>${m==="sleep"?zz:""}`},
+
+{id:"B",name:"Fluffy chick",
+ about:"A baby emperor penguin: soft grey fluff, a dark cap and a big white face. Fluff puffs up when it's proud and droops when it's grumpy. The cutest and most 'baby animal' option.",
+ good:"Very cute and different. Fluff gives fun animation (puff, shiver).",watch:"Grey is less bright; needs the orange accents to pop.",
+ draw:m=>{const fl=m==="proud"?1.06:m==="grumpy"?.96:1;return `<g class="${cls(m)}"><g class="b"><g transform="translate(100 120) scale(${fl}) translate(-100 -120)">
+  <path d="M100 48 C150 48 160 100 158 140 C156 176 132 186 100 186 C68 186 44 176 42 140 C40 100 50 48 100 48Z" fill="var(--chick)"/>
+  <path d="M46 120 q-8 6 -4 14 M154 120 q8 6 4 14 M60 172 q-6 6 0 10 M140 172 q6 6 0 10" stroke="var(--chick)" stroke-width="7" stroke-linecap="round" fill="none"/>
+  <path d="M100 44 C140 44 152 76 150 100 C130 84 70 84 50 100 C48 76 60 44 100 44Z" fill="var(--chickdark)"/>
+  <ellipse cx="100" cy="106" rx="42" ry="30" fill="#FFFFFF"/>
+  <ellipse cx="50" cy="132" rx="11" ry="26" fill="var(--chick)" stroke="rgba(0,0,0,.06)" transform="rotate(20 50 132)"/>
+  <g class="${m==="awake"?"wave":""}"><ellipse cx="150" cy="132" rx="11" ry="26" fill="var(--chick)" stroke="rgba(0,0,0,.06)" transform="rotate(-20 150 132)"/></g>
+  ${eyes(m,84,116,104,8)}<path d="M94 116 L106 116 L100 124Z" fill="${E}"/>
+  <circle cx="70" cy="116" r="6" fill="var(--cheek)"/><circle cx="130" cy="116" r="6" fill="var(--cheek)"/>
+  <path d="M100 40 q4 -10 10 -6" stroke="var(--chickdark)" stroke-width="5" fill="none" stroke-linecap="round"/>
+  ${m==="sleep"?`<ellipse cx="100" cy="150" rx="26" ry="14" fill="var(--ice)" opacity=".9"/><path d="M80 150 h40" stroke="var(--muted)" stroke-width="2" stroke-dasharray="4 4"/>`:""}
+  </g><ellipse cx="84" cy="186" rx="12" ry="5" fill="#8C93A8"/><ellipse cx="116" cy="186" rx="12" ry="5" fill="#8C93A8"/></g></g>${m==="sleep"?zz:""}`}},
+
+{id:"C",name:"Mochi blob",
+ about:"A squishy egg-shaped penguin with tiny wings and no visible feet, like a soft toy. It squashes and stretches a lot, which suits a bouncy, wobbly app. Most minimal and 'kawaii'.",
+ good:"Super simple, great squash-and-stretch, works as an app icon and widget.",watch:"Less clearly a penguin unless the beak and belly read well.",
+ draw:m=>{const sq=m==="grumpy"?"scale(1.08,.9)":m==="proud"?"scale(.95,1.06)":"";return `<g class="${m==="proud"?"hop":"wob"}"><g class="b"><g transform="translate(100 186) ${sq} translate(-100 -186)">
+  <path d="M100 52 C152 52 166 120 162 150 C158 180 132 188 100 188 C68 188 42 180 38 150 C34 120 48 52 100 52Z" fill="var(--mochi)"/>
+  <path d="M100 92 C134 92 144 128 142 150 C140 172 124 180 100 180 C76 180 60 172 58 150 C56 128 66 92 100 92Z" fill="var(--belly)"/>
+  <path d="M38 132 q-14 4 -12 18" stroke="var(--mochi)" stroke-width="12" stroke-linecap="round" fill="none"/>
+  <g class="${m==="awake"?"wave":""}"><path d="M162 132 q14 4 12 18" stroke="var(--mochi)" stroke-width="12" stroke-linecap="round" fill="none"/></g>
+  ${eyes(m,84,116,106,7)}
+  <ellipse cx="100" cy="118" rx="9" ry="6" fill="var(--beak)"/>
+  <ellipse cx="72" cy="122" rx="8" ry="5" fill="var(--cheek)"/><ellipse cx="128" cy="122" rx="8" ry="5" fill="var(--cheek)"/>
+  ${m==="sleep"?`<path d="M64 70 Q100 30 136 70 Z" fill="var(--sun)"/><circle cx="100" cy="40" r="7" fill="var(--accent)"/>`:""}
+  </g></g></g>${m==="sleep"?zz:""}`}},
+
+{id:"D",name:"Little blue with scarf",
+ about:"Inspired by the little blue penguin: a slimmer blue-grey penguin with a cozy orange scarf that flaps when it moves. The scarf is its signature, and outfits (beanie, sunglasses) build on it.",
+ good:"Distinctive color and a built-in signature item. Scarf adds easy motion.",watch:"Slimmer shape is a bit less round and cuddly.",
+ draw:m=>`<g class="${cls(m)}"><g class="b">
+  <path d="M100 40 C140 40 150 90 150 130 C150 170 130 186 100 186 C70 186 50 170 50 130 C50 90 60 40 100 40Z" fill="var(--blue)"/>
+  <path d="M100 96 C126 96 134 130 134 150 C134 172 120 180 100 180 C80 180 66 172 66 150 C66 130 74 96 100 96Z" fill="var(--belly)"/>
+  <ellipse cx="100" cy="82" rx="30" ry="22" fill="var(--belly)"/>
+  <path d="M56 116 q-12 20 -2 40" stroke="var(--blue)" stroke-width="13" stroke-linecap="round" fill="none"/>
+  <g class="${m==="awake"?"wave":""}"><path d="M144 116 q12 20 2 40" stroke="var(--blue)" stroke-width="13" stroke-linecap="round" fill="none"/></g>
+  ${eyes(m,88,112,78,6)}<path d="M94 90 L106 90 L100 100Z" fill="var(--beak)"/>
+  <path d="M64 104 Q100 120 136 104 L138 116 Q100 132 62 116Z" fill="var(--accent)"/>
+  <path d="M124 114 l10 34 l-14 -2 l-6 -30Z" fill="var(--accent)" class="${m==="proud"?"":""}"/><path d="M124 140 l12 2" stroke="var(--sun)" stroke-width="3"/>
+  ${m==="sleep"?`<path d="M70 52 Q100 14 132 50 Q100 40 70 52Z" fill="var(--sun)"/>`:""}
+  <ellipse cx="86" cy="186" rx="12" ry="5" fill="var(--beak)"/><ellipse cx="114" cy="186" rx="12" ry="5" fill="var(--beak)"/></g></g>${m==="sleep"?zz:""}`}
+];
+const MOODS=[["sleep","Asleep"],["awake","Awake"],["proud","Proud"],["grumpy","Grumpy"]];
+document.getElementById("list").innerHTML=OPTIONS.map(o=>`<section class="opt" aria-labelledby="h${o.id}">
+  <div class="head"><span class="tag">${o.id}</span><h2 id="h${o.id}">${o.name}</h2>${o.current?`<span class="cur">In the mockups now</span>`:""}</div>
+  <p>${o.about}</p>
+  <div class="moods">${MOODS.map(([m,l])=>`<div class="mood"><svg viewBox="0 0 200 200" role="img" aria-label="${o.name}, ${l.toLowerCase()}">${shadow}${o.draw(m)}</svg><b>${l}</b></div>`).join("")}</div>
+  <div class="pro"><div><b>Good</b>${o.good}</div><div><b>Watch out</b>${o.watch}</div></div></section>`).join("");
+document.getElementById("list").style.cssText="display:flex;flex-direction:column;gap:20px";
+</script>

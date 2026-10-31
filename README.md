@@ -17,6 +17,7 @@ docs/             repo-wide guides (e.g. ios-release.md)
 | App | What it is |
 |---|---|
 | [StackWrite](apps/stackwrite) | iOS keyboard: write a whole word as one stacked stroke |
+| [Squawk](apps/squawk) | Friendly penguin wake-up alarm with extra rings and wake-up checks (in design) |
 
 ## Adding an app
 

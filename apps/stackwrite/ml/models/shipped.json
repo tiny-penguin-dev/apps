@@ -1,1 +1,18 @@
-{"trained": "2026-10-30", "samples": 0, "note": "synthetic only"}
+{
+ "trained": "2026-10-31T00:47:31Z",
+ "samples": 100,
+ "minutes": 8.0,
+ "scores": {
+  "synthetic_exact": 0.8266666666666667,
+  "held_back": {
+   "wer": 1.375,
+   "exact": 0.22580645161290322,
+   "breaks": 0.3548387096774194
+  },
+  "held_back_phrases": {
+   "wer": 1.2,
+   "exact": 0.26666666666666666,
+   "breaks": 0.3333333333333333
+  }
+ }
+}

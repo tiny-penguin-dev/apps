@@ -85,8 +85,8 @@ Answers "how do we build it, in what order". Builds only on the approved design.
 - `BUILD.md` comes first, in its own PR: the architecture in a few lines, then small
   phases, each with a "done when" check that can be seen on a phone
 - Then one PR per phase. Each phase should leave something Gabriel can try in TestFlight.
-- Set up the iOS project and CI by following "Adding a new iOS app" in
-  [`ios-release.md`](ios-release.md), and write the app's `CLAUDE.md`
+- Set up the iOS project and CI with `scripts/new-app/new-app.py` (Claude: the
+  `new-app` skill), then fill in the app's `CLAUDE.md`
 - If the code has to differ from the design, update `DESIGN.md` in the same PR and say so
 
 **Done when:** the phases in `BUILD.md` are all ticked and the app is in TestFlight.

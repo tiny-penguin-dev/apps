@@ -24,7 +24,7 @@ Consumer apps, and bigger features in existing apps, go Product → Design → B
 - A stage is approved only when Gabriel merges the PR that sets its status to `Approved <date>`. Work on the earliest stage that isn't approved.
 - Don't write app code until `PRODUCT.md` and `DESIGN.md` are approved, unless Gabriel asks for a throwaway spike.
 - A bigger feature (new flow or screen, or a change to current designs) gets `apps/<name>/features/<feature>/FEATURE.md` with the same three stages. Small fixes skip this.
-- To start a new app or a bigger feature, use the `product-workflow` skill.
+- To start a new app or a bigger feature, use the `product-workflow` skill. To create a new app's Xcode project and CI, use the `new-app` skill.
 
 ## iOS apps
 

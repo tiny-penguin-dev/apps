@@ -1,0 +1,38 @@
+name: __NAME__ iOS
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - apps/__SLUG__/ios/**
+      - config/ios/**
+      - scripts/ios/**
+      - .github/workflows/ios-app.yml
+      - .github/workflows/__SLUG__-ios.yml
+  pull_request:
+    paths:
+      - apps/__SLUG__/ios/**
+      - config/ios/**
+      - scripts/ios/**
+      - .github/workflows/ios-app.yml
+      - .github/workflows/__SLUG__-ios.yml
+  workflow_dispatch:
+    inputs:
+      deploy:
+        description: Upload to TestFlight
+        type: boolean
+        default: true
+
+concurrency:
+  group: __SLUG__-ios-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ios:
+    uses: ./.github/workflows/ios-app.yml
+    with:
+      app-dir: apps/__SLUG__/ios
+      scheme: __NAME__
+      # Pushes to main ship to TestFlight; PRs only build.
+      deploy: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.deploy) }}
+    secrets: inherit

@@ -106,10 +106,14 @@ in the group who isn't listed. To add or remove a tester, edit the list and push
 
 ## Adding a new iOS app
 
-1. Copy `apps/stackwrite/ios/` as a starting point: the `.xcodeproj`, `Config/` and the
-   source folder.
-2. Rename the target, scheme and folders, and set the bundle ID, version and display
-   name in the app's xcconfig, and list the testers in `Config/testflight.json`.
-3. Copy `.github/workflows/stackwrite-ios.yml` and change the name, paths, `app-dir` and
-   `scheme`.
-4. Do the per-app Apple setup above.
+Run the new-app script from the repo root (Claude: use the `new-app` skill):
+
+```bash
+python3 scripts/new-app/new-app.py Squawk --display "Squawk"
+```
+
+It creates `apps/<slug>/ios/` (the Xcode project, `Config/` xcconfigs,
+`testflight.json`, a placeholder screen and icon) and `.github/workflows/<slug>-ios.yml`
+from `scripts/new-app/template/`. The bundle ID defaults to
+`com.tinypenguin.<slug>`. Then add any entitlements the app needs, push, and do the
+per-app Apple setup above.

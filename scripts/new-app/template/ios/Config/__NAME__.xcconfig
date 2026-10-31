@@ -1,0 +1,6 @@
+#include "../../../../config/ios/Project.xcconfig"
+#include "../../../../config/ios/App.xcconfig"
+
+PRODUCT_BUNDLE_IDENTIFIER = __BUNDLE__
+MARKETING_VERSION = 0.1.0
+INFOPLIST_KEY_CFBundleDisplayName = __DISPLAY__

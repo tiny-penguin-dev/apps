@@ -28,4 +28,4 @@ Apps go Product → Design → Build, and Gabriel approves each stage. See
 2. Once the product is approved, add `DESIGN.md` and clickable mockups in `design/`.
 3. Once the design is approved, add `BUILD.md`, then the code and a `CLAUDE.md`.
 4. Keep it self-contained: no imports from other apps, only from `packages/`.
-5. For an iOS app, follow "Adding a new iOS app" in `docs/ios-release.md`.
+5. For an iOS app, create the project and CI with `scripts/new-app/new-app.py` (see "Adding a new iOS app" in `docs/ios-release.md`).

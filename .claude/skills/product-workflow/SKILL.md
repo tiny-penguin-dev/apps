@@ -39,8 +39,8 @@ stage is approved when Gabriel merges its PR.
 
 1. Copy `docs/templates/BUILD.md` to `apps/<name>/BUILD.md`, plan small phases with
    "done when" checks, and open it as its own PR.
-2. Once merged, build one phase per PR. Set up the iOS project and CI with
-   "Adding a new iOS app" in `docs/ios-release.md`, and write the app's `CLAUDE.md`.
+2. Once merged, set up the iOS project and CI with the `new-app` skill, then build one
+   phase per PR.
 3. If the code must differ from the design, update `DESIGN.md` in the same PR.
 
 ## Bigger feature in an existing app

@@ -2,6 +2,13 @@
 
 iOS apps build and ship with GitHub Actions on macOS runners. There's no Xcode Cloud.
 
+The jobs run on GitHub's `xcode-27` runner image (Xcode 27.1 by default, on macOS 27).
+GitHub's `macos-26` image only has Xcode 26, so Xcode 27 needs this label until a
+`macos-27` image exists. The image is still marked "preview" by GitHub; if a build
+breaks because of the runner, switching `runs-on` back to `macos-26` in
+`.github/workflows/ios-app.yml` is the quick way out. The installed versions are listed
+at https://github.com/actions/runner-images/blob/main/images/macos/xcode-27-arm64-Readme.md.
+
 ## How it works
 
 - `.github/workflows/ios-app.yml` is a reusable workflow shared by every iOS app. It

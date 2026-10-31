@@ -35,7 +35,7 @@ on:
 jobs:
   build:
     name: Build
-    runs-on: macos-26
+    runs-on: xcode-27
     defaults:
       run:
         working-directory: ${{ inputs.app-dir }}
@@ -63,7 +63,7 @@ jobs:
     name: TestFlight
     needs: build
     if: inputs.deploy
-    runs-on: macos-26
+    runs-on: xcode-27
     defaults:
       run:
         working-directory: ${{ inputs.app-dir }}

@@ -50,7 +50,7 @@ h1{font-size:34px;font-weight:900;margin:0}
 
 <main>
   <h1>Squawk, facing forward</h1>
-  <p class="lead">Round two: no more floating wings. The flippers now grow out of the body and lift up when Squawk is proud or squawking. On the left: the front icon on light and dark, and the matching side-view logo. On the right: five moods.</p>
+  <p class="lead">The final two, with mid-size flippers (between the hugging flippers and the tiny nubs). On top: the front icon on light and dark, and the matching side-view logo. Below: five moods.</p>
   <div id="list" style="display:flex;flex-direction:column;gap:20px"></div>
 </main>
 
@@ -89,7 +89,7 @@ function darkEyes(m,lx,rx,y){const W="var(--eye,#fff)",P="var(--pupil,#0F1B2D)";
 function frontBeak(m,y){return m==="squawk"?`<path d="M88 ${y} L112 ${y} L100 ${y+9}Z" fill="${BEAK}"/><path d="M90 ${y+13} L110 ${y+13} L100 ${y+22}Z" fill="${BEAK}"/>`:`<path d="M90 ${y} L110 ${y} L100 ${y+12}Z" fill="${BEAK}"/>`}
 const flaps=(b,m,y=124,lx=34,rx=166)=>{const up=m==="proud"||m==="squawk";return `<rect x="${lx-11}" y="${y}" width="22" height="46" rx="11" fill="${b}" transform="rotate(${up?32:10} ${lx} ${y+2})"/><rect x="${rx-11}" y="${y}" width="22" height="46" rx="11" fill="${b}" transform="rotate(${up?-32:-10} ${rx} ${y+2})"/>`};
 const mir=d=>d.replace(/(-?\d+(\.\d+)?) (-?\d+(\.\d+)?)/g,(_,x,__,y)=>`${200-x} ${y}`);
-const HUG="M60 96 C40 108 30 138 34 168 C46 162 56 146 62 128 Z", NUB="M56 110 C44 122 40 140 44 154 C52 150 58 138 60 126 Z";
+const MID="M58 103 C42 115 35 139 39 161 C49 156 57 142 61 127 Z", HUG="M60 96 C40 108 30 138 34 168 C46 162 56 146 62 128 Z", NUB="M56 110 C44 122 40 140 44 154 C52 150 58 138 60 126 Z";
 const wings=(b,m,d=HUG,px=56,py=104)=>{const up=m==="proud"||m==="squawk";const a=up?(d===NUB?38:30):0;return `<path d="${d}" fill="${b}" transform="rotate(${a} ${px} ${py})"/><path d="${mir(d)}" fill="${b}" transform="rotate(${-a} ${200-px} ${py})"/>`};
 const feet=(y=189)=>`<ellipse cx="80" cy="${y}" rx="13" ry="5" fill="${BEAK}"/><ellipse cx="120" cy="${y}" rx="13" ry="5" fill="${BEAK}"/>`;
 const sq=`<g class="lines" stroke="${BEAK}" stroke-width="5" stroke-linecap="round"><path d="M162 60 l12 -10"/><path d="M38 60 l-12 -10"/><path d="M100 22 v-14"/></g>`;
@@ -98,34 +98,20 @@ const sideArch=(b,w)=>`<path d="M54 186 V92 A46 46 0 0 1 146 92 V186 Z" fill="${
 const sidePeb=(b,w)=>`<path d="M100 40 C138 40 156 74 156 116 C156 162 134 188 100 188 C64 188 46 164 46 124 C46 76 64 40 100 40Z" fill="${b}"/><path d="M146 96 C160 128 152 178 108 182 C84 184 72 170 76 150 C82 120 118 112 146 96Z" fill="${w}"/><circle cx="118" cy="82" r="10" fill="${w}"/><path d="M152 80 L178 90 L152 100Z" fill="${BEAK}"/>`;
 
 const OPTIONS=[
-{id:"E1",name:"Logo arch, dark face",side:sideArch,
+{id:"E1",name:"Logo arch",side:sideArch,
  about:"Your logo facing you, now with flippers that grow out of its sides and hug the body. They lift up when it's proud or squawking.",
  good:"Closest to the logo. One solid shape, nothing floating.",watch:"The arch is tall and straight, so it's a bit less cuddly.",
- draw:(m,b="var(--peng)",w="#fff",icon)=>wrap(m,`${wings(b,m,"M58 96 C40 110 32 140 36 168 C46 162 54 146 60 128 Z",56,100)}
+ draw:(m,b="var(--peng)",w="#fff",icon)=>wrap(m,`${wings(b,m,"M57 103 C42 115 36 140 40 161 C49 156 56 142 60 127 Z",56,106)}
   <path d="${ARCH}" fill="${b}"/><path d="M66 186 V140 A34 34 0 0 1 134 140 V186 Z" fill="${w}"/><path d="M90 186 V176 A10 10 0 0 1 110 176 V186 Z" fill="${b}"/>
   <g style="--bd:${b}">${darkEyes(m,82,118,90)}</g>${frontBeak(m,104)}
   ${icon?"":`<circle cx="66" cy="110" r="6" fill="${CHEEK}" opacity=".85"/><circle cx="134" cy="110" r="6" fill="${CHEEK}" opacity=".85"/>${feet()}`}`,sq)},
-{id:"H1",name:"Pebble, hugging flippers",side:sidePeb,
+{id:"H1",name:"Pebble",side:sidePeb,
  about:"The round pebble with flippers that start inside its sides and curve down along the body, like a real penguin. They flap up for big moments.",
  good:"Cuddly and natural. Flippers give it body language without looking stuck on.",watch:"Slightly wider silhouette for the icon.",
- draw:(m,b="var(--peng)",w="#fff",icon)=>wrap(m,`${wings(b,m)}
+ draw:(m,b="var(--peng)",w="#fff",icon)=>wrap(m,`${wings(b,m,MID,56,108)}
   <path d="${PEB}" fill="${b}"/><ellipse cx="100" cy="148" rx="40" ry="38" fill="${w}"/>
   <g style="--bd:${b}">${darkEyes(m,82,118,88)}</g>${frontBeak(m,102)}
   ${icon?"":`<circle cx="64" cy="108" r="6" fill="${CHEEK}" opacity=".85"/><circle cx="136" cy="108" r="6" fill="${CHEEK}" opacity=".85"/>${feet(190)}`}`,sq)},
-{id:"H1b",name:"Pebble, tiny nubs",side:sidePeb,
- about:"The same pebble with tiny flipper nubs that barely peek out at rest. Almost a pure egg shape, closest to a logo. The nubs pop out when it gets excited.",
- good:"Cleanest silhouette, works best as an icon. Very cute when the nubs wiggle.",watch:"Less body language at rest.",
- draw:(m,b="var(--peng)",w="#fff",icon)=>wrap(m,`${wings(b,m,NUB,56,112)}
-  <path d="${PEB}" fill="${b}"/><ellipse cx="100" cy="148" rx="40" ry="38" fill="${w}"/>
-  <g style="--bd:${b}">${darkEyes(m,82,118,88)}</g>${frontBeak(m,102)}
-  ${icon?"":`<circle cx="64" cy="108" r="6" fill="${CHEEK}" opacity=".85"/><circle cx="136" cy="108" r="6" fill="${CHEEK}" opacity=".85"/>${feet(190)}`}`,sq)},
-{id:"H2",name:"Pebble, heart face",side:sidePeb,
- about:"The heart-face pebble from last round, now with the hugging flippers too, for comparison.",
- good:"The most classic penguin face.",watch:"Furthest from the flat logo.",
- draw:(m,b="var(--peng)",w="#fff",icon)=>wrap(m,`${wings(b,m)}
-  <path d="${PEB}" fill="${b}"/><path d="M100 72 C116 56 146 64 142 96 C152 132 142 182 100 182 C58 182 48 132 58 96 C54 64 84 56 100 72Z" fill="${w}"/>
-  ${frontEyes(m,84,116,100)}${frontBeak(m,112)}
-  ${icon?"":`<circle cx="72" cy="118" r="6" fill="${CHEEK}" opacity=".85"/><circle cx="128" cy="118" r="6" fill="${CHEEK}" opacity=".85"/>${feet(190)}`}`,sq)}
 ];
 const MOODS=[["sleep","Asleep"],["awake","Awake"],["proud","Proud"],["grumpy","Grumpy"],["squawk","Squawk!"]];
 const svg=(inner,label,st="")=>`<svg viewBox="0 0 200 200" role="img" aria-label="${label}" style="${st}">${inner}</svg>`;

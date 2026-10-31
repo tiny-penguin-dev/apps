@@ -100,8 +100,8 @@ const sidePeb=(b,w)=>`<path d="M100 40 C138 40 156 74 156 116 C156 162 134 188 1
 const ARCHR="M50 96 A50 50 0 0 1 150 96 V152 Q150 188 114 188 H86 Q50 188 50 152 Z";
 const SOFT="M100 46 C128 46 150 68 150 98 C151 122 156 146 152 164 C147 183 128 190 100 190 C72 190 53 183 48 164 C44 146 49 122 50 98 C50 68 72 46 100 46Z";
 const sideArchR=(b,w)=>`<path d="M54 92 A46 46 0 0 1 146 92 V152 Q146 188 112 188 H88 Q54 188 54 152 Z" fill="${b}"/><path d="M68 160 V140 A30 30 0 0 1 128 140 V160 Q128 182 106 182 H90 Q68 182 68 160 Z" fill="${w}"/><circle cx="112" cy="88" r="10" fill="${w}"/><path d="M145 84 L171 94 L145 104Z" fill="${BEAK}"/>`;
-const sideArchD=(b,w)=>`<path d="M54 92 A46 46 0 0 1 146 92 V164 Q146 188 122 188 H78 Q54 188 54 164 Z" fill="${b}"/><path d="M68 166 V140 A30 30 0 0 1 128 140 V166 Q128 188 116 188 H80 Q68 188 68 166 Z" fill="${w}"/><path d="M88 188 V176 A10 10 0 0 1 108 176 V188 Z" fill="${b}"/><circle cx="112" cy="88" r="10" fill="${w}"/><path d="M145 84 L171 94 L145 104Z" fill="${BEAK}"/>`;
-const ARCHD="M50 96 A50 50 0 0 1 150 96 V164 Q150 188 126 188 H74 Q50 188 50 164 Z";
+const sideArchD=(b,w)=>`<path d="M54 92 A46 46 0 0 1 146 92 V170 Q146 188 128 188 H72 Q54 188 54 170 Z" fill="${b}"/><path d="M72 188 V140 A26 26 0 0 1 124 140 V188 Z" fill="${w}"/><path d="M88 188 V176 A10 10 0 0 1 108 176 V188 Z" fill="${b}"/><circle cx="112" cy="88" r="10" fill="${w}"/><path d="M145 84 L171 94 L145 104Z" fill="${BEAK}"/>`;
+const ARCHD="M50 96 A50 50 0 0 1 150 96 V170 Q150 188 132 188 H68 Q50 188 50 170 Z";
 const OPTIONS=[
 {id:"E1",name:"Logo arch",side:sideArch,
  about:"Your logo facing you, now with flippers that grow out of its sides and hug the body. They lift up when it's proud or squawking.",
@@ -118,10 +118,10 @@ const OPTIONS=[
   <g style="--bd:${b}">${darkEyes(m,82,118,90)}</g>${frontBeak(m,104)}
   ${icon?"":`<circle cx="66" cy="110" r="6" fill="${CHEEK}" opacity=".85"/><circle cx="134" cy="110" r="6" fill="${CHEEK}" opacity=".85"/>${feet(190)}`}`,sq)},
 {id:"E1d",name:"Rounded bottom, legs to the edge",side:sideArchD,
- about:"Rounded bottom corners, a bit tighter so the flat bottom stays wide. The belly window and the leg notch go all the way down, like the original logo.",
+ about:"Rounded bottom corners on the body, while the white belly window keeps its straight sides and square bottom. The leg notch goes all the way down, like the original logo.",
  good:"Keeps the logo's leg notch, so it matches the brand mark most closely.",watch:"Corners are a little less round than E1b.",
  draw:(m,b="var(--peng)",w="#fff",icon)=>wrap(m,`${wings(b,m,"M57 103 C42 115 36 140 40 161 C49 156 56 142 60 127 Z",56,106)}
-  <path d="${ARCHD}" fill="${b}"/><path d="M66 166 V140 A34 34 0 0 1 134 140 V166 Q134 188 120 188 H80 Q66 188 66 166 Z" fill="${w}"/><path d="M90 188 V176 A10 10 0 0 1 110 176 V188 Z" fill="${b}"/>
+  <path d="${ARCHD}" fill="${b}"/><path d="M70 188 V140 A30 30 0 0 1 130 140 V188 Z" fill="${w}"/><path d="M90 188 V176 A10 10 0 0 1 110 176 V188 Z" fill="${b}"/>
   <g style="--bd:${b}">${darkEyes(m,82,118,90)}</g>${frontBeak(m,104)}
   ${icon?"":`<circle cx="66" cy="110" r="6" fill="${CHEEK}" opacity=".85"/><circle cx="134" cy="110" r="6" fill="${CHEEK}" opacity=".85"/>${feet(190)}`}`,sq)},
 {id:"E1c",name:"Soft arch",side:sideArchR,

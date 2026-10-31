@@ -50,12 +50,15 @@ h1{font-size:34px;font-weight:900;margin:0}
 .compare .mood b{color:var(--ink);font-size:13px}
 .compare .mood span{font-size:11px;color:var(--muted);text-align:center}
 @media (max-width:640px){.compare{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.opt .ci{margin-top:6px;justify-items:center}
+.ci .icon{width:min(96px,100%);height:auto;aspect-ratio:1}
+.ci .icon svg{width:76%;height:76%}
 </style>
 
 <main>
   <h1>Squawk, facing forward</h1>
   <p class="lead">Five takes, from most "logo" to most round: 1 the arch, 2 rounded bottom with legs to the edge, 3 rounded bottom with no legs, 4 a soft arch, and 5 the pebble. All have mid-size flippers. Below each: the front icon on light and dark, the matching side-view logo, and five moods.</p>
-  <section class="opt" aria-label="Side by side"><div class="compare" id="compare"></div></section>
+  <section class="opt" aria-label="Side by side"><div class="compare" id="compare"></div><div class="compare ci" id="compareIcons"></div></section>
   <div id="list" style="display:flex;flex-direction:column;gap:20px"></div>
 </main>
 
@@ -148,6 +151,7 @@ OPTIONS.sort((a,b)=>a.id-b.id);
 const MOODS=[["sleep","Asleep"],["awake","Awake"],["proud","Proud"],["grumpy","Grumpy"],["squawk","Squawk!"]];
 const svg=(inner,label,st="")=>`<svg viewBox="0 0 200 200" role="img" aria-label="${label}" style="${st}">${inner}</svg>`;
 document.getElementById("compare").innerHTML=OPTIONS.map(o=>`<a class="mood" href="#h${o.id}" style="text-decoration:none">${svg(shadow+o.draw("awake"),o.name)}<b>${o.id}</b><span>${o.name}</span></a>`).join("");
+document.getElementById("compareIcons").innerHTML=OPTIONS.map(o=>`<div class="icon l">${svg(o.draw("awake",NAVY,"#fff",true),o.name+" app icon")}</div>`).join("");
 document.getElementById("list").innerHTML=OPTIONS.map(o=>`<section class="opt" aria-labelledby="h${o.id}">
   <div class="head"><span class="tag">${o.id}</span><h2 id="h${o.id}">${o.name}</h2></div>
   <p>${o.about}</p>

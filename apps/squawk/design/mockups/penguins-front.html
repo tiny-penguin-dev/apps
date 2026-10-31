@@ -1,0 +1,137 @@
+<title>Squawk Front Penguins</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;800;900&display=swap">
+<style>
+/* Layout: option cards; each shows the penguin as an app icon (light + dark tile) and in five moods. */
+:root{
+  --bg:#F2F4F7; --card:#FFFFFF; --ink:#0F1B2D; --muted:#5E6A80; --line:#E1E5EC; --tile:#EEF2F8;
+  --navy:#0F1B2D; --beak:#FFB020; --cheek:#FF9CA6; --white:#FFFFFF; --peng:#0F1B2D;
+  --font:ui-rounded,"SF Pro Rounded","Nunito",system-ui,sans-serif; --spring:cubic-bezier(.34,1.56,.64,1)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0B1220; --card:#141E33; --ink:#EEF2FA; --muted:#97A2B8; --line:#25314B; --tile:#1D2944; --peng:#33466F; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0B1220; --card:#141E33; --ink:#EEF2FA; --muted:#97A2B8; --line:#25314B; --tile:#1D2944; --peng:#33466F; color-scheme:dark}
+body{background:var(--bg);color:var(--ink);font-family:var(--font);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+main{max-width:900px;margin:0 auto;padding-block:28px 48px;display:flex;flex-direction:column;gap:20px}
+h1{font-size:34px;font-weight:900;margin:0}
+.lead{color:var(--muted);font-size:16px;line-height:1.5;margin:0;max-width:62ch}
+.opt{background:var(--card);border-radius:28px;padding:20px;display:flex;flex-direction:column;gap:14px}
+.head{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.tag{font-weight:900;font-size:13px;letter-spacing:.06em;color:var(--navy);background:var(--beak);border-radius:8px;padding:3px 9px}
+.head h2{margin:0;font-size:22px;font-weight:900}
+.opt p{margin:0;color:var(--muted);line-height:1.45;max-width:65ch}
+.grid{display:grid;grid-template-columns:auto minmax(0,1fr);gap:14px;align-items:start}
+.icons{display:flex;flex-direction:column;gap:10px}
+.icon{width:96px;height:96px;border-radius:22px;display:grid;place-items:center;box-shadow:0 4px 12px rgba(15,27,45,.12)}
+.icon svg{width:74px;height:74px}
+.icon.l{background:#FFFFFF}.icon.d{background:#0F1B2D}
+.moods{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+.mood{background:var(--tile);border-radius:18px;padding:8px 4px 6px;display:flex;flex-direction:column;align-items:center;gap:2px;min-width:0}
+.mood svg{width:100%;max-width:130px;height:auto}
+.mood b{font-size:12px;color:var(--muted)}
+.notes{display:flex;gap:16px;flex-wrap:wrap;font-size:14px}
+.notes div{flex:1 1 220px;min-width:0}
+.notes b{display:block;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+@media (max-width:640px){.grid{grid-template-columns:1fr}.icons{flex-direction:row}.moods{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.b{animation:breathe 3.2s ease-in-out infinite;transform-origin:50% 94%;transform-box:view-box}
+@keyframes breathe{50%{transform:scale(1.03,.97)}}
+.hop{animation:hop .7s var(--spring) infinite alternate;transform-box:view-box}
+@keyframes hop{to{transform:translateY(-9px)}}
+.shout{animation:shout .5s ease-in-out infinite alternate;transform-box:view-box;transform-origin:50% 94%}
+@keyframes shout{to{transform:rotate(-4deg) scale(1.03)}}
+.zz{font-weight:900;fill:var(--muted);animation:zz 2.6s ease-in infinite;opacity:0;font-family:var(--font)}
+.zz2{animation-delay:1.3s}
+@keyframes zz{30%{opacity:1}100%{opacity:0;transform:translate(14px,-30px)}}
+.lines{animation:lines .5s ease-in-out infinite alternate}
+@keyframes lines{to{opacity:.3}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}}
+</style>
+
+<main>
+  <h1>Squawk, facing forward</h1>
+  <p class="lead">Front-facing mascots based on the logo arch (E) and the pebble (H), two takes each. On the left: the icon facing forward on light and dark, and the matching side-view logo. On the right: five moods, ending with Squawk! for the alarm.</p>
+  <div id="list" style="display:flex;flex-direction:column;gap:20px"></div>
+</main>
+
+<script>
+const NAVY="#0F1B2D", BEAK="var(--beak)", CHEEK="var(--cheek)";
+const zz=`<text class="zz" x="150" y="44" font-size="22">z</text><text class="zz zz2" x="162" y="30" font-size="16">z</text>`;
+const lines=`<g class="lines" stroke="${BEAK}" stroke-width="5" stroke-linecap="round"><path d="M178 66 l12 -8"/><path d="M182 88 l14 0"/><path d="M178 110 l12 8"/></g>`;
+const shadow=`<ellipse cx="100" cy="192" rx="50" ry="6" fill="rgba(15,27,45,.12)"/>`;
+
+/* Profile eye on a dark body (white eye) */
+function sideEye(m,x,y,body,r=11){
+  if(m==="sleep")return `<path d="M${x-9} ${y} q9 7 18 0" stroke="var(--eye,#fff)" stroke-width="5" fill="none" stroke-linecap="round"/>`;
+  if(m==="proud")return `<path d="M${x-9} ${y+3} q9 -10 18 0" stroke="var(--eye,#fff)" stroke-width="5" fill="none" stroke-linecap="round"/>`;
+  if(m==="grumpy")return `<circle cx="${x}" cy="${y}" r="${r}" fill="var(--eye,#fff)"/><circle cx="${x+3}" cy="${y+3}" r="${r*.45}" fill="var(--pupil,#0F1B2D)"/><path d="M${x-r-2} ${y-r-3} L${x+r+2} ${y-2} L${x+r+2} ${y-r-6} Z" fill="${body}"/>`;
+  if(m==="squawk")return `<circle cx="${x}" cy="${y}" r="${r+2}" fill="var(--eye,#fff)"/><circle cx="${x+2}" cy="${y}" r="${r*.35}" fill="var(--pupil,#0F1B2D)"/>`;
+  return `<circle cx="${x}" cy="${y}" r="${r}" fill="var(--eye,#fff)"/><circle cx="${x+3}" cy="${y}" r="${r*.5}" fill="var(--pupil,#0F1B2D)"/><circle cx="${x+5}" cy="${y-3}" r="2" fill="var(--eye,#fff)"/>`}
+/* Front eyes on a white face (dark eyes) */
+function frontEyes(m,lx,rx,y){const c="var(--feye,#0F1B2D)";
+  if(m==="sleep")return `<path d="M${lx-8} ${y} q8 6 16 0 M${rx-8} ${y} q8 6 16 0" stroke="${c}" stroke-width="4.5" fill="none" stroke-linecap="round"/>`;
+  if(m==="proud")return `<path d="M${lx-8} ${y+2} q8 -9 16 0 M${rx-8} ${y+2} q8 -9 16 0" stroke="${c}" stroke-width="4.5" fill="none" stroke-linecap="round"/>`;
+  if(m==="grumpy")return `<path d="M${lx-9} ${y-8} l16 5 M${rx+9} ${y-8} l-16 5" stroke="${c}" stroke-width="4.5" stroke-linecap="round"/><circle cx="${lx}" cy="${y+3}" r="5" fill="${c}"/><circle cx="${rx}" cy="${y+3}" r="5" fill="${c}"/>`;
+  if(m==="squawk")return `<circle cx="${lx}" cy="${y}" r="8" fill="none" stroke="${c}" stroke-width="4"/><circle cx="${rx}" cy="${y}" r="8" fill="none" stroke="${c}" stroke-width="4"/><circle cx="${lx}" cy="${y}" r="3" fill="${c}"/><circle cx="${rx}" cy="${y}" r="3" fill="${c}"/>`;
+  return `<circle cx="${lx}" cy="${y}" r="6.5" fill="${c}"/><circle cx="${rx}" cy="${y}" r="6.5" fill="${c}"/><circle cx="${lx+2}" cy="${y-2}" r="2" fill="#fff"/><circle cx="${rx+2}" cy="${y-2}" r="2" fill="#fff"/>`}
+function sideBeak(m,x,y,s=1){
+  if(m==="squawk")return `<path d="M${x} ${y-12*s} L${x+30*s} ${y-16*s} L${x} ${y-2*s} Z" fill="${BEAK}"/><path d="M${x} ${y+2*s} L${x+24*s} ${y+18*s} L${x} ${y+12*s} Z" fill="${BEAK}"/>`;
+  return `<path d="M${x} ${y-10*s} L${x+26*s} ${y} L${x} ${y+10*s} Z" fill="${BEAK}"/>`}
+const wrap=(m,inner,extra="")=>`<g class="${m==="proud"?"hop":m==="squawk"?"shout":""}"><g class="b">${inner}</g></g>${m==="sleep"?zz:""}${m==="squawk"?extra:""}`;
+
+
+function darkEyes(m,lx,rx,y){const W="var(--eye,#fff)",P="var(--pupil,#0F1B2D)";
+  if(m==="sleep")return `<path d="M${lx-9} ${y} q9 7 18 0 M${rx-9} ${y} q9 7 18 0" stroke="${W}" stroke-width="5" fill="none" stroke-linecap="round"/>`;
+  if(m==="proud")return `<path d="M${lx-9} ${y+3} q9 -10 18 0 M${rx-9} ${y+3} q9 -10 18 0" stroke="${W}" stroke-width="5" fill="none" stroke-linecap="round"/>`;
+  if(m==="grumpy")return `<circle cx="${lx}" cy="${y}" r="10" fill="${W}"/><circle cx="${rx}" cy="${y}" r="10" fill="${W}"/><circle cx="${lx+1}" cy="${y+3}" r="4.5" fill="${P}"/><circle cx="${rx-1}" cy="${y+3}" r="4.5" fill="${P}"/><path d="M${lx-12} ${y-14} L${lx+12} ${y-4} L${lx+12} ${y-16}Z M${rx+12} ${y-14} L${rx-12} ${y-4} L${rx-12} ${y-16}Z" fill="var(--bd)"/>`;
+  if(m==="squawk")return `<circle cx="${lx}" cy="${y}" r="11" fill="${W}"/><circle cx="${rx}" cy="${y}" r="11" fill="${W}"/><circle cx="${lx}" cy="${y}" r="3.5" fill="${P}"/><circle cx="${rx}" cy="${y}" r="3.5" fill="${P}"/>`;
+  return `<circle cx="${lx}" cy="${y}" r="10" fill="${W}"/><circle cx="${rx}" cy="${y}" r="10" fill="${W}"/><circle cx="${lx+2}" cy="${y+1}" r="5" fill="${P}"/><circle cx="${rx+2}" cy="${y+1}" r="5" fill="${P}"/><circle cx="${lx+4}" cy="${y-2}" r="1.8" fill="${W}"/><circle cx="${rx+4}" cy="${y-2}" r="1.8" fill="${W}"/>`}
+function frontBeak(m,y){return m==="squawk"?`<path d="M88 ${y} L112 ${y} L100 ${y+9}Z" fill="${BEAK}"/><path d="M90 ${y+13} L110 ${y+13} L100 ${y+22}Z" fill="${BEAK}"/>`:`<path d="M90 ${y} L110 ${y} L100 ${y+12}Z" fill="${BEAK}"/>`}
+const flaps=(b,m,y=124,lx=34,rx=166)=>{const up=m==="proud"||m==="squawk";return `<rect x="${lx-11}" y="${y}" width="22" height="46" rx="11" fill="${b}" transform="rotate(${up?32:10} ${lx} ${y+2})"/><rect x="${rx-11}" y="${y}" width="22" height="46" rx="11" fill="${b}" transform="rotate(${up?-32:-10} ${rx} ${y+2})"/>`};
+const feet=(y=189)=>`<ellipse cx="80" cy="${y}" rx="13" ry="5" fill="${BEAK}"/><ellipse cx="120" cy="${y}" rx="13" ry="5" fill="${BEAK}"/>`;
+const sq=`<g class="lines" stroke="${BEAK}" stroke-width="5" stroke-linecap="round"><path d="M162 60 l12 -10"/><path d="M38 60 l-12 -10"/><path d="M100 22 v-14"/></g>`;
+const ARCH="M50 186 V96 A50 50 0 0 1 150 96 V186 Z", PEB="M100 40 C140 40 158 80 158 122 C158 166 134 188 100 188 C66 188 42 166 42 122 C42 80 60 40 100 40Z";
+const sideArch=(b,w)=>`<path d="M54 186 V92 A46 46 0 0 1 146 92 V186 Z" fill="${b}"/><path d="M68 186 V140 A30 30 0 0 1 128 140 V186 Z" fill="${w}"/><path d="M88 186 V174 A10 10 0 0 1 108 174 V186 Z" fill="${b}"/><circle cx="112" cy="88" r="10" fill="${w}"/><path d="M145 84 L171 94 L145 104Z" fill="${BEAK}"/>`;
+const sidePeb=(b,w)=>`<path d="M100 40 C138 40 156 74 156 116 C156 162 134 188 100 188 C64 188 46 164 46 124 C46 76 64 40 100 40Z" fill="${b}"/><path d="M146 96 C160 128 152 178 108 182 C84 184 72 170 76 150 C82 120 118 112 146 96Z" fill="${w}"/><circle cx="118" cy="82" r="10" fill="${w}"/><path d="M152 80 L178 90 L152 100Z" fill="${BEAK}"/>`;
+
+const OPTIONS=[
+{id:"E1",name:"Logo arch, dark face",side:sideArch,
+ about:"Your logo turned to face you. The head stays navy with white eyes, just like the eye dot in the logo, and the belly window sits low. The beak moves to the middle.",
+ good:"Closest to the logo when facing forward. Big white eyes are very readable.",watch:"Less of the classic white penguin face.",
+ draw:(m,b="var(--peng)",w="#fff",icon)=>wrap(m,`${flaps(b,m)}
+  <path d="${ARCH}" fill="${b}"/><path d="M66 186 V140 A34 34 0 0 1 134 140 V186 Z" fill="${w}"/><path d="M90 186 V176 A10 10 0 0 1 110 176 V186 Z" fill="${b}"/>
+  <g style="--bd:${b}">${darkEyes(m,82,118,90)}</g>${frontBeak(m,104)}
+  ${icon?"":`<circle cx="66" cy="110" r="6" fill="${CHEEK}" opacity=".85"/><circle cx="134" cy="110" r="6" fill="${CHEEK}" opacity=".85"/>${feet()}`}`,sq)},
+{id:"E2",name:"Logo arch, white face",side:sideArch,
+ about:"The same arch, but the white comes up into a face, so the eyes are dark on white like a classic penguin. (This is F from last round.)",
+ good:"Most expressive. Brows and big eyes read clearly.",watch:"The face looks less like the logo's eye dot.",
+ draw:(m,b="var(--peng)",w="#fff",icon)=>wrap(m,`${flaps(b,m,120,40,160)}
+  <path d="${ARCH}" fill="${b}"/><path d="M64 186 V108 A36 36 0 0 1 136 108 V186 Z" fill="${w}"/><path d="M90 186 V176 A10 10 0 0 1 110 176 V186 Z" fill="${b}"/>
+  ${frontEyes(m,86,114,110)}${frontBeak(m,122)}
+  ${icon?"":`<circle cx="76" cy="126" r="6" fill="${CHEEK}" opacity=".85"/><circle cx="124" cy="126" r="6" fill="${CHEEK}" opacity=".85"/>${feet()}`}`,sq)},
+{id:"H1",name:"Pebble, dark face",side:sidePeb,
+ about:"The pebble turned to face you: one round shape, navy head with white eyes, a round white belly. Soft and squishy.",
+ good:"Cuddliest. Squash and stretch look natural. Simple icon.",watch:"Round belly is less 'logo' than the arch window.",
+ draw:(m,b="var(--peng)",w="#fff",icon)=>wrap(m,`${flaps(b,m,118,40,160)}
+  <path d="${PEB}" fill="${b}"/><ellipse cx="100" cy="148" rx="40" ry="38" fill="${w}"/>
+  <g style="--bd:${b}">${darkEyes(m,82,118,88)}</g>${frontBeak(m,102)}
+  ${icon?"":`<circle cx="64" cy="108" r="6" fill="${CHEEK}" opacity=".85"/><circle cx="136" cy="108" r="6" fill="${CHEEK}" opacity=".85"/>${feet(190)}`}`,sq)},
+{id:"H2",name:"Pebble, heart face",side:sidePeb,
+ about:"The pebble with a heart-shaped white face that flows into the belly, like a real penguin chick. Dark eyes on white, beak in the middle.",
+ good:"The most 'mascot' and lovable of the four. Classic penguin read.",watch:"Furthest from the flat logo; the icon is busier.",
+ draw:(m,b="var(--peng)",w="#fff",icon)=>wrap(m,`${flaps(b,m,118,40,160)}
+  <path d="${PEB}" fill="${b}"/><path d="M100 72 C116 56 146 64 142 96 C152 132 142 182 100 182 C58 182 48 132 58 96 C54 64 84 56 100 72Z" fill="${w}"/>
+  ${frontEyes(m,84,116,100)}${frontBeak(m,112)}
+  ${icon?"":`<circle cx="72" cy="118" r="6" fill="${CHEEK}" opacity=".85"/><circle cx="128" cy="118" r="6" fill="${CHEEK}" opacity=".85"/>${feet(190)}`}`,sq)}
+];
+const MOODS=[["sleep","Asleep"],["awake","Awake"],["proud","Proud"],["grumpy","Grumpy"],["squawk","Squawk!"]];
+const svg=(inner,label,st="")=>`<svg viewBox="0 0 200 200" role="img" aria-label="${label}" style="${st}">${inner}</svg>`;
+document.getElementById("list").innerHTML=OPTIONS.map(o=>`<section class="opt" aria-labelledby="h${o.id}">
+  <div class="head"><span class="tag">${o.id}</span><h2 id="h${o.id}">${o.name}</h2></div>
+  <p>${o.about}</p>
+  <div class="grid">
+    <div class="icons"><div class="icon l">${svg(o.draw("awake",NAVY,"#fff",true),o.name+" icon, front")}</div><div class="icon d">${svg(o.draw("awake","#fff",NAVY,true),o.name+" icon, front, dark","--eye:#0F1B2D;--pupil:#FFFFFF;--feye:#FFFFFF")}</div><div class="icon l">${svg(o.side(NAVY,"#fff"),o.name+" logo, side")}</div></div>
+    <div class="moods">${MOODS.map(([m,l])=>`<div class="mood">${svg(shadow+o.draw(m),o.name+", "+l.toLowerCase())}<b>${l}</b></div>`).join("")}</div>
+  </div>
+  <div class="notes"><div><b>Good</b>${o.good}</div><div><b>Watch out</b>${o.watch}</div></div></section>`).join("");
+</script>

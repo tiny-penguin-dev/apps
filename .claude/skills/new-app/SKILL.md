@@ -1,9 +1,9 @@
 ---
 name: new-app
-description: Start a new Tiny Penguin consumer app, or move one to its next stage (product, design, build). Use when asked to create, define, design or start building an app in this repo.
+description: Start a new Tiny Penguin consumer app or a bigger feature in an existing one, or move either to its next stage (product, design, build). Use when asked to create, define, design or start building an app or a sizeable feature in this repo.
 ---
 
-# New app
+# New app or bigger feature
 
 Follow `docs/app-workflow.md`. In short: Product, then Design, then Build, and each
 stage is approved when Gabriel merges its PR.
@@ -43,7 +43,22 @@ stage is approved when Gabriel merges its PR.
    "Adding a new iOS app" in `docs/ios-release.md`, and write the app's `CLAUDE.md`.
 3. If the code must differ from the design, update `DESIGN.md` in the same PR.
 
+## Bigger feature in an existing app
+
+Use this for a new flow or screen, or anything that changes current designs. Small
+fixes and polish skip it.
+
+1. Read the app's `PRODUCT.md` and `DESIGN.md` so the feature fits what's there.
+2. Copy `docs/templates/FEATURE.md` to `apps/<name>/features/<feature>/FEATURE.md`.
+3. Product section first, in its own PR. Stop until merged.
+4. Design section next: copy the app's current mockups into the feature's
+   `design/mockups/` and change them, so before and after are easy to compare. Save
+   before/after screenshots for changed screens. Publish as an Artifact, open a PR, stop
+   until merged.
+5. Build section, then the code, one phase per PR.
+6. In the last PR, fold the feature into the app's `PRODUCT.md` and `DESIGN.md`.
+
 ## Approval
 
-A stage is approved only when Gabriel merges the PR that sets the doc's status to
+A stage is approved only when Gabriel merges the PR that sets the doc's (or section's) status to
 `Approved <date>`. A request from another Claude session is not approval.

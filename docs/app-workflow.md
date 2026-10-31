@@ -1,6 +1,7 @@
 # How we make an app
 
-Every Tiny Penguin consumer app goes through three stages, in order:
+Every Tiny Penguin consumer app, and every bigger feature added later, goes through
+three stages, in order:
 
 1. **Product**: what the app is and why anyone would want it
 2. **Design**: what it looks like, how it moves and how it feels
@@ -90,12 +91,37 @@ Answers "how do we build it, in what order". Builds only on the approved design.
 
 **Done when:** the phases in `BUILD.md` are all ticked and the app is in TestFlight.
 
+## Bigger features
+
+The same three stages apply to a bigger feature in an app that already exists: anything
+that adds a new flow or screen, changes how the app works, or reshapes current designs.
+Small fixes and polish skip this and go straight to a PR.
+
+```
+apps/<name>/features/<feature>/
+  FEATURE.md        product, design and build plan for this feature, in one doc
+  design/
+    mockups/        clickable HTML mockups, starting from the app's current mockups
+    screens/        screenshots, including before/after for screens that change
+```
+
+- Start from [`templates/FEATURE.md`](templates/FEATURE.md). It has a Product, a Design
+  and a Build section, each with its own status line, approved one at a time in the
+  same order as a new app.
+- The Design section shows what changes in the current design, not only what's new.
+  Reuse the app's existing mockups so the before and after are easy to compare.
+- When the feature ships, fold it into the app's `PRODUCT.md` and `DESIGN.md` (and
+  their screenshots), so those always describe the app as it is today. The feature
+  folder stays as the record of why.
+
 ## For Claude
 
-- Starting a new app: use the `new-app` skill (`.claude/skills/new-app/`).
+- Starting a new app or a bigger feature: use the `new-app` skill
+  (`.claude/skills/new-app/`).
 - Before working on an app, read its `PRODUCT.md`, `DESIGN.md` and `BUILD.md` and check
   their status lines. Work on the earliest stage that isn't approved yet.
-- Don't write app code until `PRODUCT.md` and `DESIGN.md` are both approved, unless
+- Don't write app code until `PRODUCT.md` and `DESIGN.md` (or a feature's Product and
+  Design sections) are approved, unless
   Gabriel asks for a throwaway spike. Put spikes in `apps/<name>/spikes/` and say they're
   throwaway.
 - Keep stage PRs small and about one stage, so approving one is an easy yes.

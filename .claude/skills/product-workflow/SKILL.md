@@ -1,9 +1,9 @@
 ---
-name: new-app
+name: product-workflow
 description: Start a new Tiny Penguin consumer app or a bigger feature in an existing one, or move either to its next stage (product, design, build). Use when asked to create, define, design or start building an app or a sizeable feature in this repo.
 ---
 
-# New app or bigger feature
+# Product workflow
 
 Follow `docs/app-workflow.md`. In short: Product, then Design, then Build, and each
 stage is approved when Gabriel merges its PR.

@@ -116,8 +116,8 @@ apps/<name>/features/<feature>/
 
 ## For Claude
 
-- Starting a new app or a bigger feature: use the `new-app` skill
-  (`.claude/skills/new-app/`).
+- Starting a new app or a bigger feature: use the `product-workflow` skill
+  (`.claude/skills/product-workflow/`).
 - Before working on an app, read its `PRODUCT.md`, `DESIGN.md` and `BUILD.md` and check
   their status lines. Work on the earliest stage that isn't approved yet.
 - Don't write app code until `PRODUCT.md` and `DESIGN.md` (or a feature's Product and

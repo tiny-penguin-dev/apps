@@ -113,8 +113,9 @@ Pick one or more. When there are several, you must do all of them.
 | Run a Shortcut | Use the "Turn off Squawk" action in any Shortcut or automation. | later |
 | Walk it off | Take a number of steps. | later |
 
-There's always an emergency way out (for example: type a long sentence, or a 10-minute
-cap), so nobody is ever stuck with a ringing phone.
+There's always an emergency way out: solve a math question (like 47 × 8) to turn it off.
+It takes real thinking, so it wakes you up too. The 10-minute cap also still applies, so
+nobody is ever stuck with a ringing phone.
 
 ## 6. Basics vs powerful features
 
@@ -195,7 +196,7 @@ The build doc turns this into the real structure.
 ### Later
 - "Only ring when I'm home" (location).
 - App blocking during the morning (Screen Time).
-- Morning actions: turn on lights with HomeKit (first in line), start music, run a Shortcut.
+- Morning actions: turn on lights with HomeKit (next version), start music, run a Shortcut.
 - iCloud sync, if people need it.
 - Shortcut and step-count wake-up checks.
 - Apple Watch app.
@@ -217,14 +218,13 @@ The build doc turns this into the real structure.
 
 ## 11. Open questions
 
-1. Emergency way out of a wake-up check: what should it be?
-2. Step names: keep Peep / Squawk / SQUAWK! or let people name them from the start?
-3. Should HomeKit lights move up into v1, or stay first in line for the next version?
-4. Pro price and trial (for example a weekly/yearly plan with a free trial)?
+1. Step names: keep Peep / Squawk / SQUAWK! or let people name them from the start?
+2. Pro price and trial (for example a weekly/yearly plan with a free trial)?
 
 Answered (31 Oct 2026): heavy sleepers plus anyone who wants a happier wake-up; free
 basics with a Pro subscription; on-device, no account, iCloud only if needed; mascot
-named Squawk; v1 scope as above, built to grow; iPhone only to start.
+named Squawk; v1 scope as above, built to grow; iPhone only to start; HomeKit lights in
+the next version; emergency exit is a math question.
 
 ## 12. Where the ideas came from
 

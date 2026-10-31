@@ -1,6 +1,6 @@
 # Squawk: product definition
 
-Status: Draft
+Status: Approved 2026-10-31
 
 Squawk is a wake-up alarm for people who don't wake up on the first ring. Instead of one
 alarm, you get a short wake-up plan: a soft peep, then a real squawk, then a very loud
@@ -144,7 +144,7 @@ not a paywall on reliability.
 - **Animation everywhere it's cheap**: toggles that wobble, a timeline that waddles in,
   confetti of fish when you finish a wake-up check.
 - **Copy tone**: short, warm, a bit silly. "Rise and waddle." "You beat the peep!"
-- Shared Tiny Penguin look comes from `docs/brand.md` (being written in the workflow work).
+- Shared Tiny Penguin look and voice come from [`docs/brand.md`](../../docs/brand.md).
 
 ## 8. Platform and AlarmKit limits
 

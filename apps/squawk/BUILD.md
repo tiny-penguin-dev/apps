@@ -23,6 +23,8 @@ Builds on `PRODUCT.md` (approved 2026-10-31) and `DESIGN.md` (approved 2026-10-3
   morning ends. Every screen goes through it; nothing else talks to AlarmKit.
 - **Pro is checked in one place** (`ProAccess`, StoreKit 2). Moving a feature between free
   and Pro is a one-line change.
+- **Sentry** for crash reports and metrics, the Tiny Penguin default, set up the way the
+  `new-app` skill describes. No personal data in events.
 - **Mornings log** (on device): when each ring fired and when you got up. Drives the
   penguin reactions and streaks, and logs scheduling errors.
 

@@ -35,11 +35,11 @@
           "period": "ONE_MONTH",
           "level": 2,
           "familySharable": false,
-          "price": "4.99",
+          "price": "5.99",
           "introOffer": {
             "mode": "PAY_AS_YOU_GO",
             "duration": "ONE_MONTH",
-            "periods": 6,
+            "periods": 12,
             "price": "2.99"
           },
           "localizations": {

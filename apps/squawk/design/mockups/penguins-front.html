@@ -123,28 +123,28 @@ const OPTIONS=[
  draw:(m,b="var(--peng)",w="#fff",icon)=>wrap(m,`${wings(b,m,"M57 103 C42 115 36 140 40 161 C49 156 56 142 60 127 Z",56,106)}
   <path d="${ARCH}" fill="${b}"/><path d="M70 186 V140 A30 30 0 0 1 130 140 V186 Z" fill="${w}"/><path d="M90 186 V176 A10 10 0 0 1 110 176 V186 Z" fill="${b}"/>
   <g style="--bd:${b}">${darkEyes(m,82,118,90)}</g>${frontBeak(m,104)}
-  ${icon?"":`<circle cx="66" cy="110" r="6" fill="${CHEEK}" opacity=".85"/><circle cx="134" cy="110" r="6" fill="${CHEEK}" opacity=".85"/>${feet()}`}`,sq)},
+  ${icon?"":`<circle cx="66" cy="110" r="6" fill="${CHEEK}" opacity="${m==="proud"?.85:0}"/><circle cx="134" cy="110" r="6" fill="${CHEEK}" opacity="${m==="proud"?.85:0}"/>${feet()}`}`,sq)},
 {id:"3",name:"Rounded bottom, no legs",side:sideArchR,
  about:"The same arch, but the bottom corners are rounded off, so it sits like a soft toy instead of a block. The belly window follows the curve, with no leg notch.",
  good:"Still clearly the logo shape, but friendlier. Small change, big softness.",watch:"Top and sides stay straight, so it's still more 'logo' than 'plush'.",
  draw:(m,b="var(--peng)",w="#fff",icon)=>wrap(m,`${wings(b,m,"M57 103 C42 115 36 140 40 161 C49 156 56 142 60 127 Z",56,106)}
   <path d="${ARCHR}" fill="${b}"/><path d="M67 160 V140 A33 30 0 0 1 133 140 V160 Q133 182 110 182 H90 Q67 182 67 160 Z" fill="${w}"/>
   <g style="--bd:${b}">${darkEyes(m,82,118,90)}</g>${frontBeak(m,104)}
-  ${icon?"":`<circle cx="66" cy="110" r="6" fill="${CHEEK}" opacity=".85"/><circle cx="134" cy="110" r="6" fill="${CHEEK}" opacity=".85"/>${feet(190)}`}`,sq)},
+  ${icon?"":`<circle cx="66" cy="110" r="6" fill="${CHEEK}" opacity="${m==="proud"?.85:0}"/><circle cx="134" cy="110" r="6" fill="${CHEEK}" opacity="${m==="proud"?.85:0}"/>${feet(190)}`}`,sq)},
 {id:"2",name:"Rounded bottom, legs to the edge",side:sideArchD,
  about:"Rounded bottom corners on the body, while the white belly window keeps its straight sides and square bottom. The leg notch goes all the way down, like the original logo.",
  good:"Keeps the logo's leg notch, so it matches the brand mark most closely.",watch:"Corners are a little less round than 3.",
  draw:(m,b="var(--peng)",w="#fff",icon)=>wrap(m,`${wings(b,m,"M57 103 C42 115 36 140 40 161 C49 156 56 142 60 127 Z",56,106)}
   <path d="${ARCHD}" fill="${b}"/><path d="M70 188 V140 A30 30 0 0 1 130 140 V188 Z" fill="${w}"/><path d="M90 188 V176 A10 10 0 0 1 110 176 V188 Z" fill="${b}"/>
   <g style="--bd:${b}">${darkEyes(m,82,118,90)}</g>${frontBeak(m,104)}
-  ${icon?"":`<circle cx="66" cy="110" r="6" fill="${CHEEK}" opacity=".85"/><circle cx="134" cy="110" r="6" fill="${CHEEK}" opacity=".85"/>${feet(190)}`}`,sq)},
+  ${icon?"":`<circle cx="66" cy="110" r="6" fill="${CHEEK}" opacity="${m==="proud"?.85:0}"/><circle cx="134" cy="110" r="6" fill="${CHEEK}" opacity="${m==="proud"?.85:0}"/>${feet(190)}`}`,sq)},
 {id:"4",name:"Pebble",side:sidePeb,
  about:"The round pebble with flippers that start inside its sides and curve down along the body, like a real penguin. They flap up for big moments.",
  good:"Cuddly and natural. Flippers give it body language without looking stuck on.",watch:"Slightly wider silhouette for the icon.",
  draw:(m,b="var(--peng)",w="#fff",icon)=>wrap(m,`${wings(b,m,MID,56,108)}
   <path d="${PEB}" fill="${b}"/><ellipse cx="100" cy="146" rx="39" ry="36" fill="${w}"/>
   <g style="--bd:${b}">${darkEyes(m,82,118,88)}</g>${frontBeak(m,102)}
-  ${icon?"":`<circle cx="64" cy="108" r="6" fill="${CHEEK}" opacity=".85"/><circle cx="136" cy="108" r="6" fill="${CHEEK}" opacity=".85"/>${feet(190)}`}`,sq)},
+  ${icon?"":`<circle cx="64" cy="108" r="6" fill="${CHEEK}" opacity="${m==="proud"?.85:0}"/><circle cx="136" cy="108" r="6" fill="${CHEEK}" opacity="${m==="proud"?.85:0}"/>${feet(190)}`}`,sq)},
 ];
 OPTIONS.sort((a,b)=>a.id-b.id);
 const MOODS=[["sleep","Asleep"],["awake","Awake"],["proud","Proud"],["grumpy","Grumpy"],["squawk","Squawk!"]];

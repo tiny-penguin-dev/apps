@@ -1,0 +1,71 @@
+# Imports Astrotype's CloudKit schema (apps/astrotype/cloudkit/schema.ckdb) into the
+# container's DEVELOPMENT environment when it changes on main, or by hand. Apple's
+# cktool cannot deploy to production: after a green run, open the CloudKit Console →
+# iCloud.com.tinypenguin.astrotype → Schema → "Deploy Schema Changes to Production…".
+# See apps/astrotype/cloudkit/README.md.
+#
+# Needs the repo secret CLOUDKIT_MANAGEMENT_TOKEN: a CloudKit management token, made in
+# the CloudKit Console under your account's Settings → Tokens (shown once).
+name: Astrotype CloudKit schema
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - apps/astrotype/cloudkit/schema.ckdb
+      - .github/workflows/astrotype-cloudkit.yml
+  workflow_dispatch:
+
+concurrency:
+  group: astrotype-cloudkit
+  cancel-in-progress: false
+
+env:
+  TEAM_ID: YNMFSUHQ46
+  CONTAINER_ID: iCloud.com.tinypenguin.astrotype
+
+jobs:
+  import:
+    name: Import to development
+    runs-on: xcode-27
+    defaults:
+      run:
+        working-directory: apps/astrotype/cloudkit
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Show cktool
+        run: |
+          xcodebuild -version
+          xcrun cktool --help || true
+          xcrun cktool save-token --help || true
+
+      - name: Validate the schema file
+        run: xcrun cktool validate-schema --file schema.ckdb
+
+      - name: Save the management token
+        env:
+          CLOUDKIT_MANAGEMENT_TOKEN: ${{ secrets.CLOUDKIT_MANAGEMENT_TOKEN }}
+        run: |
+          if [ -z "$CLOUDKIT_MANAGEMENT_TOKEN" ]; then
+            echo "::error::The CLOUDKIT_MANAGEMENT_TOKEN secret is not set (Settings → Secrets and variables → Actions)."
+            exit 1
+          fi
+          # save-token normally prompts for the token; feed it on stdin. The token never
+          # appears in the log: GitHub masks the secret and the command does not echo it.
+          printf '%s\n' "$CLOUDKIT_MANAGEMENT_TOKEN" | xcrun cktool save-token --type management
+
+      - name: Import the schema into development
+        env:
+          CLOUDKIT_MANAGEMENT_TOKEN: ${{ secrets.CLOUDKIT_MANAGEMENT_TOKEN }}
+        run: |
+          xcrun cktool import-schema \
+            --team-id "$TEAM_ID" \
+            --container-id "$CONTAINER_ID" \
+            --environment development \
+            --file schema.ckdb
+          echo "Imported into development. Now deploy it in the CloudKit Console:"
+          echo "https://icloud.developer.apple.com/dashboard/ → $CONTAINER_ID → Schema → Deploy Schema Changes to Production…"
+
+      - name: Show what development holds now
+        run: xcrun cktool export-schema --team-id "$TEAM_ID" --container-id "$CONTAINER_ID" --environment development

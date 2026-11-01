@@ -53,10 +53,20 @@ BASE_TERRITORY = "USA"
 APPLY = False
 
 
-def change(description, action):
-    """Print a change, and make it when running with --apply."""
+def change(description, action, check=None):
+    """Print a change, and make it when running with --apply. A dry run calls `check`
+    instead, which reads what the change would need, so mistakes show up before main."""
     print(("" if APPLY else "Would: ") + description)
-    return action() if APPLY else None
+    if APPLY:
+        return action()
+    if check:
+        check()
+    return None
+
+
+def check_price(sub_id, price):
+    print(f"  ${price} is a US price point; Apple has a matching price in "
+          f"{len(price_points_everywhere(sub_id, price))} countries.")
 
 
 def post(type_, attributes, relationships):
@@ -289,14 +299,16 @@ def sync_subscription(group_id, current, wanted, folder):
         have = None if is_new else us_price(sub_id)
         if have != wanted["price"]:
             change(f"set price ${have} -> ${wanted['price']} (current subscribers keep their price)",
-                   lambda: set_price(sub_id, wanted["price"], is_new or have is None))
+                   lambda: set_price(sub_id, wanted["price"], is_new or have is None),
+                   lambda: check_price(sub_id, wanted["price"]))
 
     if wanted.get("introOffer"):
         offers, have = intro_offers(sub_id)
         want = {k: v for k, v in wanted["introOffer"].items()}
         want.setdefault("periods", 1)
         if have != want:
-            change(f"set launch offer {have} -> {want}", lambda: set_intro_offer(sub_id, want, offers))
+            change(f"set launch offer {have} -> {want}", lambda: set_intro_offer(sub_id, want, offers),
+                   (lambda: check_price(sub_id, want["price"])) if want.get("price") else None)
 
     if wanted.get("reviewScreenshot"):
         sync_review_screenshot(sub_id, os.path.join(folder, wanted["reviewScreenshot"]))

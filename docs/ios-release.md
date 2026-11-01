@@ -121,29 +121,51 @@ in the group who isn't listed. To add or remove a tester, edit the list and push
   wait on the export compliance question. Change it per app if an app adds its own
   encryption.
 
-## App Store screenshots
+## App Store listing (screenshots and subscriptions)
 
-Each app keeps its App Store screenshots in `apps/<name>/store/screenshots/`, one folder
-per language, named so they sort in the order they should show:
+Each app keeps parts of its App Store listing in `apps/<name>/store/`, and
+`.github/workflows/app-store.yml` keeps App Store Connect in sync with it. Pull requests
+print what would change (in the "Subscriptions" step of the run); pushes to `main` make
+the changes. Things that already match are skipped. It runs on Linux, not a Mac runner,
+and can also be run by hand from the Actions tab. The API key needs the App Manager or
+Admin role.
+
+### Screenshots
+
+One folder per language, named so they sort in the order they should show:
 
 ```
 apps/squawk/store/screenshots/en-US/1-home.png
                                     2-rings.png
 ```
 
-When they change on `main`, `.github/workflows/app-store-screenshots.yml` uploads them
-(`scripts/ios/asc-upload-screenshots.py`). It runs on Linux, not a Mac runner.
-
 - The device comes from the image size: 1320 x 2868 is the 6.9" iPhone, 2064 x 2752 the
-  13" iPad. The script lists every size it knows; any other size stops the run.
-  The 6.9" iPhone set is the only one Apple requires for an iPhone-only app.
+  13" iPad. `scripts/ios/asc-upload-screenshots.py` lists every size it knows; any other
+  size stops the run. The 6.9" iPhone set is the only one Apple requires for an
+  iPhone-only app.
 - They go to the version you can still edit in App Store Connect (Prepare for
   Submission, or rejected). With no such version, the run warns and skips; add the next
-  version in App Store Connect and re-run the workflow from the Actions tab.
-- A set whose files match by name and checksum is left alone. A set that changed is
-  replaced as a whole, so deleting, renaming or reordering files works too. A new
-  language folder adds that language to the version.
-- Up to 10 per set. The API key needs the App Manager or Admin role.
+  version in App Store Connect and re-run the workflow.
+- A set that changed is replaced as a whole, so deleting, renaming or reordering files
+  works too. A new language folder adds that language to the version. Up to 10 per set.
+- Pull requests don't upload screenshots; only `main` does.
+
+### Subscriptions
+
+`store/subscriptions.json` lists the subscription groups and plans: product ID, length,
+level, US price, launch offer, the name and description people see, and the App Review
+screenshot (a file next to the JSON). The format is at the top of
+`scripts/ios/asc-subscriptions.py`.
+
+- Prices and launch offers are set in US dollars, and Apple's matching price is used in
+  every other country. The price has to be one of Apple's price points (like 4.99).
+- A price change keeps the old price for people who already subscribe.
+- Nothing is deleted. A group, plan, language or offer missing from the file stays as it
+  is in App Store Connect. Remove things there by hand.
+- For an app with no `subscriptions.json` yet, the run prints what App Store Connect has
+  in the file's format, to start from.
+- The Paid Apps agreement, and submitting the first plans for review with an app version,
+  stay manual.
 
 ## Adding a new iOS app
 

@@ -3,7 +3,9 @@
     {
       "name": "Squawk Pro",
       "localizations": {
-        "en-US": { "name": "Squawk Pro" }
+        "en-US": {
+          "name": "Squawk Pro"
+        }
       },
       "subscriptions": [
         {
@@ -13,9 +15,17 @@
           "level": 1,
           "familySharable": false,
           "price": "49.99",
-          "introOffer": { "mode": "PAY_UP_FRONT", "duration": "ONE_YEAR", "periods": 1, "price": "29.99" },
+          "introOffer": {
+            "mode": "PAY_UP_FRONT",
+            "duration": "ONE_YEAR",
+            "periods": 1,
+            "price": "29.99"
+          },
           "localizations": {
-            "en-US": { "name": "Pro Yearly", "description": "Access all pro features" }
+            "en-US": {
+              "name": "Pro Yearly",
+              "description": "Access all pro features"
+            }
           },
           "reviewScreenshot": "pro-review.png"
         },
@@ -25,10 +35,18 @@
           "period": "ONE_MONTH",
           "level": 2,
           "familySharable": false,
-          "price": "5.99",
-          "introOffer": { "mode": "PAY_AS_YOU_GO", "duration": "ONE_MONTH", "periods": 12, "price": "2.99" },
+          "price": "4.99",
+          "introOffer": {
+            "mode": "PAY_AS_YOU_GO",
+            "duration": "ONE_MONTH",
+            "periods": 6,
+            "price": "2.99"
+          },
           "localizations": {
-            "en-US": { "name": "Pro Monthly", "description": "Access all pro features" }
+            "en-US": {
+              "name": "Pro Monthly",
+              "description": "Access all pro features"
+            }
           },
           "reviewScreenshot": "pro-review.png"
         }

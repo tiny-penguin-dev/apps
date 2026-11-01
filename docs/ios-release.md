@@ -121,6 +121,30 @@ in the group who isn't listed. To add or remove a tester, edit the list and push
   wait on the export compliance question. Change it per app if an app adds its own
   encryption.
 
+## App Store screenshots
+
+Each app keeps its App Store screenshots in `apps/<name>/store/screenshots/`, one folder
+per language, named so they sort in the order they should show:
+
+```
+apps/squawk/store/screenshots/en-US/1-home.png
+                                    2-rings.png
+```
+
+When they change on `main`, `.github/workflows/app-store-screenshots.yml` uploads them
+(`scripts/ios/asc-upload-screenshots.py`). It runs on Linux, not a Mac runner.
+
+- The device comes from the image size: 1320 x 2868 is the 6.9" iPhone, 2064 x 2752 the
+  13" iPad. The script lists every size it knows; any other size stops the run.
+  The 6.9" iPhone set is the only one Apple requires for an iPhone-only app.
+- They go to the version you can still edit in App Store Connect (Prepare for
+  Submission, or rejected). With no such version, the run warns and skips; add the next
+  version in App Store Connect and re-run the workflow from the Actions tab.
+- A set whose files match by name and checksum is left alone. A set that changed is
+  replaced as a whole, so deleting, renaming or reordering files works too. A new
+  language folder adds that language to the version.
+- Up to 10 per set. The API key needs the App Manager or Admin role.
+
 ## Adding a new iOS app
 
 Run the new-app script from the repo root (Claude: use the `new-app` skill):

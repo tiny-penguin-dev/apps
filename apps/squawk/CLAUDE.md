@@ -69,7 +69,9 @@ Squawk is in the **Build** stage. Read `PRODUCT.md`, `DESIGN.md` and `BUILD.md` 
 
 ## App Store screenshots
 
-- Mock screenshots for now, made from the design mockup: `design/appstore/*.png`
+- Mock screenshots for now, made from the design mockup: `store/screenshots/en-US/*.png`
   (1320 x 2868, the 6.9" iPhone size). Captions and screens are listed in
   `design/appstore/make-screenshots.mjs`; rerun it with `node` after changing them.
+- CI uploads `store/screenshots/` to App Store Connect when it changes on `main`
+  (`docs/ios-release.md`, "App Store screenshots").
 - Swap them for real app screenshots before the public release.

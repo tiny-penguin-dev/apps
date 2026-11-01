@@ -1,5 +1,6 @@
 // Makes mock App Store screenshots from the design mockup (design/mockups/squawk.html).
-// Each one is a phone screen with a caption, at the 6.9" iPhone size (1320 x 2868).
+// Each one is a phone screen with a caption, at the 6.9" iPhone size (1320 x 2868),
+// written to store/screenshots/en-US/, which CI uploads to App Store Connect.
 //
 //   node apps/squawk/design/appstore/make-screenshots.mjs
 //
@@ -29,12 +30,15 @@ const shots = [
 ];
 
 const browser = await chromium.launch();
-const out = here;
+const out = path.join(here, "../../store/screenshots/en-US");
 
 // 1. The phone screen alone, at 3x.
 async function phoneShot(shot) {
   const page = await browser.newPage({ viewport: { width: 900, height: 1000 }, deviceScaleFactor: 3,
     colorScheme: shot.dark ? "dark" : "light", reducedMotion: shot.screen === "morning" ? "no-preference" : "reduce" });
+  // Same confetti every run, so an unchanged screenshot keeps the same bytes and CI
+  // doesn't upload it again.
+  await page.addInitScript(() => { let seed = 7; Math.random = () => ((seed = (seed * 16807) % 2147483647) / 2147483647); });
   await page.goto(mockup + "#welcome");
   await page.evaluate(({ setup, screen, tweak }) => { if (setup) eval(setup); go(screen); if (tweak) eval(tweak); },
     { setup: shot.setup, screen: shot.screen, tweak: shot.tweak });

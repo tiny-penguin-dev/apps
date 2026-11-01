@@ -34,4 +34,4 @@ Consumer apps, and bigger features in existing apps, go Product → Design → B
 - Build settings live in xcconfig files, not in the `.pbxproj`: shared ones in `config/ios/`, app-specific ones in the app's `Config/` folder.
 - Projects use synchronized folders, so adding or removing source files doesn't touch the `.pbxproj`.
 - There's no Xcode in Claude's Linux container. To check that an iOS change builds, push and read the app's workflow run.
-- Pushes to `main` that touch an app upload a TestFlight build.
+- Pushes to `main` that touch an app upload a TestFlight build. Screenshots in `apps/<name>/store/screenshots/` upload to App Store Connect when they change.

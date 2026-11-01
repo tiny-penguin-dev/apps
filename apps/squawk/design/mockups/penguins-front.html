@@ -59,7 +59,7 @@ h1{font-size:34px;font-weight:900;margin:0}
   <h1>Squawk, facing forward</h1>
   <p class="lead">Four takes, from most "logo" to most round: 1 the arch, 2 rounded bottom with legs to the edge, 3 rounded bottom with no legs, and 4 the pebble. All have mid-size flippers. Below each: the front icon on light and dark, the matching side-view logo, and five moods.</p>
   <section class="opt" aria-label="Side by side"><div class="compare" id="compare"></div><div class="compare ci" id="compareIcons"></div><div class="compare ci" id="compareSide"></div></section>
-  <section class="opt" aria-labelledby="hbeak"><div class="head"><span class="tag">Beak</span><h2 id="hbeak">Beak options on penguin 2</h2></div><p>A: the current wide beak. B: a bit narrower and longer, with softly rounded corners. C: very pointy.</p><div class="compare" id="beaks" style="grid-template-columns:repeat(3,minmax(0,1fr))"></div><div class="compare ci" id="beakIcons" style="grid-template-columns:repeat(3,minmax(0,1fr))"></div></section>
+  <section class="opt" aria-labelledby="hbeak"><div class="head"><span class="tag">Beak</span><h2 id="hbeak">Beak options on penguin 2</h2></div><p>A: the old wide beak. B: a bit narrower and longer, with softly rounded corners (chosen, now used on every penguin). C: very pointy.</p><div class="compare" id="beaks" style="grid-template-columns:repeat(3,minmax(0,1fr))"></div><div class="compare ci" id="beakIcons" style="grid-template-columns:repeat(3,minmax(0,1fr))"></div></section>
   <div id="list" style="display:flex;flex-direction:column;gap:20px"></div>
 </main>
 
@@ -95,7 +95,7 @@ function darkEyes(m,lx,rx,y){const W="var(--eye,#fff)",P="var(--pupil,#0F1B2D)";
   if(m==="grumpy")return `<circle cx="${lx}" cy="${y}" r="10" fill="${W}"/><circle cx="${rx}" cy="${y}" r="10" fill="${W}"/><circle cx="${lx+1}" cy="${y+3}" r="4.5" fill="${P}"/><circle cx="${rx-1}" cy="${y+3}" r="4.5" fill="${P}"/><path d="M${lx-12} ${y-14} L${lx+12} ${y-4} L${lx+12} ${y-16}Z M${rx+12} ${y-14} L${rx-12} ${y-4} L${rx-12} ${y-16}Z" fill="var(--bd)"/>`;
   if(m==="squawk")return `<circle cx="${lx}" cy="${y}" r="11" fill="${W}"/><circle cx="${rx}" cy="${y}" r="11" fill="${W}"/><circle cx="${lx}" cy="${y}" r="3.5" fill="${P}"/><circle cx="${rx}" cy="${y}" r="3.5" fill="${P}"/>`;
   return `<circle cx="${lx}" cy="${y}" r="10" fill="${W}"/><circle cx="${rx}" cy="${y}" r="10" fill="${W}"/><circle cx="${lx+2}" cy="${y+1}" r="5" fill="${P}"/><circle cx="${rx+2}" cy="${y+1}" r="5" fill="${P}"/><circle cx="${lx+4}" cy="${y-2}" r="1.8" fill="${W}"/><circle cx="${rx+4}" cy="${y-2}" r="1.8" fill="${W}"/>`}
-let BEAKV=0;
+let BEAKV=1;
 function frontBeak(m,y){if(m==="squawk")return `<path d="M88 ${y} L112 ${y} L100 ${y+9}Z" fill="${BEAK}"/><path d="M90 ${y+13} L110 ${y+13} L100 ${y+22}Z" fill="${BEAK}"/>`;
   if(BEAKV===1)return `<path d="M91.5 ${y} Q100 ${y-1.5} 108.5 ${y} L101.6 ${y+14.5} Q100 ${y+17} 98.4 ${y+14.5} Z" fill="${BEAK}"/>`;
   if(BEAKV===2)return `<path d="M94 ${y} L106 ${y} L100 ${y+21}Z" fill="${BEAK}"/>`;
@@ -152,9 +152,9 @@ const svg=(inner,label,st="")=>`<svg viewBox="0 0 200 200" role="img" aria-label
 document.getElementById("compare").innerHTML=OPTIONS.map(o=>`<a class="mood" href="#h${o.id}" style="text-decoration:none">${svg(shadow+o.draw("awake"),o.name)}<b>${o.id}</b><span>${o.name}</span></a>`).join("");
 document.getElementById("compareIcons").innerHTML=OPTIONS.map(o=>`<div class="icon l">${svg(o.draw("awake",NAVY,"#fff",true),o.name+" app icon")}</div>`).join("");
 document.getElementById("compareSide").innerHTML=OPTIONS.map(o=>`<div class="icon l">${svg(o.side(NAVY,"#fff"),o.name+" side logo")}</div>`).join("");
-{const o2=OPTIONS.find(o=>o.id==="2");const names=["A · Current","B · A bit pointier","C · Very pointy"];
+{const o2=OPTIONS.find(o=>o.id==="2");const names=["A · Current","B · Chosen","C · Very pointy"];
  document.getElementById("beaks").innerHTML=names.map((n,v)=>{BEAKV=v;const h=`<div class="mood"><svg viewBox="58 62 84 64" role="img" aria-label="Close-up, beak ${n}" style="max-width:220px;border-radius:16px">${o2.draw("awake")}</svg>${svg(shadow+o2.draw("awake"),"Penguin 2, beak "+n)}<b>${n}</b></div>`;return h}).join("");
- document.getElementById("beakIcons").innerHTML=names.map((n,v)=>{BEAKV=v;return `<div class="icon l">${svg(o2.draw("awake",NAVY,"#fff",true),"Icon, beak "+n)}</div>`}).join("");BEAKV=0;}
+ document.getElementById("beakIcons").innerHTML=names.map((n,v)=>{BEAKV=v;return `<div class="icon l">${svg(o2.draw("awake",NAVY,"#fff",true),"Icon, beak "+n)}</div>`}).join("");BEAKV=1;}
 document.getElementById("list").innerHTML=OPTIONS.map(o=>`<section class="opt" aria-labelledby="h${o.id}">
   <div class="head"><span class="tag">${o.id}</span><h2 id="h${o.id}">${o.name}</h2></div>
   <p>${o.about}</p>

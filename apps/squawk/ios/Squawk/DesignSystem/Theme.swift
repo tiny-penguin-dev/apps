@@ -10,6 +10,8 @@ enum Theme {
     static let accent = Color(light: 0xFF8A4C, dark: 0xFF9A5E)
     static let accentInk = Color(light: 0xFFFFFF, dark: 0x1A1206)
     static let sun = Color(light: 0xFFC24D, dark: 0xFFCD66)
+    /// Text on sun yellow, like the PRO badge.
+    static let sunInk = Color(hex: 0x3A2600)
     static let coral = Color(light: 0xFF5C63, dark: 0xFF6F75)
     static let mint = Color(light: 0x2FBF96, dark: 0x45D3AA)
     static let ice = Color(light: 0xDCE7FF, dark: 0x24305A)

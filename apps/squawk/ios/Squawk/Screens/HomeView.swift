@@ -6,8 +6,11 @@ import UIKit
 /// Screen 4: the sleeping penguin and the alarm cards.
 struct HomeView: View {
     @Environment(AlarmsModel.self) private var model
+    @Environment(ProModel.self) private var pro
+    @AppStorage(Wardrobe.key) private var outfitID = ""
     @State private var editing: EditTarget?
     @State private var showGallery = false
+    @State private var showSettings = false
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
@@ -20,10 +23,21 @@ struct HomeView: View {
                         if model.log.streak > 0 {
                             StreakChip(streak: model.log.streak)
                         }
+                        Button { showSettings = true } label: {
+                            Image(systemName: "gearshape.fill")
+                                .font(.title3.weight(.bold))
+                                .foregroundStyle(Theme.muted)
+                                .frame(width: 44, height: 44)
+                        }
+                        .buttonStyle(SquishStyle())
+                        .accessibilityLabel("Settings")
                     }
                     .padding(.top, 8)
                     banners
-                    SleepCard(nextRing: model.nextRing(), anyOn: model.alarms.contains(where: \.isOn))
+                    SleepCard(
+                        nextRing: model.nextRing(), anyOn: model.alarms.contains(where: \.isOn),
+                        outfit: Wardrobe.accessory(outfitID: outfitID, access: pro.access, bestStreak: model.log.bestStreak)
+                    )
                         .onLongPressGesture(minimumDuration: 1.2) { showGallery = true }
                     if model.alarms.isEmpty {
                         EmptyAlarms { editing = .new }
@@ -49,6 +63,9 @@ struct HomeView: View {
         }
         .sheet(item: $editing) { target in
             EditAlarmView(alarm: target.alarm, isNew: target.isNew)
+        }
+        .sheet(isPresented: $showSettings) {
+            SettingsView()
         }
         .sheet(isPresented: $showGallery) {
             NavigationStack {
@@ -112,15 +129,17 @@ enum EditTarget: Identifiable {
     }
 }
 
-/// The penguin on its iceberg: asleep with a nightcap when an alarm is set.
+/// The penguin on its iceberg: asleep with a nightcap when an alarm is set, awake in
+/// its outfit when not.
 struct SleepCard: View {
     var nextRing: Date?
     var anyOn: Bool
+    var outfit: PenguinAccessory?
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
             VStack(spacing: 0) {
-                PenguinView(mood: anyOn ? .asleep : .awake, accessory: anyOn ? .nightcap : nil)
+                PenguinView(mood: anyOn ? .asleep : .awake, accessory: anyOn ? .nightcap : outfit)
                     .frame(width: 150, height: 150)
                 Capsule()
                     .fill(Theme.card.opacity(0.9))
@@ -157,7 +176,9 @@ struct AlarmCard: View {
     var alarm: Alarm
     var onTap: () -> Void
     @Environment(AlarmsModel.self) private var model
+    @Environment(ProModel.self) private var pro
     @State private var changingNext = false
+    @State private var paywall: ProFeature?
 
     var body: some View {
         Card {
@@ -197,6 +218,7 @@ struct AlarmCard: View {
                 ChangeNextSheet(alarm: alarm, day: day)
             }
         }
+        .proSheet($paywall)
     }
 
     /// "Skip tomorrow · Change", or what's changed with an Undo.
@@ -216,7 +238,10 @@ struct AlarmCard: View {
                 Button("Undo") { model.undoNext(alarm) }
             case .done, nil:
                 Button("Skip \(name)") { model.skipNext(alarm) }
-                Button("Change \(name) only") { changingNext = true }
+                ProLinkButton(
+                    title: "Change \(name) only", locked: !pro.access.allows(.changeNextTime),
+                    action: { changingNext = true }, onLocked: { paywall = .changeNextTime }
+                )
                 Spacer()
             }
         }
@@ -302,5 +327,6 @@ struct EmptyAlarms: View {
 #Preview {
     HomeView()
         .environment(AlarmsModel.preview())
+        .environment(ProModel.preview())
         .background(Theme.background)
 }

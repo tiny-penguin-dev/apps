@@ -307,6 +307,78 @@ private func onceDates(_ plan: [PlannedRing]) -> [Date] {
     }
 }
 
+@Suite struct ProTests {
+    @Test func freeAlarmsStopAtTwoRings() {
+        let one = Alarm()
+        let two = Alarm(rings: [Ring(), Ring(offsetMinutes: -10)])
+        #expect(ProAccess.free.canAddRing(to: one))
+        #expect(!ProAccess.free.canAddRing(to: two))
+        #expect(ProAccess.pro.canAddRing(to: two))
+    }
+
+    @Test func proFeaturesNeedPro() {
+        for feature in ProFeature.allCases {
+            #expect(ProAccess.pro.allows(feature))
+            #expect(ProAccess.free.allows(feature) == ProFeature.free.contains(feature))
+        }
+    }
+
+    @Test func quickAddRingSoundsAreFree() {
+        #expect(ProAccess.free.allows(sound: .standard))
+        #expect(ProAccess.free.allows(sound: .soft))
+        #expect(ProAccess.free.allows(sound: .loud))
+        #expect(!ProAccess.free.allows(sound: AlarmSound.with(id: "sound_garden")))
+        #expect(ProAccess.pro.allows(sound: AlarmSound.with(id: "sound_garden")))
+    }
+
+    @Test func outfitsAreEarnedWithAStreakOrPro() {
+        #expect(!ProAccess.free.allows(.scarf, bestStreak: 2))
+        #expect(ProAccess.free.allows(.scarf, bestStreak: 3))
+        #expect(!ProAccess.free.allows(.sunglasses, bestStreak: 13))
+        #expect(!ProAccess.free.allows(.partyHat, bestStreak: 100))
+        #expect(ProAccess.pro.allows(.partyHat, bestStreak: 0))
+    }
+
+    @Test func newlyEarnedOnlyTheFirstTime() {
+        #expect(Outfit.newlyEarned(streak: 3, bestStreak: 3) == .scarf)
+        #expect(Outfit.newlyEarned(streak: 7, bestStreak: 7) == .beanie)
+        #expect(Outfit.newlyEarned(streak: 3, bestStreak: 9) == nil)
+        #expect(Outfit.newlyEarned(streak: 4, bestStreak: 4) == nil)
+    }
+
+    private func firstRing(_ day: Int) -> MorningRecord {
+        MorningRecord(alarmID: UUID(), date: LocalDate(year: 2026, month: 11, day: day), outcome: .firstRing,
+                      upAt: nil, ringNumber: 1, ringCount: 1)
+    }
+
+    @Test func bestStreakSurvivesABadMorning() throws {
+        var log = MorningsLog()
+        for day in 2...5 { log.add(firstRing(day), calendar: utc) }
+        #expect(log.bestStreak == 4)
+        log.add(MorningRecord(alarmID: UUID(), date: LocalDate(year: 2026, month: 11, day: 6), outcome: .lastRing,
+                              upAt: nil, ringNumber: 2, ringCount: 2), calendar: utc)
+        #expect(log.streak == 0)
+        #expect(log.bestStreak == 4)
+        let data = try JSONEncoder().encode(log)
+        #expect(try JSONDecoder().decode(MorningsLog.self, from: data).bestStreak == 4)
+    }
+
+    @Test func olderLogsWithoutBestStreakLoad() throws {
+        let json = #"{"records":[]}"#
+        #expect(try JSONDecoder().decode(MorningsLog.self, from: Data(json.utf8)).bestStreak == 0)
+    }
+
+    @Test func memoryStoreTellsListeners() async {
+        let store = MemoryProStore()
+        #expect(await store.isPro() == false)
+        var changes = store.changes().makeAsyncIterator()
+        store.set(isPro: true)
+        let change: Void? = await changes.next()
+        #expect(change != nil)
+        #expect(await store.isPro())
+    }
+}
+
 @Suite struct StoreTests {
     @Test func roundTrip() throws {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("alarms-\(UUID()).json")

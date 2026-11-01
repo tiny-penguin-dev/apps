@@ -18,3 +18,6 @@ SENTRY_DSN =
 
 // AlarmKit needs iOS 26.
 IPHONEOS_DEPLOYMENT_TARGET = 26.0
+
+// Pro app icons (Pro/AppIcons.swift). Each is an .appiconset in Assets.xcassets.
+ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = AppIcon-Night AppIcon-Mint AppIcon-Ice

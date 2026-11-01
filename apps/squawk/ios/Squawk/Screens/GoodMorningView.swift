@@ -9,13 +9,15 @@ struct GoodMorningView: View {
     var record: MorningRecord?
     var log: MorningsLog
     var onClose: () -> Void
+    @Environment(ProModel.self) private var pro
+    @AppStorage(Wardrobe.key) private var outfitID = ""
 
     var body: some View {
         ZStack {
             Theme.background.ignoresSafeArea()
             ScrollView {
                 VStack(spacing: 18) {
-                    PenguinView(mood: mood)
+                    PenguinView(mood: mood, accessory: newOutfit?.accessory ?? wearing)
                         .frame(maxWidth: 200)
                         .padding(.top, 24)
                     Text(title)
@@ -25,6 +27,13 @@ struct GoodMorningView: View {
                         .font(Theme.body)
                         .foregroundStyle(Theme.muted)
                         .multilineTextAlignment(.center)
+                    if let newOutfit {
+                        NewOutfitCard(outfit: newOutfit, wearing: outfitID == newOutfit.rawValue) {
+                            outfitID = newOutfit.rawValue
+                            Telemetry.count("outfit.changed", ["outfit": newOutfit.rawValue])
+                        }
+                        .transition(.scale.combined(with: .opacity))
+                    }
                     Card {
                         VStack(alignment: .leading, spacing: 14) {
                             Text("This week").font(Theme.label)
@@ -53,6 +62,17 @@ struct GoodMorningView: View {
                 .frame(maxWidth: 560)
         }
         .sensoryFeedback(.success, trigger: record?.id)
+    }
+
+    /// What Squawk wears today (see Settings).
+    private var wearing: PenguinAccessory? {
+        Wardrobe.accessory(outfitID: outfitID, access: pro.access, bestStreak: log.bestStreak)
+    }
+
+    /// The outfit this morning's streak just earned, for someone without Pro.
+    private var newOutfit: Outfit? {
+        guard record?.outcome == .firstRing, !pro.access.allows(.outfits) else { return nil }
+        return Outfit.newlyEarned(streak: log.streak, bestStreak: log.bestStreak)
     }
 
     private var mood: PenguinMood {
@@ -92,12 +112,42 @@ struct GoodMorningView: View {
     }
 }
 
+/// "New outfit!" after a streak earns one, with a button to put it on.
+private struct NewOutfitCard: View {
+    var outfit: Outfit
+    var wearing: Bool
+    var onWear: () -> Void
+
+    var body: some View {
+        Card {
+            HStack(spacing: 14) {
+                Image(systemName: "gift.fill")
+                    .font(.title2.weight(.bold))
+                    .foregroundStyle(Theme.accent)
+                    .symbolEffect(.bounce, value: wearing)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("New outfit: \(outfit.name.lowercased())!").font(Theme.label)
+                    Text(outfit.howToGet.capitalizedFirst + ". Squawk earned it.")
+                        .font(.system(.subheadline, design: .rounded, weight: .semibold))
+                        .foregroundStyle(Theme.muted)
+                    Button(wearing ? "Wearing it" : "Wear it", action: onWear)
+                        .buttonStyle(LinkButtonStyle())
+                        .disabled(wearing)
+                }
+                Spacer(minLength: 0)
+            }
+        }
+        .background(Theme.sun.opacity(0.2), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+    }
+}
+
 #Preview("First ring") {
     GoodMorningView(
         record: MorningRecord(alarmID: UUID(), date: LocalDate(Date()), outcome: .firstRing, upAt: Date(), ringNumber: 1, ringCount: 3),
         log: MorningsLog(),
         onClose: {}
     )
+    .environment(ProModel.preview())
 }
 
 #Preview("Last ring, large text") {
@@ -106,5 +156,6 @@ struct GoodMorningView: View {
         log: MorningsLog(),
         onClose: {}
     )
+    .environment(ProModel.preview())
     .dynamicTypeSize(.accessibility3)
 }

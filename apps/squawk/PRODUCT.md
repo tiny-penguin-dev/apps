@@ -251,6 +251,11 @@ anything typed. People can turn this off in Settings.
 | `check.finished` (`how`: checks / math) | How often the checks get done, and how often people need the way out |
 | `morning.result` (`outcome`: firstRing / fine / lastRing / fainted) | How mornings go, and whether Squawk helps people get up earlier |
 | `morning.up` (`from`: app / button) | How mornings end early: opening the app or tapping "I'm up" |
+| `pro.shown` (`from`: the Pro feature tapped, or settings) | Which Pro things make people curious |
+| `pro.started` (`plan`: yearly / monthly) | Who subscribes, and to which plan |
+| `pro.restored` (`found`: yes / no) | Whether restoring works |
+| `outfit.changed` (`outfit`) | Whether outfits and streak rewards get used |
+| `pro.icon_changed` (`icon`) | Whether the Pro app icons get used |
 
 More get added here as phases land (rings, checks, mornings, Pro).
 

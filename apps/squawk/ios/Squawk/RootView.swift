@@ -5,6 +5,7 @@ import SwiftUI
 /// First launch shows the setup screens; after that, Home.
 struct RootView: View {
     @State private var model = AlarmsModel.shared
+    @State private var pro = ProModel.shared
     @AppStorage("onboarding.done") private var onboardingDone = false
     @Environment(\.scenePhase) private var scenePhase
     @State private var confetti = false
@@ -27,12 +28,16 @@ struct RootView: View {
             if confetti { FishConfetti().ignoresSafeArea() }
         }
         .environment(model)
+        .environment(pro)
         .foregroundStyle(Theme.ink)
         .tint(Theme.accent)
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { Task { await model.refresh() } }
         }
-        .task { await model.refresh() }
+        .task {
+            pro.start()
+            await model.refresh()
+        }
         .fullScreenCover(isPresented: coverShowing) {
             Group {
                 if let alarm = model.activeCheckAlarm {
@@ -42,6 +47,7 @@ struct RootView: View {
                 }
             }
             .environment(model)
+            .environment(pro)
         }
     }
 

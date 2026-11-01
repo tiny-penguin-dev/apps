@@ -1,6 +1,6 @@
 import Foundation
 import Observation
-import StackWriteKit
+import StackWriteCore
 
 /// Training samples on disk: one JSON file per word in Documents/Samples
 /// (also visible in the Files app). Once uploaded, a file moves to

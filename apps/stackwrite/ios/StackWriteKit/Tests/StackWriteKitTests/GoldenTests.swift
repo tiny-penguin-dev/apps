@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import StackWriteKit
+@testable import StackWriteCore
 
 /// Replays `ml/export/golden.json`: the Python reference's features, model
 /// output and decoded phrases for six synthetic recordings.

@@ -153,6 +153,26 @@ with the dictionary loaded.
 turned on in Settings and types letters into Notes, the key surface fits the three sizes
 with Apple's proportions, and the extension sits under 40 MB.
 
+Notes (1 Nov 2026, the Phase 1 PR): built as planned, with two things deferred. The App Group
+entitlement waits for Phase 5, because the group has to be registered in the developer
+portal by hand (like the iCloud container) and nothing needs it before sync; the
+extension's bundle ID is registered by automatic signing on the first TestFlight run.
+The checks show in the keyboard's bar on a phone: StoreKit's answer, "haptic on every
+key" (feel for it) and how much memory is left under the limit. Results from Gabriel's
+phone (1 Nov 2026, build 0.2.0, Full Access off): "StoreKit ok (0 active, pay yes)",
+so StoreKit 2 answers inside the extension and Phase 6 reads entitlements there
+directly, no App Group pass-through needed; 166 MB left under the limit with the
+dictionary not yet loaded (Phase 2 loads it; the bar keeps the readout so the number
+with the trie can be read the same way). Haptics: none at all with Full Access off, so
+`UIImpactFeedbackGenerator` does nothing in the extension by itself; the key click was
+silent too because the Phase 1 build played it outside a `UIInputViewAudioFeedback`
+view, which Phase 2 corrects. To try next: Full Access on. If haptics stay silent, the
+keyboard keeps visual feedback only (flash, ring, trail), as planned. Two more things
+from the first build in the Claude app: the bottom row was clipped (the keys are now
+pinned to the bottom and the bar shows granted/asked height), and the keyboard was dark
+because the app asks for a dark keyboard; it now follows `keyboardAppearance` like
+Apple's keyboard does.
+
 ### Phase 2: One finger, the whole engine
 
 `Composer` and `Matcher` with taps and one-finger swipes, the bar's three states, the
@@ -163,6 +183,21 @@ practice field runs the same keyboard.
 **Done when:** swiping t-h-e-r-e writes "there", a tap inside a swipe writes a doubled
 letter, the first guess is right for 9 of 10 words in a 50-word fixture, and a candidate
 list takes under 5 ms on a phone.
+
+Notes (1 Nov 2026, the Phase 2 PR): built as planned, with the API trimmed from the
+sketch above. `Composer`'s effects are only text edits and haptics (`insert`,
+`deleteBackward`, `mark`, `commit`, `clearMark`, `haptic`); flashes, trails and tap
+rings are drawn by the key surface itself, which already has the touches. The open
+word is marked text (`setMarkedText`), so the field underlines it and a commit is
+`unmarkText`. A tap is a touch that stays within 18 pt; a swipe's keys are the letters
+under a 4 pt walk along its path, runs collapsed, and the matcher may use a crossed key
+twice for a doubled letter, so "hello" and "coffee" come from one swipe each (a tap
+inside a swipe for a double is Phase 3, with the second thumb). The matcher's score adds
+a path-length term so "the" does not win a swipe that went on to "there". The fixture
+(`Tests/Fixtures/swipes.json`) is 50 common words swiped as straight lines between key
+centres, 50 of 50 right; recorded swipes replace it as they come in. The phone timing
+goes here once measured; the CI test only bounds it loosely in a debug build. The app's
+Home has "Try the keyboard", a field whose input view is the same `KeyboardView`.
 
 ### Phase 3: Two thumbs and the keyboard's gestures
 
@@ -175,6 +210,27 @@ off.
 **Done when:** "something" types as the Try it screen describes (left taps s and e,
 right swipes o-m and t-h-i-n-g, overlapping), and every gesture in `DESIGN.md`'s
 keyboard section works in Messages.
+
+Notes (1 Nov 2026, the Phase 3 PR): the matcher reads the pieces in touch-down order
+and tries two that landed within 120 ms of each other both ways (at most four
+orderings). A tap that lands while the other thumb's swipe is still moving is also
+tried where the swipe had got to: the swipe is split at the key under the finger at
+that moment (each point of a piece carries its time), the tap goes in between, and the
+split parts are scored as one path, so h-e-l-o with an l tap mid-swipe is "hello" and
+c-o-f-e with an f tap is "coffee"; the plain reading stays in the running, so the e of
+"something" works whether it lands during the o-m swipe or just after. Synthetic
+two-thumb scripts cover these in `MatcherTests`; recorded ones replace them when
+Phase 7 brings the recorder. Gestures live in `KeySurfaceView` (the view already has
+the touches) and reach the engine as two calls: `cursorWillMove` (a slide on space
+writes the open word with nothing after it, then the host moves the cursor, 12 pt per
+character) and `deleteWord` (a 40 pt swipe left from backspace drops the open word, or
+the previous word and the space after it). Backspace held repeats after 0.45 s every
+90 ms. Numbers and symbols are Apple's pages, same key size and height as the letters;
+a space on them goes back to the letters. "123" held for 0.45 s opens the settings
+panel over the keys: autospace, its delay (0.5 to 1.5 s) and trails, kept as
+`KeyboardSettings` in the extension's own `UserDefaults` (no App Group yet, so the app
+and the keyboard each have their own until Phase 5 moves them to the group and
+iCloud). Shift, caps lock and sentence capitals were already in the Phase 2 composer.
 
 ### Phase 4: The app
 

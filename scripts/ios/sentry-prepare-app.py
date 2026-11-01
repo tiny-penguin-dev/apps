@@ -9,7 +9,8 @@ Writes SENTRY_DSN and SENTRY_ORG to $GITHUB_ENV (when set) and prints the DSN
 otherwise. If SENTRY_DSN is already set, it's kept as an override.
 
 Usage: sentry-prepare-app.py <project-slug> [display-name]
-Env:   SENTRY_AUTH_TOKEN  a Sentry token with project:read and project:write
+Env:   SENTRY_AUTH_TOKEN  a Sentry token with org:read, team:read, project:read,
+                          project:write and project:releases
                           (project:admin is not needed). An organization token
                           (sntrys_...) can't create projects; use a personal or
                           internal integration token.
@@ -48,7 +49,7 @@ def call(method, path, body=None):
         detail = e.read().decode()[:300]
         hint = ""
         if e.code in (401, 403):
-            hint = (" The token needs project:read and project:write. An organization"
+            hint = (" The token needs org:read, team:read, project:read, project:write and project:releases. An organization"
                     " token (sntrys_...) can't create projects.")
         raise SentryError(f"{method} {path} failed with {e.code}: {detail}.{hint}") from None
     except OSError as e:

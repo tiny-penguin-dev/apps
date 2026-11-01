@@ -40,7 +40,7 @@ on:
         description: The app's Sentry DSN (optional override; normally looked up with SENTRY_AUTH_TOKEN)
         required: false
       SENTRY_AUTH_TOKEN:
-        description: Sentry token (project:read, project:write) to create the app's project, look up its DSN and upload debug symbols
+        description: Sentry token (org:read, team:read, project:read, project:write, project:releases) to create the app's project, look up its DSN and upload debug symbols
         required: false
 
 jobs:

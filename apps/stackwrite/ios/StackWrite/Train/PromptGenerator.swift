@@ -1,5 +1,5 @@
 import Foundation
-import StackWriteKit
+import StackWriteCore
 
 /// Picks words to write, weighted toward common words but with a long tail,
 /// the same weighting the synthetic training data uses (`freq ^ 0.3`).

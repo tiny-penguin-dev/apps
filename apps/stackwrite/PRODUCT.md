@@ -1,6 +1,6 @@
 # StackWrite v2: product definition
 
-Status: Draft
+Status: Approved 2026-11-01
 
 StackWrite is an iPhone keyboard for typing fast with two thumbs. Each thumb taps or
 swipes a few letters at a time, both at once, and the keyboard turns the pieces into the

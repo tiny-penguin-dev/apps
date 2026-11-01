@@ -30,6 +30,7 @@ matching price is used in every other country.
 - introOffer mode: FREE_TRIAL (no price), PAY_AS_YOU_GO (price each period, for
   "periods" periods), PAY_UP_FRONT (one price for "duration").
 - reviewScreenshot: a file next to subscriptions.json.
+- Every plan is sold in every country, including new ones Apple adds.
 
 Nothing is ever deleted: a group, plan, language or offer missing from the file
 is left as it is in App Store Connect. A price change keeps the old price for
@@ -269,6 +270,27 @@ def sync_review_screenshot(sub_id, path):
     change(f"upload review screenshot {os.path.basename(path)}", upload)
 
 
+def sync_availability(sub_id):
+    """Sell the plan in every country, and in new ones Apple adds. A plan with no
+    countries can't be bought anywhere ("unavailable in the current storefront")."""
+    everywhere = sorted(t["id"] for t in get_all("/territories?limit=200"))
+    try:
+        availability = call("GET", f"/subscriptions/{sub_id}/subscriptionAvailability")["data"]
+    except ApiError as e:
+        if e.code != 404:
+            raise
+        availability = None
+    have = []
+    if availability:
+        have = sorted(t["id"] for t in get_all(
+            f"/subscriptionAvailabilities/{availability['id']}/availableTerritories?limit=200"))
+    if have == everywhere and availability["attributes"].get("availableInNewTerritories"):
+        return
+    change(f"sell in every country ({len(everywhere)}, now {len(have)})", lambda: post(
+        "subscriptionAvailabilities", {"availableInNewTerritories": True},
+        {"subscription": ("subscriptions", sub_id), "availableTerritories": ("territories", everywhere)}))
+
+
 def sync_subscription(group_id, current, wanted, folder):
     pid = wanted["productId"]
     print(f"-- {pid}")
@@ -281,11 +303,6 @@ def sync_subscription(group_id, current, wanted, folder):
             "subscriptions", {"productId": pid, **{k: v for k, v in attrs.items() if k != "groupLevel"}},
             {"group": ("subscriptionGroups", group_id)}))
         sub_id = created["id"] if created else None
-        if sub_id:
-            territories = [t["id"] for t in get_all("/territories?limit=200")]
-            post("subscriptionAvailabilities", {"availableInNewTerritories": True},
-                 {"subscription": ("subscriptions", sub_id), "availableTerritories": ("territories", territories)})
-            print(f"  Available in {len(territories)} countries.")
     else:
         sub_id = current["id"]
         diff = {k: v for k, v in attrs.items() if current["attributes"].get(k) != v}
@@ -297,6 +314,8 @@ def sync_subscription(group_id, current, wanted, folder):
             if wanted.get(key):
                 print(f"Would: set {key} {wanted[key] if key != 'localizations' else list(wanted[key])}")
         return
+
+    sync_availability(sub_id)
 
     sync_localizations("subscriptionLocalizations", "subscription", sub_id,
                        localizations(f"/subscriptions/{sub_id}/subscriptionLocalizations?limit=50"),

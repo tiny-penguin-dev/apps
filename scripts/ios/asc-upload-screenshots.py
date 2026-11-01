@@ -196,22 +196,43 @@ def wait_until_processed(ids):
             if state == "FAILED":
                 errors = attrs["assetDeliveryState"].get("errors")
                 sys.exit(f"::error::App Store Connect couldn't process {attrs['fileName']}: {errors}")
-            if state in ("UPLOAD_COMPLETE", "COMPLETE"):
+            if state == "COMPLETE":
                 pending.discard(shot_id)
         if pending:
             time.sleep(5)
     if pending:
-        print(f"::warning::{len(pending)} screenshots are still processing in App Store Connect.")
+        print(f"{len(pending)} screenshots are still processing in App Store Connect; that finishes on its own.")
+
+
+def matches(current, files):
+    """True when the set already holds these files, in this order. App Store Connect
+    only reports a screenshot's checksum once it has finished processing, so one
+    still processing counts as a match by name."""
+    if len(current) != len(files):
+        return False
+    for shot, (name, _, md5) in zip(current, files):
+        attrs = shot["attributes"]
+        state = (attrs.get("assetDeliveryState") or {}).get("state")
+        if attrs["fileName"] != name:
+            return False
+        if attrs.get("sourceFileChecksum") != md5 and not (
+            attrs.get("sourceFileChecksum") is None and state == "UPLOAD_COMPLETE"
+        ):
+            return False
+    return True
 
 
 def sync_set(localization_id, locale, display_type, files):
     set_id, current = screenshot_set(localization_id, display_type)
     have = [(s["attributes"]["fileName"], s["attributes"].get("sourceFileChecksum")) for s in current]
     want = [(name, md5) for name, _, md5 in files]
-    if have == want:
+    if matches(current, files):
         print(f"{locale} {display_type}: up to date ({len(files)} screenshots).")
         return
     print(f"{locale} {display_type}: uploading {len(files)} screenshots (replacing {len(current)}).")
+    if current:
+        print(f"  App Store Connect has: {have}")
+        print(f"  The repo has:          {want}")
     for s in current:
         call("DELETE", f"/appScreenshots/{s['id']}")
     ids = [upload(set_id, name, path, md5) for name, path, md5 in files]

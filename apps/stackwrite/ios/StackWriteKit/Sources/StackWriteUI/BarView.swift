@@ -21,7 +21,7 @@ public final class BarView: UIView {
     }
 
     private let label = UILabel()
-    private let tag = UILabel()
+    private let fixLabel = UILabel()
     private let stack = UIStackView()
     private var indices: [Int] = []
 
@@ -36,11 +36,11 @@ public final class BarView: UIView {
         label.minimumScaleFactor = 0.7
         addSubview(label)
 
-        tag.font = Theme.uiFont(size: 11, weight: .black)
-        tag.textColor = Theme.ui(.accent)
-        tag.text = "FIX"
-        tag.accessibilityLabel = "Fix the last word"
-        addSubview(tag)
+        fixLabel.font = Theme.uiFont(size: 11, weight: .black)
+        fixLabel.textColor = Theme.ui(.accent)
+        fixLabel.text = "FIX"
+        fixLabel.accessibilityLabel = "Fix the last word"
+        addSubview(fixLabel)
 
         stack.axis = .horizontal
         stack.alignment = .center
@@ -58,9 +58,9 @@ public final class BarView: UIView {
         let inset = bounds.insetBy(dx: Theme.Space.s, dy: 0)
         label.frame = inset
         if case .fix = bar {
-            tag.sizeToFit()
-            tag.frame = CGRect(x: inset.minX + Theme.Space.xs, y: 0, width: tag.bounds.width, height: inset.height)
-            let x = tag.frame.maxX + Theme.Space.m
+            fixLabel.sizeToFit()
+            fixLabel.frame = CGRect(x: inset.minX + Theme.Space.xs, y: 0, width: fixLabel.bounds.width, height: inset.height)
+            let x = fixLabel.frame.maxX + Theme.Space.m
             stack.frame = CGRect(x: x, y: 0, width: inset.maxX - x, height: inset.height)
         } else {
             stack.frame = inset
@@ -74,18 +74,18 @@ public final class BarView: UIView {
         case .idle:
             label.text = note
             label.isHidden = false
-            tag.isHidden = true
+            fixLabel.isHidden = true
             stack.isHidden = true
         case .guesses(let words, let chosen):
             label.isHidden = true
-            tag.isHidden = true
+            fixLabel.isHidden = true
             stack.isHidden = false
             for (i, word) in words.enumerated() {
                 add(word, index: i, chosen: i == chosen)
             }
         case .fix(let words, let chosen):
             label.isHidden = true
-            tag.isHidden = false
+            fixLabel.isHidden = false
             stack.isHidden = false
             for (i, word) in words.enumerated() where i != chosen {
                 add(word, index: i, chosen: false)

@@ -16,7 +16,7 @@ docs/             repo-wide guides (e.g. ios-release.md)
 
 | App | What it is |
 |---|---|
-| [StackWrite](apps/stackwrite) | iOS keyboard: write a whole word as one stacked stroke |
+| [StackWrite](apps/stackwrite) | iOS keyboard: type fast with two thumbs, tapping and swiping at once |
 
 ## Adding an app
 

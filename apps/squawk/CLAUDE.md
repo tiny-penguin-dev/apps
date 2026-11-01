@@ -44,6 +44,12 @@ Squawk is in the **Build** stage. Read `PRODUCT.md`, `DESIGN.md` and `BUILD.md` 
   `ProLinkButton`/`ProBadge` and `.proSheet($paywall)`. Product IDs are in
   `ProProducts`; the launch prices are introductory offers in App Store Connect.
   `Config/Squawk.storekit` lets Xcode test buying without App Store Connect.
+- `ios/SquawkWidget/`: the next-alarm widget (home screen small and medium, lock screen).
+  The app saves a `WidgetSnapshot` (next wake-ups and the streak, in `SquawkKit`) to the
+  App Group `group.com.tinypenguin.squawk` whenever alarms or mornings change
+  (`Alarms/WidgetBridge.swift`); the widget shows each wake-up until it passes. Its
+  settings are in `Config/SquawkWidget.xcconfig`; the version is shared in
+  `Config/Version.xcconfig`.
 - `ios/Squawk/Sounds/`: the bundled alarm mp3s (from Lanata, cleared for a public app).
   AlarmKit only plays bundled mp3s.
 - `ios/PenguinKit/`: local Swift package with the mascot. `PenguinGeometry` holds every

@@ -118,11 +118,26 @@ jobs:
           # Build number = commit time in UTC, so it always goes up.
           BUILD_NUMBER="$(TZ=UTC git show -s --format=%cd --date=format-local:'%Y%m%d%H%M' HEAD)"
 
-          SETTINGS="$(xcodebuild -showBuildSettings \
+          # The scheme can build more than one target (an app and its extensions, like a
+          # widget), so read the app target's settings by name. Extensions are listed in
+          # extensions.txt as "<bundle ID> <entitlements>" for the App Store Connect step.
+          xcodebuild -showBuildSettings -json \
             -project "${{ inputs.scheme }}.xcodeproj" \
             -scheme "${{ inputs.scheme }}" \
-            -configuration Release 2>/dev/null)"
-          setting() { awk -v k="$1" '$1 == k { print $3; exit }' <<<"$SETTINGS"; }
+            -configuration Release 2>/dev/null > "$RUNNER_TEMP/settings.json"
+          python3 - "$RUNNER_TEMP/settings.json" "${{ inputs.scheme }}" "$RUNNER_TEMP/extensions.txt" > "$RUNNER_TEMP/app.env" <<'PY'
+          import json, sys
+          targets = json.load(open(sys.argv[1]))
+          app = next(t["buildSettings"] for t in targets if t["target"] == sys.argv[2])
+          for key in ("DEVELOPMENT_TEAM", "PRODUCT_BUNDLE_IDENTIFIER", "CODE_SIGN_ENTITLEMENTS"):
+              print(f"{key}={app.get(key, '')}")
+          with open(sys.argv[3], "w") as out:
+              for t in targets:
+                  b = t["buildSettings"]
+                  if t["target"] != sys.argv[2] and b.get("WRAPPER_EXTENSION") == "appex":
+                      out.write(f"{b['PRODUCT_BUNDLE_IDENTIFIER']} {b.get('CODE_SIGN_ENTITLEMENTS', '')}\n")
+          PY
+          setting() { awk -F= -v k="$1" '$1 == k { print substr($0, length(k) + 2); exit }' "$RUNNER_TEMP/app.env"; }
           TEAM_ID="$(setting DEVELOPMENT_TEAM)"
           BUNDLE_ID="$(setting PRODUCT_BUNDLE_IDENTIFIER)"
           ENTITLEMENTS="$(setting CODE_SIGN_ENTITLEMENTS)"
@@ -145,7 +160,14 @@ jobs:
         if: steps.secrets.outputs.ready == 'true'
         # Registers the bundle ID if needed, turns on the capabilities its
         # entitlements need, and checks the app record exists.
-        run: python3 "$GITHUB_WORKSPACE/scripts/ios/asc-prepare-app.py" "$BUNDLE_ID" "${{ inputs.scheme }}" "$ENTITLEMENTS"
+        run: |
+          set -e
+          python3 "$GITHUB_WORKSPACE/scripts/ios/asc-prepare-app.py" "$BUNDLE_ID" "${{ inputs.scheme }}" "$ENTITLEMENTS"
+          # Extensions (like a widget) need their own bundle IDs and capabilities.
+          while read -r EXT_ID EXT_ENTITLEMENTS; do
+            [ -n "$EXT_ID" ] || continue
+            python3 "$GITHUB_WORKSPACE/scripts/ios/asc-prepare-app.py" "$EXT_ID" "${{ inputs.scheme }} ${EXT_ID##*.}" "$EXT_ENTITLEMENTS" extension
+          done < "$RUNNER_TEMP/extensions.txt"
 
       - name: Sync TestFlight testers
         if: steps.secrets.outputs.ready == 'true' && hashFiles(format('{0}/Config/testflight.json', inputs.app-dir)) != ''

@@ -379,6 +379,42 @@ private func onceDates(_ plan: [PlannedRing]) -> [Date] {
     }
 }
 
+@Suite struct WidgetSnapshotTests {
+    @Test func nextWakeUpsCountChanges() {
+        // Sunday night: weekday alarm at 7:00, Monday skipped, Tuesday moved to 6:30.
+        var weekdays = Alarm(days: Weekday.weekdays, rings: [Ring(), Ring(offsetMinutes: -10)], label: "Work")
+        weekdays.setChange(.skip, on: monday)
+        weekdays.setChange(.time(TimeOfDay(hour: 6, minute: 30)), on: monday.adding(days: 1, calendar: utc))
+        let off = Alarm(time: TimeOfDay(hour: 5, minute: 0), isOn: false)
+        let once = Alarm(time: TimeOfDay(hour: 9, minute: 0), date: monday)
+        let snapshot = WidgetSnapshot(alarms: [weekdays, off, once], streak: 4, now: sundayNight, calendar: utc)
+        #expect(snapshot.streak == 4)
+        #expect(snapshot.wakeUps.first?.at == at(2, 9))
+        #expect(snapshot.wakeUps.first?.title == "Wake up")
+        let second = snapshot.wakeUps[1]
+        #expect(second.at == at(3, 6, 30))
+        #expect(second.title == "Work")
+        #expect(second.ringCount == 2)
+        #expect(snapshot.wakeUps.count <= WidgetSnapshot.limit)
+        #expect(!snapshot.wakeUps.contains { utc.component(.hour, from: $0.at) == 5 })
+    }
+
+    @Test func nextSkipsPastWakeUps() {
+        let snapshot = WidgetSnapshot(alarms: [Alarm(days: Set(Weekday.allCases))], streak: 0, now: sundayNight, calendar: utc)
+        #expect(snapshot.next(after: sundayNight)?.at == at(2, 7))
+        #expect(snapshot.next(after: at(2, 7, 1))?.at == at(3, 7))
+    }
+
+    @Test func storeSavesOnlyChanges() {
+        let store = WidgetSnapshotStore(suiteName: "squawk-tests-\(UUID())")
+        let snapshot = WidgetSnapshot(wakeUps: [.init(at: sundayNight, title: "Wake up", ringCount: 1)], streak: 2)
+        #expect(store.load() == WidgetSnapshot())
+        #expect(store.save(snapshot))
+        #expect(!store.save(snapshot))
+        #expect(store.load() == snapshot)
+    }
+}
+
 @Suite struct StoreTests {
     @Test func roundTrip() throws {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("alarms-\(UUID()).json")

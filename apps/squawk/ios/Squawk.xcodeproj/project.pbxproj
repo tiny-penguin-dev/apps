@@ -10,7 +10,34 @@
 		5A0000000000000000000082 /* PenguinKit in Frameworks */ = {isa = PBXBuildFile; productRef = 5A0000000000000000000081 /* PenguinKit */; };
 		5A0000000000000000000090 /* Sentry-Dynamic in Frameworks */ = {isa = PBXBuildFile; productRef = 5A0000000000000000000092 /* Sentry-Dynamic */; };
 		5A0000000000000000000086 /* SquawkKit in Frameworks */ = {isa = PBXBuildFile; productRef = 5A0000000000000000000085 /* SquawkKit */; };
+		5A0000000000000000000113 /* PenguinKit in Frameworks */ = {isa = PBXBuildFile; productRef = 5A0000000000000000000115 /* PenguinKit */; };
+		5A0000000000000000000114 /* SquawkKit in Frameworks */ = {isa = PBXBuildFile; productRef = 5A0000000000000000000116 /* SquawkKit */; };
+		5A0000000000000000000117 /* SquawkWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 5A0000000000000000000100 /* SquawkWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		5A0000000000000000000119 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 5A0000000000000000000050 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 5A0000000000000000000120;
+			remoteInfo = SquawkWidget;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		5A0000000000000000000118 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				5A0000000000000000000117 /* SquawkWidget.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		5A0000000000000000000010 /* Squawk.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Squawk.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -18,10 +45,13 @@
 		5A0000000000000000000012 /* Squawk.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Squawk.xcconfig; sourceTree = "<group>"; };
 		5A0000000000000000000014 /* PenguinKit */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = PenguinKit; sourceTree = "<group>"; };
 		5A0000000000000000000015 /* SquawkKit */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = SquawkKit; sourceTree = "<group>"; };
+		5A0000000000000000000100 /* SquawkWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = SquawkWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		5A0000000000000000000101 /* SquawkWidget.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = SquawkWidget.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		5A0000000000000000000020 /* Squawk */ = {isa = PBXFileSystemSynchronizedRootGroup; path = Squawk; sourceTree = "<group>"; };
+		5A0000000000000000000102 /* SquawkWidget */ = {isa = PBXFileSystemSynchronizedRootGroup; path = SquawkWidget; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -35,6 +65,15 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		5A0000000000000000000111 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5A0000000000000000000113 /* PenguinKit in Frameworks */,
+				5A0000000000000000000114 /* SquawkKit in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -42,6 +81,7 @@
 			isa = PBXGroup;
 			children = (
 				5A0000000000000000000020 /* Squawk */,
+				5A0000000000000000000102 /* SquawkWidget */,
 				5A0000000000000000000014 /* PenguinKit */,
 				5A0000000000000000000015 /* SquawkKit */,
 				5A0000000000000000000003 /* Config */,
@@ -53,6 +93,7 @@
 			isa = PBXGroup;
 			children = (
 				5A0000000000000000000010 /* Squawk.app */,
+				5A0000000000000000000100 /* SquawkWidget.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -62,6 +103,7 @@
 			children = (
 				5A0000000000000000000011 /* Project.xcconfig */,
 				5A0000000000000000000012 /* Squawk.xcconfig */,
+				5A0000000000000000000101 /* SquawkWidget.xcconfig */,
 			);
 			path = Config;
 			sourceTree = "<group>";
@@ -76,10 +118,12 @@
 				5A0000000000000000000030 /* Sources */,
 				5A0000000000000000000031 /* Frameworks */,
 				5A0000000000000000000032 /* Resources */,
+				5A0000000000000000000118 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				5A000000000000000000011A /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				5A0000000000000000000020 /* Squawk */,
@@ -94,6 +138,30 @@
 			productReference = 5A0000000000000000000010 /* Squawk.app */;
 			productType = "com.apple.product-type.application";
 		};
+		5A0000000000000000000120 /* SquawkWidget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5A0000000000000000000121 /* Build configuration list for PBXNativeTarget "SquawkWidget" */;
+			buildPhases = (
+				5A0000000000000000000110 /* Sources */,
+				5A0000000000000000000111 /* Frameworks */,
+				5A0000000000000000000112 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				5A0000000000000000000102 /* SquawkWidget */,
+			);
+			name = SquawkWidget;
+			packageProductDependencies = (
+				5A0000000000000000000115 /* PenguinKit */,
+				5A0000000000000000000116 /* SquawkKit */,
+			);
+			productName = SquawkWidget;
+			productReference = 5A0000000000000000000100 /* SquawkWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -105,6 +173,9 @@
 				LastUpgradeCheck = 1600;
 				TargetAttributes = {
 					5A0000000000000000000040 = {
+						CreatedOnToolsVersion = 16.0;
+					};
+					5A0000000000000000000120 = {
 						CreatedOnToolsVersion = 16.0;
 					};
 				};
@@ -129,12 +200,20 @@
 			projectRoot = "";
 			targets = (
 				5A0000000000000000000040 /* Squawk */,
+				5A0000000000000000000120 /* SquawkWidget */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		5A0000000000000000000032 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5A0000000000000000000112 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -151,7 +230,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		5A0000000000000000000110 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		5A000000000000000000011A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 5A0000000000000000000120 /* SquawkWidget */;
+			targetProxy = 5A0000000000000000000119 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		5A0000000000000000000070 /* Debug */ = {
@@ -182,6 +276,20 @@
 			};
 			name = Release;
 		};
+		5A0000000000000000000122 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 5A0000000000000000000101 /* SquawkWidget.xcconfig */;
+			buildSettings = {
+			};
+			name = Debug;
+		};
+		5A0000000000000000000123 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 5A0000000000000000000101 /* SquawkWidget.xcconfig */;
+			buildSettings = {
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -199,6 +307,15 @@
 			buildConfigurations = (
 				5A0000000000000000000072 /* Debug */,
 				5A0000000000000000000073 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		5A0000000000000000000121 /* Build configuration list for PBXNativeTarget "SquawkWidget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5A0000000000000000000122 /* Debug */,
+				5A0000000000000000000123 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
@@ -240,6 +357,14 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 5A0000000000000000000091 /* XCRemoteSwiftPackageReference "sentry-cocoa" */;
 			productName = "Sentry-Dynamic";
+		};
+		5A0000000000000000000115 /* PenguinKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = PenguinKit;
+		};
+		5A0000000000000000000116 /* SquawkKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = SquawkKit;
 		};
 /* End XCSwiftPackageProductDependency section */
 

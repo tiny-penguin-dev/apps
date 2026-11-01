@@ -6,11 +6,14 @@ record uses it. Apple's API can't create app records, so a missing one
 stops the run with the steps to create it by hand.
 
 With an entitlements file, also turns on the matching capabilities for the
-bundle ID (iCloud with CloudKit, NFC tag reading). Neither the API nor signing with
-an API key can create iCloud containers or link them to an app, so that's
-done once by hand (see docs/ios-release.md).
+bundle ID (iCloud with CloudKit, NFC tag reading, App Groups). Neither the API nor signing with
+an API key can create iCloud containers or App Groups, or link them to an app,
+so that's done once by hand (see docs/ios-release.md).
 
-Usage: asc-prepare-app.py <bundle-id> <name> [entitlements-file]
+For an app extension (like a widget), pass "extension" last: it gets its bundle
+ID and capabilities but no app record of its own.
+
+Usage: asc-prepare-app.py <bundle-id> <name> [entitlements-file] [extension]
 Env:   see asc.py
 """
 
@@ -28,6 +31,7 @@ CAPABILITIES = {
         [{"key": "ICLOUD_VERSION", "options": [{"key": "XCODE_6", "enabled": True}]}],
     ),
     "com.apple.developer.nfc.readersession.formats": ("NFC_TAG_READING", []),
+    "com.apple.security.application-groups": ("APP_GROUPS", []),
 }
 
 
@@ -58,7 +62,7 @@ def enable_capabilities(bundle_resource_id, entitlements_file):
         print(f"Turned on capability {capability}.")
 
 
-def main(bundle_id, name, entitlements_file=""):
+def main(bundle_id, name, entitlements_file="", kind="app"):
     bundles = find("/bundleIds", bundle_id, "identifier")
     if bundles:
         print(f"Bundle ID {bundle_id} is registered.")
@@ -79,6 +83,9 @@ def main(bundle_id, name, entitlements_file=""):
     if entitlements_file and os.path.exists(entitlements_file):
         enable_capabilities(bundles[0]["id"], entitlements_file)
 
+    if kind == "extension":
+        return
+
     if find("/apps", bundle_id, "bundleId"):
         print(f"App record for {bundle_id} exists.")
     else:
@@ -91,4 +98,4 @@ def main(bundle_id, name, entitlements_file=""):
 
 
 if __name__ == "__main__":
-    run(main, *sys.argv[1:4])
+    run(main, *sys.argv[1:5])

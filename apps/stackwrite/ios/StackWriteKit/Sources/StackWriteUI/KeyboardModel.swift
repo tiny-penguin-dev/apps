@@ -35,27 +35,58 @@ public final class KeyboardModel {
     public var onHaptic: ((Composer.Haptic) -> Void)?
     /// A word went into the field (space, punctuation, autospace or a tapped guess).
     public var onCommit: ((String) -> Void)?
+    /// The learned words changed here: a word learned on commit, a boost or a forget.
+    public var onWordsChange: ((LearnedWords) -> Void)?
+    /// The settings changed here (the panel, or the app's Settings).
+    public var onSettingsChange: ((KeyboardSettings) -> Void)?
     /// The person's keyboard settings; saved to `store` on every change.
     public var keyboardSettings: KeyboardSettings {
         didSet {
             guard keyboardSettings != oldValue else { return }
             composer.settings = keyboardSettings.composerSettings(from: composer.settings)
+            settingsChanged = Date()
             store?.save(keyboardSettings)
             onChange?()
+            onSettingsChange?(keyboardSettings)
         }
     }
+    /// When the settings last changed, here or in the store they came from.
+    public private(set) var settingsChanged: Date
     public var store: SettingsStore?
+    public var wordStore: WordStore?
+
+    /// What the person taught the keyboard; saved to `wordStore` on every change.
+    public var learnedWords: LearnedWords {
+        get { composer.learned }
+        set {
+            guard newValue != composer.learned else { return }
+            composer.learned = newValue
+            wordStore?.save(newValue)
+            apply(composer.learnedDidChange(time: now))
+        }
+    }
 
     private var autospace: Task<Void, Never>?
 
-    /// `store`'s settings apply when it has any; otherwise the defaults.
-    public init(composer: Composer, store: SettingsStore? = nil) {
+    /// `store`'s settings and `wordStore`'s words apply when they have any; otherwise
+    /// the defaults and no words.
+    public init(composer: Composer, store: SettingsStore? = nil, wordStore: WordStore? = nil) {
         var composer = composer
         let settings = store?.load() ?? KeyboardSettings()
         composer.settings = settings.composerSettings(from: composer.settings)
+        if let words = wordStore?.load() { composer.learned = words }
         self.composer = composer
         self.store = store
+        self.wordStore = wordStore
         self.keyboardSettings = settings
+        self.settingsChanged = store?.lastChanged() ?? .distantPast
+    }
+
+    /// Settings that arrived from elsewhere (a sync) with the time they changed there.
+    public func adopt(_ settings: KeyboardSettings, changed: Date) {
+        guard changed > settingsChanged else { return }
+        keyboardSettings = settings
+        settingsChanged = changed
     }
 
     public var state: Composer.State { composer.state }
@@ -114,6 +145,33 @@ public final class KeyboardModel {
         apply(composer.deleteWord(time: now))
     }
 
+    /// Held a guess on the bar and slid up: the word sticks from now on.
+    public func boost(guess index: Int) {
+        guard let word = barWord(at: index) else { return }
+        var words = composer.learned
+        words.boost(word, at: Date())
+        learnedWords = words
+        onWordsChange?(words)
+    }
+
+    /// Held a guess on the bar and slid down: the word is not offered again.
+    public func forget(guess index: Int) {
+        guard let word = barWord(at: index) else { return }
+        var words = composer.learned
+        words.forget(word, at: Date())
+        learnedWords = words
+        onWordsChange?(words)
+    }
+
+    private func barWord(at index: Int) -> String? {
+        switch composer.state.bar {
+        case .guesses(let words, _), .fix(let words, _):
+            words.indices.contains(index) ? words[index].lowercased() : nil
+        case .idle:
+            nil
+        }
+    }
+
     /// The field changed (the host's `textDidChange`): re-read the context.
     public func contextChanged() {
         composer.setContext(before: target?.textBeforeCursor)
@@ -150,6 +208,12 @@ public final class KeyboardModel {
                 target?.unmark()
             case .haptic(let haptic):
                 onHaptic?(haptic)
+            case .learn(let word):
+                var words = composer.learned
+                words.learn(word, at: Date())
+                composer.learned = words
+                wordStore?.save(words)
+                onWordsChange?(words)
             }
         }
         composer.setContext(before: target?.textBeforeCursor)

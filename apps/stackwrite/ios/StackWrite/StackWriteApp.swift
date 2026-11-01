@@ -31,6 +31,8 @@ struct StackWriteApp: App {
         .onChange(of: scenePhase) {
             if scenePhase == .active {
                 model.refreshKeyboardStatus()
+                model.reloadWords()
+                model.sync()
             } else {
                 uploader.upload()
             }

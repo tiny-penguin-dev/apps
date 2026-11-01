@@ -287,6 +287,33 @@ Metric: `sync.failed`.
 a minute, with no Full Access the keyboard still learns and keeps its words, and the
 backup before a version change leaves nothing behind.
 
+Notes (1 Nov 2026, the Phase 5 PR): built as planned, with the data in one place per
+process. The extension keeps `words.json` and `settings.json` in its own container
+(`KeyboardFiles.own`, with the Phase 3 `UserDefaults` settings moved over once) and,
+with Full Access, in the App Group too through `MirroredWordStore` and
+`MirroredSettingsStore` (words merge per word, settings take the later copy); the app
+reads and writes the App Group copies. A word pecked out tap by tap that neither the
+dictionary nor the person's words know comes back from `Composer` as `.learn` on
+commit; `KeyboardModel` adds it with the time and saves. Learned words are searched by
+the matcher as a second small trie beside the dictionary (`Matcher.learnedPrior` stands
+in for their frequency), so a swipe can land on them. Holding a guess on the bar and
+sliding up boosts it, down forgets it (the pill turns mint or coral while held); the
+learned words list in Settings (newest first, swipe to drop) reads the shared copy.
+Sync is one `KeyboardData` record per iCloud account in the container's private
+database (`CloudKitSync`, `cloudkit/schema.ckdb`), written with "if server record
+unchanged" so two devices writing at once merge rather than overwrite (`Syncer`, three
+tries). The extension syncs when it comes up and two seconds after a change
+(`SyncController`); the app on every foreground and after a change of its own, and it
+counts `sync.failed` once per run of failures (the extension never sends telemetry; its
+last error goes into `keyboard-status.json` in the App Group, which also tells the app
+that Full Access is on, since the app cannot ask iOS). `RequestsOpenAccess` is now true,
+which is what makes the Allow Full Access switch appear. A new app version first copies
+the data files to `Backups/<previous version>/` (`Backup`, the last three kept). Still
+to do by hand before the first TestFlight build of this phase: register the App Group
+and tick it on both App IDs, tick iCloud on the keyboard's App ID, and deploy the
+`KeyboardData` record type (cloudkit/README.md). To measure on the phone: memory with
+CloudKit loaded in the extension, and the minute from one phone to the other.
+
 ### Phase 6: StackWrite Pro
 
 StoreKit 2 subscription ($19.99 a year, $2.99 a month, two-week trial from first

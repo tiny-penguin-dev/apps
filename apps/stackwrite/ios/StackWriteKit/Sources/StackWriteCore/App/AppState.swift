@@ -17,6 +17,8 @@ public struct AppState: Codable, Sendable, Equatable {
     public var fullAccessAsked = false
     /// Days with a word typed in the app, as `dayKey` strings, newest last.
     public var practiceDays: [String] = []
+    /// The app version that last ran; a new one backs the data up first (`Backup`).
+    public var lastRunVersion: String?
 
     public init() {}
 
@@ -28,6 +30,7 @@ public struct AppState: Codable, Sendable, Equatable {
         keyboardOnSeen = try c.decodeIfPresent(Bool.self, forKey: .keyboardOnSeen) ?? false
         fullAccessAsked = try c.decodeIfPresent(Bool.self, forKey: .fullAccessAsked) ?? false
         practiceDays = try c.decodeIfPresent([String].self, forKey: .practiceDays) ?? []
+        lastRunVersion = try c.decodeIfPresent(String.self, forKey: .lastRunVersion)
     }
 
     /// A day as "2026-11-01" in `calendar`'s time zone, the key `practiceDays` uses.

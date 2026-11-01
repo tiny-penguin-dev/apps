@@ -1,7 +1,7 @@
 import Foundation
 
-/// The words a person taught the keyboard, with how much each is boosted. Phase 5
-/// stores and syncs this; Phase 2 only reads it (empty) in the matcher.
+/// The words a person taught the keyboard, with how much each is boosted. Kept by a
+/// `WordStore`, merged across devices by `CloudSync`, read by the matcher.
 ///
 ///     var words = LearnedWords()
 ///     words.learn("flotilla", at: now)
@@ -42,6 +42,19 @@ public struct LearnedWords: Sendable, Equatable, Codable {
 
     public func contains(_ word: String) -> Bool {
         (entries[word]?.weight ?? 0) > 0
+    }
+
+    /// The words the keyboard knows from the person (not the forgotten ones), the most
+    /// recently changed first.
+    public var recent: [String] {
+        entries.filter { $0.value.weight > 0 }
+            .sorted { $0.value.changed > $1.value.changed || ($0.value.changed == $1.value.changed && $0.key < $1.key) }
+            .map(\.key)
+    }
+
+    /// Whether `word` was boosted from the bar (beyond being learned).
+    public func isBoosted(_ word: String) -> Bool {
+        (entries[word]?.weight ?? 0) > 1
     }
 
     /// Both devices' words, the later change winning per word.

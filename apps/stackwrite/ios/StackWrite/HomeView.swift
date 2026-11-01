@@ -10,7 +10,7 @@ struct HomeView: View {
     @State private var path: [Route] = []
 
     enum Route: Hashable {
-        case practice, settings, turnOn, sync
+        case practice, settings, learnedWords, turnOn, sync
     }
 
     var body: some View {
@@ -46,6 +46,7 @@ struct HomeView: View {
                 switch route {
                 case .practice: PracticeView(model: model)
                 case .settings: SettingsView(model: model, path: $path)
+                case .learnedWords: LearnedWordsView(model: model)
                 case .turnOn: TurnOnView(model: model, inSetup: false)
                 case .sync: SyncView(model: model, inSetup: false)
                 }

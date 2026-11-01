@@ -4,12 +4,19 @@ import UIKit
 
 /// The bar above the keys, in its three states (DESIGN.md "The bar"): an idle note,
 /// the guesses for the open word with the chosen one in a pill, or FIX with the other
-/// readings of the word just written.
+/// readings of the word just written. Holding a guess and sliding up boosts it, down
+/// forgets it (DESIGN.md "Learning").
 ///
 ///     bar.bar = model.state.bar
 ///     bar.onChoose = { index in model.choose(guess: index) }
+///     bar.onBoost = { index in model.boost(guess: index) }
 public final class BarView: UIView {
     public var onChoose: ((Int) -> Void)?
+    public var onBoost: ((Int) -> Void)?
+    public var onForget: ((Int) -> Void)?
+
+    /// How far a held guess slides before it counts as a boost (up) or a forget (down).
+    static let slideDistance: CGFloat = 22
 
     /// What the bar says when idle.
     public var note = "Both thumbs, one word" {
@@ -24,6 +31,11 @@ public final class BarView: UIView {
     private let fixLabel = UILabel()
     private let stack = UIStackView()
     private var indices: [Int] = []
+    private var holdStart: CGPoint?
+    private var holdVerdict: Verdict?
+    private let holdHaptic = UISelectionFeedbackGenerator()
+
+    private enum Verdict { case boost, forget }
 
     public override init(frame: CGRect) {
         super.init(frame: frame)
@@ -112,7 +124,76 @@ public final class BarView: UIView {
             guard let self, let button = action.sender as? UIButton, self.indices.indices.contains(button.tag) else { return }
             self.onChoose?(self.indices[button.tag])
         }, for: .touchUpInside)
+        let hold = UILongPressGestureRecognizer(target: self, action: #selector(held(_:)))
+        hold.minimumPressDuration = 0.35
+        hold.allowableMovement = 60
+        button.addGestureRecognizer(hold)
         stack.addArrangedSubview(button)
+    }
+
+    // MARK: Hold and slide
+
+    @objc private func held(_ gesture: UILongPressGestureRecognizer) {
+        guard let button = gesture.view as? UIButton, indices.indices.contains(button.tag) else { return }
+        let point = gesture.location(in: self)
+        switch gesture.state {
+        case .began:
+            holdStart = point
+            holdVerdict = nil
+            holdHaptic.prepare()
+            holdHaptic.selectionChanged()
+            paint(button, verdict: nil, held: true)
+        case .changed:
+            guard let start = holdStart else { return }
+            let dy = point.y - start.y
+            let verdict: Verdict? = dy <= -Self.slideDistance ? .boost : dy >= Self.slideDistance ? .forget : nil
+            if verdict != holdVerdict {
+                holdVerdict = verdict
+                if verdict != nil { holdHaptic.selectionChanged() }
+                paint(button, verdict: verdict, held: true)
+            }
+        case .ended:
+            let index = indices[button.tag]
+            let verdict = holdVerdict
+            holdStart = nil
+            holdVerdict = nil
+            paint(button, verdict: nil, held: false)
+            switch verdict {
+            case .boost: onBoost?(index)
+            case .forget: onForget?(index)
+            case nil: break
+            }
+        default:
+            holdStart = nil
+            holdVerdict = nil
+            paint(button, verdict: nil, held: false)
+        }
+    }
+
+    /// A held guess shows what letting go would do: mint to keep it, coral to drop it.
+    private func paint(_ button: UIButton, verdict: Verdict?, held: Bool) {
+        guard var config = button.configuration else { return }
+        let chosen = button.accessibilityTraits.contains(.selected)
+        let background: UIColor
+        let ink: UIColor
+        switch verdict {
+        case .boost:
+            background = Theme.ui(.mint)
+            ink = Theme.ui(.accentInk)
+        case .forget:
+            background = Theme.ui(.right)
+            ink = Theme.ui(.accentInk)
+        case nil:
+            background = held ? Theme.ui(.ice) : (chosen ? Theme.ui(.card) : .clear)
+            ink = Theme.ui(chosen ? .ink : .muted)
+        }
+        config.background.backgroundColor = background
+        config.attributedTitle = AttributedString(button.accessibilityLabel ?? "", attributes: AttributeContainer([
+            .font: Theme.uiFont(size: 16, weight: chosen ? .bold : .semibold),
+            .foregroundColor: ink,
+        ]))
+        button.configuration = config
+        button.transform = held ? CGAffineTransform(scaleX: 1.08, y: 1.08) : .identity
     }
 }
 #endif

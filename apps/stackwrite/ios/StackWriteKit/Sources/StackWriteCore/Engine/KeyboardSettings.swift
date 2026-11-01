@@ -2,7 +2,7 @@ import Foundation
 
 /// What the person can change about the keyboard from inside it (DESIGN.md: the
 /// in-keyboard settings panel, for when Full Access is off). A small versioned
-/// value; Phase 5 mirrors it to the App Group and iCloud.
+/// value, mirrored to the App Group and iCloud when Full Access allows (`Stores`, `CloudSync`).
 ///
 ///     var settings = KeyboardSettings()
 ///     settings.autospaceDelay = 1.2
@@ -51,6 +51,12 @@ public struct KeyboardSettings: Codable, Sendable, Equatable {
 public protocol SettingsStore: Sendable {
     func load() -> KeyboardSettings?
     func save(_ settings: KeyboardSettings)
+    /// When the saved settings last changed, for stores that keep track.
+    func lastChanged() -> Date?
+}
+
+public extension SettingsStore {
+    func lastChanged() -> Date? { nil }
 }
 
 /// Settings in `UserDefaults`: the extension's own, so they work without Full Access.
@@ -71,6 +77,12 @@ public final class UserDefaultsSettingsStore: SettingsStore, @unchecked Sendable
     public func save(_ settings: KeyboardSettings) {
         guard let data = try? JSONEncoder().encode(settings) else { return }
         defaults.set(data, forKey: key)
+        defaults.set(Date().timeIntervalSinceReferenceDate, forKey: key + ".changed")
+    }
+
+    public func lastChanged() -> Date? {
+        guard defaults.object(forKey: key + ".changed") != nil else { return nil }
+        return Date(timeIntervalSinceReferenceDate: defaults.double(forKey: key + ".changed"))
     }
 }
 

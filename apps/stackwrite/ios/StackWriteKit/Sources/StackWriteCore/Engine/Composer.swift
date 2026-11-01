@@ -58,6 +58,9 @@ public struct Composer: Sendable {
         /// Remove the marked text.
         case clearMark
         case haptic(Haptic)
+        /// A word pecked out letter by letter that the keyboard did not know went in:
+        /// the host adds it to the learned words (and keeps them).
+        case learn(String)
     }
 
     public struct State: Sendable, Equatable {
@@ -118,6 +121,13 @@ public struct Composer: Sendable {
     }
 
     public var hasOpenWord: Bool { !pieces.isEmpty }
+
+    /// What the person taught the keyboard. The host sets it from its store and after
+    /// a sync; the matcher reads it.
+    public var learned: LearnedWords {
+        get { matcher.learned }
+        set { matcher.learned = newValue }
+    }
 
     /// Autospace is for swiped words: a word pecked out tap by tap waits for space, so
     /// a pause between letters never cuts it short (Gabriel, 1 Nov 2026).
@@ -263,6 +273,20 @@ public struct Composer: Sendable {
         refreshState()
     }
 
+    /// The learned words changed under us (a boost or forget from the bar, a sync): the
+    /// open word is guessed again, and a forgotten reading leaves the fix bar.
+    public mutating func learnedDidChange(time: TimeInterval) -> [Effect] {
+        if hasOpenWord { return reguess(time: time) }
+        if case .fix(let words, let chosen) = state.bar {
+            let kept = words.enumerated()
+                .filter { $0.offset == chosen || matcher.learned.weight(of: $0.element.lowercased()) >= 0 }
+                .map(\.element)
+            state.bar = kept.count > 1 ? .fix(kept, chosen: kept.firstIndex(of: words[chosen]) ?? 0) : .idle
+            refreshState()
+        }
+        return []
+    }
+
     /// Forget the open word and the last commit without touching the field, for when
     /// the field changed under us (the cursor moved, the app cleared the text).
     public mutating func reset() {
@@ -338,13 +362,27 @@ public struct Composer: Sendable {
             return [.clearMark, .insert(trailing)]
         }
         let word = words[chosen]
+        let learn = wordToLearn(word)
         committed = Committed(word: word, trailing: trailing, pieces: pieces, guesses: words, casing: casing)
         pieces = []
         candidates = []
         autospaceDue = nil
         state.bar = words.count > 1 ? .fix(words, chosen: chosen) : .idle
         refreshState()
-        return [.commit(word), .insert(trailing), .haptic(.commit)]
+        var effects: [Effect] = [.commit(word), .insert(trailing), .haptic(.commit)]
+        if let learn { effects.append(.learn(learn)) }
+        return effects
+    }
+
+    /// A word pecked out tap by tap that neither the dictionary nor the person's words
+    /// know is learned on commit (DESIGN.md "Learning"); one that was forgotten is
+    /// learned again. Swiped words are guesses, so they never are.
+    private func wordToLearn(_ word: String) -> String? {
+        guard pieces.count >= 2, pieces.allSatisfy(\.isTap) else { return nil }
+        let lower = word.lowercased()
+        guard lower.count >= 2, lower.utf8.allSatisfy({ $0 >= 97 && $0 <= 122 }),
+              !matcher.dictionary.contains(lower), !matcher.learned.contains(lower) else { return nil }
+        return lower
     }
 
     private mutating func backspace(time: TimeInterval) -> [Effect] {

@@ -2,7 +2,7 @@
 #include "../../../../config/ios/App.xcconfig"
 
 PRODUCT_BUNDLE_IDENTIFIER = com.tinypenguin.squawk
-MARKETING_VERSION = 0.1.0
+#include "Version.xcconfig"
 INFOPLIST_KEY_CFBundleDisplayName = Squawk
 INFOPLIST_FILE = Config/Info.plist
 // NFC tag reading, for the "scan a tag" wake-up check.

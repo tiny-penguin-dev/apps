@@ -1,0 +1,20 @@
+// The next-alarm widget (WidgetKit extension), embedded in the app.
+#include "../../../../config/ios/Project.xcconfig"
+#include "Version.xcconfig"
+
+PRODUCT_NAME = $(TARGET_NAME)
+PRODUCT_BUNDLE_IDENTIFIER = com.tinypenguin.squawk.widget
+CURRENT_PROJECT_VERSION = 1
+TARGETED_DEVICE_FAMILY = 1
+IPHONEOS_DEPLOYMENT_TARGET = 26.0
+
+GENERATE_INFOPLIST_FILE = YES
+INFOPLIST_FILE = Config/SquawkWidget-Info.plist
+INFOPLIST_KEY_CFBundleDisplayName = Squawk
+SKIP_INSTALL = YES
+LD_RUNPATH_SEARCH_PATHS = $(inherited) @executable_path/Frameworks @executable_path/../../Frameworks
+ENABLE_PREVIEWS = YES
+SWIFT_EMIT_LOC_STRINGS = YES
+
+// The App Group the app leaves the next wake-ups in.
+CODE_SIGN_ENTITLEMENTS = Config/SquawkWidget.entitlements

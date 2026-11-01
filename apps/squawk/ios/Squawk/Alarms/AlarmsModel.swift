@@ -164,6 +164,7 @@ final class AlarmsModel {
         } catch {
             Telemetry.report(error)
         }
+        WidgetBridge.publish(alarms: alarms, streak: log.streak)
     }
 
     /// Closes the check screen (after Good morning, or when the morning ran out).
@@ -263,6 +264,7 @@ final class AlarmsModel {
             errorMessage = Self.failureMessage
         }
         Telemetry.gauge("alarms.total", value: Double(alarms.count))
+        WidgetBridge.publish(alarms: alarms, streak: log.streak)
     }
 
     static let failureMessage = "I couldn't set this alarm. Try again, and if it keeps happening, restart your iPhone."

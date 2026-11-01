@@ -41,6 +41,20 @@ either (export fails with "No profiles for <bundle ID>"). Before the first uploa
 2. Open the App ID, tick iCloud with CloudKit support, click Configure, tick that
    container and save.
 
+App Groups (sharing data with an extension, like a widget) work the same way: the
+workflow turns the App Groups capability on, but the group itself is made and linked by
+hand. Register `group.<bundle ID>` under Identifiers → App Groups, then on the app's App
+ID and each extension's App ID tick App Groups, click Configure, pick the group and save.
+
+## Extensions (widgets)
+
+An extension is a second target in the app's project, embedded in the app, with its own
+xcconfig, Info.plist and entitlements in `Config/`, and a bundle ID that starts with the
+app's (`com.tinypenguin.squawk.widget`). The workflow finds it from the scheme's build
+settings, registers its bundle ID and turns on its capabilities; export signs it along
+with the app. Keep `MARKETING_VERSION` in one xcconfig both targets include, since the
+versions must match. Squawk's widget is the example.
+
 ## Shared build settings
 
 - `config/ios/Project.xcconfig`: project-level settings for every app (team, iOS

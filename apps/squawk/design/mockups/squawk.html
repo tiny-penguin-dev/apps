@@ -1,0 +1,407 @@
+<title>Squawk Mockups</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;700;800;900&display=swap">
+<style>
+/* Layout: one phone (390x844) centered on a dawn-sky stage, with a screen picker beside it. */
+:root{
+  --stage:#E9EEFB; --bg:#F4F7FF; --card:#FFFFFF; --ink:#1E2945; --muted:#6B7594; --line:#E1E7F5;
+  --accent:#FF8A4C; --accent-ink:#FFFFFF; --sun:#FFC24D; --coral:#FF5C63; --mint:#2FBF96; --ice:#DCE7FF;
+  --peng:#172239; --belly:#FFFFFF; --beak:#FFB020; --cheek:#FFB3B8;
+  --font:ui-rounded,"SF Pro Rounded","Nunito",system-ui,sans-serif;
+  --r-lg:28px; --r-md:18px; --r-sm:12px;
+  --spring:cubic-bezier(.34,1.56,.64,1);
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --stage:#0A0F20; --bg:#11182E; --card:#1B2443; --ink:#EEF2FF; --muted:#9AA5C6; --line:#28345A;
+  --accent:#FF9A5E; --accent-ink:#1A1206; --sun:#FFCD66; --coral:#FF6F75; --mint:#45D3AA; --ice:#24305A;
+  --peng:#2A3762; --belly:#F3F6FF; --beak:#FFBE3D; --cheek:#FF9BA2; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --stage:#0A0F20; --bg:#11182E; --card:#1B2443; --ink:#EEF2FF; --muted:#9AA5C6; --line:#28345A;
+  --accent:#FF9A5E; --accent-ink:#1A1206; --sun:#FFCD66; --coral:#FF6F75; --mint:#45D3AA; --ice:#24305A;
+  --peng:#2A3762; --belly:#F3F6FF; --beak:#FFBE3D; --cheek:#FF9BA2; color-scheme:dark}
+html,body{height:100%}
+body{background:var(--stage);color:var(--ink);font-family:var(--font);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.stage{display:flex;gap:32px;justify-content:center;align-items:flex-start;padding-block:24px;flex-wrap:wrap}
+.picker{display:flex;flex-direction:column;gap:6px;max-width:220px;min-width:0}
+.picker h1{font-size:28px;font-weight:900;margin:0}
+.picker p{margin:0 0 10px;color:var(--muted);font-size:13px;line-height:1.45}
+.picker button{font:inherit;font-weight:700;font-size:14px;text-align:left;border:0;background:transparent;color:var(--muted);padding:7px 12px;border-radius:10px;cursor:pointer}
+.picker button[aria-current="true"]{background:var(--card);color:var(--ink)}
+.picker button:focus-visible,.phone button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.picker small{color:var(--muted);font-size:11px;letter-spacing:.06em;text-transform:uppercase;font-weight:800;margin-top:10px;padding-left:12px}
+.phone{width:390px;max-width:100%;height:844px;background:var(--bg);border-radius:48px;position:relative;overflow:hidden;
+  box-shadow:0 0 0 10px var(--ink),0 30px 60px rgba(20,30,60,.25);flex:none}
+@media (max-width:700px){.picker{max-width:100%;flex-direction:row;flex-wrap:wrap}.picker h1,.picker p{width:100%}.picker small{display:none}
+  .phone{box-shadow:none;border-radius:32px;height:820px}}
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;padding:58px 22px 30px;gap:16px;animation:in .45s var(--spring)}
+@keyframes in{from{transform:translateX(30px);opacity:0}to{transform:none;opacity:1}}
+.status{position:absolute;top:14px;left:30px;right:30px;display:flex;justify-content:space-between;font-weight:800;font-size:15px;z-index:3}
+.h1{font-size:30px;font-weight:900;line-height:1.1;margin:0;text-wrap:balance}
+.h2{font-size:20px;font-weight:800;margin:0}
+.sub{color:var(--muted);font-size:16px;line-height:1.4;margin:0}
+.btn{font:inherit;font-weight:800;font-size:18px;border:0;border-radius:999px;padding:17px 22px;background:var(--accent);color:var(--accent-ink);cursor:pointer;
+  transition:transform .25s var(--spring);box-shadow:0 6px 0 color-mix(in srgb,var(--accent) 60%,#000 25%)}
+.btn:active{transform:translateY(3px) scale(.98);box-shadow:0 3px 0 color-mix(in srgb,var(--accent) 60%,#000 25%)}
+.btn.ghost{background:transparent;color:var(--muted);box-shadow:none;font-size:15px;padding:8px}
+.spacer{flex:1}
+.card{background:var(--card);border-radius:var(--r-md);padding:16px}
+.row{display:flex;align-items:center;gap:12px}
+.chip{display:inline-flex;align-items:center;gap:6px;font-weight:800;font-size:13px;padding:6px 10px;border-radius:999px;background:var(--ice);color:var(--ink)}
+.dot{width:10px;height:10px;border-radius:50%;flex:none}
+.pro{font-size:10px;font-weight:900;letter-spacing:.08em;background:var(--sun);color:#3A2600;padding:3px 7px;border-radius:6px}
+.toggle{width:52px;height:32px;border-radius:999px;background:var(--line);border:0;position:relative;cursor:pointer;flex:none;transition:background .2s}
+.toggle::after{content:"";position:absolute;top:3px;left:3px;width:26px;height:26px;border-radius:50%;background:#fff;box-shadow:0 2px 4px rgba(0,0,0,.2);transition:transform .35s var(--spring)}
+.toggle[aria-pressed="true"]{background:var(--mint)}
+.toggle[aria-pressed="true"]::after{transform:translateX(20px)}
+.toggle.wob{animation:wob .4s var(--spring)}
+@keyframes wob{30%{transform:scaleX(1.12)}60%{transform:scaleX(.95)}}
+.timeline{display:flex;gap:6px;flex-wrap:wrap}
+.timeline .chip{animation:pop .5s var(--spring) backwards}
+.timeline .chip:nth-child(2){animation-delay:.08s}.timeline .chip:nth-child(3){animation-delay:.16s}.timeline .chip:nth-child(4){animation-delay:.24s}
+@keyframes pop{from{transform:scale(.4);opacity:0}}
+.back{font:inherit;font-weight:800;color:var(--accent);background:none;border:0;font-size:17px;padding:0;cursor:pointer;align-self:flex-start}
+.list{display:flex;flex-direction:column;gap:10px}
+.sec{font-size:13px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:6px 0 -6px 4px}
+.scroll{overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:14px;margin:0 -22px;padding:0 22px 10px}
+/* penguin */
+.peng{display:block;margin:0 auto}
+.peng .body{animation:breathe 3.2s ease-in-out infinite;transform-origin:50% 90%}
+@keyframes breathe{50%{transform:scale(1.03,.97)}}
+.peng.wave .wing-r{animation:wave .6s ease-in-out infinite alternate;transform-origin:144px 106px}
+@keyframes wave{from{transform:rotate(-10deg)}to{transform:rotate(-55deg)}}
+.peng.hop{animation:hop .7s var(--spring) infinite alternate}
+@keyframes hop{to{transform:translateY(-10px)}}
+.peng.waddle{animation:waddle .9s var(--spring) both}
+@keyframes waddle{0%{transform:translateX(-160px) rotate(-8deg)}40%{transform:translateX(-40px) rotate(8deg)}70%{transform:translateX(10px) rotate(-4deg)}100%{transform:none}}
+.zz{font-weight:900;fill:var(--muted);animation:zz 2.6s ease-in infinite;opacity:0}
+.zz:nth-of-type(2){animation-delay:1.3s}
+@keyframes zz{0%{opacity:0;transform:translate(0,0)}30%{opacity:1}100%{opacity:0;transform:translate(14px,-30px)}}
+.ice{fill:var(--ice)}
+/* time picker */
+.timepick{display:flex;justify-content:center;align-items:center;gap:6px;font-size:76px;font-weight:900;font-variant-numeric:tabular-nums}
+.wheel{display:flex;flex-direction:column;align-items:center}
+.wheel button{font:inherit;font-size:20px;background:none;border:0;color:var(--muted);cursor:pointer;padding:4px 18px}
+.wheel span{line-height:1}
+.ampm{font-size:22px;font-weight:900;color:var(--muted);align-self:flex-end;margin-bottom:34px}
+.days{display:flex;justify-content:space-between;gap:4px}
+.days button{font:inherit;font-weight:900;width:42px;height:42px;border-radius:50%;border:0;background:var(--card);color:var(--muted);cursor:pointer;transition:transform .3s var(--spring)}
+.days button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.days button:active{transform:scale(.88)}
+/* style cards */
+.style{font:inherit;text-align:left;color:inherit;border:3px solid transparent;cursor:pointer;display:flex;flex-direction:column;gap:8px;transition:transform .3s var(--spring),border-color .2s}
+.style[aria-pressed="true"]{border-color:var(--accent);transform:scale(1.02)}
+.style b{font-size:18px}
+.style span{color:var(--muted);font-size:14px}
+/* home */
+.hero{position:relative;border-radius:var(--r-lg);padding:18px 18px 0;background:linear-gradient(180deg,color-mix(in srgb,var(--ice) 60%,var(--bg)),var(--ice));overflow:hidden}
+.bubble{position:absolute;right:16px;top:18px;background:var(--card);border-radius:16px;padding:8px 12px;font-weight:800;font-size:13px;box-shadow:0 4px 10px rgba(20,30,60,.08)}
+.bubble::after{content:"";position:absolute;left:-6px;bottom:10px;border:6px solid transparent;border-right-color:var(--card);border-left:0}
+.big{font-size:56px;font-weight:900;font-variant-numeric:tabular-nums;line-height:1}
+.alarm{display:flex;flex-direction:column;gap:10px;cursor:pointer;border:0;font:inherit;color:inherit;text-align:left;width:100%}
+.fab{position:absolute;right:22px;bottom:30px;width:62px;height:62px;border-radius:50%;padding:0;font-size:34px;line-height:1}
+/* ringing (iOS-drawn) */
+.ring{background:radial-gradient(circle at 50% 20%,#3B2A4F,#0B0D16 70%);color:#fff;align-items:center;text-align:center}
+.ring .note{position:absolute;top:44px;left:16px;right:16px;font-size:11px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#ffffff99}
+.ring .t{font-size:96px;font-weight:300;font-family:-apple-system,system-ui,sans-serif;margin-top:60px;letter-spacing:-2px}
+.ring .alarmbtns{display:flex;flex-direction:column;gap:12px;width:100%}
+.ring .ab{font:inherit;font-family:-apple-system,system-ui,sans-serif;font-weight:600;font-size:19px;border:0;border-radius:999px;padding:18px;color:#fff;cursor:pointer;display:flex;justify-content:center;gap:8px}
+.pulse{animation:pulse 1s ease-in-out infinite}
+@keyframes pulse{50%{transform:scale(1.04)}}
+/* check */
+.scan{height:230px;border-radius:var(--r-lg);background:var(--card);position:relative;overflow:hidden;display:grid;place-items:center}
+.tagdot{width:90px;height:90px;border-radius:50%;background:var(--ice);display:grid;place-items:center;font-weight:900;color:var(--muted)}
+.wavering{position:absolute;width:90px;height:90px;border-radius:50%;border:3px solid var(--accent);animation:ringout 1.6s ease-out infinite}
+.wavering:nth-child(2){animation-delay:.8s}
+@keyframes ringout{to{transform:scale(2.4);opacity:0}}
+.keypad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.keypad button{font:inherit;font-size:26px;font-weight:800;background:var(--card);color:var(--ink);border:0;border-radius:var(--r-md);padding:14px 0;cursor:pointer;transition:transform .2s var(--spring)}
+.keypad button:active{transform:scale(.92)}
+.answer{font-size:44px;font-weight:900;text-align:center;font-variant-numeric:tabular-nums;min-height:52px;border-bottom:3px dashed var(--line)}
+.shake{animation:shake .4s}
+@keyframes shake{25%{transform:translateX(-10px)}75%{transform:translateX(10px)}}
+/* morning */
+.week{display:flex;justify-content:space-between}
+.week div{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:12px;font-weight:800;color:var(--muted)}
+.week i{width:34px;height:34px;border-radius:50%;background:var(--line);display:grid;place-items:center;font-style:normal;color:#fff}
+.week i.y{background:var(--mint)}.week i.m{background:var(--sun)}
+.fish{position:absolute;top:-30px;width:22px;height:12px;pointer-events:none;animation:fall 2.2s ease-in forwards}
+@keyframes fall{to{transform:translateY(900px) rotate(540deg)}}
+.game{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:12px;background:var(--ice);border-radius:var(--r-lg)}
+.choices{display:flex;gap:10px}
+.choices button{flex:1;font:inherit;font-size:24px;font-weight:900;background:var(--card);color:var(--ink);border:0;border-radius:var(--r-md);padding:14px 0;cursor:pointer}
+.step{display:flex;gap:12px;align-items:center}
+.step .grip{color:var(--muted);font-weight:900;letter-spacing:-2px}
+.step .meta{flex:1;min-width:0}
+.step .meta b{display:block;font-size:17px}
+.step .meta span{color:var(--muted);font-size:13px}
+.seg{display:flex;background:var(--line);border-radius:999px;padding:4px}
+.seg button{flex:1;font:inherit;font-weight:800;font-size:14px;border:0;background:transparent;color:var(--muted);padding:9px 0;border-radius:999px;cursor:pointer;transition:background .2s}
+.seg button[aria-pressed="true"]{background:var(--card);color:var(--ink);box-shadow:0 2px 6px rgba(20,30,60,.12)}
+.perk{display:flex;gap:12px;align-items:center;font-weight:700}
+.perk i{width:30px;height:30px;border-radius:10px;background:var(--ice);display:grid;place-items:center;font-style:normal;color:var(--accent);font-weight:900;flex:none}
+.sheet{position:absolute;inset:auto 12px 20px;background:var(--card);border-radius:24px;padding:20px;text-align:center;box-shadow:0 20px 50px rgba(0,0,0,.3);animation:up .4s var(--spring);display:flex;flex-direction:column;gap:10px;z-index:5}
+.scrim{position:absolute;inset:0;background:rgba(10,15,30,.35);z-index:4}
+@keyframes up{from{transform:translateY(120%)}}
+.sheet .sbtn{font:inherit;font-family:-apple-system,system-ui,sans-serif;font-size:17px;font-weight:600;border:0;background:none;color:#0A84FF;padding:10px;cursor:pointer;border-top:1px solid var(--line)}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+</style>
+
+<div class="stage">
+  <nav class="picker" aria-label="Screens">
+    <h1>Squawk</h1>
+    <p>Clickable design mockup. Tap through the phone, or jump to a screen here.</p>
+    <small>First launch</small>
+    <button data-go="welcome">1 · Hello</button>
+    <button data-go="permission">2 · Allow alarms</button>
+    <button data-go="time">3 · Wake-up time</button>
+    <small>Every day</small>
+    <button data-go="home">Home</button>
+    <button data-go="edit">Edit alarm</button>
+    <button data-go="customize">More options <span class="pro">PRO</span></button>
+    <button data-go="pro">Squawk Pro</button>
+    <small>Waking up</small>
+    <button data-go="ring">Ringing</button>
+    <button data-go="check">Wake-up check</button>
+    <button data-go="game">Penguin game</button>
+    <button data-go="math">Math way out</button>
+    <button data-go="morning">Good morning</button>
+  </nav>
+  <div class="phone" id="phone" role="region" aria-label="Squawk app"></div>
+</div>
+
+<script>
+const S={h:7,m:0,days:[1,1,1,1,1,0,0],dayTime:{4:[7,30]},rings:[{off:0,sound:"Morning squawk",color:"var(--accent)"}],on:true,checks:{tag:true,code:false,game:false},mathIn:""};
+const RING_SOFT={off:-10,sound:"Little peep",color:"var(--sun)"}, RING_LOUD={off:5,sound:"Whole colony",color:"var(--coral)"};
+const DN=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+const pad=n=>String(n).padStart(2,"0");
+function fmt(h,m){const hh=((h+11)%12)+1;return hh+":"+pad(m)}
+function at(off){let t=S.h*60+S.m+off;t=(t+1440)%1440;return fmt(Math.floor(t/60),t%60)}
+function rings(){return [...S.rings].sort((a,b)=>a.off-b.off)}
+function timeline(){return `<div class="timeline">${rings().map(r=>`<span class="chip"><span class="dot" style="background:${r.color}"></span>${at(r.off)} · ${r.sound}</span>`).join("")}</div>`}
+function offLabel(o){return o<0?-o+" min before":o>0?o+" min after":"At wake-up time"}
+/* "Mon–Thu 7:00 · Fri 7:30": groups days that share a time */
+function schedule(){const groups={};S.days.forEach((on,i)=>{if(!on)return;const t=S.dayTime[i]?fmt(...S.dayTime[i]):fmt(S.h,S.m);(groups[t]=groups[t]||[]).push(i)});
+  const name=ix=>{if(ix.length>2&&ix[ix.length-1]-ix[0]===ix.length-1)return DN[ix[0]]+"–"+DN[ix[ix.length-1]];return ix.map(i=>DN[i]).join(", ")};
+  return Object.entries(groups).map(([t,ix])=>name(ix)+" "+t).join(" · ")||"Once"}
+function daysLabel(){const d=S.days;const n=d.reduce((a,b)=>a+b,0);
+  if(n===7)return"Every day";if(n===5&&!d[5]&&!d[6])return"Weekdays";if(n===2&&d[5]&&d[6])return"Weekends";if(!n)return"Once";
+  return["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].filter((_,i)=>d[i]).join(", ")}
+
+/* Penguin, drawn with shapes so every part can move. mood: sleep | awake | proud | grumpy | faint */
+/* Squawk: penguin 2 (rounded bottom, legs to the edge), beak B, mouth F. Cheeks only when proud. */
+const P_BODY="M50 96 A50 50 0 0 1 150 96 V170 Q150 188 132 188 H68 Q50 188 50 170 Z";
+const P_WING="M57 103 C42 115 36 140 40 161 C49 156 56 142 60 127 Z";
+const P_WING_R=P_WING.replace(/(-?\d+(\.\d+)?) (-?\d+(\.\d+)?)/g,(_,x,__,y)=>`${200-x} ${y}`);
+function penguin(mood="awake",size=170,cls=""){
+  const W="var(--belly)",P="var(--peng)",lx=82,rx=118,y=90;
+  const eyes={
+    sleep:`<path d="M${lx-9} ${y} q9 7 18 0 M${rx-9} ${y} q9 7 18 0" stroke="${W}" stroke-width="5" fill="none" stroke-linecap="round"/>`,
+    awake:`<circle cx="${lx}" cy="${y}" r="10" fill="${W}"/><circle cx="${rx}" cy="${y}" r="10" fill="${W}"/><circle cx="${lx+2}" cy="${y+1}" r="5" fill="${P}"/><circle cx="${rx+2}" cy="${y+1}" r="5" fill="${P}"/><circle cx="${lx+4}" cy="${y-2}" r="1.8" fill="${W}"/><circle cx="${rx+4}" cy="${y-2}" r="1.8" fill="${W}"/>`,
+    proud:`<path d="M${lx-9} ${y+3} q9 -10 18 0 M${rx-9} ${y+3} q9 -10 18 0" stroke="${W}" stroke-width="5" fill="none" stroke-linecap="round"/>`,
+    grumpy:`<circle cx="${lx}" cy="${y}" r="10" fill="${W}"/><circle cx="${rx}" cy="${y}" r="10" fill="${W}"/><circle cx="${lx+1}" cy="${y+3}" r="4.5" fill="${P}"/><circle cx="${rx-1}" cy="${y+3}" r="4.5" fill="${P}"/><path d="M${lx-12} ${y-14} L${lx+12} ${y-4} L${lx+12} ${y-16}Z M${rx+12} ${y-14} L${rx-12} ${y-4} L${rx-12} ${y-16}Z" fill="${P}"/>`,
+    squawk:`<circle cx="${lx}" cy="${y}" r="11" fill="${W}"/><circle cx="${rx}" cy="${y}" r="11" fill="${W}"/><circle cx="${lx}" cy="${y}" r="3.5" fill="${P}"/><circle cx="${rx}" cy="${y}" r="3.5" fill="${P}"/>`,
+    faint:`<path d="M${lx-6} ${y-6} l12 12 M${lx+6} ${y-6} l-12 12 M${rx-6} ${y-6} l12 12 M${rx+6} ${y-6} l-12 12" stroke="${W}" stroke-width="4.5" stroke-linecap="round"/>`
+  }[mood];
+  const by=104,B="var(--beak)";
+  const beak=mood==="squawk"
+    ?`<path d="M89 ${by+2} Q100 ${by+4} 111 ${by+2} Q108 ${by+15} 100.8 ${by+22} Q100 ${by+23} 99.2 ${by+22} Q92 ${by+15} 89 ${by+2}Z" fill="#4A1526"/><ellipse cx="100" cy="${by+15.5}" rx="5" ry="3" fill="#FF7D8C"/><path d="M88 ${by+3} Q93 ${by+17} 99 ${by+27} Q100 ${by+28.5} 101 ${by+27} Q107 ${by+17} 112 ${by+3} Q107 ${by+14} 100 ${by+21.5} Q93 ${by+14} 88 ${by+3}Z" fill="${B}"/><path d="M88 ${by} Q100 ${by-2} 112 ${by} L101.6 ${by+10.5} Q100 ${by+12.5} 98.4 ${by+10.5}Z" fill="${B}"/>`
+    :`<path d="M91.5 ${by} Q100 ${by-1.5} 108.5 ${by} L101.6 ${by+14.5} Q100 ${by+17} 98.4 ${by+14.5} Z" fill="${B}"/>`;
+  const up=mood==="proud"||mood==="squawk"?30:0;
+  const cheeks=mood==="proud"?`<circle cx="66" cy="110" r="6" fill="var(--cheek)" opacity=".85"/><circle cx="134" cy="110" r="6" fill="var(--cheek)" opacity=".85"/>`:"";
+  const cap=mood==="sleep"?`<path d="M64 70 Q100 0 140 64 Q100 52 64 70Z" fill="var(--accent)"/><circle cx="146" cy="62" r="9" fill="var(--sun)"/>`:"";
+  const zz=mood==="sleep"?`<text class="zz" x="152" y="40" font-size="22">z</text><text class="zz" x="164" y="28" font-size="16">z</text>`:"";
+  return `<svg class="peng ${cls}" width="${size}" height="${size}" viewBox="0 0 200 200" role="img" aria-label="Squawk the penguin, ${mood}">
+    <ellipse cx="100" cy="192" rx="50" ry="6" fill="rgba(20,30,60,.12)"/>
+    <g class="body">
+      <path d="${P_WING}" fill="${P}" transform="rotate(${up} 56 106)"/>
+      <g class="wing-r"><path d="${P_WING_R}" fill="${P}" transform="rotate(${-up} 144 106)"/></g>
+      <path d="${P_BODY}" fill="${P}"/>
+      <path d="M70 188 V140 A30 30 0 0 1 130 140 V188 Z" fill="${W}"/>
+      <path d="M90 188 V176 A10 10 0 0 1 110 176 V188 Z" fill="${P}"/>
+      ${eyes}${beak}${cheeks}${cap}
+      <ellipse cx="80" cy="189" rx="13" ry="5" fill="${B}"/><ellipse cx="120" cy="189" rx="13" ry="5" fill="${B}"/>
+    </g>${zz}</svg>`;
+}
+const fishSvg=c=>`<svg viewBox="0 0 22 12" width="22" height="12"><path d="M0 6 Q8 -2 16 6 Q8 14 0 6Z M16 6 L22 1 L22 11Z" fill="${c}"/></svg>`;
+function confetti(){const p=document.getElementById("phone");const cols=["var(--accent)","var(--sun)","var(--mint)","var(--coral)"];
+  if(matchMedia("(prefers-reduced-motion: reduce)").matches)return;
+  for(let i=0;i<26;i++){const f=document.createElement("div");f.className="fish";f.innerHTML=fishSvg(cols[i%4]);
+    f.style.left=Math.random()*370+"px";f.style.animationDelay=Math.random()*.6+"s";f.style.animationDuration=1.6+Math.random()*1.2+"s";p.appendChild(f);setTimeout(()=>f.remove(),3500)}}
+const status=(light)=>`<div class="status" style="${light?"color:#fff":""}"><span>9:41</span><span>●●● ▮</span></div>`;
+
+const screens={
+welcome:()=>`${status()}<div class="screen" style="text-align:center">
+  <div class="spacer"></div>${penguin("awake",220,"waddle wave")}
+  <h1 class="h1">Hi, I'm Squawk!</h1>
+  <p class="sub">I'll get you out of bed. Gently first,<br>and louder only if I need to.</p>
+  <div class="spacer"></div><button class="btn" data-go="permission">Let's go</button></div>`,
+
+permission:()=>`${status()}<div class="screen" style="text-align:center">
+  <div class="spacer"></div>${penguin("awake",170,"hop")}
+  <h1 class="h1">Can I ring like a real alarm?</h1>
+  <p class="sub">Squawk rings on your lock screen, even on silent or in Focus. Your iPhone will ask you to allow alarms.</p>
+  <div class="spacer"></div><button class="btn" data-act="askPerm">Allow alarms</button>
+  <button class="btn ghost" data-go="time">Not now</button></div>`,
+
+time:()=>`${status()}<div class="screen">
+  <button class="back" data-go="permission">‹ Back</button>
+  <h1 class="h1">When do you want to wake up?</h1>
+  <div class="spacer"></div>
+  <div class="timepick" aria-live="polite">
+    <div class="wheel"><button data-act="h+" aria-label="Later hour">▲</button><span>${((S.h+11)%12)+1}</span><button data-act="h-" aria-label="Earlier hour">▼</button></div>
+    <span style="margin-bottom:8px">:</span>
+    <div class="wheel"><button data-act="m+" aria-label="Five minutes later">▲</button><span>${pad(S.m)}</span><button data-act="m-" aria-label="Five minutes earlier">▼</button></div>
+    <span class="ampm">${S.h<12?"AM":"PM"}</span>
+  </div>
+  <div class="spacer"></div>
+  <p class="sub" style="text-align:center;font-weight:800">${daysLabel()}</p>
+  <div class="days">${"MTWTFSS".split("").map((d,i)=>`<button aria-pressed="${!!S.days[i]}" data-day="${i}" aria-label="${["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"][i]}">${d}</button>`).join("")}</div>
+  <div class="spacer"></div><button class="btn" data-act="finishSetup">Set my alarm</button></div>`,
+
+home:()=>`${status()}<div class="screen">
+  <div class="row"><h1 class="h1" style="flex:1">Good evening</h1><span class="chip" title="Streak">${fishSvg("var(--accent)")} 5</span></div>
+  <div class="hero">${S.on?`<div class="bubble">7h 40m of sleep</div>`:""}
+    ${penguin(S.on?"sleep":"awake",150)}
+    <svg viewBox="0 0 340 40" width="100%" height="40" style="display:block;margin:-20px -18px 0;width:calc(100% + 36px)"><path class="ice" d="M0 20 Q80 0 170 14 T340 10 V40 H0Z"/></svg></div>
+  <div class="scroll">
+  <button class="card alarm" data-go="edit">
+    <div class="row" style="width:100%"><div style="flex:1"><div class="big" style="${S.on?"":"opacity:.4"}">${fmt(S.h,S.m)}<span style="font-size:22px"> ${S.h<12?"AM":"PM"}</span></div>
+      <div class="sub" style="font-weight:800">${schedule()}</div></div>
+      <span class="toggle" role="switch" aria-label="Alarm on" aria-pressed="${S.on}" data-act="toggle"></span></div>
+    ${!S.on?`<span class="sub">Off. Squawk will sleep in too.</span>`:S.rings.length>1?timeline():""}
+    ${S.on?`<span class="chip" style="align-self:flex-start;background:transparent;border:2px solid var(--line)">Skip tomorrow</span>`:""}
+  </button>
+  <div class="card row" style="opacity:.75"><div style="flex:1"><div class="big" style="font-size:38px">6:15<span style="font-size:18px"> AM</span></div><div class="sub" style="font-weight:800">Sat, Nov 7 · Hike day</div></div><span class="toggle" aria-pressed="true" role="switch" aria-label="Hike day alarm on"></span></div>
+  </div>
+  <button class="btn fab" aria-label="Add alarm" data-go="time">+</button></div>`,
+
+edit:()=>`${status()}<div class="screen">
+  <div class="row"><button class="back" data-go="home">‹ Alarms</button><span class="spacer"></span><button class="back" data-go="home">Save</button></div>
+  <div class="scroll">
+  <div class="timepick" style="font-size:64px">
+    <div class="wheel"><button data-act="h+" aria-label="Later hour">▲</button><span>${((S.h+11)%12)+1}</span><button data-act="h-" aria-label="Earlier hour">▼</button></div><span>:</span>
+    <div class="wheel"><button data-act="m+" aria-label="Five minutes later">▲</button><span>${pad(S.m)}</span><button data-act="m-" aria-label="Five minutes earlier">▼</button></div><span class="ampm">${S.h<12?"AM":"PM"}</span></div>
+  <div class="days">${"MTWTFSS".split("").map((d,i)=>`<button aria-pressed="${!!S.days[i]}" data-day="${i}">${d}</button>`).join("")}</div>
+  <div class="sec">Different times on some days</div>
+  <div class="list">${Object.entries(S.dayTime).filter(([i])=>S.days[i]).map(([i,t])=>`<div class="card row"><b style="flex:1">${DN[i]}</b><span class="chip">${fmt(...t)} ${t[0]<12?"AM":"PM"}</span><button class="back" style="color:var(--muted)" data-dt-del="${i}" aria-label="Use the normal time on ${DN[i]}">✕</button></div>`).join("")}
+    <button class="card" style="border:2px dashed var(--line);background:transparent;font:inherit;font-weight:800;color:var(--accent);cursor:pointer;text-align:left" data-act="addDayTime">+ Different time on a day</button></div>
+  <div class="sec">Rings</div>
+  <div class="list">${rings().map(r=>`<div class="card step"><span class="dot" style="width:16px;height:16px;background:${r.color}"></span><div class="meta"><b>${at(r.off)}</b><span>${offLabel(r.off)} · ${r.sound}</span></div>${r.off!==0?`<button class="back" style="color:var(--muted)" data-ring-del="${r.off}" aria-label="Remove ring">✕</button>`:""}</div>`).join("")}
+    ${S.rings.length<2?`<div class="row" style="gap:8px"><button class="card" style="flex:1;border:2px dashed var(--line);background:transparent;font:inherit;font-weight:800;color:var(--accent);cursor:pointer" data-act="addSoft">+ Soft ring before</button><button class="card" style="flex:1;border:2px dashed var(--line);background:transparent;font:inherit;font-weight:800;color:var(--accent);cursor:pointer" data-act="addLoud">+ Loud ring after</button></div>`:""}</div>
+  <div class="list">
+    <button class="card row" style="border:0;font:inherit;color:inherit;cursor:pointer" data-go="customize"><b style="flex:1;text-align:left">More options</b><span class="sub" style="font-size:13px">Rings, checks, sounds</span><span>›</span></button>
+    <div class="card row"><b style="flex:1">Label</b><span class="sub">Work days</span></div>
+    <div class="card row"><b style="flex:1">Skip next morning</b><span class="toggle" role="switch" aria-label="Skip next morning" aria-pressed="false" data-act="flip"></span></div>
+  </div>
+  <button class="btn ghost" style="color:var(--coral)">Delete alarm</button>
+  </div></div>`,
+
+customize:()=>`${status()}<div class="screen">
+  <button class="back" data-go="edit">‹ Edit alarm</button>
+  <h1 class="h1">More options</h1>
+  <div class="scroll">
+  <div class="sec">Rings <span class="pro">PRO</span></div>
+  <div class="list">${[RING_SOFT,{off:0,sound:"Morning squawk",color:"var(--accent)"},{off:5,sound:"Big squawk",color:"var(--coral)"},{off:10,sound:"Whole colony",color:"var(--coral)"}].map(r=>`<div class="card step"><span class="dot" style="width:16px;height:16px;background:${r.color}"></span>
+     <div class="meta"><b>${at(r.off)}</b><span>${offLabel(r.off)} · ${r.sound}</span></div><span class="grip" aria-hidden="true">⋮⋮</span></div>`).join("")}
+    <button class="card" style="border:2px dashed var(--line);background:transparent;font:inherit;font-weight:800;color:var(--accent);cursor:pointer">+ Add a ring</button></div>
+  <div class="sec">Wake-up checks <span class="pro">PRO</span></div>
+  <p class="sub" style="font-size:14px">Do these to turn the alarm off. Until then, the last ring comes back every 30 seconds.</p>
+  <div class="list">
+    <div class="card row"><div style="flex:1"><b>Scan a tag</b><div class="sub" style="font-size:13px">Bathroom mirror</div></div><span class="toggle" role="switch" aria-label="Scan a tag" aria-pressed="${S.checks.tag}" data-check="tag"></span></div>
+    <div class="card row"><div style="flex:1"><b>Scan a code</b><div class="sub" style="font-size:13px">Any QR code or barcode</div></div><span class="toggle" role="switch" aria-label="Scan a code" aria-pressed="${S.checks.code}" data-check="code"></span></div>
+    <div class="card row"><div style="flex:1"><b>Penguin game</b><div class="sub" style="font-size:13px">Count the penguins</div></div><span class="toggle" role="switch" aria-label="Penguin game" aria-pressed="${S.checks.game}" data-check="game"></span></div>
+    <div class="card row" style="background:transparent;border:2px solid var(--line)"><div style="flex:1"><b>Way out: math question</b><div class="sub" style="font-size:13px">Always there if you really can't do a check</div></div></div>
+  </div></div></div>`,
+
+pro:()=>`${status()}<div class="screen" style="text-align:center">
+  <button class="back" data-go="home">‹ Back</button>
+  ${penguin("proud",150,"hop")}
+  <h1 class="h1">Squawk Pro</h1><p class="sub">For mornings that need a bigger plan.</p>
+  <div class="card list" style="text-align:left">
+    <div class="perk"><i>+</i>As many rings as you want</div>
+    <div class="perk"><i>✓</i>Wake-up checks: tag, code, penguin game</div>
+    <div class="perk"><i>♪</i>Every sound, color and ring name</div>
+    <div class="perk"><i>★</i>Penguin outfits and app icons</div></div>
+  <div class="spacer"></div>
+  <div class="seg" style="padding:5px"><button aria-pressed="true" data-act="flip-seg">Yearly · $29.99</button><button aria-pressed="false" data-act="flip-seg">Monthly · $2.99</button></div>
+  <button class="btn">Get Pro</button>
+  <p class="sub" style="font-size:13px">Launch price. Renews automatically, cancel anytime.</p></div>`,
+
+ring:()=>`${status(true)}<div class="screen ring">
+  <div class="note">Drawn by iOS (AlarmKit). We set the title, buttons, color and sound.</div>
+  <div class="t">${at(5)}</div>
+  <div style="font-size:22px;font-weight:600;font-family:-apple-system,system-ui,sans-serif">Work days</div>
+  <div class="spacer"></div>
+  <div class="alarmbtns">
+    <button class="ab pulse" style="background:var(--coral)" data-go="check">☀ Last ring</button>
+    <button class="ab" style="background:#ffffff26" data-act="snooze">zᶻ Snooze</button></div>
+  <p style="font-size:13px;color:#ffffffaa;margin:0">Wake-up check is on, so this comes back in 30 seconds.<br>Open Squawk to turn it off.</p></div>`,
+
+check:()=>`${status()}<div class="screen" style="text-align:center">
+  <h1 class="h1">Go scan your tag</h1><p class="sub">It's on the <b>Bathroom mirror</b>. Hold the top of your iPhone near it.</p>
+  <div class="scan"><span class="wavering"></span><span class="wavering"></span><span class="tagdot">TAG</span></div>
+  ${penguin("grumpy",110)}
+  <p class="sub" style="font-size:14px">Still ringing every 30 seconds · 8 min left</p>
+  <div class="spacer"></div><button class="btn" data-act="scanned">Simulate scan</button>
+  <button class="btn ghost" data-go="math">Can't scan? Answer a math question</button></div>`,
+
+game:()=>{const n=7;return `${status()}<div class="screen" style="text-align:center">
+  <h1 class="h1">How many penguins?</h1><p class="sub">Count carefully. Sleepy brains welcome.</p>
+  <div class="game">${Array.from({length:12},(_,i)=>`<div style="opacity:${i<n?1:0}">${penguin("awake",64)}</div>`).join("")}</div>
+  <div class="choices">${[6,7,9].map(c=>`<button data-pick="${c}" data-ans="${n}">${c}</button>`).join("")}</div>
+  <div class="spacer"></div><button class="btn ghost" data-go="math">Use the math question instead</button></div>`},
+
+math:()=>`${status()}<div class="screen" style="text-align:center">
+  <h1 class="h1">Quick one</h1><p class="sub">Solve it to turn Squawk off.</p>
+  <div style="font-size:52px;font-weight:900;font-variant-numeric:tabular-nums">47 × 8</div>
+  <div class="answer" id="ans">${S.mathIn||"&nbsp;"}</div>
+  <div class="keypad">${[1,2,3,4,5,6,7,8,9,"⌫",0,"✓"].map(k=>`<button data-key="${k}" aria-label="${k==="⌫"?"Delete":k==="✓"?"Check answer":k}">${k}</button>`).join("")}</div>
+  <p class="sub" style="font-size:13px">Hint for the mockup: 376</p></div>`,
+
+morning:()=>`${status()}<div class="screen" style="text-align:center">
+  <div class="spacer"></div>${penguin("proud",190,"hop")}
+  <h1 class="h1">Rise and waddle!</h1>
+  <p class="sub">Up at ${at(5)}, on the last ring.<br>Tomorrow, let's try the first one.</p>
+  <div class="card list"><div class="row"><b style="flex:1;text-align:left">This week</b><span class="chip">${fishSvg("var(--accent)")} 5 day streak</span></div>
+    <div class="week">${["M","T","W","T","F","S","S"].map((d,i)=>`<div><i class="${i<3?"y":i===3?"m":""}">${i<3?"✓":i===3?"!":""}</i>${d}</div>`).join("")}</div></div>
+  <div class="spacer"></div><button class="btn" data-go="home">Start my day</button></div>`
+};
+
+const phone=document.getElementById("phone");
+function go(name){if(!screens[name])name="welcome";phone.innerHTML=screens[name]();
+  document.querySelectorAll(".picker button").forEach(b=>b.setAttribute("aria-current",b.dataset.go===name));
+  try{history.replaceState(null,"","#"+name)}catch(e){} current=name;
+  if(name==="morning")setTimeout(confetti,150)}
+let current="welcome";
+document.addEventListener("click",e=>{const t=e.target.closest("[data-go],[data-act],[data-day],[data-dt-del],[data-ring-del],[data-check],[data-key],[data-pick]");if(!t)return;
+  const d=t.dataset;
+  if(d.act==="toggle"){e.stopPropagation();S.on=!S.on;go("home");return}
+  if(d.go){go(d.go);return}
+  if(d.day){S.days[+d.day]^=1;go(current);return}
+  if(d.dtDel!==undefined){delete S.dayTime[d.dtDel];go(current);return}
+  if(d.ringDel!==undefined){S.rings=S.rings.filter(r=>r.off!==+d.ringDel);go(current);return}
+  if(d.check){S.checks[d.check]=!S.checks[d.check];t.setAttribute("aria-pressed",S.checks[d.check]);t.classList.add("wob");setTimeout(()=>t.classList.remove("wob"),400);return}
+  if(d.pick){if(d.pick===d.ans){go("morning")}else{t.classList.add("shake");setTimeout(()=>t.classList.remove("shake"),400)}return}
+  if(d.key!==undefined){const k=d.key;if(k==="⌫")S.mathIn=S.mathIn.slice(0,-1);else if(k==="✓"){if(S.mathIn==="376"){S.mathIn="";go("morning");return}
+      const a=document.getElementById("ans");a.classList.add("shake");setTimeout(()=>{S.mathIn="";go("math")},400);return}
+    else if(S.mathIn.length<4)S.mathIn+=k;document.getElementById("ans").innerHTML=S.mathIn||"&nbsp;";return}
+  const a=d.act;
+  if(a==="flip"){const on=t.getAttribute("aria-pressed")!=="true";t.setAttribute("aria-pressed",on);t.classList.add("wob");setTimeout(()=>t.classList.remove("wob"),400)}
+  if(a==="h+"){S.h=(S.h+1)%24;go(current)} if(a==="h-"){S.h=(S.h+23)%24;go(current)}
+  if(a==="m+"){S.m=(S.m+5)%60;go(current)} if(a==="m-"){S.m=(S.m+55)%60;go(current)}
+  if(a==="finishSetup"){go("home");confetti()}
+  if(a==="addSoft"){S.rings.push(RING_SOFT);go(current)} if(a==="addLoud"){S.rings.push(RING_LOUD);go(current)}
+  if(a==="addDayTime"){const free=[0,1,2,3,4,5,6].find(i=>S.days[i]&&!S.dayTime[i]);if(free!==undefined){S.dayTime[free]=[(S.h+1)%24,S.m];go(current)}}
+  if(a==="flip-seg"){t.parentNode.querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",b===t))}
+  if(a==="snooze"){t.textContent="Back in 30 seconds…"}
+  if(a==="askPerm"){phone.insertAdjacentHTML("beforeend",`<div class="scrim"></div><div class="sheet" role="dialog" aria-label="System permission">
+    <b style="font-family:-apple-system,system-ui,sans-serif;font-size:17px">“Squawk” Would Like to Schedule Alarms</b>
+    <span style="font-family:-apple-system,system-ui,sans-serif;font-size:13px;color:var(--muted)">Alarms ring even when your iPhone is silenced.</span>
+    <button class="sbtn" data-go="time">Don't Allow</button><button class="sbtn" style="font-weight:700" data-go="time">Allow</button></div>`)}
+});
+function route(){go((location.hash||"#welcome").slice(1))}
+addEventListener("hashchange",()=>{const n=location.hash.slice(1);if(n!==current)route()});
+route();
+</script>

@@ -13,11 +13,16 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
 
 - `ios/`: the Xcode project (classic `.pbxproj`, synchronized folders, so new files
   are picked up without editing the project; new targets and packages are not).
-  - `StackWrite/`: the app. `StackWriteApp.swift` (starts `Telemetry`, shows
-    `HelloView` until onboarding is done, then `HomeView`), `PracticeView` (a text view
-    whose input view is the shared keyboard), `Telemetry.swift` (Sentry, see
-    `docs/telemetry.md`), `PrivacyInfo.xcprivacy`. `Try/`, `Train/` and `Shared/`
-    are v1: the handwriting pad, training recorder and the CloudKit sample upload.
+  - `StackWrite/`: the app. `StackWriteApp.swift` (starts `Telemetry`, builds the
+    `AppModel` from `AppEnvironment.live()`, shows the setup screens then `HomeView`),
+    `App/` (`AppModel`, the only thing views talk to; `AppEnvironment`, the one place
+    real services are named; `LiveMetrics` on `Telemetry`), `Onboarding/`
+    (`TurnOnView`, `SyncView`, `TryItView`, and `SetupPage`, their shared shape),
+    `HelloView`, `HomeView`, `SettingsView`, `PracticeView`, `Keyboard/KeyboardSession`
+    (a text view whose input view is the shared keyboard, with Try it's replay),
+    `Telemetry.swift` (Sentry, see `docs/telemetry.md`), `PrivacyInfo.xcprivacy`.
+    `Try/`, `Train/` and `Shared/` are v1: the handwriting pad, training recorder and
+    the CloudKit sample upload, reachable from Settings behind the flag.
   - `StackWriteKeyboard/`: the keyboard extension (`com.tinypenguin.stackwrite.keyboard`).
     `KeyboardViewController` hosts the shared `KeyboardView` and types through
     `ProxyTarget` (the text document proxy). `ExtensionChecks` is Phase 1 only: it
@@ -28,7 +33,10 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
       (touches in, effects out, pure, time passed in), `Matcher` (pieces to ranked
       candidates: trie search plus DTW, two-thumb orderings and split swipes),
       `Piece`, `Geometry`, `LearnedWords`, `KeyboardSettings` (the in-keyboard settings
-      and their `SettingsStore`). `Handwriting/` holds the v1 engine (`Features`, `PhraseDecoder`, `Recognizer`,
+      and their `SettingsStore`). `App/` holds the app's own Core and Services:
+      `AppState` and `AppStateStore`, `Trial`, `KeyboardStatus` (is the keyboard on),
+      `Metrics` (protocol; the app's live one is `Telemetry`), `TryWord` (the Try it
+      words and their strokes), `Week`. `Handwriting/` holds the v1 engine (`Features`, `PhraseDecoder`, `Recognizer`,
       `Recording`, `StrokeSample`). Foundation only; tests run on Linux.
     - `StackWriteUI`: the design system (`Theme` tokens, `Components`, `Art`) and the
       keyboard's views: `KeyboardView` (bar plus keys, the pages, the settings panel;
@@ -40,7 +48,8 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
       with `#if canImport(UIKit)` so `swift test` still builds the package on macOS.
     - `StackWriteKitTests`: Swift Testing. `ComposerTests`, `MatcherTests` (the 50-word
       fixture in `Fixtures/swipes.json`, through `Synth`'s straight-line swipes),
-      `GeometryTests`, `LayoutTests`, `KeyboardSettingsTests`, and `GoldenTests` replaying
+      `GeometryTests`, `LayoutTests`, `KeyboardSettingsTests`, `AppCoreTests` (the
+      `App/` pieces), and `GoldenTests` replaying
       `ml/export/golden.json` for the v1 engine.
   - `Config/`: `StackWrite.xcconfig` (bundle ID, version, `SENTRY_DSN`),
     `StackWriteKeyboard.xcconfig` and `StackWriteKeyboard-Info.plist` (the extension),

@@ -243,6 +243,28 @@ Settings, the yellow banner when the keyboard is off, the art and the springs fr
 within two, the chip flips to "On" by itself after Settings, and Home lays out in two
 columns on the wide size.
 
+Notes (1 Nov 2026, the Phase 4 PR): the app now has the layers from
+`docs/building.md` §4: `AppModel` (`@Observable`, the screen, the app's state, the
+keyboard's status, the settings the practice field uses), `AppEnvironment.live()`
+naming the real services, and the services and pure pieces in `StackWriteCore/App/`
+(`AppState` and its store, `Trial`, `KeyboardStatus`, `Metrics`, `TryWord`, `Week`),
+tested there since the app target has no tests. Whether the keyboard is on comes from
+the `AppleKeyboards` list iOS keeps in the app's defaults, which names a third-party
+keyboard by its extension's bundle identifier; the Turn on screen reads it every second
+while it is up and the app reads it again whenever it comes to the front, so the chip
+flips to "On" on the way back from Settings (with confetti the first time). "Open
+Settings" opens the app's own page in Settings, where Keyboards and Allow Full Access
+both live, so the steps say "Settings › Keyboards › StackWrite" rather than the General
+› Keyboard route in the design. The app cannot see Full Access itself (only the
+extension can; Phase 5's App Group carries it over), so `setup.full_access` records
+`opened` or `skipped`, and the sync row in Settings leads back to the ask. Try it's five
+words (`TryWord.all`: something, with, great, morning, think) carry their strokes; the
+hint and "Show me" (the key surface replays the strokes as trails and rings) are built
+from them, and a test types each on the engine. The app's keyboard settings are the
+app's own `UserDefaults` copy until Phase 5 shares them with the extension; Settings
+says so. Home's speed test and drills are drawn as in the design but say "Soon"
+(Phase 7); the trial card counts from the first launch (`Trial`, 14 days).
+
 ### Phase 5: Learned words and sync
 
 Learning on commit, boost and forget from the bar, the learned words list in Settings,

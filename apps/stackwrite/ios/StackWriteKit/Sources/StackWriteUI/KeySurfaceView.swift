@@ -50,6 +50,9 @@ public final class KeySurfaceView: UIView {
 
     /// Draw swipe trails and tap rings.
     public var showsTrails = true
+    /// Settings: a slide on space moves the cursor; a swipe left on backspace deletes a word.
+    public var spaceSlideEnabled = true
+    public var backspaceSwipeEnabled = true
 
     /// How far a finger slides on space for one cursor step.
     public static let cursorStep: CGFloat = 12
@@ -174,14 +177,14 @@ public final class KeySurfaceView: UIView {
             }
             switch touchState.startKey {
             case .space:
-                let steps = Int((point.x - touchState.startPoint.x) / Self.cursorStep)
+                let steps = spaceSlideEnabled ? Int((point.x - touchState.startPoint.x) / Self.cursorStep) : 0
                 if steps != touchState.slideSteps {
                     touchState.gestured = true
                     delegate?.keySurface(self, didSlideSpace: steps - touchState.slideSteps)
                     touchState.slideSteps = steps
                 }
             case .backspace:
-                if !touchState.gestured, touchState.startPoint.x - point.x >= Self.wordSwipe {
+                if backspaceSwipeEnabled, !touchState.gestured, touchState.startPoint.x - point.x >= Self.wordSwipe {
                     touchState.gestured = true
                     touchState.hold?.cancel()
                     delegate?.keySurfaceDidSwipeBackspace(self)
@@ -224,6 +227,94 @@ public final class KeySurfaceView: UIView {
                 delegate?.keySurface(self, touchCancelled: touchState.id, time: touch.timestamp)
             }
         }
+    }
+
+    // MARK: Replay
+
+    /// Plays strokes on the keys without typing (Try it's "Show me"): each swipe's
+    /// trail draws itself along the key centres and each tap rings, one after the
+    /// other, in the thumb's colour. Under Reduce Motion the trails just show and go.
+    public func replay(_ strokes: [(side: Side, letters: String)], completion: (@MainActor () -> Void)? = nil) {
+        let steps: [(side: Side, points: [CGPoint])] = strokes.map { stroke in
+            (stroke.side, stroke.letters.compactMap { layout.frame(of: .letter($0)).map { CGPoint(x: $0.midX, y: $0.midY) } })
+        }
+        play(steps[...], completion: completion)
+    }
+
+    private func play(_ steps: ArraySlice<(side: Side, points: [CGPoint])>, completion: (@MainActor () -> Void)?) {
+        guard let step = steps.first, !step.points.isEmpty else {
+            completion?()
+            return
+        }
+        let rest = steps.dropFirst()
+        let color = Theme.ui(step.side == .left ? .left : .right)
+        let reduceMotion = UIAccessibility.isReduceMotionEnabled
+        for point in step.points {
+            if let key = layout.key(at: point) { keyViews[key]?.flash(side: step.side) }
+        }
+        let duration: TimeInterval = step.points.count == 1 ? 0.35 : min(1.2, 0.3 + 0.2 * Double(step.points.count))
+        let layer = CAShapeLayer()
+        layer.fillColor = nil
+        layer.strokeColor = color.cgColor
+        layer.lineCap = .round
+        layer.lineJoin = .round
+        if step.points.count == 1 {
+            let radius: CGFloat = 14
+            layer.bounds = CGRect(x: 0, y: 0, width: 2 * radius, height: 2 * radius)
+            layer.position = step.points[0]
+            layer.path = UIBezierPath(ovalIn: layer.bounds).cgPath
+            layer.lineWidth = 3
+        } else {
+            let path = UIBezierPath()
+            path.move(to: step.points[0])
+            for point in step.points.dropFirst() { path.addLine(to: point) }
+            layer.path = path.cgPath
+            layer.lineWidth = 9
+            layer.opacity = 0.85
+        }
+        effects.addSublayer(layer)
+        CATransaction.begin()
+        CATransaction.setCompletionBlock { [weak self] in
+            // Core Animation calls back on the main thread.
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                for point in step.points {
+                    if let key = self.layout.key(at: point) { self.keyViews[key]?.unflash() }
+                }
+                let fade = CABasicAnimation(keyPath: "opacity")
+                fade.fromValue = layer.opacity
+                fade.toValue = 0
+                fade.duration = reduceMotion ? 0.01 : 0.5
+                fade.fillMode = .forwards
+                fade.isRemovedOnCompletion = false
+                CATransaction.begin()
+                CATransaction.setCompletionBlock { layer.removeFromSuperlayer() }
+                layer.add(fade, forKey: "fade")
+                CATransaction.commit()
+                self.play(rest, completion: completion)
+            }
+        }
+        if reduceMotion {
+            let hold = CABasicAnimation(keyPath: "opacity")
+            hold.fromValue = layer.opacity
+            hold.toValue = layer.opacity
+            hold.duration = duration
+            layer.add(hold, forKey: "hold")
+        } else if step.points.count == 1 {
+            let grow = CABasicAnimation(keyPath: "transform.scale")
+            grow.fromValue = 0.5
+            grow.toValue = 1.4
+            grow.duration = duration
+            layer.add(grow, forKey: "ping")
+        } else {
+            let draw = CABasicAnimation(keyPath: "strokeEnd")
+            draw.fromValue = 0
+            draw.toValue = 1
+            draw.duration = duration
+            draw.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+            layer.add(draw, forKey: "draw")
+        }
+        CATransaction.commit()
     }
 
     // MARK: Trails and rings

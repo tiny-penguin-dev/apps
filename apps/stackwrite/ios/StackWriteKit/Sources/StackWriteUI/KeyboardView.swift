@@ -80,6 +80,8 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         bar.bar = model.state.bar
         surface.shifted = model.state.isShifted
         surface.showsTrails = model.keyboardSettings.trails
+        surface.spaceSlideEnabled = model.keyboardSettings.spaceSlide
+        surface.backspaceSwipeEnabled = model.keyboardSettings.backspaceSwipe
     }
 
     private func play(_ haptic: Composer.Haptic) {

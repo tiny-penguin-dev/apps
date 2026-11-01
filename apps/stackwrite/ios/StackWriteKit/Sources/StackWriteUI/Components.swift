@@ -145,4 +145,194 @@ public struct ProBadge: View {
             .accessibilityLabel("Pro")
     }
 }
+
+/// A round number or tick, as on setup steps and drills.
+public struct NumberBadge: View {
+    public enum Mark: Sendable, Equatable { case number(Int), done }
+    var mark: Mark
+
+    public init(_ mark: Mark) { self.mark = mark }
+
+    public var body: some View {
+        ZStack {
+            Circle().fill(mark == .done ? Theme.mint : Theme.ice)
+            switch mark {
+            case .number(let n):
+                Text("\(n)").font(.system(.body, design: .rounded, weight: .black)).foregroundStyle(Theme.ink)
+            case .done:
+                Image(systemName: "checkmark").font(.system(size: 14, weight: .black)).foregroundStyle(.white)
+            }
+        }
+        .frame(width: 36, height: 36)
+        .accessibilityHidden(true)
+    }
+}
+
+/// A numbered setup step: "1  Open Settings › General › Keyboard".
+public struct StepRow: View {
+    var number: Int
+    var text: Text
+
+    public init(_ number: Int, text: Text) {
+        self.number = number
+        self.text = text
+    }
+
+    public var body: some View {
+        Card {
+            HStack(spacing: Theme.Space.m) {
+                NumberBadge(.number(number))
+                text.font(.system(.body, design: .rounded, weight: .semibold))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .foregroundStyle(Theme.ink)
+        .accessibilityElement(children: .combine)
+    }
+}
+
+/// You versus Apple's keyboard: a track filled with the two thumb colours.
+public struct Meter: View {
+    var leading: String
+    var trailing: String
+    /// 0 to 1.
+    var fraction: Double
+
+    public init(leading: String, trailing: String, fraction: Double) {
+        self.leading = leading
+        self.trailing = trailing
+        self.fraction = fraction
+    }
+
+    public var body: some View {
+        HStack(spacing: Theme.Space.m) {
+            Text(leading).font(.sw(.small)).foregroundStyle(Theme.muted)
+            GeometryReader { proxy in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(Theme.line)
+                    Capsule().fill(LinearGradient(colors: [Theme.left, Theme.right], startPoint: .leading, endPoint: .trailing))
+                        .frame(width: max(12, proxy.size.width * min(max(fraction, 0), 1)))
+                }
+            }
+            .frame(height: 12)
+            Text(trailing).font(.sw(.small)).foregroundStyle(Theme.muted)
+        }
+        .accessibilityElement(children: .combine)
+    }
+}
+
+/// Seven dots for the week, ticked on practised days.
+public struct WeekDots: View {
+    public struct Day: Identifiable, Sendable {
+        public var id: String
+        public var letter: String
+        public var done: Bool
+        public var isToday: Bool
+
+        public init(id: String, letter: String, done: Bool, isToday: Bool) {
+            self.id = id
+            self.letter = letter
+            self.done = done
+            self.isToday = isToday
+        }
+    }
+
+    var days: [Day]
+
+    public init(days: [Day]) { self.days = days }
+
+    public var body: some View {
+        Card {
+            HStack {
+                ForEach(days) { day in
+                    VStack(spacing: Theme.Space.s) {
+                        ZStack {
+                            Circle().fill(day.done ? Theme.mint : Theme.line)
+                            if day.done {
+                                Image(systemName: "checkmark").font(.system(size: 13, weight: .black)).foregroundStyle(.white)
+                            }
+                        }
+                        .frame(width: 34, height: 34)
+                        .overlay(Circle().strokeBorder(Theme.accent, lineWidth: day.isToday && !day.done ? 2 : 0))
+                        Text(day.letter).font(.sw(.small)).foregroundStyle(Theme.muted)
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("This week: practised \(days.filter(\.done).count) of 7 days")
+    }
+}
+
+/// The sun-yellow banner on Home when the keyboard is not on yet.
+public struct Banner: View {
+    var text: String
+    var action: String
+    var onAction: () -> Void
+
+    public init(_ text: String, action: String, onAction: @escaping () -> Void) {
+        self.text = text
+        self.action = action
+        self.onAction = onAction
+    }
+
+    public var body: some View {
+        HStack(spacing: Theme.Space.m) {
+            Text(text).font(.system(.body, design: .rounded, weight: .bold))
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Button(action, action: onAction)
+                .font(.system(.subheadline, design: .rounded, weight: .heavy))
+                .foregroundStyle(.white)
+                .padding(.horizontal, Theme.Space.l).padding(.vertical, 10)
+                .background(Capsule().fill(Theme.sunInk))
+        }
+        .foregroundStyle(Theme.sunInk)
+        .padding(Theme.Space.l)
+        .background(Theme.sun, in: RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
+    }
+}
+
+/// A burst of the four colours, for a new best and the keyboard first turning on.
+/// Nothing under Reduce Motion.
+public struct Confetti: View {
+    @State private var fallen = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    public init() {}
+
+    private struct Piece: Identifiable {
+        let id: Int
+        let x: CGFloat
+        let delay: Double
+        let spin: Double
+        let color: Color
+        let size: CGFloat
+    }
+
+    private static let pieces: [Piece] = (0..<36).map { i in
+        let colors = [Theme.left, Theme.right, Theme.sun, Theme.mint]
+        return Piece(id: i, x: CGFloat((i * 37) % 100) / 100, delay: Double((i * 13) % 10) / 20,
+                     spin: Double((i * 71) % 360), color: colors[i % 4], size: CGFloat(8 + (i * 7) % 7))
+    }
+
+    public var body: some View {
+        GeometryReader { proxy in
+            if !reduceMotion {
+                ForEach(Self.pieces) { piece in
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(piece.color)
+                        .frame(width: piece.size, height: piece.size * 0.6)
+                        .rotationEffect(.degrees(fallen ? piece.spin + 540 : piece.spin))
+                        .position(x: piece.x * proxy.size.width, y: fallen ? proxy.size.height + 30 : -30)
+                        .opacity(fallen ? 0 : 1)
+                        .animation(.easeIn(duration: 1.6).delay(piece.delay), value: fallen)
+                }
+            }
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+        .onAppear { fallen = true }
+    }
+}
 #endif

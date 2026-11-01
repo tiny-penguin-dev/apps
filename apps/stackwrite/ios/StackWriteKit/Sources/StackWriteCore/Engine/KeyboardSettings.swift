@@ -18,8 +18,23 @@ public struct KeyboardSettings: Codable, Sendable, Equatable {
     public var autospaceDelay: TimeInterval = 0.9
     /// Draw swipe trails and tap rings.
     public var trails = true
+    /// A slide on the space bar moves the cursor.
+    public var spaceSlide = true
+    /// A swipe left on backspace deletes the last word.
+    public var backspaceSwipe = true
 
     public init() {}
+
+    /// Reads older saved settings too: a key that is missing keeps its default.
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        version = try c.decodeIfPresent(Int.self, forKey: .version) ?? Self.version
+        autospace = try c.decodeIfPresent(Bool.self, forKey: .autospace) ?? true
+        autospaceDelay = try c.decodeIfPresent(TimeInterval.self, forKey: .autospaceDelay) ?? 0.9
+        trails = try c.decodeIfPresent(Bool.self, forKey: .trails) ?? true
+        spaceSlide = try c.decodeIfPresent(Bool.self, forKey: .spaceSlide) ?? true
+        backspaceSwipe = try c.decodeIfPresent(Bool.self, forKey: .backspaceSwipe) ?? true
+    }
 
     /// `base` with these settings applied; the rest of the engine's settings stay.
     public func composerSettings(from base: Composer.Settings = Composer.Settings()) -> Composer.Settings {

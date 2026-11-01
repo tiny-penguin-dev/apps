@@ -30,11 +30,21 @@ import Testing
         #expect(settings.composerSettings().autospaceDelay == 0.5)
     }
 
+    @Test func olderSettingsKeepTheirDefaultsForNewKeys() throws {
+        let older = Data(#"{"version":1,"autospace":false,"autospaceDelay":1.1,"trails":true}"#.utf8)
+        let read = try JSONDecoder().decode(KeyboardSettings.self, from: older)
+        #expect(!read.autospace)
+        #expect(read.autospaceDelay == 1.1)
+        #expect(read.spaceSlide)
+        #expect(read.backspaceSwipe)
+    }
+
     @Test func settingsRoundTripThroughAStore() throws {
         var settings = KeyboardSettings()
         settings.autospace = false
         settings.autospaceDelay = 1.3
         settings.trails = false
+        settings.backspaceSwipe = false
         let data = try JSONEncoder().encode(settings)
         #expect(try JSONDecoder().decode(KeyboardSettings.self, from: data) == settings)
 

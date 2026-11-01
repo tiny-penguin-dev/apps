@@ -103,7 +103,7 @@ const feet=(y=189)=>`<ellipse cx="80" cy="${y}" rx="13" ry="5" fill="${BEAK}"/><
 const sq=`<g class="lines" stroke="${BEAK}" stroke-width="5" stroke-linecap="round"><path d="M162 60 l12 -10"/><path d="M38 60 l-12 -10"/><path d="M100 22 v-14"/></g>`;
 const ARCH="M50 186 V96 A50 50 0 0 1 150 96 V186 Z", PEB="M100 40 C140 40 158 80 158 122 C158 166 134 188 100 188 C66 188 42 166 42 122 C42 80 60 40 100 40Z";
 const sideArch=(b,w)=>`<path d="M54 186 V92 A46 46 0 0 1 146 92 V186 Z" fill="${b}"/><path d="M74 186 V140 A26 26 0 0 1 126 140 V186 Z" fill="${w}"/><path d="M90 186 V174 A10 10 0 0 1 110 174 V186 Z" fill="${b}"/><circle cx="112" cy="88" r="10" fill="${w}"/><path d="M145 84 L171 94 L145 104Z" fill="${BEAK}"/>`;
-const sidePeb=(b,w)=>`<path d="M100 40 C138 40 156 74 156 116 C156 162 134 188 100 188 C64 188 46 164 46 124 C46 76 64 40 100 40Z" fill="${b}"/><path d="M144 100 C156 128 150 172 110 176 C88 178 78 166 80 148 C86 122 118 114 144 100Z" fill="${w}"/><circle cx="118" cy="82" r="10" fill="${w}"/><path d="M152 80 L178 90 L152 100Z" fill="${BEAK}"/>`;
+const sidePeb=(b,w)=>`<path d="M100 40 C138 40 156 74 156 116 C156 162 134 188 100 188 C64 188 46 164 46 124 C46 76 64 40 100 40Z" fill="${b}"/><path d="M145 98 C158 128 151 175 109 179 C86 181 75 168 78 149 C84 121 118 113 145 98Z" fill="${w}"/><circle cx="118" cy="82" r="10" fill="${w}"/><path d="M152 80 L178 90 L152 100Z" fill="${BEAK}"/>`;
 
 const ARCHR="M50 96 A50 50 0 0 1 150 96 V152 Q150 188 114 188 H86 Q50 188 50 152 Z";
 const SOFT="M100 46 C128 46 150 68 150 98 C151 122 156 146 152 164 C147 183 128 190 100 190 C72 190 53 183 48 164 C44 146 49 122 50 98 C50 68 72 46 100 46Z";
@@ -137,7 +137,7 @@ const OPTIONS=[
  about:"The round pebble with flippers that start inside its sides and curve down along the body, like a real penguin. They flap up for big moments.",
  good:"Cuddly and natural. Flippers give it body language without looking stuck on.",watch:"Slightly wider silhouette for the icon.",
  draw:(m,b="var(--peng)",w="#fff",icon)=>wrap(m,`${wings(b,m,MID,56,108)}
-  <path d="${PEB}" fill="${b}"/><ellipse cx="100" cy="144" rx="38" ry="34" fill="${w}"/>
+  <path d="${PEB}" fill="${b}"/><ellipse cx="100" cy="146" rx="39" ry="36" fill="${w}"/>
   <g style="--bd:${b}">${darkEyes(m,82,118,88)}</g>${frontBeak(m,102)}
   ${icon?"":`<circle cx="64" cy="108" r="6" fill="${CHEEK}" opacity=".85"/><circle cx="136" cy="108" r="6" fill="${CHEEK}" opacity=".85"/>${feet(190)}`}`,sq)},
 ];

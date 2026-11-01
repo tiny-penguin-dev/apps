@@ -42,3 +42,7 @@ This is the shared bar. Each app's `DESIGN.md` says how it applies it.
 - Characters and illustrations are simple and rounded, made with SwiftUI shapes, SF
   Symbols, or a small set of drawn assets, so they can animate.
 - Works with Dynamic Type and VoiceOver from day one.
+- Fits every size, from the smallest phone to the open iPhone Duo, and keeps its place
+  when the screen changes (`building.md`).
+- Built from one design system per app, so every screen uses the same pieces
+  (`building.md`).

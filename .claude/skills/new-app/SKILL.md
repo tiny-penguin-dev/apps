@@ -52,7 +52,20 @@ app's `PRODUCT.md` and `DESIGN.md` should already be approved. If they aren't, u
    - Fill in the App Store privacy answers listed in `docs/telemetry.md`
    - Re-run the workflow after that
 8. After merge, pushes to `main` that touch `apps/<slug>/ios/` upload to TestFlight.
-   Replace the placeholder screen and icon with the approved design.
+   Replace the placeholder screen and icon with the approved design, starting with
+   the design system (`ios/<Name>/DesignSystem/`, from the "Design system" section of
+   `DESIGN.md`) and the `<Name>Kit` local package for Core and Services, laid out as
+   `docs/building.md` says. Add a `swift test` step for the package to the app's
+   workflow, like Squawk's.
+
+## Architecture
+
+Every app uses the same plain-Apple layered architecture (`docs/building.md`, rule 4):
+SwiftUI with `@Observable` models, no TCA or other framework. Core and Services live in
+the `<Name>Kit` local package (pure logic, and side effects behind protocols with
+fakes), the app target holds one `AppModel`, the views and `DesignSystem/`, and
+`AppEnvironment.live()` is the only place real services are named. Set the package up
+in the first build phase, with a `swift test` step in the app's workflow.
 
 ## Changing the template
 

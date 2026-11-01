@@ -1,6 +1,6 @@
 # StackWrite v2: design
 
-Status: Draft
+Status: Approved 2026-11-01
 
 Builds on `PRODUCT.md` (approved 2026-11-01). This PR also edits `PRODUCT.md` in two
 small ways: no mascot (Gabriel, 2026-11-01), and a "What we measure" section as

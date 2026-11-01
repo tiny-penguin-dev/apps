@@ -158,8 +158,12 @@ entitlement waits for Phase 5, because the group has to be registered in the dev
 portal by hand (like the iCloud container) and nothing needs it before sync; the
 extension's bundle ID is registered by automatic signing on the first TestFlight run.
 The checks show in the keyboard's bar on a phone: StoreKit's answer, "haptic on every
-key" (feel for it) and how much memory is left under the limit. Results to be written
-here once Gabriel has tried the build.
+key" (feel for it) and how much memory is left under the limit. Results from Gabriel's
+phone (1 Nov 2026, build 0.2.0, Full Access off): "StoreKit ok (0 active, pay yes)",
+so StoreKit 2 answers inside the extension and Phase 6 reads entitlements there
+directly, no App Group pass-through needed; 166 MB left under the limit with the
+dictionary not yet loaded (Phase 2 loads it; the bar keeps the readout so the number
+with the trie can be read the same way). Haptics: see the Phase 2 notes once confirmed.
 
 ### Phase 2: One finger, the whole engine
 

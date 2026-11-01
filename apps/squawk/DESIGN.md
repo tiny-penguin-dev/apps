@@ -26,7 +26,7 @@ different times on some days, Pro pricing).
   labels. Times use tabular numbers so they don't jump.
 - **Shapes:** big round corners (18 to 28 pt), pill buttons with a soft "pressable"
   bottom edge, round day buttons.
-- **App icon idea:** Squawk's round head, beak open mid-squawk, on a sunrise-orange
+- **App icon idea:** Squawk facing you, beak open in its pointy squawk grin, on a sunrise-orange
   background with a tiny nightcap falling off.
 
 ## Screens
@@ -68,15 +68,21 @@ and empty Home (no alarms: penguin awake holding a little alarm clock, "Add your
 
 ## Mascot
 
-Squawk is a small round penguin made of simple shapes (navy body, white belly, orange
-beak and feet, pink cheeks), so every part can animate in SwiftUI.
+Squawk is the Tiny Penguin logo turned to face you: a navy arch body (`#172239`) with
+rounded bottom corners, a white belly window with the leg notch running to the bottom
+edge, golden beak and feet (`#FFB020`), white eyes, and short flippers attached to its
+sides. The beak is narrow with soft corners. When it squawks, the beak opens into a
+pointy grin with a little tongue. Pink cheeks show only when it's proud. Every part is
+a simple shape, so it can animate in SwiftUI. All the options we looked at are in
+`design/mockups/penguins-front.html` (penguin 2 was picked).
 
 | Mood | Looks | Where |
 |---|---|---|
 | Asleep | Closed eyes, orange nightcap, floating "z"s, slow breathing | Home when an alarm is on |
 | Awake | Open eyes, little bounce | Home when no alarm is on, onboarding |
-| Proud | Happy closed eyes, hopping | Good morning (first ring), Pro |
+| Proud | Happy closed eyes, pink cheeks, flippers up, hopping | Good morning (first ring), Pro |
 | Grumpy | Frowning brows | Wake-up check, Good morning after the last ring |
+| Squawk! | Wide eyes, beak open in a pointy grin, flippers up, shaking | App icon idea, store screenshots |
 | Faint | X eyes, flopped over | Good morning after the 10-minute cap |
 
 Outfits (Pro and streak rewards): scarf, beanie, sunglasses, party hat.

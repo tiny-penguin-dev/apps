@@ -7,7 +7,7 @@
 :root{
   --stage:#E9EEFB; --bg:#F4F7FF; --card:#FFFFFF; --ink:#1E2945; --muted:#6B7594; --line:#E1E7F5;
   --accent:#FF8A4C; --accent-ink:#FFFFFF; --sun:#FFC24D; --coral:#FF5C63; --mint:#2FBF96; --ice:#DCE7FF;
-  --peng:#1E2945; --belly:#FFFFFF; --beak:#FF9F43; --cheek:#FFB3B8;
+  --peng:#172239; --belly:#FFFFFF; --beak:#FFB020; --cheek:#FFB3B8;
   --font:ui-rounded,"SF Pro Rounded","Nunito",system-ui,sans-serif;
   --r-lg:28px; --r-md:18px; --r-sm:12px;
   --spring:cubic-bezier(.34,1.56,.64,1);
@@ -15,11 +15,11 @@
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --stage:#0A0F20; --bg:#11182E; --card:#1B2443; --ink:#EEF2FF; --muted:#9AA5C6; --line:#28345A;
   --accent:#FF9A5E; --accent-ink:#1A1206; --sun:#FFCD66; --coral:#FF6F75; --mint:#45D3AA; --ice:#24305A;
-  --peng:#2A3762; --belly:#F3F6FF; --beak:#FFA94D; --cheek:#FF9BA2; color-scheme:dark}}
+  --peng:#2A3762; --belly:#F3F6FF; --beak:#FFBE3D; --cheek:#FF9BA2; color-scheme:dark}}
 :root[data-theme="dark"]{
   --stage:#0A0F20; --bg:#11182E; --card:#1B2443; --ink:#EEF2FF; --muted:#9AA5C6; --line:#28345A;
   --accent:#FF9A5E; --accent-ink:#1A1206; --sun:#FFCD66; --coral:#FF6F75; --mint:#45D3AA; --ice:#24305A;
-  --peng:#2A3762; --belly:#F3F6FF; --beak:#FFA94D; --cheek:#FF9BA2; color-scheme:dark}
+  --peng:#2A3762; --belly:#F3F6FF; --beak:#FFBE3D; --cheek:#FF9BA2; color-scheme:dark}
 html,body{height:100%}
 body{background:var(--stage);color:var(--ink);font-family:var(--font);
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
@@ -69,7 +69,7 @@ body{background:var(--stage);color:var(--ink);font-family:var(--font);
 .peng{display:block;margin:0 auto}
 .peng .body{animation:breathe 3.2s ease-in-out infinite;transform-origin:50% 90%}
 @keyframes breathe{50%{transform:scale(1.03,.97)}}
-.peng.wave .wing-r{animation:wave .6s ease-in-out infinite alternate;transform-origin:150px 120px}
+.peng.wave .wing-r{animation:wave .6s ease-in-out infinite alternate;transform-origin:144px 106px}
 @keyframes wave{from{transform:rotate(-10deg)}to{transform:rotate(-55deg)}}
 .peng.hop{animation:hop .7s var(--spring) infinite alternate}
 @keyframes hop{to{transform:translateY(-10px)}}
@@ -190,28 +190,38 @@ function daysLabel(){const d=S.days;const n=d.reduce((a,b)=>a+b,0);
   return["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].filter((_,i)=>d[i]).join(", ")}
 
 /* Penguin, drawn with shapes so every part can move. mood: sleep | awake | proud | grumpy | faint */
+/* Squawk: penguin 2 (rounded bottom, legs to the edge), beak B, mouth F. Cheeks only when proud. */
+const P_BODY="M50 96 A50 50 0 0 1 150 96 V170 Q150 188 132 188 H68 Q50 188 50 170 Z";
+const P_WING="M57 103 C42 115 36 140 40 161 C49 156 56 142 60 127 Z";
+const P_WING_R=P_WING.replace(/(-?\d+(\.\d+)?) (-?\d+(\.\d+)?)/g,(_,x,__,y)=>`${200-x} ${y}`);
 function penguin(mood="awake",size=170,cls=""){
+  const W="var(--belly)",P="var(--peng)",lx=82,rx=118,y=90;
   const eyes={
-    sleep:`<path d="M78 92 q8 6 16 0 M106 92 q8 6 16 0" stroke="var(--ink-eye)" stroke-width="4" fill="none" stroke-linecap="round"/>`,
-    awake:`<circle cx="86" cy="90" r="7" fill="var(--ink-eye)"/><circle cx="114" cy="90" r="7" fill="var(--ink-eye)"/><circle cx="88" cy="87" r="2.4" fill="#fff"/><circle cx="116" cy="87" r="2.4" fill="#fff"/>`,
-    proud:`<path d="M78 92 q8 -8 16 0 M106 92 q8 -8 16 0" stroke="var(--ink-eye)" stroke-width="4" fill="none" stroke-linecap="round"/>`,
-    grumpy:`<path d="M78 86 l16 5 M122 86 l-16 5" stroke="var(--ink-eye)" stroke-width="4" stroke-linecap="round"/><circle cx="87" cy="95" r="5" fill="var(--ink-eye)"/><circle cx="113" cy="95" r="5" fill="var(--ink-eye)"/>`,
-    faint:`<path d="M80 84 l12 12 M92 84 l-12 12 M108 84 l12 12 M120 84 l-12 12" stroke="var(--ink-eye)" stroke-width="4" stroke-linecap="round"/>`
+    sleep:`<path d="M${lx-9} ${y} q9 7 18 0 M${rx-9} ${y} q9 7 18 0" stroke="${W}" stroke-width="5" fill="none" stroke-linecap="round"/>`,
+    awake:`<circle cx="${lx}" cy="${y}" r="10" fill="${W}"/><circle cx="${rx}" cy="${y}" r="10" fill="${W}"/><circle cx="${lx+2}" cy="${y+1}" r="5" fill="${P}"/><circle cx="${rx+2}" cy="${y+1}" r="5" fill="${P}"/><circle cx="${lx+4}" cy="${y-2}" r="1.8" fill="${W}"/><circle cx="${rx+4}" cy="${y-2}" r="1.8" fill="${W}"/>`,
+    proud:`<path d="M${lx-9} ${y+3} q9 -10 18 0 M${rx-9} ${y+3} q9 -10 18 0" stroke="${W}" stroke-width="5" fill="none" stroke-linecap="round"/>`,
+    grumpy:`<circle cx="${lx}" cy="${y}" r="10" fill="${W}"/><circle cx="${rx}" cy="${y}" r="10" fill="${W}"/><circle cx="${lx+1}" cy="${y+3}" r="4.5" fill="${P}"/><circle cx="${rx-1}" cy="${y+3}" r="4.5" fill="${P}"/><path d="M${lx-12} ${y-14} L${lx+12} ${y-4} L${lx+12} ${y-16}Z M${rx+12} ${y-14} L${rx-12} ${y-4} L${rx-12} ${y-16}Z" fill="${P}"/>`,
+    squawk:`<circle cx="${lx}" cy="${y}" r="11" fill="${W}"/><circle cx="${rx}" cy="${y}" r="11" fill="${W}"/><circle cx="${lx}" cy="${y}" r="3.5" fill="${P}"/><circle cx="${rx}" cy="${y}" r="3.5" fill="${P}"/>`,
+    faint:`<path d="M${lx-6} ${y-6} l12 12 M${lx+6} ${y-6} l-12 12 M${rx-6} ${y-6} l12 12 M${rx+6} ${y-6} l-12 12" stroke="${W}" stroke-width="4.5" stroke-linecap="round"/>`
   }[mood];
-  const cap=mood==="sleep"?`<path d="M62 64 Q100 6 140 60 Q100 50 62 64Z" fill="var(--accent)"/><circle cx="146" cy="58" r="9" fill="var(--sun)"/>`:"";
-  const zz=mood==="sleep"?`<text class="zz" x="150" y="40" font-size="22">z</text><text class="zz" x="160" y="30" font-size="16">z</text>`:"";
-  const beak=mood==="proud"||mood==="awake"?`<path d="M92 104 L108 104 L100 116Z" fill="var(--beak)"/>`:`<path d="M92 106 L108 106 L100 112Z" fill="var(--beak)"/>`;
-  return `<svg class="peng ${cls}" width="${size}" height="${size}" viewBox="0 0 200 200" role="img" aria-label="Squawk the penguin, ${mood}" style="--ink-eye:#1A2240">
-    <ellipse cx="100" cy="188" rx="52" ry="8" fill="rgba(20,30,60,.12)"/>
+  const by=104,B="var(--beak)";
+  const beak=mood==="squawk"
+    ?`<path d="M89 ${by+2} Q100 ${by+4} 111 ${by+2} Q108 ${by+15} 100.8 ${by+22} Q100 ${by+23} 99.2 ${by+22} Q92 ${by+15} 89 ${by+2}Z" fill="#4A1526"/><ellipse cx="100" cy="${by+15.5}" rx="5" ry="3" fill="#FF7D8C"/><path d="M88 ${by+3} Q93 ${by+17} 99 ${by+27} Q100 ${by+28.5} 101 ${by+27} Q107 ${by+17} 112 ${by+3} Q107 ${by+14} 100 ${by+21.5} Q93 ${by+14} 88 ${by+3}Z" fill="${B}"/><path d="M88 ${by} Q100 ${by-2} 112 ${by} L101.6 ${by+10.5} Q100 ${by+12.5} 98.4 ${by+10.5}Z" fill="${B}"/>`
+    :`<path d="M91.5 ${by} Q100 ${by-1.5} 108.5 ${by} L101.6 ${by+14.5} Q100 ${by+17} 98.4 ${by+14.5} Z" fill="${B}"/>`;
+  const up=mood==="proud"||mood==="squawk"?30:0;
+  const cheeks=mood==="proud"?`<circle cx="66" cy="110" r="6" fill="var(--cheek)" opacity=".85"/><circle cx="134" cy="110" r="6" fill="var(--cheek)" opacity=".85"/>`:"";
+  const cap=mood==="sleep"?`<path d="M64 70 Q100 0 140 64 Q100 52 64 70Z" fill="var(--accent)"/><circle cx="146" cy="62" r="9" fill="var(--sun)"/>`:"";
+  const zz=mood==="sleep"?`<text class="zz" x="152" y="40" font-size="22">z</text><text class="zz" x="164" y="28" font-size="16">z</text>`:"";
+  return `<svg class="peng ${cls}" width="${size}" height="${size}" viewBox="0 0 200 200" role="img" aria-label="Squawk the penguin, ${mood}">
+    <ellipse cx="100" cy="192" rx="50" ry="6" fill="rgba(20,30,60,.12)"/>
     <g class="body">
-      <ellipse cx="52" cy="128" rx="14" ry="34" fill="var(--peng)" transform="rotate(18 52 128)"/>
-      <g class="wing-r"><ellipse cx="148" cy="128" rx="14" ry="34" fill="var(--peng)" transform="rotate(-18 148 128)"/></g>
-      <ellipse cx="100" cy="118" rx="54" ry="66" fill="var(--peng)"/>
-      <ellipse cx="100" cy="130" rx="38" ry="50" fill="var(--belly)"/>
-      <ellipse cx="100" cy="94" rx="36" ry="26" fill="var(--belly)"/>
-      ${eyes}<circle cx="74" cy="106" r="7" fill="var(--cheek)" opacity=".8"/><circle cx="126" cy="106" r="7" fill="var(--cheek)" opacity=".8"/>
-      ${beak}${cap}
-      <ellipse cx="82" cy="183" rx="14" ry="6" fill="var(--beak)"/><ellipse cx="118" cy="183" rx="14" ry="6" fill="var(--beak)"/>
+      <path d="${P_WING}" fill="${P}" transform="rotate(${up} 56 106)"/>
+      <g class="wing-r"><path d="${P_WING_R}" fill="${P}" transform="rotate(${-up} 144 106)"/></g>
+      <path d="${P_BODY}" fill="${P}"/>
+      <path d="M70 188 V140 A30 30 0 0 1 130 140 V188 Z" fill="${W}"/>
+      <path d="M90 188 V176 A10 10 0 0 1 110 176 V188 Z" fill="${P}"/>
+      ${eyes}${beak}${cheeks}${cap}
+      <ellipse cx="80" cy="189" rx="13" ry="5" fill="${B}"/><ellipse cx="120" cy="189" rx="13" ry="5" fill="${B}"/>
     </g>${zz}</svg>`;
 }
 const fishSvg=c=>`<svg viewBox="0 0 22 12" width="22" height="12"><path d="M0 6 Q8 -2 16 6 Q8 14 0 6Z M16 6 L22 1 L22 11Z" fill="${c}"/></svg>`;

@@ -80,7 +80,7 @@ Once for the repo, nothing per app:
 
 | Where | Name | Value |
 |---|---|---|
-| Repo secret | `SENTRY_AUTH_TOKEN` | A Sentry token with `project:read` and `project:write` scopes: a personal token (User Settings → Personal Tokens) or an internal integration. An organization token (`sntrys_...`) is not enough, because it can't create projects. |
+| Repo secret | `SENTRY_AUTH_TOKEN` | A Sentry token with `org:read`, `team:read`, `project:read`, `project:write` and `project:releases` scopes: a personal token (User Settings → Personal Tokens) or an internal integration. An organization token (`sntrys_...`) is not enough, because it can't create projects. |
 | Repo variable (optional) | `SENTRY_ORG` | The Sentry organization slug. Only needed if the token can see more than one organization. |
 | Repo variable (optional) | `SENTRY_TEAM` | The team that owns new projects. Default: the organization's first team. |
 

@@ -2,8 +2,11 @@
 
 An iPhone keyboard for typing fast with two thumbs: each thumb taps or swipes a few
 letters at a time, both at once, and the keyboard turns the pieces into the word you meant.
-A clean-room rebuild of Nintype for the App Store. See [`PRODUCT.md`](PRODUCT.md) for
-what v2 is and why.
+A clean-room rebuild of Nintype for the App Store.
+
+- [PRODUCT.md](PRODUCT.md): what v2 is and why (approved)
+- [DESIGN.md](DESIGN.md): screens, the keyboard, motion and copy, with a
+  [mockup](design/mockups/stackwrite.html) whose keyboard you can try
 
 v1 was a handwriting keyboard (letters written on top of each other). It is still in this
 folder and may come back as an input mode; the sections below describe it.
@@ -27,7 +30,7 @@ test, build.
 ## Layout
 
 ```
-PRODUCT.md the v2 product definition (two-thumb typing); DESIGN.md and BUILD.md follow once approved
+PRODUCT.md the v2 product definition (two-thumb typing), DESIGN.md its design; BUILD.md follows once approved
 BRIEF.md   v1 build plan, plus the exact contracts the Swift code must match
 SAMPLES.md the recorded-sample format shared by the app and the training scripts
 CLAUDE.md  how to work on this app

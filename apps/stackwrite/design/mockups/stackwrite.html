@@ -1,0 +1,541 @@
+<title>StackWrite Mockups</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;700;800;900&display=swap">
+<style>
+/* Layout: one phone (390x844) on a pale ice stage with a screen picker beside it. The keyboard is real: tap, swipe, two thumbs on a phone. */
+:root{
+  --stage:#E6F0F4; --bg:#F3F8FA; --card:#FFFFFF; --ink:#1E2945; --muted:#67748F; --line:#DCE6EC;
+  --accent:#139FB5; --accent-ink:#FFFFFF; --left:#139FB5; --right:#FF6F86; --sun:#FFC24D; --mint:#2FBF96; --ice:#D9EDF3;
+  --key:#FFFFFF; --key-ink:#1E2945; --key-dark:#C9D6DE; --kb:#DCE6EC; --bar:#E8F0F4;
+  --peng:#172239; --belly:#FFFFFF; --beak:#FFB020; --cheek:#FFB3B8;
+  --font:ui-rounded,"SF Pro Rounded","Nunito",system-ui,sans-serif;
+  --r-lg:28px; --r-md:18px; --r-sm:12px;
+  --spring:cubic-bezier(.34,1.56,.64,1);
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --stage:#0A1118; --bg:#111A24; --card:#1A2634; --ink:#EEF4F8; --muted:#97A6B8; --line:#2A3B4C;
+  --accent:#2FC6DC; --accent-ink:#06202A; --left:#2FC6DC; --right:#FF8A9E; --sun:#FFCD66; --mint:#45D3AA; --ice:#1D3240;
+  --key:#2A3A4A; --key-ink:#EEF4F8; --key-dark:#1C2834; --kb:#131E29; --bar:#1A2634; --peng:#2A3762; --belly:#F3F6FF; --beak:#FFBE3D; --cheek:#FF9BA2; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --stage:#0A1118; --bg:#111A24; --card:#1A2634; --ink:#EEF4F8; --muted:#97A6B8; --line:#2A3B4C;
+  --accent:#2FC6DC; --accent-ink:#06202A; --left:#2FC6DC; --right:#FF8A9E; --sun:#FFCD66; --mint:#45D3AA; --ice:#1D3240;
+  --key:#2A3A4A; --key-ink:#EEF4F8; --key-dark:#1C2834; --kb:#131E29; --bar:#1A2634; --peng:#2A3762; --belly:#F3F6FF; --beak:#FFBE3D; --cheek:#FF9BA2; color-scheme:dark}
+html,body{height:100%}
+body{background:var(--stage);color:var(--ink);font-family:var(--font);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.stage{display:flex;gap:32px;justify-content:center;align-items:flex-start;padding-block:24px;flex-wrap:wrap}
+.picker{display:flex;flex-direction:column;gap:6px;max-width:230px;min-width:0}
+.picker h1{font-size:28px;font-weight:900;margin:0}
+.picker p{margin:0 0 10px;color:var(--muted);font-size:13px;line-height:1.45}
+.picker button{font:inherit;font-weight:700;font-size:14px;text-align:left;border:0;background:transparent;color:var(--muted);padding:7px 12px;border-radius:10px;cursor:pointer}
+.picker button[aria-current="true"]{background:var(--card);color:var(--ink)}
+.picker button:focus-visible,.phone button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.picker small{color:var(--muted);font-size:11px;letter-spacing:.06em;text-transform:uppercase;font-weight:800;margin-top:10px;padding-left:12px}
+.themes{display:flex;gap:4px;margin-top:8px}
+.themes button{padding:5px 10px;font-size:12px;background:var(--line)}
+.themes button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.phone{width:390px;max-width:100%;height:844px;background:var(--bg);border-radius:48px;position:relative;overflow:hidden;
+  box-shadow:0 0 0 10px var(--ink),0 30px 60px rgba(20,30,60,.25);flex:none;touch-action:none}
+@media (max-width:700px){.picker{max-width:100%;flex-direction:row;flex-wrap:wrap}.picker h1,.picker p{width:100%}.picker small{display:none}
+  .phone{box-shadow:none;border-radius:32px;height:820px}}
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;padding:58px 22px 30px;gap:16px;animation:in .45s var(--spring)}
+.screen.haskb{padding-bottom:0}
+@keyframes in{from{transform:translateX(30px);opacity:0}to{transform:none;opacity:1}}
+.status{position:absolute;top:14px;left:30px;right:30px;display:flex;justify-content:space-between;font-weight:800;font-size:15px;z-index:3}
+.h1{font-size:30px;font-weight:900;line-height:1.1;margin:0;text-wrap:balance}
+.h2{font-size:20px;font-weight:800;margin:0}
+.sub{color:var(--muted);font-size:16px;line-height:1.4;margin:0}
+.btn{font:inherit;font-weight:800;font-size:18px;border:0;border-radius:999px;padding:17px 22px;background:var(--accent);color:var(--accent-ink);cursor:pointer;
+  transition:transform .25s var(--spring);box-shadow:0 6px 0 color-mix(in srgb,var(--accent) 60%,#000 25%)}
+.btn:active{transform:translateY(3px) scale(.98);box-shadow:0 3px 0 color-mix(in srgb,var(--accent) 60%,#000 25%)}
+.btn.ghost{background:transparent;color:var(--muted);box-shadow:none;font-size:15px;padding:8px}
+.btn.small{font-size:14px;padding:10px 16px;box-shadow:0 4px 0 color-mix(in srgb,var(--accent) 60%,#000 25%)}
+.spacer{flex:1}
+.card{background:var(--card);border-radius:var(--r-md);padding:16px}
+.row{display:flex;align-items:center;gap:12px}
+.chip{display:inline-flex;align-items:center;gap:6px;font-weight:800;font-size:13px;padding:6px 10px;border-radius:999px;background:var(--ice);color:var(--ink)}
+.pro{font-size:10px;font-weight:900;letter-spacing:.08em;background:var(--sun);color:#3A2600;padding:3px 7px;border-radius:6px}
+.toggle{width:52px;height:32px;border-radius:999px;background:var(--line);border:0;position:relative;cursor:pointer;flex:none;transition:background .2s}
+.toggle::after{content:"";position:absolute;top:3px;left:3px;width:26px;height:26px;border-radius:50%;background:#fff;box-shadow:0 2px 4px rgba(0,0,0,.2);transition:transform .35s var(--spring)}
+.toggle[aria-pressed="true"]{background:var(--mint)}
+.toggle[aria-pressed="true"]::after{transform:translateX(20px)}
+.back{font:inherit;font-weight:800;color:var(--accent);background:none;border:0;font-size:17px;padding:0;cursor:pointer;align-self:flex-start}
+.list{display:flex;flex-direction:column;gap:10px}
+.sec{font-size:13px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:6px 0 -6px 4px}
+.scroll{overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:14px;margin:0 -22px;padding:0 22px 10px}
+.steps{display:flex;flex-direction:column;gap:10px;counter-reset:s}
+.steps div{display:flex;gap:12px;align-items:center;background:var(--card);border-radius:var(--r-md);padding:12px 14px;font-weight:700}
+.steps div::before{counter-increment:s;content:counter(s);width:28px;height:28px;border-radius:50%;background:var(--ice);display:grid;place-items:center;font-weight:900;flex:none}
+.steps b{color:var(--accent)}
+.seg{display:flex;background:var(--line);border-radius:999px;padding:4px}
+.seg button{flex:1;font:inherit;font-weight:800;font-size:14px;border:0;background:transparent;color:var(--muted);padding:9px 0;border-radius:999px;cursor:pointer;transition:background .2s}
+.seg button[aria-pressed="true"]{background:var(--card);color:var(--ink)}
+.big{font-size:64px;font-weight:900;font-variant-numeric:tabular-nums;line-height:1}
+.dots{display:flex;gap:6px;justify-content:center}
+.dots i{width:8px;height:8px;border-radius:50%;background:var(--line)}
+.dots i.on{background:var(--accent)}
+.price{font:inherit;color:inherit;text-align:left;border:3px solid transparent;cursor:pointer;display:flex;align-items:center;gap:12px;transition:transform .3s var(--spring),border-color .2s}
+.price[aria-pressed="true"]{border-color:var(--accent);transform:scale(1.02)}
+.price b{font-size:18px;display:block}
+.price span{color:var(--muted);font-size:13px}
+.price .amt{margin-left:auto;font-size:20px;font-weight:900;font-variant-numeric:tabular-nums}
+.perk{display:flex;gap:10px;align-items:center;font-weight:700;font-size:15px}
+.perk i{width:22px;height:22px;border-radius:50%;background:var(--mint);color:#fff;display:grid;place-items:center;font-style:normal;font-size:13px;flex:none}
+.slider{height:6px;border-radius:3px;background:var(--line);position:relative;flex:1}
+.slider::after{content:"";position:absolute;left:40%;top:-8px;width:22px;height:22px;border-radius:50%;background:var(--accent);box-shadow:0 2px 4px rgba(0,0,0,.2)}
+.week{display:flex;justify-content:space-between}
+.week div{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:12px;font-weight:800;color:var(--muted)}
+.week i{width:34px;height:34px;border-radius:50%;background:var(--line);display:grid;place-items:center;font-style:normal;color:#fff}
+.week i.y{background:var(--mint)}
+.fish{position:absolute;top:-30px;width:22px;height:12px;pointer-events:none;animation:fall 2.2s ease-in forwards}
+@keyframes fall{to{transform:translateY(900px) rotate(540deg)}}
+.shake{animation:shake .4s}
+@keyframes shake{25%{transform:translateX(-10px)}75%{transform:translateX(10px)}}
+/* penguin */
+.peng{display:block;margin:0 auto}
+.peng .body{animation:breathe 3.2s ease-in-out infinite;transform-origin:50% 90%}
+@keyframes breathe{50%{transform:scale(1.03,.97)}}
+.peng.type .fl{animation:typeL .5s ease-in-out infinite alternate;transform-origin:48px 100px}
+.peng.type .fr{animation:typeR .5s ease-in-out infinite alternate-reverse;transform-origin:152px 100px}
+@keyframes typeL{from{transform:rotate(0)}to{transform:rotate(18deg)}}
+@keyframes typeR{from{transform:rotate(0)}to{transform:rotate(-18deg)}}
+.peng.hop{animation:hop .7s var(--spring) infinite alternate}
+@keyframes hop{to{transform:translateY(-10px)}}
+.peng.waddle{animation:waddle .9s var(--spring) both}
+@keyframes waddle{0%{transform:translateX(-160px) rotate(-8deg)}40%{transform:translateX(-40px) rotate(8deg)}70%{transform:translateX(10px) rotate(-4deg)}100%{transform:none}}
+.peng.run{animation:run .45s ease-in-out infinite alternate}
+@keyframes run{to{transform:translateY(-5px) rotate(4deg)}}
+.zz{font-weight:900;fill:var(--muted);animation:zz 2.6s ease-in infinite;opacity:0}
+.zz:nth-of-type(2){animation-delay:1.3s}
+@keyframes zz{0%{opacity:0;transform:translate(0,0)}30%{opacity:1}100%{opacity:0;transform:translate(14px,-30px)}}
+/* text field and conversation */
+.field{background:var(--card);border-radius:var(--r-md);padding:14px 16px;min-height:64px;font-size:18px;line-height:1.4;word-break:break-word}
+.field .open{text-decoration:underline;text-decoration-color:var(--accent);text-decoration-thickness:3px;text-underline-offset:4px}
+.field .caret{display:inline-block;width:2px;height:1.1em;background:var(--accent);vertical-align:text-bottom;animation:blink 1s steps(1) infinite;margin-left:1px}
+@keyframes blink{50%{opacity:0}}
+.prompt{font-size:15px;color:var(--muted);font-weight:700}
+.prompt b{color:var(--ink);font-size:22px;display:block;margin-top:2px}
+.convo{display:flex;flex-direction:column;gap:8px;flex:1;overflow:hidden}
+.bub{max-width:78%;padding:10px 14px;border-radius:20px;font-size:16px;line-height:1.35;background:var(--card)}
+.bub.me{align-self:flex-end;background:var(--accent);color:var(--accent-ink)}
+.compose{display:flex;gap:8px;align-items:flex-end;margin:0 -22px;padding:8px 14px;background:var(--bg)}
+.compose .field{flex:1;min-height:44px;padding:9px 14px;border-radius:22px;border:1px solid var(--line);font-size:17px}
+/* keyboard */
+.kbwrap{margin:0 -22px;margin-top:auto;position:relative;background:var(--kb);padding:8px 4px 24px;user-select:none;-webkit-user-select:none}
+.bar{display:flex;align-items:center;gap:6px;height:44px;padding:0 6px;margin-bottom:8px}
+.bar button{font:inherit;font-weight:700;font-size:17px;border:0;background:transparent;color:var(--ink);flex:1;padding:8px 6px;border-radius:10px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.bar button.top{background:var(--card);font-weight:900}
+.bar .note{flex:1;text-align:center;color:var(--muted);font-weight:700;font-size:14px}
+.bar .note b{color:var(--accent)}
+.bar .fixlabel{font-size:11px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:0 4px;flex:none}
+.rows{display:flex;flex-direction:column;gap:9px;position:relative}
+.krow{display:flex;justify-content:center;gap:6px}
+.key{width:33px;height:44px;border-radius:7px;background:var(--key);color:var(--key-ink);font:inherit;font-weight:700;font-size:21px;border:0;padding:0;display:grid;place-items:center;
+  box-shadow:0 1px 0 rgba(0,0,0,.25);position:relative;transition:background .25s,color .25s,transform .15s var(--spring);touch-action:none}
+.key.wide{width:48px;background:var(--key-dark);font-size:15px}
+.key.space{flex:1;max-width:190px;font-size:13px;font-weight:800;color:var(--muted)}
+.key.fn{width:44px;background:var(--key-dark);font-size:14px}
+.key.ret{width:88px;background:var(--key-dark);font-size:14px}
+.key.hitL{background:var(--left);color:#fff;transform:scale(1.06)}
+.key.hitR{background:var(--right);color:#fff;transform:scale(1.06)}
+.key.hintL{box-shadow:0 0 0 3px var(--left)}
+.key.hintR{box-shadow:0 0 0 3px var(--right)}
+.trails{position:absolute;inset:0;pointer-events:none;overflow:visible}
+.trails path{fill:none;stroke-width:9;stroke-linecap:round;stroke-linejoin:round;opacity:.85}
+.trails path.L{stroke:var(--left)}.trails path.R{stroke:var(--right)}
+.trails path.done{animation:fade 1.2s ease-out forwards}
+.trails circle{opacity:.9;animation:ping .6s ease-out forwards}
+.trails circle.L{fill:var(--left)}.trails circle.R{fill:var(--right)}
+@keyframes fade{to{opacity:0}}
+@keyframes ping{from{r:6}to{r:22;opacity:0}}
+.meter{display:flex;align-items:center;gap:10px}
+.meter .track{flex:1;height:10px;border-radius:5px;background:var(--line);overflow:hidden}
+.meter .track i{display:block;height:100%;width:52%;background:linear-gradient(90deg,var(--left),var(--right));border-radius:5px;animation:grow 1s var(--spring)}
+@keyframes grow{from{width:0}}
+.wordcards{display:flex;gap:8px}
+.wordcards div{flex:1;text-align:center;padding:12px 0;border-radius:var(--r-sm);background:var(--card);font-weight:900;font-size:18px}
+.wordcards div.done{background:var(--mint);color:#fff}
+.wordcards div.now{box-shadow:0 0 0 3px var(--accent)}
+@media (prefers-reduced-motion: reduce){*{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+</style>
+
+<div class="stage">
+  <nav class="picker" aria-label="Screens">
+    <h1>StackWrite</h1>
+    <p>Tap a screen. The keyboard works: tap, swipe, and on a phone both thumbs at once. Press space or wait to commit a word.</p>
+    <small>Setup</small>
+    <button data-go="welcome">1 · Hello</button>
+    <button data-go="enable">2 · Turn on the keyboard</button>
+    <button data-go="sync">3 · Keep your words everywhere</button>
+    <button data-go="try">4 · Try it</button>
+    <small>The app</small>
+    <button data-go="home">5 · Home</button>
+    <button data-go="speed">6 · Speed test</button>
+    <button data-go="result">7 · Speed test result</button>
+    <button data-go="drill">8 · Drill: two-letter swipes</button>
+    <button data-go="prefs">9 · Keyboard settings</button>
+    <button data-go="pro">10 · StackWrite Pro</button>
+    <button data-go="trialover">11 · Trial over</button>
+    <small>In other apps</small>
+    <button data-go="messages">12 · Typing in Messages</button>
+    <button data-go="free">13 · Free keyboard</button>
+    <small>Theme</small>
+    <div class="themes" role="group" aria-label="Theme">
+      <button data-theme="">System</button><button data-theme="light">Light</button><button data-theme="dark">Dark</button>
+    </div>
+  </nav>
+  <div class="phone" id="phone" role="region" aria-label="StackWrite mockup"></div>
+</div>
+
+<script>
+const WORDS_EXTRA="keyboard penguin hello thumbs thumb flippers typing faster fastest swipe swipes tapping stackwrite twenty minutes tonight dinner tomorrow waddle flipper";
+</script>
+<script>
+/* top 1,500 words from ml/export/lexicon.tsv, for the mockup's decoder */
+const WORDS="the to and of a in i is for that you it on with this was be as are have at he not by but from my or we an your all so his they me if one can will just like about up out what has when more do no were who had their there her which time get been would she new people how some also them now other its our than good only after first him into know see two make over think any then could back these us want because go well said way most much very where even should may here need really did right work year years being day too going before off why made still take got many never those life say world down great through last while best such love man home long look something use same used both every am come part state three around between always better find help high little old since another does own things under during game thing give house place school again next each mr without against end found must show big feel sure team ever family keep might please put money free second someone away left number city days lot name night play until company doing few let real called different having set thought done however getting god government group looking public top women business care start system times week already anything case nothing person today change enough everything full live making point read told yet bad four hard mean once support tell including music power seen states stop water based believe call head men national small took white came far job side though try went yes actually american later less line order party run says service country open season shit thank children everyone general trying united using area black following law makes together war whole car face five kind maybe per president story working course games health hope important least means news within able book early friends information local oh post thanks video young ago others social talk court fact given guys half hand level mind often single become body coming control death food guy hours office pay problem south true almost fuck history known large lost research room several started taking university win wrong along anyone else girl john matter pretty remember air bit friend hit needs nice playing probably saying understand yeah york class close comes idea international looks past possible wanted cause due happy human members months move question series wait woman ask community data late leave north saw special watch either fucking future light low million morning police short stay taken age buy deal rather reason red report soon third turn whether among check development form further heart minutes myself services yourself act although asked child fire fun living major media phone players art behind building easy gonna market near non plan political quite six talking west works according available education final former front kids list ready sometimes son street bring college current example experience heard london meet program type baby chance father march process song study word across action clear gave gets himself month outside self students words board cost cut dr field held instead main moment mother road seems thinking town wants de department energy fight fine force hear issue played points price re rest results running shows space summer term wife america beautiful date goes killed land miss project sex shot site strong account co especially eyes include june parents period position record similar total above club common died film happened knew lead likely military perfect personal security share st tv won april center county couple dead english happen hold industry inside issues online player private problems return rights sense star test view weeks break british companies event higher hour member middle needed present result sorry takes training wish answer boy design finally girls gold gone guess interest july king learn policy society added al alone average bank brought certain church east hands hot longer medical movie original park performance press received role sent themselves tried worked worth areas became bill books cool director exactly giving ground meeting provide questions relationship september sound source usually value evidence follow lives official ok production rate reading round save stand stuff tax whatever amount blue countries david drive eat fall fast federal feeling felt green league management match model picture size step trust central changes england forward groups hey key mom page paid range review science trade uk upon various attention brother cannot character chief cup football hate james led looked lower natural october property quality send style vote amazing august blood china complete dog economic hell involved itself language lord november oil related serious stage terms title add article attack born damn decided decision enjoy entire french january kill met perhaps poor release situation technology turned website written choice code considered continue council cover currently door election european events financial foreign hair increase legal lose michael pick race seem seven sign simple simply staff super union walk washington bed began built career changed crazy daily daughter december die difficult figure hospital knows loss modern ones paper parts popular published safe starting systems version voice whose writing army australia earth forget goal huge internet listen okay practice rules sea sir success towards waiting ways access base below created deep followed la lol mark missing offer pass professional released risk schools sleep table ten truth ball box build card cases dark district europe george india mine minister note percent piece products recent seeing straight visit wall wanna wrote allowed boys culture etc fans february gives growth included married officer pain paul places respect response river rock shall speak specific standard tonight write album century charge cold create effect eight except eye funny ii limited moving network peace provided recently required sales spent store student tomorrow track via watching weight addition ahead allow anti association beat brown capital chinese committee conference difference double expect gas island moved normal plans population potential pressure radio russian station text treatment western ass beginning california campaign certainly completely content credit cross described despite female focus hi husband ice individual interesting join kept leading loved message miles nearly particular previous quickly region reported section sort speed travel consider contact drop fair feet jesus kid link positive sale throughout tour welcome absolutely additional beyond conditions earlier extra forces immediately jobs leaving minute nature numbers quick sell significant studies unless winning agree canada clean computer construction episode favorite income justice levels manager movement photo posted safety san scene sold sounds spend statement sun teams ability announced asking calling coach collection continued costs definitely designed expected friday gun happens heavy includes knowledge particularly search subject train wide wow author centre claim dad developed fear fit generally german global goals gotta hotel interested judge lady leader letter lines material named nobody opportunity plus pre product regular secretary sister stories unit workers annual anymore bar battle brain contract degree families features finished floor france growing hurt image insurance majority meant opening opinion physical pro reach rule seriously sports stupid successful active administration approach australian biggest cancer civil dance defense direction independent master none reasons russia ship stock trump weekend wonder worst africa awesome band beach cash clearly commercial compared effort ended fan fighting imagine impact lack latest learning multiple older operation organization passed pictures protect secret senior spring sunday telling wear activities address analysis anyway bought calls choose christmas color commission competition details direct dream easily finish grand increased indian literally luck marriage names necessary patients resources rich skin speaking supposed sweet thus touch yesterday caught closed congress damage directly disease doctor doubt drink driving established facebook feels fish gay germany glad greater grow largest machine notice overall planning professor programs records reports shown sit trip associated basic captain carry cars crime effective effects explain fully highly holding japan laws male mrs parties plant reality smith spot texas winter worse advice agreement award block broken caused challenge characters christian comment equipment eventually helped holy killing lived lots nation otherwise peter prices primary purpose rates responsible shop showing sick teacher theory uses william agency avoid camera catch cell coast comments drug economy environment executive foot hall mass meaning mission nine officers operations politics pop produced ran saturday status therefore trial truly weather activity app application claims coffee complex condition division evening flight freedom google heat highest interview library located location murder obama offered putting queen seconds showed sitting standing stars walking accept actual appear attempt broke channel distance eating exchange fat fell finding glass learned losing mobile northern opened placed powerful prior protection reached receive religious ride robert royal screen serve signed slow species speech traffic tree types vs wearing whom wonderful agreed airport animals appears begin benefits bottom cities demand engine everybody famous ideas investment keeping lie notes partner plays raised runs sad solution songs sources southern square stopped structure thomas traditional twice wind worry americans appeared becomes brand bus cent chicago count covered critical digital forced fourth fresh lake mental mentioned".split(" ");
+</script>
+<script>
+/* ---------- state ---------- */
+const S={on:false,full:false,plan:"year",autospace:true,twoThumbs:true,theme:""};
+const phone=document.getElementById("phone");
+const picker=document.querySelector(".picker");
+const DICT=(typeof WORDS==="undefined"?"the to and of a in i is you it that for on with":WORDS.join(" "))+" "+WORDS_EXTRA;
+const WL=[...new Set(DICT.split(" "))];
+const RANK=new Map(WL.map((w,i)=>[w,i]));
+
+/* ---------- penguin: Pip, front-facing, navy arch body, white belly, flippers that type ---------- */
+function penguin(mood="awake",size=170,cls=""){
+  const navy="var(--peng)",belly="var(--belly)",beak="var(--beak)";
+  const eyes=mood==="sleep"?`<path d="M80 84 q8 6 16 0 M104 84 q8 6 16 0" stroke="#0F1B2D" stroke-width="4.5" fill="none" stroke-linecap="round"/>`
+    :mood==="proud"?`<path d="M80 86 q8 -9 16 0 M104 86 q8 -9 16 0" stroke="#0F1B2D" stroke-width="4.5" fill="none" stroke-linecap="round"/>`
+    :`<circle cx="88" cy="84" r="6.5" fill="#0F1B2D"/><circle cx="112" cy="84" r="6.5" fill="#0F1B2D"/><circle cx="90" cy="82" r="2" fill="#fff"/><circle cx="114" cy="82" r="2" fill="#fff"/>`;
+  const cheeks=mood==="proud"?`<circle cx="74" cy="98" r="7" fill="var(--cheek)"/><circle cx="126" cy="98" r="7" fill="var(--cheek)"/>`:"";
+  const cap=mood==="sleep"?`<path d="M70 48 Q100 20 134 44 L128 58 Q100 44 76 60 Z" fill="var(--right)"/><circle cx="136" cy="44" r="7" fill="#fff"/>`:"";
+  const zz=mood==="sleep"?`<text class="zz" x="150" y="50" font-size="22">z</text><text class="zz" x="162" y="36" font-size="16">z</text>`:"";
+  const up=mood==="proud"||cls.includes("type");
+  return `<svg class="peng ${cls}" width="${size}" height="${size}" viewBox="0 0 200 200" role="img" aria-label="Pip the penguin, ${mood}">
+  <ellipse cx="100" cy="190" rx="52" ry="6" fill="rgba(15,27,45,.12)"/>
+  <g class="body">
+    <path d="M44 184 L44 92 Q44 36 100 36 Q156 36 156 92 L156 184 Q156 192 148 192 L52 192 Q44 192 44 184 Z" fill="${navy}"/>
+    <path d="M62 184 L62 104 Q62 70 100 70 Q138 70 138 104 L138 184 Q138 192 130 192 L70 192 Q62 192 62 184 Z" fill="${belly}"/>
+    <g class="fl"><ellipse cx="46" cy="130" rx="11" ry="34" fill="${navy}" transform="rotate(${up?115:12} 48 100)"/></g>
+    <g class="fr"><ellipse cx="154" cy="130" rx="11" ry="34" fill="${navy}" transform="rotate(${up?-115:-12} 152 100)"/></g>
+    ${eyes}${cheeks}
+    <path d="M90 98 L110 98 L100 110 Z" fill="${beak}"/>
+    <path d="M64 192 L84 192 L74 198 Z M116 192 L136 192 L126 198 Z" fill="${beak}"/>
+    ${cap}
+  </g>${zz}</svg>`;
+}
+const status=(dark=false)=>`<div class="status" style="${dark?"color:#fff":""}"><span>9:41</span><span>●●● ⌁ ▮</span></div>`;
+
+/* ---------- keyboard ---------- */
+const ROWS=["qwertyuiop","asdfghjkl","zxcvbnm"];
+function kbHTML(id){
+  const r=(s)=>[...s].map(k=>`<button class="key" data-k="${k}">${k}</button>`).join("");
+  return `<div class="kbwrap" id="${id}">
+    <div class="bar" data-bar></div>
+    <div class="rows" data-rows>
+      <svg class="trails" data-trails></svg>
+      <div class="krow">${r(ROWS[0])}</div>
+      <div class="krow">${r(ROWS[1])}</div>
+      <div class="krow"><button class="key wide" data-k="shift">⇧</button>${r(ROWS[2])}<button class="key wide" data-k="bs">⌫</button></div>
+      <div class="krow"><button class="key fn" data-k="123">123</button><button class="key fn" data-k="globe">🌐</button><button class="key space" data-k="space">StackWrite</button><button class="key ret" data-k="return">return</button></div>
+    </div></div>`;
+}
+function isSub(w,path){let i=0;for(const c of path){if(c===w[i])i++;if(i===w.length)return true}return false}
+function decode(pieces){
+  if(!pieces.length)return [];
+  const ps=[...pieces].sort((a,b)=>a.t0-b.t0);
+  const path=ps.map(p=>p.keys.join("")).join("");
+  const typed=ps.every(p=>p.tap)?ps.map(p=>p.keys[0]).join(""):null;
+  const first=path[0],last=path[path.length-1];
+  const out=[];
+  for(const w of WL){
+    if(w.length<2||w[0]!==first||w[w.length-1]!==last||w.length>path.length)continue;
+    if(!isSub(w,path))continue;
+    out.push(w);
+  }
+  out.sort((a,b)=>{const ca=a.length/path.length,cb=b.length/path.length;return (cb-ca)*3+(RANK.get(a)-RANK.get(b))/WL.length});
+  const res=[];
+  if(typed)res.push(typed);
+  for(const w of out){if(!res.includes(w))res.push(w);if(res.length>=3)break}
+  if(!res.length)res.push([...path].filter((c,i)=>c!==path[i-1]).join(""));
+  return res;
+}
+function mountKB(id,opts={}){
+  const root=document.getElementById(id);if(!root)return;
+  const field=opts.field?document.querySelector(opts.field):null;
+  const bar=root.querySelector("[data-bar]"),rowsEl=root.querySelector("[data-rows]"),trails=root.querySelector("[data-trails]");
+  const K={text:opts.text||"",pieces:[],cands:[],fix:null,shift:false,active:new Map(),timer:null,paused:false};
+  const keyAt=(x,y)=>{const el=document.elementFromPoint(x,y);return el&&el.closest&&el.closest(".key")};
+  const side=(x)=>x<root.getBoundingClientRect().left+root.offsetWidth/2?"L":"R";
+  const svgPt=(x,y)=>{const b=rowsEl.getBoundingClientRect();return [x-b.left,y-b.top]};
+  function render(){
+    if(field){field.innerHTML=(opts.prefix||"")+esc(K.text)+(K.cands.length?`<span class="open">${esc(cap(K.cands[0]))}</span>`:"")+`<span class="caret"></span>`}
+    if(K.pieces.length){bar.innerHTML=K.cands.map((c,i)=>`<button class="${i===0?"top":""}" data-c="${c}">${esc(cap(c))}</button>`).join("")}
+    else if(K.fix){bar.innerHTML=`<span class="fixlabel">Fix</span>`+K.fix.map(c=>`<button data-fix="${c}">${esc(cap(c))}</button>`).join("")}
+    else bar.innerHTML=`<div class="note">${opts.note||""}</div>`;
+    opts.onChange&&opts.onChange(K);
+  }
+  const esc=s=>s.replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+  const cap=w=>K.shift||(opts.autoCap&&/^$|[.!?]\s*$/.test(K.text)&&K.text.trim()==="")?w[0].toUpperCase()+w.slice(1):w;
+  function commit(word,auto){
+    if(!word)return;K.text+=cap(word)+" ";K.fix=K.cands.length>1?K.cands.slice(0,3):null;K.pieces=[];K.cands=[];K.shift=false;render();
+    if(auto){bar.style.transform="scale(.97)";setTimeout(()=>bar.style.transform="",150)}
+    opts.onCommit&&opts.onCommit(word,K);
+  }
+  function recompute(){K.cands=decode(K.pieces);render();clearTimeout(K.timer);
+    if(S.autospace&&K.pieces.length&&!K.active.size)K.timer=setTimeout(()=>commit(K.cands[0],true),opts.autospaceMs||900)}
+  function startPiece(pid,x,y,synthetic){
+    const key=keyAt(x,y);if(!key)return;const k=key.dataset.k;
+    if(k.length>1){K.active.set(pid,{fn:k,x0:x,key});key.classList.add("hitL");return}
+    if(opts.free&&[...K.active.values()].some(a=>!a.fn)){flash(`<b>Two thumbs</b> is in StackWrite Pro`);return}
+    const sd=side(x);const [sx,sy]=svgPt(x,y);
+    const p={id:pid,t0:performance.now(),keys:[k],last:key,sd,pts:[[sx,sy]],path:null,tap:true};
+    const el=document.createElementNS("http://www.w3.org/2000/svg","path");el.setAttribute("class",sd);el.setAttribute("d",`M${sx} ${sy}`);trails.appendChild(el);p.path=el;
+    key.classList.add("hit"+sd);K.active.set(pid,p);clearTimeout(K.timer);
+  }
+  function movePiece(pid,x,y){
+    const p=K.active.get(pid);if(!p)return;
+    if(p.fn){if(p.fn==="bs"&&p.x0-x>40&&!p.did){p.did=true;deleteWord()}return}
+    const [sx,sy]=svgPt(x,y);const [lx,ly]=p.pts[p.pts.length-1];
+    if(Math.hypot(sx-lx,sy-ly)<3)return;
+    p.pts.push([sx,sy]);p.path.setAttribute("d",p.path.getAttribute("d")+` L${sx} ${sy}`);
+    const key=keyAt(x,y);
+    if(key&&key.dataset.k.length===1&&key!==p.last){p.last.classList.remove("hitL","hitR");p.last=key;key.classList.add("hit"+p.sd);p.keys.push(key.dataset.k)}
+  }
+  function endPiece(pid){
+    const p=K.active.get(pid);if(!p)return;K.active.delete(pid);
+    if(p.fn){p.key.classList.remove("hitL");if(!p.did)fnKey(p.fn);return}
+    p.last.classList.remove("hitL","hitR");
+    const [sx,sy]=p.pts[0],[ex,ey]=p.pts[p.pts.length-1];
+    p.tap=p.keys.length===1&&Math.hypot(ex-sx,ey-sy)<18;
+    if(p.tap){p.path.remove();const c=document.createElementNS("http://www.w3.org/2000/svg","circle");c.setAttribute("class",p.sd);c.setAttribute("cx",sx);c.setAttribute("cy",sy);c.setAttribute("r",6);trails.appendChild(c);setTimeout(()=>c.remove(),700)}
+    else{p.path.classList.add("done");setTimeout(()=>p.path.remove(),1300)}
+    K.pieces.push(p);recompute();
+  }
+  function deleteWord(){if(K.pieces.length){K.pieces=[];K.cands=[];render();return}K.text=K.text.replace(/\S*\s*$/,"");K.fix=null;render()}
+  function fnKey(k){
+    if(k==="space"){if(K.pieces.length)commit(K.cands[0]);else{K.text+=" ";K.fix=null;render()}}
+    else if(k==="bs"){if(K.pieces.length){K.pieces.pop();recompute()}else{K.text=K.text.slice(0,-1);K.fix=null;render()}}
+    else if(k==="shift"){K.shift=!K.shift;render()}
+    else if(k==="return"){opts.onReturn?opts.onReturn(K):(K.text+="\n",render())}
+    else flash(`${k==="globe"?"Switches to the next keyboard (Apple's emoji keyboard)":"Numbers and symbols page (not drawn)"}`);
+  }
+  function flash(html){bar.innerHTML=`<div class="note">${html}</div>`;clearTimeout(K.flashT);K.flashT=setTimeout(render,1600)}
+  rowsEl.addEventListener("pointerdown",e=>{if(e.target.closest(".key")){e.preventDefault();startPiece(e.pointerId,e.clientX,e.clientY)}});
+  rowsEl.addEventListener("pointermove",e=>{if(K.active.has(e.pointerId))movePiece(e.pointerId,e.clientX,e.clientY)});
+  const up=e=>endPiece(e.pointerId);rowsEl.addEventListener("pointerup",up);rowsEl.addEventListener("pointercancel",up);
+  bar.addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;
+    if(b.dataset.c){commit(b.dataset.c)}
+    else if(b.dataset.fix){K.text=K.text.replace(/\S+\s$/,cap(b.dataset.fix)+" ");K.fix=null;render()}});
+  /* replay: synthetic pieces drawn through the same engine, so trails and decoding are the real thing */
+  function center(k){const el=root.querySelector(`.key[data-k="${k}"]`),b=el.getBoundingClientRect();return [b.left+b.width/2,b.top+b.height/2]}
+  function replay(script){
+    const base=performance.now();let pid=9000;
+    for(const piece of script){
+      const id=pid++;const [k0]=piece.keys;const pts=piece.keys.map(center);
+      setTimeout(()=>{startPiece(id,...pts[0],true);
+        if(pts.length===1){setTimeout(()=>endPiece(id),90);return}
+        const steps=18*(pts.length-1);let i=0;
+        const tick=()=>{i++;const t=i/steps*(pts.length-1),a=Math.floor(t),f=t-a;const A=pts[Math.min(a,pts.length-1)],B=pts[Math.min(a+1,pts.length-1)];
+          movePiece(id,A[0]+(B[0]-A[0])*f,A[1]+(B[1]-A[1])*f);if(i<steps)setTimeout(tick,16);else setTimeout(()=>endPiece(id),60)};
+        setTimeout(tick,16)},piece.at);
+    }
+  }
+  render();return {K,replay,commit,render,hint:(k,sd)=>root.querySelector(`.key[data-k="${k}"]`).classList.add("hint"+sd)};
+}
+const DEMO_SOMETHING=[{at:200,keys:["s"]},{at:420,keys:["o","m"]},{at:700,keys:["e"]},{at:900,keys:["t","h","i","n","g"]}];
+
+/* ---------- screens ---------- */
+let kb=null;
+const screens={
+welcome:()=>`${status()}<div class="screen" style="text-align:center">
+  <div class="spacer"></div>${penguin("awake",220,"waddle type")}
+  <h1 class="h1">Type with both thumbs.</h1>
+  <p class="sub">Tap with one, swipe with the other, mix them any way you like. Press space when the word looks right. I'm Pip, I'll show you.</p>
+  <div class="spacer"></div><button class="btn" data-go="enable">Let's go</button></div>`,
+
+enable:()=>`${status()}<div class="screen">
+  <h1 class="h1">Turn on StackWrite</h1>
+  <p class="sub">iPhone keyboards switch on in Settings. It takes three taps, and I'll know when it's done.</p>
+  <div class="steps">
+    <div>Open <b>Settings</b> › General › Keyboard</div>
+    <div>Tap <b>Keyboards</b> › Add New Keyboard</div>
+    <div>Pick <b>StackWrite</b></div>
+  </div>
+  <div class="card row" id="enableState">${S.on?`<span class="chip" style="background:var(--mint);color:#fff">On</span><span style="font-weight:700">StackWrite is on. Hold 🌐 in any app to pick it.</span>`:`<span class="chip">Not on yet</span><span class="sub" style="font-size:14px">Come back here after Settings.</span>`}</div>
+  <div class="spacer"></div>
+  <button class="btn" id="openSettings">Open Settings</button>
+  <button class="btn ghost" data-go="sync">${S.on?"Next":"I'll do it later"}</button></div>`,
+
+sync:()=>`${status()}<div class="screen">
+  <div style="text-align:center">${penguin("awake",130,"type")}</div>
+  <h1 class="h1">Keep your words everywhere</h1>
+  <p class="sub">StackWrite learns your words. With <b>Full Access</b> they sync over iCloud to your other devices, along with your settings. That is the only thing it is used for. Nothing you type is ever sent anywhere.</p>
+  <div class="steps">
+    <div>Settings › Keyboards › <b>StackWrite</b></div>
+    <div>Turn on <b>Allow Full Access</b></div>
+  </div>
+  <div class="spacer"></div>
+  <button class="btn" data-go="try">Open Settings</button>
+  <button class="btn ghost" data-go="try">Skip for now</button></div>`,
+
+try:()=>`${status()}<div class="screen haskb">
+  <div class="row"><span class="chip">Try it · word 1 of 5</span><span class="spacer"></span><button class="btn ghost" data-go="home">Skip</button></div>
+  <div class="prompt">Type this word<b>something</b></div>
+  <div class="field" id="tryField"></div>
+  <p class="sub" style="font-size:14px"><span style="color:var(--left);font-weight:900">Left thumb</span> taps <b>s</b> and <b>e</b>. <span style="color:var(--right);font-weight:900">Right thumb</span> swipes <b>o→m</b>, then <b>t→h→i→n→g</b>. Space when it says something.</p>
+  <div class="row"><button class="btn small" id="showMe">Show me</button><span class="sub" style="font-size:13px">or just try it</span></div>
+  ${kbHTML("kbTry")}</div>`,
+
+home:()=>`${status()}<div class="screen">
+  <div class="row"><h1 class="h1">Both flippers, go.</h1><span class="spacer"></span>${penguin("awake",72,"type")}</div>
+  ${S.on?"":`<div class="card row" style="background:var(--sun);color:#3A2600"><b style="flex:1">StackWrite isn't on yet.</b><button class="btn small" data-go="enable" style="background:#3A2600;color:#fff;box-shadow:none">Turn on</button></div>`}
+  <div class="scroll">
+    <div class="card" style="display:flex;flex-direction:column;gap:10px">
+      <div class="row"><b style="font-size:17px">Speed test</b><span class="spacer"></span><span class="chip">Best 47 wpm</span></div>
+      <div class="meter"><span class="sub" style="font-size:13px">Apple 31</span><div class="track"><i></i></div><span class="sub" style="font-size:13px">You 47</span></div>
+      <button class="btn small" data-go="speed" style="align-self:flex-start">Take the test</button>
+    </div>
+    <div class="card row"><div style="flex:1"><b>Pro trial</b><div class="sub" style="font-size:13px">11 days left. Two-thumb typing, gestures, layouts.</div></div><span class="pro">PRO</span></div>
+    <div class="sec">Drills</div>
+    <div class="list">
+      <div class="card row"><i style="width:28px;height:28px;border-radius:50%;background:var(--mint);color:#fff;display:grid;place-items:center;font-style:normal">✓</i><div style="flex:1"><b>Two-letter swipes</b><div class="sub" style="font-size:13px">th, in, er, on</div></div></div>
+      <button class="card row" data-go="drill" style="font:inherit;color:inherit;text-align:left;border:0;cursor:pointer;width:100%"><i style="width:28px;height:28px;border-radius:50%;background:var(--ice);display:grid;place-items:center;font-style:normal;font-weight:900">2</i><div style="flex:1"><b>Switching thumbs</b><div class="sub" style="font-size:13px">Start left, finish right</div></div><span style="color:var(--accent);font-weight:900">›</span></button>
+      <div class="card row" style="opacity:.6"><i style="width:28px;height:28px;border-radius:50%;background:var(--ice);display:grid;place-items:center;font-style:normal;font-weight:900">3</i><div style="flex:1"><b>Doubled letters</b><div class="sub" style="font-size:13px">A tap inside a swipe</div></div></div>
+    </div>
+    <div class="sec">This week</div>
+    <div class="card week">${["M","T","W","T","F","S","S"].map((d,i)=>`<div><i class="${i<4?"y":""}">${i<4?"✓":""}</i>${d}</div>`).join("")}</div>
+    <div class="card row"><div style="flex:1"><b>Settings</b><div class="sub" style="font-size:13px">Autospace, gestures, layout, sync</div></div><button class="btn ghost" data-go="prefs">Open ›</button></div>
+  </div></div>`,
+
+speed:()=>`${status()}<div class="screen haskb">
+  <div class="row"><button class="back" data-go="home">‹ Home</button><span class="spacer"></span><span class="chip">0:14</span></div>
+  <h2 class="h2">Type this</h2>
+  <p class="sub" style="font-size:19px;line-height:1.5"><span id="speedDone" style="color:var(--mint);font-weight:800"></span><span id="speedLeft">the penguin went to the store for some fish and came back with a hat</span></p>
+  <div class="field" id="speedField"></div>
+  ${kbHTML("kbSpeed")}</div>`,
+
+result:()=>`${status()}<div class="screen" style="text-align:center">
+  <div class="row"><button class="back" data-go="home">‹ Home</button></div>
+  <div class="spacer"></div>${penguin("proud",170,"run")}
+  <div class="big">52</div><div class="sub" style="font-weight:800">words per minute</div>
+  <p class="sub">3 words needed a fix. That's 21 faster than Apple's keyboard and a new best.</p>
+  <div class="card row"><span class="chip">Best 52</span><span class="chip">5 days in a row</span><span class="spacer"></span><span style="font-weight:800;color:var(--muted)">Share</span></div>
+  <div class="spacer"></div>
+  <button class="btn" data-go="speed">Again</button><button class="btn ghost" data-go="home">Done</button></div>`,
+
+drill:()=>`${status()}<div class="screen haskb">
+  <div class="row"><button class="back" data-go="home">‹ Home</button><span class="spacer"></span><span class="chip">2 of 5</span></div>
+  <h2 class="h2">Switching thumbs</h2>
+  <p class="sub" style="font-size:15px"><span style="color:var(--left);font-weight:900">Left</span> swipes <b>w→e</b>, <span style="color:var(--right);font-weight:900">right</span> swipes <b>n→t</b>. Keys light up to show which thumb.</p>
+  <div class="wordcards"><div class="done">the</div><div class="now">went</div><div>there</div><div>point</div><div>hello</div></div>
+  <div class="field" id="drillField"></div>
+  ${kbHTML("kbDrill")}</div>`,
+
+prefs:()=>`${status()}<div class="screen">
+  <div class="row"><button class="back" data-go="home">‹ Home</button></div>
+  <h1 class="h1">Settings</h1>
+  <div class="scroll">
+    <div class="sec">Typing</div>
+    <div class="list">
+      <div class="card row"><div style="flex:1"><b>Two-thumb typing</b><div class="sub" style="font-size:13px">Both thumbs build one word</div></div><span class="pro">PRO</span><span class="toggle" role="switch" aria-label="Two-thumb typing" aria-pressed="true"></span></div>
+      <div class="card row"><div style="flex:1"><b>Autospace</b><div class="sub" style="font-size:13px">Write the word after a short pause</div></div><span class="toggle" role="switch" aria-label="Autospace" aria-pressed="${S.autospace}" data-set="autospace"></span></div>
+      <div class="card row"><span class="sub" style="font-size:13px;width:60px">Quick</span><div class="slider" role="slider" aria-label="Autospace delay" aria-valuenow="0.9"></div><span class="sub" style="font-size:13px;width:60px;text-align:right">Relaxed</span></div>
+      <div class="card row"><div style="flex:1"><b>Learned words</b><div class="sub" style="font-size:13px">214 words · forget or boost from the bar</div></div><span style="color:var(--accent);font-weight:900">›</span></div>
+    </div>
+    <div class="sec">Gestures</div>
+    <div class="list">
+      <div class="card row"><div style="flex:1"><b>Slide on space</b><div class="sub" style="font-size:13px">Move the cursor</div></div><span class="sub" style="font-weight:800">By word ›</span></div>
+      <div class="card row"><div style="flex:1"><b>Swipe left on ⌫</b><div class="sub" style="font-size:13px">Delete the last word</div></div><span class="toggle" role="switch" aria-label="Swipe on backspace" aria-pressed="true"></span></div>
+      <div class="card row"><div style="flex:1"><b>Edge swipes and snippets</b><div class="sub" style="font-size:13px">Punctuation off a key's edge, hold space for a snippet</div></div><span class="pro">PRO</span><span style="color:var(--accent);font-weight:900">›</span></div>
+    </div>
+    <div class="sec">Layout</div>
+    <div class="seg" role="group" aria-label="Layout"><button aria-pressed="true">Full</button><button>Left</button><button>Right</button><button>Split <span class="pro">PRO</span></button></div>
+    <div class="sec">Look</div>
+    <div class="list">
+      <div class="card row"><div style="flex:1"><b>Theme</b><div class="sub" style="font-size:13px">Ice · more in Pro</div></div><span style="width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,var(--left),var(--right))"></span></div>
+      <div class="card row"><div style="flex:1"><b>Trails and flashes</b></div><span class="toggle" role="switch" aria-label="Trails" aria-pressed="true"></span></div>
+      <div class="card row"><div style="flex:1"><b>Haptics</b></div><span class="toggle" role="switch" aria-label="Haptics" aria-pressed="true"></span></div>
+    </div>
+    <div class="sec">Sync</div>
+    <div class="card row"><div style="flex:1"><b>iCloud sync</b><div class="sub" style="font-size:13px">${S.full?"On. Words and settings follow you.":"Needs Full Access in Settings."}</div></div>${S.full?`<span class="chip" style="background:var(--mint);color:#fff">On</span>`:`<button class="btn small" data-go="sync">Turn on</button>`}</div>
+    <div class="card row" style="margin-top:4px"><div style="flex:1"><b>StackWrite Pro</b><div class="sub" style="font-size:13px">Trial · 11 days left</div></div><button class="btn small" data-go="pro">See Pro</button></div>
+  </div></div>`,
+
+pro:()=>`${status()}<div class="screen" style="text-align:center">
+  <div class="row"><button class="back" data-go="home">‹ Back</button></div>
+  ${penguin("proud",140,"hop")}
+  <h1 class="h1">StackWrite Pro</h1>
+  <p class="sub">The fast keyboard, all of it.</p>
+  <div class="card" style="display:flex;flex-direction:column;gap:10px;text-align:left">
+    <div class="perk"><i>✓</i>Two-thumb typing: taps and swipes from both thumbs</div>
+    <div class="perk"><i>✓</i>Snippets, shortcuts and edge swipes</div>
+    <div class="perk"><i>✓</i>Split and one-handed layouts</div>
+    <div class="perk"><i>✓</i>Drills, history, themes and Pip's outfits</div>
+  </div>
+  <div class="list">
+    <button class="card price" aria-pressed="${S.plan==="year"}" data-plan="year"><div><b>Yearly</b><span>2 months free</span></div><span class="amt">$19.99</span></button>
+    <button class="card price" aria-pressed="${S.plan==="month"}" data-plan="month"><div><b>Monthly</b><span>Cancel anytime</span></div><span class="amt">$2.99</span></button>
+  </div>
+  <div class="spacer"></div>
+  <button class="btn" data-go="home">Start 14 days free</button>
+  <p class="sub" style="font-size:12px">Then ${S.plan==="year"?"$19.99 a year":"$2.99 a month"}. Renews automatically, cancel anytime. Prices are placeholders.</p></div>`,
+
+trialover:()=>`${status()}<div class="screen" style="text-align:center">
+  <div class="spacer"></div>${penguin("sleep",170)}
+  <h1 class="h1">Your trial ended</h1>
+  <p class="sub">Two-thumb typing, gestures and layouts are resting. The keyboard still works with taps and one-finger swipes, and your learned words are safe.</p>
+  <div class="card" style="text-align:left"><div class="perk"><i>✓</i>You typed 52 words per minute on the test, 21 faster than Apple's.</div></div>
+  <div class="spacer"></div>
+  <button class="btn" data-go="pro">Keep two-thumb typing</button>
+  <button class="btn ghost" data-go="home">Stay on the free keyboard</button></div>`,
+
+messages:()=>`${status()}<div class="screen haskb" style="gap:8px">
+  <div class="row" style="justify-content:center"><span class="chip">Larissa</span></div>
+  <div class="convo">
+    <div class="bub">Dinner at 7?</div>
+    <div class="bub me">Yes! Leaving the office now</div>
+    <div class="bub">How long will you be?</div>
+  </div>
+  <div class="compose"><div class="field" id="msgField"></div><button class="btn small" style="border-radius:50%;width:44px;height:44px;padding:0;flex:none">↑</button></div>
+  ${kbHTML("kbMsg")}</div>`,
+
+free:()=>`${status()}<div class="screen haskb" style="gap:8px">
+  <div class="row" style="justify-content:center"><span class="chip">Notes</span></div>
+  <div class="convo"><p class="sub" style="font-size:14px">Free keyboard: taps and one-finger swipes. A second thumb shows a gentle nudge to Pro instead of typing.</p></div>
+  <div class="field" id="freeField" style="flex:1"></div>
+  ${kbHTML("kbFree")}</div>`
+};
+
+/* ---------- navigation ---------- */
+function go(name,push=true){
+  if(!screens[name])name="welcome";
+  phone.innerHTML=screens[name]();
+  picker.querySelectorAll("[data-go]").forEach(b=>b.setAttribute("aria-current",b.dataset.go===name));
+  if(push)try{if(location.hash!=="#"+name)history.replaceState(null,"",location.pathname+location.search+"#"+name)}catch(e){}
+  after[name]&&after[name]();
+}
+const after={
+  enable(){document.getElementById("openSettings").onclick=()=>{S.on=true;go("enable",false);confetti()}},
+  try(){kb=mountKB("kbTry",{field:"#tryField",autoCap:false,note:"Tap or swipe. Space writes the word.",onCommit:(w)=>{if(w==="something"){confetti();setTimeout(()=>go("home"),1400)}}});
+    document.getElementById("showMe").onclick=()=>kb.replay(DEMO_SOMETHING);setTimeout(()=>kb&&kb.replay(DEMO_SOMETHING),900)},
+  speed(){const target="the penguin went to the store for some fish and came back with a hat".split(" ");let i=0;
+    kb=mountKB("kbSpeed",{field:"#speedField",note:"Go!",onCommit:(w)=>{if(w===target[i]){i++;document.getElementById("speedDone").textContent=target.slice(0,i).join(" ")+" ";document.getElementById("speedLeft").textContent=target.slice(i).join(" ");if(i===target.length)go("result")}
+      else document.getElementById("speedField").classList.add("shake"),setTimeout(()=>document.getElementById("speedField").classList.remove("shake"),400)}})},
+  drill(){kb=mountKB("kbDrill",{field:"#drillField",note:"Left w→e, right n→t",onCommit:(w)=>{if(w==="went")confetti()}});kb.hint("w","L");kb.hint("e","L");kb.hint("n","R");kb.hint("t","R")},
+  messages(){kb=mountKB("kbMsg",{field:"#msgField",text:"About twenty ",autoCap:true,note:"Both thumbs, one word"});kb.K.fix=["twenty","twenty","twelve"];kb.render()},
+  free(){kb=mountKB("kbFree",{field:"#freeField",text:"Free mode ",autoCap:true,free:true,note:"One finger at a time"})},
+  pro(){phone.querySelectorAll("[data-plan]").forEach(b=>b.onclick=()=>{S.plan=b.dataset.plan;go("pro",false)})},
+  prefs(){phone.querySelectorAll(".toggle[data-set]").forEach(t=>t.onclick=()=>{S[t.dataset.set]=!S[t.dataset.set];t.setAttribute("aria-pressed",S[t.dataset.set])})},
+  result(){confetti()}
+};
+function confetti(){for(let i=0;i<18;i++){const f=document.createElement("div");f.className="fish";f.style.left=Math.random()*360+"px";f.style.background=["var(--left)","var(--right)","var(--sun)","var(--mint)"][i%4];f.style.borderRadius="50% 0 50% 0";f.style.animationDelay=Math.random()*.6+"s";phone.appendChild(f);setTimeout(()=>f.remove(),3000)}}
+document.addEventListener("click",e=>{const b=e.target.closest("[data-go]");if(b){go(b.dataset.go)}});
+document.querySelectorAll(".themes button").forEach(b=>b.onclick=()=>{const t=b.dataset.theme;if(t)document.documentElement.setAttribute("data-theme",t);else document.documentElement.removeAttribute("data-theme");document.querySelectorAll(".themes button").forEach(x=>x.setAttribute("aria-pressed",x===b))});
+document.querySelector('.themes button[data-theme=""]').setAttribute("aria-pressed","true");
+window.addEventListener("hashchange",()=>go(location.hash.slice(1),false));
+go((location.hash||"#welcome").slice(1),false);
+</script>

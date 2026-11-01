@@ -107,9 +107,9 @@ const sidePeb=(b,w)=>`<path d="M100 40 C138 40 156 74 156 116 C156 162 134 188 1
 
 const ARCHR="M50 96 A50 50 0 0 1 150 96 V152 Q150 188 114 188 H86 Q50 188 50 152 Z";
 const SOFT="M100 46 C128 46 150 68 150 98 C151 122 156 146 152 164 C147 183 128 190 100 190 C72 190 53 183 48 164 C44 146 49 122 50 98 C50 68 72 46 100 46Z";
-const sideArchR=(b,w)=>`<path d="M54 92 A46 46 0 0 1 146 92 V152 Q146 188 112 188 H88 Q54 188 54 152 Z" fill="${b}"/><path d="M86 156 V140 A26 26 0 0 1 138 140 V156 Q138 178 118 178 H106 Q86 178 86 156 Z" fill="${w}"/><circle cx="112" cy="88" r="10" fill="${w}"/><path d="M145 84 L171 94 L145 104Z" fill="${BEAK}"/>`;
+const sideArchR=(b,w)=>`<path d="M54 92 A46 46 0 0 1 146 92 V152 Q146 188 112 188 H88 Q54 188 54 152 Z" fill="${b}"/><path d="M84 156 V140 A27 26 0 0 1 138 140 V156 Q138 178 118 178 H104 Q84 178 84 156 Z" fill="${w}"/><circle cx="112" cy="88" r="10" fill="${w}"/><path d="M145 84 L171 94 L145 104Z" fill="${BEAK}"/>`;
 const sideArchD=(b,w)=>`<path d="M54 92 A46 46 0 0 1 146 92 V170 Q146 188 128 188 H72 Q54 188 54 170 Z" fill="${b}"/><path d="M74 188 V140 A26 26 0 0 1 126 140 V188 Z" fill="${w}"/><path d="M90 188 V176 A10 10 0 0 1 110 176 V188 Z" fill="${b}"/><circle cx="112" cy="88" r="10" fill="${w}"/><path d="M145 84 L171 94 L145 104Z" fill="${BEAK}"/>`;
-const sideSoft=(b,w)=>`<path d="M100 46 C126 46 146 66 146 96 C147 120 151 146 147 164 C142 182 124 189 100 189 C76 189 58 182 53 164 C49 146 53 120 54 96 C54 66 74 46 100 46Z" fill="${b}"/><path d="M86 156 V140 A26 26 0 0 1 138 140 V156 Q138 178 118 178 H106 Q86 178 86 156 Z" fill="${w}"/><circle cx="112" cy="88" r="10" fill="${w}"/><path d="M145 84 L171 94 L145 104Z" fill="${BEAK}"/>`;
+const sideSoft=(b,w)=>`<path d="M100 46 C126 46 146 66 146 96 C147 120 151 146 147 164 C142 182 124 189 100 189 C76 189 58 182 53 164 C49 146 53 120 54 96 C54 66 74 46 100 46Z" fill="${b}"/><path d="M84 156 V140 A27 26 0 0 1 138 140 V156 Q138 178 118 178 H104 Q84 178 84 156 Z" fill="${w}"/><circle cx="112" cy="88" r="10" fill="${w}"/><path d="M145 84 L171 94 L145 104Z" fill="${BEAK}"/>`;
 const ARCHD="M50 96 A50 50 0 0 1 150 96 V170 Q150 188 132 188 H68 Q50 188 50 170 Z";
 const OPTIONS=[
 {id:"1",name:"Logo arch",side:sideArch,
@@ -123,7 +123,7 @@ const OPTIONS=[
  about:"The same arch, but the bottom corners are rounded off, so it sits like a soft toy instead of a block. The belly window follows the curve, with no leg notch.",
  good:"Still clearly the logo shape, but friendlier. Small change, big softness.",watch:"Top and sides stay straight, so it's still more 'logo' than 'plush'.",
  draw:(m,b="var(--peng)",w="#fff",icon)=>wrap(m,`${wings(b,m,"M57 103 C42 115 36 140 40 161 C49 156 56 142 60 127 Z",56,106)}
-  <path d="${ARCHR}" fill="${b}"/><path d="M70 160 V140 A30 30 0 0 1 130 140 V160 Q130 182 108 182 H92 Q70 182 70 160 Z" fill="${w}"/>
+  <path d="${ARCHR}" fill="${b}"/><path d="M67 160 V140 A33 30 0 0 1 133 140 V160 Q133 182 110 182 H90 Q67 182 67 160 Z" fill="${w}"/>
   <g style="--bd:${b}">${darkEyes(m,82,118,90)}</g>${frontBeak(m,104)}
   ${icon?"":`<circle cx="66" cy="110" r="6" fill="${CHEEK}" opacity=".85"/><circle cx="134" cy="110" r="6" fill="${CHEEK}" opacity=".85"/>${feet(190)}`}`,sq)},
 {id:"2",name:"Rounded bottom, legs to the edge",side:sideArchD,

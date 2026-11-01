@@ -27,7 +27,16 @@ public struct Composer: Sendable {
         public var autoCapitalize = true
         /// How many guesses the bar shows.
         public var guessCount = 3
+        /// Both thumbs may type at once (Pro, PRODUCT.md §6). Off, a second finger down
+        /// while one is still on the keys does nothing but a `.notice`.
+        public var twoThumbs = true
         public init() {}
+    }
+
+    /// A line the bar shows for a moment (DESIGN.md "Free mode").
+    public enum Notice: Sendable, Equatable {
+        /// A second thumb landed on the free keyboard: "Two thumbs is in Astrotype Pro".
+        case twoThumbsIsPro
     }
 
     /// What the bar above the keys shows (DESIGN.md "The keyboard").
@@ -61,6 +70,8 @@ public struct Composer: Sendable {
         /// A word pecked out letter by letter that the keyboard did not know went in:
         /// the host adds it to the learned words (and keeps them).
         case learn(String)
+        /// Something to say in the bar for a moment; nothing changed in the field.
+        case notice(Notice)
     }
 
     public struct State: Sendable, Equatable {
@@ -139,6 +150,9 @@ public struct Composer: Sendable {
     /// through `press` when the finger lifts.
     public mutating func touchDown(id: Int, at point: CGPoint, time: TimeInterval) -> [Effect] {
         guard let letter = layout.key(at: point)?.character else { return [] }
+        // Free mode: one active thumb at a time. The second touch is not a piece and
+        // does not disturb the first; the bar says why (DESIGN.md "Free mode").
+        if !settings.twoThumbs, !open.isEmpty { return [.notice(.twoThumbsIsPro)] }
         var effects: [Effect] = []
         if pieces.isEmpty, open.isEmpty {
             // A new word: its case is decided now, and one-shot shift is spent.

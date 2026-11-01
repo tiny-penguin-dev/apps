@@ -75,6 +75,12 @@ final class KeyboardSession: NSObject, UITextViewDelegate {
         if model.keyboardSettings != settings { model.keyboardSettings = settings }
     }
 
+    /// Pro or the trial changed: the practice keyboard follows (free mode and all).
+    /// Compared by status, since the app's entitlement carries a fresh clock each time.
+    func apply(entitlement: Entitlement) {
+        if model.entitlement.status != entitlement.status { model.entitlement = entitlement }
+    }
+
     func textViewDidChange(_ textView: UITextView) {
         model.contextChanged()
     }

@@ -1,0 +1,42 @@
+{
+  "groups": [
+    {
+      "name": "Astrotype Pro",
+      "localizations": {
+        "en-US": {
+          "name": "Astrotype Pro"
+        }
+      },
+      "subscriptions": [
+        {
+          "productId": "com.tinypenguin.astrotype.pro.yearly",
+          "name": "Pro Yearly",
+          "period": "ONE_YEAR",
+          "level": 1,
+          "familySharable": false,
+          "price": "19.99",
+          "localizations": {
+            "en-US": {
+              "name": "Pro Yearly",
+              "description": "Two-thumb typing, layouts, drills and more"
+            }
+          }
+        },
+        {
+          "productId": "com.tinypenguin.astrotype.pro.monthly",
+          "name": "Pro Monthly",
+          "period": "ONE_MONTH",
+          "level": 2,
+          "familySharable": false,
+          "price": "2.99",
+          "localizations": {
+            "en-US": {
+              "name": "Pro Monthly",
+              "description": "Two-thumb typing, layouts, drills and more"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

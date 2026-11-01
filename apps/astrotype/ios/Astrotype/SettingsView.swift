@@ -1,14 +1,18 @@
 import AstrotypeCore
 import AstrotypeUI
+import StoreKit
 import SwiftUI
 
-/// DESIGN.md screen 9, the rows that exist so far: typing and the learned words,
-/// gestures, layout, look, the keyboard's status, sync, privacy and the version.
-/// Two-thumb typing and Pro come with their phases.
+/// DESIGN.md screen 9: typing (two thumbs, autospace, the learned words), gestures,
+/// layout, look, the keyboard's status, sync, Pro, privacy and the version. Pro rows
+/// carry the PRO badge and lead to the Pro screen when the trial is over.
 struct SettingsView: View {
     @Bindable var model: AppModel
     @Binding var path: [HomeView.Route]
     @State private var shareUsage = Telemetry.isEnabled
+    @State private var managing = false
+    @State private var restoring = false
+    @State private var restoreNote: String?
 
     var body: some View {
         ScrollView {
@@ -16,6 +20,15 @@ struct SettingsView: View {
                 Text("Settings").font(.sw(.title)).padding(.top, Theme.Space.s)
 
                 SectionLabel("Typing")
+                Row("Two-thumb typing", subtitle: model.entitlement.allows(.twoThumbs)
+                    ? "On. Taps and swipes from both thumbs, mixed in one word."
+                    : "In Astrotype Pro. One finger at a time until then.") {
+                    if model.entitlement.allows(.twoThumbs) {
+                        ProBadge()
+                    } else {
+                        Button("See Pro") { path.append(.pro) }.buttonStyle(.small)
+                    }
+                }
                 Row("Autospace", subtitle: "Write a swiped word after a short pause") {
                     Toggle("Autospace", isOn: $model.keyboardSettings.autospace).labelsHidden().tint(Theme.mint)
                 }
@@ -47,13 +60,27 @@ struct SettingsView: View {
                 SectionLabel("Layout").padding(.top, Theme.Space.s)
                 Card {
                     VStack(alignment: .leading, spacing: Theme.Space.s) {
+                        HStack {
+                            Text("Layout on wide screens").font(.system(.body, design: .rounded, weight: .bold))
+                            Spacer()
+                            ProBadge()
+                        }
                         Picker("Layout on wide screens", selection: $model.keyboardSettings.splitOnWide) {
                             Text("Full").tag(false)
                             Text("Split").tag(true)
                         }
                         .pickerStyle(.segmented)
-                        Text("On the iPhone Duo's inner screen: one keyboard across, or a half under each thumb.")
-                            .font(.sw(.small)).foregroundStyle(Theme.muted)
+                        .disabled(!model.entitlement.allows(.splitLayout))
+                        if model.entitlement.allows(.splitLayout) {
+                            Text("On the iPhone Duo's inner screen: one keyboard across, or a half under each thumb.")
+                                .font(.sw(.small)).foregroundStyle(Theme.muted)
+                        } else {
+                            HStack {
+                                Text("Split is in Astrotype Pro.").font(.sw(.small)).foregroundStyle(Theme.muted)
+                                Spacer()
+                                Button("See Pro") { path.append(.pro) }.buttonStyle(.small)
+                            }
+                        }
                     }
                 }
 
@@ -85,6 +112,22 @@ struct SettingsView: View {
                 Text("With Full Access, the keyboard follows these settings and your words sync over iCloud. Without it, the keyboard in other apps keeps its own settings, under a held 123.")
                     .font(.sw(.small)).foregroundStyle(Theme.muted).padding(.horizontal, Theme.Space.xs)
 
+                SectionLabel("Astrotype Pro").padding(.top, Theme.Space.s)
+                Row("Astrotype Pro", subtitle: proSubtitle) {
+                    if model.isSubscribed {
+                        Button("Manage") { managing = true }.buttonStyle(.small)
+                    } else {
+                        Button("See Pro") { path.append(.pro) }.buttonStyle(.small)
+                    }
+                }
+                Row("Restore purchases", subtitle: restoreNote ?? "Bought Pro on another device, or before a reinstall? Bring it here.") {
+                    if restoring {
+                        ProgressView().tint(Theme.accent)
+                    } else {
+                        Button("Restore") { restore() }.buttonStyle(.small)
+                    }
+                }
+
                 SectionLabel("Privacy").padding(.top, Theme.Space.s)
                 Row("Share anonymous usage data", subtitle: "Crash reports and counts like how many people turn the keyboard on. Never anything you type.") {
                     Toggle("Share anonymous usage data", isOn: $shareUsage).labelsHidden().tint(Theme.mint)
@@ -107,9 +150,34 @@ struct SettingsView: View {
         .foregroundStyle(Theme.ink)
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
+        .manageSubscriptionsSheet(isPresented: $managing)
         .onAppear {
             model.refreshKeyboardStatus()
             model.reloadWords()
+        }
+    }
+
+    private var proSubtitle: String {
+        switch model.proStatus {
+        case .pro: return "On. Both thumbs, every layout, every drill."
+        case .trial:
+            let days = model.trial.daysLeft(now: model.now)
+            return "Trial · \(days) day\(days == 1 ? "" : "s") left. $19.99 a year or $2.99 a month after."
+        case .free: return "The trial is over. Two-thumb typing, split layouts and drills are in Pro."
+        }
+    }
+
+    private func restore() {
+        restoring = true
+        restoreNote = nil
+        Task { @MainActor in
+            do {
+                let found = try await model.restorePurchases()
+                restoreNote = found ? "Found it. You're Pro." : "No Pro subscription on this Apple Account."
+            } catch {
+                restoreNote = "I couldn't reach the App Store. Try again in a moment."
+            }
+            restoring = false
         }
     }
 

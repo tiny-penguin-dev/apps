@@ -4,13 +4,16 @@ import UIKit
 
 /// The keyboard extension: the shared `KeyboardView` typing into the text document
 /// proxy through the engine. Words and settings live in the extension's own container
-/// and, with Full Access, in the App Group and iCloud too (BUILD.md "Data"). The bar's
-/// idle note still carries the Phase 1 checks (StoreKit, memory, Full Access) while
-/// the phases are measured on a phone.
+/// and, with Full Access, in the App Group and iCloud too (BUILD.md "Data"). Pro is
+/// read from StoreKit right here (`EntitlementController`), with the trial counted
+/// from the app's first launch when the App Group is readable, else from this
+/// extension's own first run. `Flags.extensionReadout` puts the Phase 1 readings in
+/// the bar for measuring on a phone.
 final class KeyboardViewController: UIInputViewController {
     private var keyboard: KeyboardView?
     private var target: ProxyTarget?
     private var sync: SyncController?
+    private var entitlement: EntitlementController?
     private var heightConstraint: NSLayoutConstraint?
     private let checks = ExtensionChecks()
     private var edits = 0
@@ -43,10 +46,28 @@ final class KeyboardViewController: UIInputViewController {
         self.keyboard = keyboard
 
         if fullAccess { startSync(model: model) }
+        startEntitlement(model: model, fullAccess: fullAccess)
 
-        checks.run(hasFullAccess: fullAccess) { [weak keyboard] note in
-            keyboard?.bar.note = note
+        if Flags.extensionReadout {
+            keyboard.usesDefaultNote = false
+            checks.run(hasFullAccess: fullAccess) { [weak keyboard] note in
+                keyboard?.bar.note = note
+            }
         }
+    }
+
+    /// Pro from StoreKit, the trial from the earliest start we can see: the app's (in
+    /// the App Group, with Full Access) or this extension's own first run.
+    private func startEntitlement(model: KeyboardModel, fullAccess: Bool) {
+        let now = Date()
+        let own = TrialStore(url: KeyboardFiles.own(KeyboardFiles.trial))
+        let shared = fullAccess ? KeyboardFiles.shared(KeyboardFiles.trial).flatMap { TrialStore(url: $0).load() } : nil
+        let trial = TrialStore.earliest(shared, own.loadOrStart(now: now)) ?? Trial(start: now)
+        if let shared, shared.start < (own.load()?.start ?? .distantFuture) { own.save(shared) }
+        let controller = EntitlementController(model: model, store: StoreKitProStore(),
+                                               cache: ProCache(url: KeyboardFiles.own(KeyboardFiles.pro)), trial: trial)
+        controller.start()
+        entitlement = controller
     }
 
     /// The extension's own files, which it can always write, mirrored to the App Group's

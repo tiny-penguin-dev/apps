@@ -19,6 +19,8 @@ public struct AppState: Codable, Sendable, Equatable {
     public var practiceDays: [String] = []
     /// The app version that last ran; a new one backs the data up first (`Backup`).
     public var lastRunVersion: String?
+    /// The Trial over sheet was shown (once, on the first launch after the trial ended).
+    public var trialOverShown = false
 
     public init() {}
 
@@ -31,6 +33,7 @@ public struct AppState: Codable, Sendable, Equatable {
         fullAccessAsked = try c.decodeIfPresent(Bool.self, forKey: .fullAccessAsked) ?? false
         practiceDays = try c.decodeIfPresent([String].self, forKey: .practiceDays) ?? []
         lastRunVersion = try c.decodeIfPresent(String.self, forKey: .lastRunVersion)
+        trialOverShown = try c.decodeIfPresent(Bool.self, forKey: .trialOverShown) ?? false
     }
 
     /// A day as "2026-11-01" in `calendar`'s time zone, the key `practiceDays` uses.

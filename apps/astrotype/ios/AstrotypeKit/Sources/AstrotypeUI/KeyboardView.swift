@@ -50,6 +50,11 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         bar.onForget = { [weak self] index in self?.model.forget(guess: index) }
         model.onChange = { [weak self] in self?.render() }
         model.onHaptic = { [weak self] haptic in self?.play(haptic) }
+        model.onNotice = { [weak self] notice in
+            switch notice {
+            case .twoThumbsIsPro: self?.bar.flash("Two thumbs is in Astrotype Pro")
+            }
+        }
         keyHaptic.prepare()
         render()
     }
@@ -73,7 +78,7 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         super.layoutSubviews()
         let width = bounds.width
         guard width > 0 else { return }
-        let split = model.keyboardSettings.splitOnWide
+        let split = model.splitOnWide
         let natural = Layout.qwerty(width: width, split: split)
         let room = bounds.height - Self.barHeight
         let fitted: CGFloat? = room > 0 && room < natural.height ? room : nil
@@ -95,16 +100,23 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
     }
 
     private func pageLayout(width: CGFloat, maxHeight: CGFloat?) -> Layout {
-        Layout.qwerty(width: width, page: page, split: model.keyboardSettings.splitOnWide, maxHeight: maxHeight)
+        Layout.qwerty(width: width, page: page, split: model.splitOnWide, maxHeight: maxHeight)
     }
+
+    /// What the bar says when idle, unless the host set its own note.
+    public var usesDefaultNote = true
 
     private func render() {
         bar.bar = model.state.bar
+        if usesDefaultNote {
+            bar.note = model.entitlement.allows(.twoThumbs) ? "Both thumbs, one word" : "One finger at a time"
+        }
         surface.shifted = model.state.isShifted
         surface.showsTrails = model.keyboardSettings.trails
         surface.spaceSlideEnabled = model.keyboardSettings.spaceSlide
         surface.backspaceSwipeEnabled = model.keyboardSettings.backspaceSwipe
-        if model.layout.split != (model.keyboardSettings.splitOnWide && model.layout.isWide) { setNeedsLayout() }
+        panel?.allowsSplit = model.entitlement.allows(.splitLayout)
+        if model.layout.split != (model.splitOnWide && model.layout.isWide) { setNeedsLayout() }
     }
 
     private func play(_ haptic: Composer.Haptic) {
@@ -123,6 +135,7 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
     public func showSettings() {
         guard panel == nil else { return }
         let panel = SettingsPanelView(settings: model.keyboardSettings)
+        panel.allowsSplit = model.entitlement.allows(.splitLayout)
         panel.onChange = { [weak self] settings in self?.model.keyboardSettings = settings }
         panel.onDone = { [weak self] in self?.hideSettings() }
         panel.frame = surface.frame

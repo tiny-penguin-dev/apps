@@ -4,8 +4,8 @@ import AstrotypeCore
 
 /// The app's state and the only thing its views talk to (docs/building.md §4): which
 /// screen is up, how far setup got, whether the keyboard is on, the settings the
-/// practice field types with, the learned words and their sync, and the counts that
-/// go to telemetry.
+/// practice field types with, the learned words and their sync, where the person
+/// stands with Pro, and the counts that go to telemetry.
 @MainActor
 @Observable
 final class AppModel {
@@ -45,12 +45,22 @@ final class AppModel {
     private(set) var syncState: SyncState = .needsFullAccess
     private var syncFailureCounted = false
 
+    /// The App Store's last answer: an active Astrotype Pro subscription.
+    private(set) var isSubscribed = false
+    /// The App Store has answered at least once this run (the cached answer is not
+    /// enough to say a trial is over).
+    private(set) var proChecked = false
+    private var proListener: Task<Void, Never>?
+
     @ObservationIgnored private let environment: AppEnvironment
 
     init(environment: AppEnvironment) {
         self.environment = environment
         var state = environment.appStateStore.load() ?? AppState()
-        if state.firstLaunch == nil { state.firstLaunch = environment.now() }
+        if state.firstLaunch == nil {
+            state.firstLaunch = environment.now()
+            environment.metrics.count("trial.started")
+        }
         // The v1 app kept its own flag; people who finished that setup skip this one.
         if !state.onboardingDone, UserDefaults.standard.bool(forKey: "onboarding.done") { state.onboardingDone = true }
         // A new version backs the data up before it reads or writes any of it.
@@ -63,12 +73,22 @@ final class AppModel {
         self.keyboardSettings = environment.settingsStore.load() ?? KeyboardSettings()
         self.learnedWords = environment.wordStore.load() ?? LearnedWords()
         environment.appStateStore.save(state)
+        shareTrial()
         refreshKeyboardStatus()
     }
 
     var now: Date { environment.now() }
 
     var trial: Trial { Trial(start: state.firstLaunch ?? now) }
+
+    /// Writes the trial's start where the keyboard extension reads it (the App Group,
+    /// with Full Access), keeping the earlier start if the extension wrote one first.
+    private func shareTrial() {
+        guard let store = environment.trialStore else { return }
+        let mine = trial
+        if let saved = store.load(), saved.start <= mine.start { return }
+        store.save(mine)
+    }
 
     var week: Week { Week(practiceDays: state.practiceDays, now: now) }
 
@@ -140,6 +160,60 @@ final class AppModel {
             }
         }
         screen = .home
+    }
+
+    // MARK: Pro
+
+    /// Where the person stands: subscribed, on the trial, or on the free keyboard.
+    var proStatus: ProStatus { ProStatus.from(subscribed: isSubscribed, trial: trial, now: now) }
+
+    /// What the person may use, for the practice keyboard and the Pro rows.
+    var entitlement: Entitlement { Entitlement(status: proStatus, now: now) }
+
+    /// The Trial over sheet is due: the App Store has answered, there is no
+    /// subscription, the trial has ended, and the sheet has not been shown yet.
+    var trialOverDue: Bool {
+        proChecked && !isSubscribed && state.onboardingDone && trial.isOver(now: now) && !state.trialOverShown
+    }
+
+    /// Asks the App Store once and then follows every change (a purchase, a renewal, a
+    /// refund, a purchase on another device). Call at launch.
+    func startPro() {
+        guard proListener == nil else { return }
+        let changes = environment.proStore.changes()
+        proListener = Task { [weak self] in
+            await self?.refreshPro()
+            for await _ in changes {
+                await self?.refreshPro()
+            }
+        }
+    }
+
+    /// One fresh answer from the App Store.
+    func refreshPro() async {
+        let subscribed = await environment.proStore.isPro()
+        isSubscribed = subscribed
+        proChecked = true
+    }
+
+    /// A subscription was just bought on the Pro screen; counted as `pro.subscribed`.
+    func subscribed(to productID: String) {
+        environment.metrics.count("pro.subscribed", ["plan": ProProducts.plan(of: productID)])
+        Task { await refreshPro() }
+    }
+
+    /// "Restore purchases": asks the App Store for this Apple Account's purchases.
+    /// Returns whether Pro was found.
+    func restorePurchases() async throws -> Bool {
+        try await environment.proStore.restore()
+        await refreshPro()
+        return isSubscribed
+    }
+
+    /// The Trial over sheet was seen: it does not come back.
+    func trialOverSeen() {
+        guard !state.trialOverShown else { return }
+        state.trialOverShown = true
     }
 
     // MARK: Practice

@@ -1,8 +1,8 @@
 import Foundation
 
-/// The two-week Pro trial that starts on first launch (PRODUCT.md §6). Phase 6 adds the
-/// subscription itself; until then this only tells Home how many days are left.
-public struct Trial: Sendable, Equatable {
+/// The two-week Pro trial that starts on first launch (PRODUCT.md §6). `ProStatus.from`
+/// turns it and the App Store's answer into what the person may use (`Entitlement`).
+public struct Trial: Codable, Sendable, Equatable {
     public static let days = 14
 
     public var start: Date

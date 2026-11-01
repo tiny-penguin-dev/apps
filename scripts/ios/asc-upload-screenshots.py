@@ -22,10 +22,8 @@ import os
 import struct
 import sys
 import time
-import urllib.parse
-import urllib.request
 
-from asc import call, find, get_all, run
+from asc import call, find, get_all, run, upload_parts
 
 # Screenshot size (short side, long side) -> App Store Connect display type.
 DISPLAY_TYPES = {
@@ -169,14 +167,7 @@ def upload(set_id, name, path, md5):
             }
         },
     )["data"]
-    # Apple says where to send each part of the file; those URLs take no API token.
-    for op in shot["attributes"]["uploadOperations"]:
-        part = data[op["offset"] : op["offset"] + op["length"]]
-        req = urllib.request.Request(op["url"], data=part, method=op["method"])
-        for header in op.get("requestHeaders", []):
-            req.add_header(header["name"], header["value"])
-        with urllib.request.urlopen(req) as resp:
-            resp.read()
+    upload_parts(shot["attributes"]["uploadOperations"], data)
     call(
         "PATCH",
         f"/appScreenshots/{shot['id']}",

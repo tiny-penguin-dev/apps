@@ -353,11 +353,14 @@ subscription), `TrialOverView` (once, from Home, `AppState.trialOverShown`), the
 on Home by status, Settings' Two-thumb typing row, the Pro section (See Pro or Manage,
 Restore purchases). Metrics: `trial.started` when `firstLaunch` is first set,
 `pro.subscribed` with `plan` after a purchase on the Pro screen. Local testing:
-`Config/Astrotype.storekit` (the two plans, no offers) is on the scheme. Still to do by
-hand before this phase can be tried in TestFlight: create the subscription group
-"Astrotype Pro" in App Store Connect with `com.tinypenguin.astrotype.pro.yearly`
-($19.99 a year) and `com.tinypenguin.astrotype.pro.monthly` ($2.99 a month), both
-without an introductory offer, and a sandbox tester to buy with. The bar's Phase 1
+`Config/Astrotype.storekit` (the two plans, no offers) is on the scheme. The App Store
+products come from `store/subscriptions.json` (the group "Astrotype Pro",
+`com.tinypenguin.astrotype.pro.yearly` at $19.99 a year and
+`com.tinypenguin.astrotype.pro.monthly` at $2.99 a month, no introductory offer), which
+the App Store workflow creates in App Store Connect when it lands on main
+(docs/ios-release.md "Subscriptions"). Still by hand: the Paid Apps agreement if it is
+not signed yet, a sandbox tester to buy with, and the App Review screenshot for the
+plans before they are submitted with a version. The bar's Phase 1
 readout (`Flags.extensionReadout`) stays on for now while the wide-screen layout is
 being checked on a phone; it goes off in Phase 8.
 

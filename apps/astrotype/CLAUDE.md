@@ -79,6 +79,8 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
     `Info.plist`, `Astrotype.entitlements` and `AstrotypeKeyboard.entitlements` (the
     App Group and the iCloud container, shared by both targets),
     `testflight.json`. Keep the two `MARKETING_VERSION`s equal.
+- `store/`: the App Store listing kept in the repo (`subscriptions.json`, the Pro
+  plans; screenshots later), synced by `.github/workflows/app-store.yml`.
 - `ml/`: the v1 Python training loop (see `ml/README.md`), still used for the opt-in
   practice-session uploads planned in Phase 7.
 - `design/`: the mockup (`mockups/astrotype.html`, the keyboard in it works) and

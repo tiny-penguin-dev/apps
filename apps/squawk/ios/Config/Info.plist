@@ -6,5 +6,8 @@
 	<!-- Sentry DSN, filled in at build time. See docs/telemetry.md. -->
 	<key>SentryDSN</key>
 	<string>$(SENTRY_DSN)</string>
+	<!-- AlarmKit asks for permission with this text. -->
+	<key>NSAlarmKitUsageDescription</key>
+	<string>Squawk rings on your lock screen, even on silent or in Focus.</string>
 </dict>
 </plist>

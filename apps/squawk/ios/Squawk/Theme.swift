@@ -20,6 +20,11 @@ enum Theme {
 }
 
 extension Color {
+    /// A color from a 0xRRGGBB number.
+    init(hex: UInt32) {
+        self.init(uiColor: UIColor(hex: hex))
+    }
+
     /// A color that switches between two 0xRRGGBB values for light and dark mode.
     init(light: UInt32, dark: UInt32) {
         self.init(uiColor: UIColor { traits in

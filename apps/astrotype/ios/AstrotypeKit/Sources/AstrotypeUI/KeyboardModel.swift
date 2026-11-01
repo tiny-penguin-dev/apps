@@ -39,6 +39,19 @@ public final class KeyboardModel {
     public var onWordsChange: ((LearnedWords) -> Void)?
     /// The settings changed here (the panel, or the app's Settings).
     public var onSettingsChange: ((KeyboardSettings) -> Void)?
+    /// The bar should say this for a moment (a second thumb on the free keyboard).
+    public var onNotice: ((Composer.Notice) -> Void)?
+    /// What the person may use (`Entitlement`): the host sets it from the App Store
+    /// and the trial. Everything is allowed until it does.
+    public var entitlement: Entitlement = .full {
+        didSet {
+            guard entitlement != oldValue else { return }
+            composer.settings.twoThumbs = entitlement.allows(.twoThumbs)
+            onChange?()
+        }
+    }
+    /// Whether the keys split on a wide screen: the setting, and Pro allows it.
+    public var splitOnWide: Bool { keyboardSettings.splitOnWide && entitlement.allows(.splitLayout) }
     /// The person's keyboard settings; saved to `store` on every change.
     public var keyboardSettings: KeyboardSettings {
         didSet {
@@ -214,6 +227,8 @@ public final class KeyboardModel {
                 composer.learned = words
                 wordStore?.save(words)
                 onWordsChange?(words)
+            case .notice(let notice):
+                onNotice?(notice)
             }
         }
         composer.setContext(before: target?.textBeforeCursor)

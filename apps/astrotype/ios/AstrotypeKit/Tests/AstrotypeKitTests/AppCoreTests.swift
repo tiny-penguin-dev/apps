@@ -8,6 +8,7 @@ import Testing
         state.firstLaunch = Date(timeIntervalSince1970: 1_700_000_000)
         state.onboardingDone = true
         state.practiceDays = ["2026-11-01"]
+        state.trialOverShown = true
         let data = try JSONEncoder().encode(state)
         #expect(try JSONDecoder().decode(AppState.self, from: data) == state)
         // A version with fewer keys still reads, with defaults for the rest.
@@ -16,6 +17,7 @@ import Testing
         #expect(read.onboardingDone)
         #expect(read.firstLaunch == nil)
         #expect(read.practiceDays.isEmpty)
+        #expect(!read.trialOverShown)
     }
 
     @Test func practiceDaysAreKeptOncePerDay() {

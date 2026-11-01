@@ -16,6 +16,11 @@ struct AppEnvironment {
     var keyboardStatus: KeyboardStatusReading
     /// What the keyboard extension last wrote for us (Full Access, its last sync).
     var extensionStatus: ExtensionStatusReading
+    /// Whether this Apple Account has Astrotype Pro (StoreKit).
+    var proStore: ProStore
+    /// Where the trial's start is written for the keyboard extension to read (the App
+    /// Group); nil in tests.
+    var trialStore: TrialStore?
     var metrics: Metrics
     var now: () -> Date
     var appVersion: String
@@ -32,6 +37,8 @@ struct AppEnvironment {
             cloudSync: CloudKitSync(),
             keyboardStatus: UserDefaultsKeyboardStatus(),
             extensionStatus: KeyboardFiles.shared(KeyboardFiles.status).map { FileExtensionStatusStore(url: $0) as ExtensionStatusReading } ?? FakeExtensionStatus(),
+            proStore: StoreKitProStore(),
+            trialStore: TrialStore(url: dataFile(KeyboardFiles.trial)),
             metrics: LiveMetrics(),
             now: { Date() },
             appVersion: DeviceInfo.appVersion,
@@ -68,6 +75,8 @@ struct AppEnvironment {
         cloudSync: CloudSync? = nil,
         keyboardStatus: KeyboardStatusReading = FakeKeyboardStatus(),
         extensionStatus: ExtensionStatusReading = FakeExtensionStatus(),
+        proStore: ProStore = MemoryProStore(),
+        trialStore: TrialStore? = nil,
         metrics: Metrics = RecordingMetrics(),
         now: @escaping () -> Date = { Date(timeIntervalSince1970: 1_793_491_200) },
         appVersion: String = "0.2.0",
@@ -75,7 +84,8 @@ struct AppEnvironment {
         openSettings: @escaping () -> Void = {}
     ) -> AppEnvironment {
         AppEnvironment(appStateStore: appStateStore, settingsStore: settingsStore, wordStore: wordStore, cloudSync: cloudSync,
-                       keyboardStatus: keyboardStatus, extensionStatus: extensionStatus, metrics: metrics, now: now,
+                       keyboardStatus: keyboardStatus, extensionStatus: extensionStatus, proStore: proStore,
+                       trialStore: trialStore, metrics: metrics, now: now,
                        appVersion: appVersion, backup: backup, openSettings: openSettings)
     }
 }

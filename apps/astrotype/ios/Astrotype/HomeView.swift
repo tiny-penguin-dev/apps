@@ -2,15 +2,16 @@ import AstrotypeCore
 import AstrotypeUI
 import SwiftUI
 
-/// DESIGN.md screen 5: "Both flippers, go." The speed test and trial on the left,
-/// drills, the week and Settings on the right; one column on a phone, two on the wide
-/// size. A sun-yellow banner leads back to setup while the keyboard is off.
+/// DESIGN.md screen 5: "Both flippers, go." The speed test and the Pro row on the
+/// left, drills, the week and Settings on the right; one column on a phone, two on the
+/// wide size. A sun-yellow banner leads back to setup while the keyboard is off. The
+/// Trial over sheet comes up here once, on the first launch after the trial ends.
 struct HomeView: View {
     var model: AppModel
     @State private var path: [Route] = []
 
     enum Route: Hashable {
-        case practice, settings, learnedWords, turnOn, sync
+        case practice, settings, learnedWords, turnOn, sync, pro
     }
 
     var body: some View {
@@ -49,10 +50,19 @@ struct HomeView: View {
                 case .learnedWords: LearnedWordsView(model: model)
                 case .turnOn: TurnOnView(model: model, inSetup: false)
                 case .sync: SyncView(model: model, inSetup: false)
+                case .pro: ProView(model: model)
                 }
+            }
+            .sheet(isPresented: trialOverShowing) {
+                TrialOverView(model: model) { path.append(.pro) }
             }
         }
         .tint(Theme.accent)
+    }
+
+    /// The Trial over sheet is up while it is due; closing it marks it seen.
+    private var trialOverShowing: Binding<Bool> {
+        Binding(get: { model.trialOverDue }, set: { if !$0 { model.trialOverSeen() } })
     }
 
     private func header(wide: Bool) -> some View {
@@ -81,13 +91,30 @@ struct HomeView: View {
                         .buttonStyle(.small)
                 }
             }
-            let days = model.trial.daysLeft(now: model.now)
-            Row("Pro trial", subtitle: days > 0
-                ? "\(days) day\(days == 1 ? "" : "s") left. Two-thumb typing, gestures, layouts."
-                : "Over. Two-thumb typing keeps working until Astrotype Pro arrives.") {
-                ProBadge()
+            proRow
+        }
+    }
+
+    /// Where the person stands with Pro; opens the Pro screen.
+    private var proRow: some View {
+        Button { path.append(.pro) } label: {
+            switch model.proStatus {
+            case .trial:
+                let days = model.trial.daysLeft(now: model.now)
+                Row("Pro trial", subtitle: "\(days) day\(days == 1 ? "" : "s") left. Two-thumb typing, gestures, layouts.") {
+                    ProBadge()
+                }
+            case .free:
+                Row("Astrotype Pro", subtitle: "Two-thumb typing is resting. Keep it from $2.99 a month.") {
+                    Text("See Pro ›").font(.system(.subheadline, design: .rounded, weight: .heavy)).foregroundStyle(Theme.muted)
+                }
+            case .pro:
+                Row("Astrotype Pro", subtitle: "You're Pro. Both thumbs, every layout, every drill.") {
+                    Chip("On", tint: Theme.mint)
+                }
             }
         }
+        .buttonStyle(.plain)
     }
 
     private var rightColumn: some View {

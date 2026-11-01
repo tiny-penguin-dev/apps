@@ -20,6 +20,8 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
     real services are named; `LiveMetrics` on `Telemetry`), `Onboarding/`
     (`TurnOnView`, `SyncView`, `TryItView`, and `SetupPage`, their shared shape),
     `HelloView`, `HomeView`, `SettingsView`, `LearnedWordsView`, `PracticeView`,
+    `ProView` (the subscription screen, StoreKit's `SubscriptionStoreView`),
+    `TrialOverView` (the sheet, once),
     `Keyboard/KeyboardSession` (a text view whose input view is the shared keyboard,
     with Try it's replay),
     `Telemetry.swift` (Sentry, see `docs/telemetry.md`), `PrivacyInfo.xcprivacy`.
@@ -28,9 +30,11 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
   - `AstrotypeKeyboard/`: the keyboard extension (`com.tinypenguin.astrotype.keyboard`).
     `KeyboardViewController` hosts the shared `KeyboardView`, types through
     `ProxyTarget` (the text document proxy), picks the stores (own files, mirrored to
-    the App Group with Full Access) and, with Full Access, writes `ExtensionStatus`
-    and runs a `SyncController`. `ExtensionChecks` is Phase 1 only: it writes the
-    StoreKit and memory readings into the bar's idle note.
+    the App Group with Full Access), starts an `EntitlementController` (Pro from
+    StoreKit, the trial from the App Group or its own first run) and, with Full
+    Access, writes `ExtensionStatus` and runs a `SyncController`. `ExtensionChecks`
+    writes the StoreKit, memory and size readings into the bar's idle note while
+    `Flags.extensionReadout` is on.
   - `AstrotypeKit/`: the local package, three targets:
     - `AstrotypeCore`: Core and Services. `Layout` (key geometry), `Lexicon` (the
       trie, built from `Resources/lexicon.tsv`), `Flags`, and `Engine/`: `Composer`
@@ -43,7 +47,10 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
       (`SyncSnapshot`, the protocol, `Syncer`'s fetch-merge-write round, the fake),
       `CloudKitSync` (the live one), `ExtensionStatus`, `Backup`. `App/` holds the
       app's own Core and Services:
-      `AppState` and `AppStateStore`, `Trial`, `KeyboardStatus` (is the keyboard on),
+      `AppState` and `AppStateStore`, `Trial`, `Entitlement` (`ProFeature`,
+      `ProStatus`, `Entitlement`, the one place Pro is checked; `ProProducts`,
+      `ProStore` with `MemoryProStore`, `TrialStore` and `ProCache` as files),
+      `StoreKitProStore` (the live `ProStore`), `KeyboardStatus` (is the keyboard on),
       `Metrics` (protocol; the app's live one is `Telemetry`), `TryWord` (the Try it
       words and their strokes), `Week`. `Handwriting/` holds the v1 engine (`Features`, `PhraseDecoder`, `Recognizer`,
       `Recording`, `StrokeSample`). Foundation only; tests run on Linux.
@@ -54,17 +61,21 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
       hold), `SettingsPanelView`, `KeyboardModel` (applies the composer's effects to a
       `TextTarget`, runs the autospace timer, keeps the settings and the learned words,
       learns, boosts and forgets; `TextViewTarget` for a `UITextView`),
-      `SyncController` (a model's words and settings in step with a `CloudSync`).
+      `SyncController` (a model's words and settings in step with a `CloudSync`),
+      `EntitlementController` (a model's entitlement in step with a `ProStore` and
+      the trial, for the extension).
       UIKit and SwiftUI, guarded
       with `#if canImport(UIKit)` so `swift test` still builds the package on macOS.
     - `AstrotypeKitTests`: Swift Testing. `ComposerTests`, `MatcherTests` (the 50-word
       fixture in `Fixtures/swipes.json`, through `Synth`'s straight-line swipes),
       `GeometryTests`, `LayoutTests`, `KeyboardSettingsTests`, `AppCoreTests` (the
-      `App/` pieces), `SyncTests` (stores, snapshots, `Syncer`, `Backup`), and
+      `App/` pieces), `ProTests` (`Entitlement`, the trial and Pro files, the memory
+      store), `SyncTests` (stores, snapshots, `Syncer`, `Backup`), and
       `GoldenTests` replaying
       `ml/export/golden.json` for the v1 engine.
   - `Config/`: `Astrotype.xcconfig` (bundle ID, version, `SENTRY_DSN`),
     `AstrotypeKeyboard.xcconfig` and `AstrotypeKeyboard-Info.plist` (the extension),
+    `Astrotype.storekit` (the two Pro plans for local testing, on the scheme),
     `Info.plist`, `Astrotype.entitlements` and `AstrotypeKeyboard.entitlements` (the
     App Group and the iCloud container, shared by both targets),
     `testflight.json`. Keep the two `MARKETING_VERSION`s equal.

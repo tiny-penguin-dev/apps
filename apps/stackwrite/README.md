@@ -30,7 +30,7 @@ test, build.
 ## Layout
 
 ```
-PRODUCT.md the v2 product definition (two-thumb typing), DESIGN.md its design; BUILD.md follows once approved
+PRODUCT.md the v2 product definition (two-thumb typing), DESIGN.md its design, BUILD.md the build plan
 BRIEF.md   v1 build plan, plus the exact contracts the Swift code must match
 SAMPLES.md the recorded-sample format shared by the app and the training scripts
 CLAUDE.md  how to work on this app

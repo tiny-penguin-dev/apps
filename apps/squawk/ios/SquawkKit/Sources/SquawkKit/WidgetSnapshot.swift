@@ -90,7 +90,10 @@ public struct WidgetSnapshotStore: Sendable {
     /// Saves it, and returns true when it changed (so the widget only reloads then).
     @discardableResult
     public func save(_ snapshot: WidgetSnapshot) -> Bool {
-        guard let defaults, let data = try? JSONEncoder().encode(snapshot) else { return false }
+        // Sorted keys, so the same snapshot always encodes to the same bytes.
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        guard let defaults, let data = try? encoder.encode(snapshot) else { return false }
         if defaults.data(forKey: Self.key) == data { return false }
         defaults.set(data, forKey: Self.key)
         return true

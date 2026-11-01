@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		5A0000000000000000000082 /* PenguinKit in Frameworks */ = {isa = PBXBuildFile; productRef = 5A0000000000000000000081 /* PenguinKit */; };
+		5A0000000000000000000090 /* Sentry in Frameworks */ = {isa = PBXBuildFile; productRef = 5A0000000000000000000092 /* Sentry */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -27,6 +28,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				5A0000000000000000000082 /* PenguinKit in Frameworks */,
+				5A0000000000000000000090 /* Sentry in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -81,6 +83,7 @@
 			name = Squawk;
 			packageProductDependencies = (
 				5A0000000000000000000081 /* PenguinKit */,
+				5A0000000000000000000092 /* Sentry */,
 			);
 			productName = Squawk;
 			productReference = 5A0000000000000000000010 /* Squawk.app */;
@@ -112,6 +115,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				5A0000000000000000000080 /* XCLocalSwiftPackageReference "PenguinKit" */,
+				5A0000000000000000000091 /* XCRemoteSwiftPackageReference "sentry-cocoa" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 5A0000000000000000000002 /* Products */;
@@ -202,10 +206,26 @@
 		};
 /* End XCLocalSwiftPackageReference section */
 
+/* Begin XCRemoteSwiftPackageReference section */
+		5A0000000000000000000091 /* XCRemoteSwiftPackageReference "sentry-cocoa" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/getsentry/sentry-cocoa";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 9.32.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
 /* Begin XCSwiftPackageProductDependency section */
 		5A0000000000000000000081 /* PenguinKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = PenguinKit;
+		};
+		5A0000000000000000000092 /* Sentry */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 5A0000000000000000000091 /* XCRemoteSwiftPackageReference "sentry-cocoa" */;
+			productName = Sentry;
 		};
 /* End XCSwiftPackageProductDependency section */
 

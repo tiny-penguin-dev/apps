@@ -5,7 +5,7 @@ public enum Flags {
     public static let handwritingPad = false
     /// The Phase 1 readout in the keyboard's bar (StoreKit, memory left, granted and
     /// wanted height, width against the screen, Full Access), for measuring on a phone.
-    /// On while the wide-screen layout is being checked (1 Nov 2026); off before the
-    /// store, so the bar says what the design says.
-    public static let extensionReadout = true
+    /// Off since Phase 8, so the bar says what the design says; turn it on for a build
+    /// that measures.
+    public static let extensionReadout = false
 }

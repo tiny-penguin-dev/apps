@@ -10,7 +10,7 @@ import UIKit
 public enum Theme {
     /// A colour with a light and a dark value (0xRRGGBB).
     public enum Tone: CaseIterable, Sendable {
-        case bg, card, ink, muted, line, accent, accentInk, left, right, sun, sunInk, mint, ice, key, keyDark, keyInk, kb
+        case bg, card, ink, muted, line, accent, accentInk, left, right, sun, sunInk, mint, ice, key, keyDark, keyInk, kb, keyPressed
 
         var values: (light: UInt32, dark: UInt32) {
             switch self {
@@ -31,6 +31,7 @@ public enum Theme {
             case .keyDark: (0xC9D6DE, 0x1C2834)
             case .keyInk: (0x1E2945, 0xEEF4F8)
             case .kb: (0xDCE6EC, 0x131E29)
+            case .keyPressed: (0xE4EDF2, 0x3B4D5F)
             }
         }
     }
@@ -62,10 +63,12 @@ public enum Theme {
     public static let keyDark = Color(uiColor: ui(.keyDark))
     public static let kb = Color(uiColor: ui(.kb))
 
-    /// Type: SF Pro Rounded everywhere. The app's styles follow Dynamic Type; the key
-    /// face is fixed because the keyboard's size is what thumbs learned.
+    /// Type: SF Pro Rounded everywhere. The app's styles follow Dynamic Type (the big
+    /// number and the wide title through `bigNumberFont()` and `displayTitleFont()`,
+    /// up to a cap); the key face is fixed because the keyboard's size is what thumbs
+    /// learned.
     public enum TextStyle: Sendable {
-        case title, heading, body, small, big, key
+        case title, heading, body, small, key
     }
 
     public static func font(_ style: TextStyle) -> Font {
@@ -74,7 +77,6 @@ public enum Theme {
         case .heading: .system(.title3, design: .rounded, weight: .heavy)
         case .body: .system(.body, design: .rounded)
         case .small: .system(.footnote, design: .rounded, weight: .semibold)
-        case .big: .system(size: 64, weight: .black, design: .rounded).monospacedDigit()
         case .key: .system(size: 21, weight: .bold, design: .rounded)
         }
     }
@@ -84,6 +86,13 @@ public enum Theme {
         let base = UIFont.systemFont(ofSize: size, weight: weight)
         guard let descriptor = base.fontDescriptor.withDesign(.rounded) else { return base }
         return UIFont(descriptor: descriptor, size: size)
+    }
+
+    /// Rounded type that follows the person's text size like `style` does, from `size`
+    /// at the default setting up to `maximum` (the bar's text scales one step; the big
+    /// numbers further).
+    public static func uiFont(size: CGFloat, weight: UIFont.Weight, scaledWith style: UIFont.TextStyle, upTo maximum: CGFloat) -> UIFont {
+        UIFontMetrics(forTextStyle: style).scaledFont(for: uiFont(size: size, weight: weight), maximumPointSize: maximum)
     }
 
     public enum Space {
@@ -103,9 +112,12 @@ public enum Theme {
     }
 
     public enum Motion {
-        /// Buttons, toggles and screens: a small overshoot.
+        /// Buttons, toggles and screens: a small overshoot. Under Reduce Motion the
+        /// same change happens without the bounce (`spring(reduceMotion:)`).
         public static let spring = Animation.spring(duration: 0.35, bounce: 0.35)
         public static let quickSpring = Animation.spring(duration: 0.25, bounce: 0.5)
+        public static func spring(reduceMotion: Bool) -> Animation { reduceMotion ? .easeInOut(duration: 0.2) : spring }
+        public static func quickSpring(reduceMotion: Bool) -> Animation { reduceMotion ? .easeInOut(duration: 0.15) : quickSpring }
         /// How long a swipe's trail takes to fade after lift.
         public static let trailFade: TimeInterval = 1.2
         /// How long a tap's ring takes to ping out.
@@ -116,8 +128,41 @@ public enum Theme {
 }
 
 public extension Font {
-    /// A Astrotype text style, like `.font(.sw(.title))`.
+    /// An Astrotype text style, like `.font(.sw(.title))`.
     static func sw(_ style: Theme.TextStyle) -> Font { Theme.font(style) }
+}
+
+/// Rounded type at a fixed design size that still follows the person's text size, up
+/// to a cap, for the sizes the text styles do not have.
+public struct ScaledRoundedFont: ViewModifier {
+    @ScaledMetric private var size: CGFloat
+    private let weight: Font.Weight
+    private let maximum: CGFloat
+    private let monospacedDigits: Bool
+
+    public init(size: CGFloat, weight: Font.Weight, relativeTo style: Font.TextStyle, upTo maximum: CGFloat, monospacedDigits: Bool = false) {
+        _size = ScaledMetric(wrappedValue: size, relativeTo: style)
+        self.weight = weight
+        self.maximum = maximum
+        self.monospacedDigits = monospacedDigits
+    }
+
+    public func body(content: Content) -> some View {
+        let font = Font.system(size: min(size, maximum), weight: weight, design: .rounded)
+        content.font(monospacedDigits ? font.monospacedDigit() : font)
+    }
+}
+
+public extension View {
+    /// The result screen's number: 64 pt, scaling to 96 at the largest text sizes.
+    func bigNumberFont() -> some View {
+        modifier(ScaledRoundedFont(size: 64, weight: .black, relativeTo: .largeTitle, upTo: 96, monospacedDigits: true))
+    }
+
+    /// The wide size's title: 36 pt, scaling to 48.
+    func displayTitleFont() -> some View {
+        modifier(ScaledRoundedFont(size: 36, weight: .black, relativeTo: .largeTitle, upTo: 48))
+    }
 }
 
 public extension UIColor {

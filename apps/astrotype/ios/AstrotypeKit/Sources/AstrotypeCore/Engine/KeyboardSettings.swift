@@ -16,8 +16,11 @@ public struct KeyboardSettings: Codable, Sendable, Equatable {
     public var autospace = true
     /// How long that pause is, 0.1 to 1.5 s.
     public var autospaceDelay: TimeInterval = 0.9
-    /// Draw swipe trails and tap rings.
+    /// Draw swipe trails, tap rings and key flashes. Off is the battery saver.
     public var trails = true
+    /// A soft tap on each key and a firmer one on each word, where the host allows it
+    /// (the extension needs Full Access for haptics).
+    public var haptics = true
     /// A slide on the space bar moves the cursor.
     public var spaceSlide = true
     /// A swipe left on backspace deletes the last word.
@@ -34,6 +37,7 @@ public struct KeyboardSettings: Codable, Sendable, Equatable {
         autospace = try c.decodeIfPresent(Bool.self, forKey: .autospace) ?? true
         autospaceDelay = try c.decodeIfPresent(TimeInterval.self, forKey: .autospaceDelay) ?? 0.9
         trails = try c.decodeIfPresent(Bool.self, forKey: .trails) ?? true
+        haptics = try c.decodeIfPresent(Bool.self, forKey: .haptics) ?? true
         spaceSlide = try c.decodeIfPresent(Bool.self, forKey: .spaceSlide) ?? true
         backspaceSwipe = try c.decodeIfPresent(Bool.self, forKey: .backspaceSwipe) ?? true
         splitOnWide = try c.decodeIfPresent(Bool.self, forKey: .splitOnWide) ?? false

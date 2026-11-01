@@ -39,6 +39,9 @@ final class KeyboardViewController: UIInputViewController {
         keyboard.backgroundColor = .clear
         keyboard.bar.backgroundColor = .clear
         keyboard.surface.backgroundColor = .clear
+        // Haptics do nothing in an extension without Full Access (Phase 1), so the
+        // generators are not even prepared then.
+        keyboard.hapticsAvailable = fullAccess
         keyboard.onSystemKey = { [weak self] key in
             if key == .globe { self?.advanceToNextInputMode() }
         }

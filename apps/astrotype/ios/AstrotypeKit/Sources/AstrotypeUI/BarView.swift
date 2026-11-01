@@ -58,14 +58,18 @@ public final class BarView: UIView {
         super.init(frame: frame)
         backgroundColor = Theme.ui(.kb)
 
-        label.font = Theme.uiFont(size: 13, weight: .bold)
+        // The bar's text scales one step with the person's text size (DESIGN.md
+        // "Accessibility"); the keys do not.
+        label.font = Theme.uiFont(size: 13, weight: .bold, scaledWith: .footnote, upTo: 15)
+        label.adjustsFontForContentSizeCategory = true
         label.textColor = Theme.ui(.muted)
         label.textAlignment = .center
         label.adjustsFontSizeToFitWidth = true
         label.minimumScaleFactor = 0.7
         addSubview(label)
 
-        fixLabel.font = Theme.uiFont(size: 11, weight: .black)
+        fixLabel.font = Theme.uiFont(size: 11, weight: .black, scaledWith: .caption2, upTo: 13)
+        fixLabel.adjustsFontForContentSizeCategory = true
         fixLabel.textColor = Theme.ui(.accent)
         fixLabel.text = "FIX"
         fixLabel.accessibilityLabel = "Fix the last word"
@@ -77,7 +81,14 @@ public final class BarView: UIView {
         stack.spacing = Theme.Space.s
         stack.accessibilityLabel = "Suggestions"
         addSubview(stack)
+        registerForTraitChanges([UITraitPreferredContentSizeCategory.self]) { (self: BarView, _: UITraitCollection) in
+            self.render()
+        }
         render()
+    }
+
+    private func guessFont(chosen: Bool) -> UIFont {
+        Theme.uiFont(size: 16, weight: chosen ? .bold : .semibold, scaledWith: .body, upTo: 18)
     }
 
     public required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
@@ -137,7 +148,7 @@ public final class BarView: UIView {
         config.background.cornerRadius = 16
         config.background.backgroundColor = chosen ? Theme.ui(.card) : .clear
         config.attributedTitle = AttributedString(word, attributes: AttributeContainer([
-            .font: Theme.uiFont(size: 16, weight: chosen ? .bold : .semibold),
+            .font: guessFont(chosen: chosen),
             .foregroundColor: Theme.ui(chosen ? .ink : .muted),
         ]))
         let button = UIButton(configuration: config)
@@ -214,7 +225,7 @@ public final class BarView: UIView {
         }
         config.background.backgroundColor = background
         config.attributedTitle = AttributedString(button.accessibilityLabel ?? "", attributes: AttributeContainer([
-            .font: Theme.uiFont(size: 16, weight: chosen ? .bold : .semibold),
+            .font: guessFont(chosen: chosen),
             .foregroundColor: ink,
         ]))
         button.configuration = config

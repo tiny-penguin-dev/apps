@@ -11,6 +11,7 @@ import SwiftUI
 struct ProView: View {
     var model: AppModel
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         Group {
@@ -21,7 +22,7 @@ struct ProView: View {
                 store
             }
         }
-        .animation(Theme.Motion.spring, value: model.isSubscribed)
+        .animation(Theme.Motion.spring(reduceMotion: reduceMotion), value: model.isSubscribed)
         .foregroundStyle(Theme.ink)
         .tint(Theme.accent)
         .navigationBarTitleDisplayMode(.inline)

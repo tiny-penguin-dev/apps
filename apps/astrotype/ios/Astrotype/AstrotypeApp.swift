@@ -43,9 +43,15 @@ struct AstrotypeApp: App {
     }
 }
 
-/// Setup (DESIGN.md "First launch"), then Home.
+/// Setup (DESIGN.md "First launch"), then Home. Screens slide in with a small
+/// overshoot, or fade under Reduce Motion.
 struct RootView: View {
     var model: AppModel
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private var slide: AnyTransition {
+        reduceMotion ? .opacity : .asymmetric(insertion: .move(edge: .trailing), removal: .move(edge: .leading))
+    }
 
     var body: some View {
         ZStack {
@@ -55,18 +61,18 @@ struct RootView: View {
                     .transition(.opacity)
             case .turnOn:
                 TurnOnView(model: model, inSetup: true)
-                    .transition(.asymmetric(insertion: .move(edge: .trailing), removal: .move(edge: .leading)))
+                    .transition(slide)
             case .sync:
                 SyncView(model: model, inSetup: true)
-                    .transition(.asymmetric(insertion: .move(edge: .trailing), removal: .move(edge: .leading)))
+                    .transition(slide)
             case .tryIt:
                 TryItView(model: model)
-                    .transition(.asymmetric(insertion: .move(edge: .trailing), removal: .opacity))
+                    .transition(reduceMotion ? .opacity : .asymmetric(insertion: .move(edge: .trailing), removal: .opacity))
             case .home:
                 HomeView(model: model)
                     .transition(.opacity)
             }
         }
-        .animation(Theme.Motion.spring, value: model.screen)
+        .animation(Theme.Motion.spring(reduceMotion: reduceMotion), value: model.screen)
     }
 }

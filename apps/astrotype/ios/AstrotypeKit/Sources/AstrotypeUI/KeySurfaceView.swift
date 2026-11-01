@@ -40,7 +40,10 @@ public final class KeySurfaceView: UIView {
 
     /// Draw letters as capitals.
     public var shifted = false {
-        didSet { keyViews.values.forEach { $0.forEach { $0.shifted = shifted } } }
+        didSet {
+            keyViews.values.forEach { $0.forEach { $0.shifted = shifted } }
+            refreshAccessibilityLabels()
+        }
     }
 
     /// What the space bar says when idle.
@@ -50,6 +53,9 @@ public final class KeySurfaceView: UIView {
 
     /// Draw swipe trails and tap rings.
     public var showsTrails = true
+    /// Flash a hit key in the thumb's colour. Off with the trails (the battery saver,
+    /// DESIGN.md "Motion"): a hit key just darkens, like Apple's.
+    public var showsFlashes = true
     /// Keys outlined in a thumb's colour (a drill's next word, DESIGN.md screen 8).
     public var hints: [Key: Side] = [:] {
         didSet { applyHints() }
@@ -86,6 +92,8 @@ public final class KeySurfaceView: UIView {
     private var active: [ObjectIdentifier: Active] = [:]
     private var nextID = 1
     private let effects = CALayer()
+    /// One VoiceOver element per key (see `rebuildAccessibility`).
+    private var keyElements: [KeyElement] = []
 
     public override init(frame: CGRect) {
         super.init(frame: frame)
@@ -120,6 +128,69 @@ public final class KeySurfaceView: UIView {
         layer.addSublayer(effects)
         invalidateIntrinsicContentSize()
         applyHints()
+        rebuildAccessibility()
+    }
+
+    // MARK: VoiceOver
+
+    /// VoiceOver reads the keyboard like Apple's (DESIGN.md "Accessibility"): one
+    /// element per key, touch to hear it, lift (touch typing) or double-tap to type it.
+    /// Swipe typing is off then; a letter goes through the engine as a tap at the key's
+    /// centre, so the bar still builds the word. Trails and flashes carry nothing
+    /// VoiceOver needs, so they are layers, not elements.
+    private func rebuildAccessibility() {
+        isAccessibilityElement = false
+        keyElements = layout.placements.map { placement in
+            let element = KeyElement(container: self, key: placement.key)
+            element.accessibilityFrameInContainerSpace = placement.frame
+            element.accessibilityTraits = .keyboardKey
+            let centre = CGPoint(x: placement.frame.midX, y: placement.frame.midY)
+            element.onActivate = { [weak self] in self?.activate(placement.key, at: centre) }
+            return element
+        }
+        refreshAccessibilityLabels()
+        accessibilityElements = keyElements
+    }
+
+    private func refreshAccessibilityLabels() {
+        for element in keyElements {
+            element.accessibilityLabel = spokenName(of: element.key)
+        }
+    }
+
+    private func spokenName(of key: Key) -> String {
+        switch key {
+        case .letter(let c): shifted ? "capital \(c)" : String(c)
+        case .symbol(let c): String(c)
+        case .shift: shifted ? "Shift, on" : "Shift"
+        case .backspace: "Delete"
+        case .numbers: "Numbers"
+        case .symbols: "More symbols"
+        case .letters: "Letters"
+        case .globe: "Next keyboard"
+        case .space: "Space"
+        case .returnKey: "Return"
+        }
+    }
+
+    /// VoiceOver activated a key: a letter is a tap for the engine, the rest the tap
+    /// they are.
+    private func activate(_ key: Key, at point: CGPoint) {
+        let side = layout.side(at: point)
+        flash(key, side: side)
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .milliseconds(120))
+            self?.unflash(key)
+        }
+        if key.character != nil {
+            let id = nextID
+            nextID += 1
+            let now = ProcessInfo.processInfo.systemUptime
+            delegate?.keySurface(self, touchBegan: id, at: point, time: now)
+            delegate?.keySurface(self, touchEnded: id, at: point, time: now + 0.05)
+        } else {
+            delegate?.keySurface(self, didTap: key, side: side)
+        }
     }
 
     private func applyHints() {
@@ -175,6 +246,8 @@ public final class KeySurfaceView: UIView {
             guard var touchState = active[oid] else { continue }
             let point = touch.location(in: self)
             if touchState.isLetter {
+                // No swipe typing under VoiceOver: the touch types the key it landed on.
+                if UIAccessibility.isVoiceOverRunning { continue }
                 let now = layout.key(at: point)
                 if now != touchState.key {
                     if let was = touchState.key { unflash(was) }
@@ -218,7 +291,7 @@ public final class KeySurfaceView: UIView {
         for touch in touches {
             guard let touchState = active.removeValue(forKey: ObjectIdentifier(touch)) else { continue }
             touchState.hold?.cancel()
-            let point = touch.location(in: self)
+            let point = touchState.isLetter && UIAccessibility.isVoiceOverRunning ? touchState.startPoint : touch.location(in: self)
             if let key = touchState.key { unflash(key) }
             if touchState.isLetter {
                 if showsTrails { finish(touchState, at: point) }
@@ -330,7 +403,7 @@ public final class KeySurfaceView: UIView {
     }
 
     private func flash(_ key: Key, side: Side) {
-        keyViews[key]?.forEach { $0.flash(side: side) }
+        keyViews[key]?.forEach { showsFlashes ? $0.flash(side: side) : $0.press() }
     }
 
     private func unflash(_ key: Key) {
@@ -357,7 +430,28 @@ public final class KeySurfaceView: UIView {
         touchState.trail?.path = path.cgPath
     }
 
+    /// After lift: the trail fades, or a tap's ring pings out. Under Reduce Motion the
+    /// trail stays for the same time and then just goes (it says which keys the swipe
+    /// hit), and the ring shows still, no growing.
     private func finish(_ touchState: Active, at point: CGPoint) {
+        if UIAccessibility.isReduceMotionEnabled {
+            let layer: CALayer
+            let seconds: TimeInterval
+            if let trail = touchState.trail {
+                layer = trail
+                seconds = Theme.Motion.trailFade
+            } else {
+                layer = makeRing(at: point, side: touchState.side)
+                layer.transform = CATransform3DMakeScale(1.2, 1.2, 1)
+                effects.addSublayer(layer)
+                seconds = Theme.Motion.tapRing
+            }
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(seconds))
+                layer.removeFromSuperlayer()
+            }
+            return
+        }
         if let trail = touchState.trail {
             let fade = CABasicAnimation(keyPath: "opacity")
             fade.fromValue = 0.85
@@ -370,14 +464,7 @@ public final class KeySurfaceView: UIView {
             trail.add(fade, forKey: "fade")
             CATransaction.commit()
         } else {
-            let ring = CAShapeLayer()
-            let radius: CGFloat = 14
-            ring.bounds = CGRect(x: 0, y: 0, width: 2 * radius, height: 2 * radius)
-            ring.position = point
-            ring.path = UIBezierPath(ovalIn: ring.bounds).cgPath
-            ring.fillColor = nil
-            ring.strokeColor = Theme.ui(touchState.side == .left ? .left : .right).cgColor
-            ring.lineWidth = 2
+            let ring = makeRing(at: point, side: touchState.side)
             effects.addSublayer(ring)
             let grow = CABasicAnimation(keyPath: "transform.scale")
             grow.fromValue = 0.5
@@ -395,6 +482,34 @@ public final class KeySurfaceView: UIView {
             ring.add(group, forKey: "ping")
             CATransaction.commit()
         }
+    }
+
+    private func makeRing(at point: CGPoint, side: Side) -> CAShapeLayer {
+        let ring = CAShapeLayer()
+        let radius: CGFloat = 14
+        ring.bounds = CGRect(x: 0, y: 0, width: 2 * radius, height: 2 * radius)
+        ring.position = point
+        ring.path = UIBezierPath(ovalIn: ring.bounds).cgPath
+        ring.fillColor = nil
+        ring.strokeColor = Theme.ui(side == .left ? .left : .right).cgColor
+        ring.lineWidth = 2
+        return ring
+    }
+}
+
+/// A key as VoiceOver sees it.
+final class KeyElement: UIAccessibilityElement {
+    let key: Key
+    var onActivate: (() -> Void)?
+
+    init(container: UIView, key: Key) {
+        self.key = key
+        super.init(accessibilityContainer: container)
+    }
+
+    override func accessibilityActivate() -> Bool {
+        onActivate?()
+        return true
     }
 }
 
@@ -458,12 +573,19 @@ final class KeyView: UIView {
         }
     }
 
+    /// The thumb's colour and a 6% pop; no pop under Reduce Motion.
     func flash(side: Side) {
         backgroundColor = Theme.ui(side == .left ? .left : .right)
         label.textColor = .white
+        guard !UIAccessibility.isReduceMotionEnabled else { return }
         UIView.animate(withDuration: Theme.Motion.keyHit, delay: 0, usingSpringWithDamping: 0.6, initialSpringVelocity: 0) {
             self.transform = CGAffineTransform(scaleX: 1.06, y: 1.06)
         }
+    }
+
+    /// The quiet press, with flashes off: the key darkens a shade.
+    func press() {
+        backgroundColor = Theme.ui(.keyPressed)
     }
 
     func unflash() {

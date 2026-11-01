@@ -152,9 +152,38 @@ public enum RingColor: String, Codable, CaseIterable, Sendable {
     }
 }
 
-/// Something you must do to fully turn off the alarm.
-public enum WakeUpCheck: String, Codable, CaseIterable, Sendable {
-    case tag, code, game
+/// Something you must do to fully turn off the alarm (PRODUCT.md 5.5). New kinds are
+/// new `Kind` cases.
+public struct WakeUpCheck: Codable, Identifiable, Hashable, Sendable {
+    public enum Kind: String, Codable, CaseIterable, Identifiable, Sendable {
+        /// Tap the phone on an NFC sticker.
+        case tag
+        /// Scan a QR code or barcode.
+        case code
+        /// Count the penguins.
+        case game
+
+        public var id: String { rawValue }
+    }
+
+    public var id: UUID
+    public var kind: Kind
+    /// What must match: the tag's id or the code's text. Empty for the game.
+    public var secret: String
+    /// Where it is, like "Bathroom mirror". Shown on the check screen.
+    public var place: String
+
+    public init(id: UUID = UUID(), kind: Kind, secret: String = "", place: String = "") {
+        self.id = id
+        self.kind = kind
+        self.secret = secret
+        self.place = place
+    }
+
+    /// True when a scanned tag or code is the right one.
+    public func matches(_ scanned: String) -> Bool {
+        !secret.isEmpty && scanned.trimmingCharacters(in: .whitespacesAndNewlines) == secret
+    }
 }
 
 /// A calendar day with no time or time zone, for one-time alarms.

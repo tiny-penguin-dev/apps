@@ -25,6 +25,17 @@ struct RootView: View {
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { Task { await model.refresh() } }
         }
+        .task { await model.refresh() }
+        .fullScreenCover(isPresented: checkShowing) {
+            if let alarm = model.activeCheckAlarm {
+                CheckFlowView(alarm: alarm)
+                    .environment(model)
+            }
+        }
+    }
+
+    private var checkShowing: Binding<Bool> {
+        Binding(get: { model.activeCheckID != nil }, set: { if !$0 { model.closeCheck() } })
     }
 }
 

@@ -33,6 +33,16 @@ extension Alarm {
     /// Rings at most this many minutes before or after the wake-up time.
     public static let ringRange = -120...120
 
+    /// With a wake-up check, the last ring comes back this often...
+    public static let checkRepeatSeconds: TimeInterval = 30
+    /// ...for this long after it first goes off (PRODUCT.md 5.3).
+    public static let checkWindowSeconds: TimeInterval = 600
+
+    public var hasChecks: Bool { !checks.isEmpty }
+
+    /// How long a morning keeps ringing after its last ring.
+    var tailSeconds: TimeInterval { hasChecks ? Self.checkWindowSeconds : 0 }
+
     // MARK: One-morning changes
 
     public func change(on date: LocalDate) -> MorningChange.Kind? {
@@ -98,7 +108,7 @@ extension Alarm {
         var wake = normal
         if case .time(let changed) = change(on: date) { wake = changed }
         guard let last = rings(on: date, at: wake, calendar: calendar).last else { return false }
-        return last.fire > now
+        return last.fire.addingTimeInterval(tailSeconds) > now
     }
 
     /// The next morning that hasn't started yet: what "Skip tomorrow" and "Change next
@@ -119,22 +129,33 @@ extension Alarm {
         return nil
     }
 
-    /// The morning whose first ring has gone off and whose last ring is still to come.
+    /// The morning whose first ring has gone off and whose last ring is still to come
+    /// (or, with a wake-up check, is still coming back).
     public func morningInProgress(at now: Date, calendar: Calendar = .current) -> LocalDate? {
         guard isOn else { return nil }
         let today = LocalDate(now, calendar: calendar)
         for offset in -1...1 {
             let day = today.adding(days: offset, calendar: calendar)
             let rings = ringTimes(on: day, calendar: calendar)
-            if let first = rings.first, let last = rings.last, first.fire <= now, last.fire > now {
+            if let first = rings.first, let last = rings.last, first.fire <= now,
+               last.fire.addingTimeInterval(tailSeconds) > now {
                 return day
             }
         }
         return nil
     }
 
+    /// When the last ring stops coming back on the morning in progress: the time left
+    /// on the check screen.
+    public func checkDeadline(at now: Date, calendar: Calendar = .current) -> Date? {
+        guard let day = morningInProgress(at: now, calendar: calendar),
+              let last = ringTimes(on: day, calendar: calendar).last else { return nil }
+        return last.fire.addingTimeInterval(tailSeconds)
+    }
+
     /// "I'm up": cancels the rest of the morning that's ringing. Returns false if no
     /// morning is in progress (so opening the app the night before changes nothing).
+    /// With wake-up checks, call it only once they're done.
     @discardableResult
     public mutating func markUp(at now: Date, calendar: Calendar = .current) -> Bool {
         guard let day = morningInProgress(at: now, calendar: calendar) else { return false }

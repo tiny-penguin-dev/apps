@@ -180,6 +180,50 @@ private func onceDates(_ plan: [PlannedRing]) -> [Date] {
     }
 }
 
+@Suite struct CheckTests {
+    private func tagAlarm(rings: [Ring] = [Ring(offsetMinutes: -10), Ring()]) -> Alarm {
+        Alarm(days: Weekday.weekdays, rings: rings, checks: [WakeUpCheck(kind: .tag, secret: "04A1B2", place: "Bathroom")])
+    }
+
+    @Test func lastRingComesBackEvery30SecondsFor10Minutes() {
+        let plan = AlarmPlanner.plan(tagAlarm(), now: sundayNight, calendar: utc)
+        // Three mornings ahead: Mon, Tue, Wed. Each: one early ring plus 20 repeats.
+        #expect(plan.count == 3 * 21)
+        #expect(plan.allSatisfy(\.needsCheck))
+        let monday = onceDates(plan).filter { $0 < at(3, 0) }
+        #expect(monday.first == at(2, 6, 50))
+        #expect(monday[1] == at(2, 7))
+        #expect(monday[2] == at(2, 7, 0).addingTimeInterval(30))
+        #expect(monday.last == at(2, 7, 9).addingTimeInterval(30))
+    }
+
+    @Test func doingTheCheckCancelsTheRepeats() {
+        var alarm = tagAlarm()
+        let now = at(2, 7, 3)
+        #expect(alarm.morningInProgress(at: now, calendar: utc) == monday)
+        #expect(alarm.checkDeadline(at: now, calendar: utc) == at(2, 7, 10))
+        alarm.markUp(at: now, calendar: utc)
+        let dates = onceDates(AlarmPlanner.plan(alarm, now: now, calendar: utc))
+        #expect(dates.first == at(3, 6, 50))
+    }
+
+    @Test func stillInProgressWhileTheLastRingRepeats() {
+        let alarm = tagAlarm(rings: [Ring()])
+        #expect(alarm.morningInProgress(at: at(2, 7, 9), calendar: utc) == monday)
+        #expect(alarm.morningInProgress(at: at(2, 7, 11), calendar: utc) == nil)
+        // Repeats still to come this morning are kept.
+        let dates = onceDates(AlarmPlanner.plan(alarm, now: at(2, 7, 5), calendar: utc))
+        #expect(dates.first == at(2, 7, 5).addingTimeInterval(30))
+    }
+
+    @Test func matching() {
+        let check = WakeUpCheck(kind: .code, secret: "1234567890128")
+        #expect(check.matches("1234567890128\n"))
+        #expect(!check.matches("999"))
+        #expect(!WakeUpCheck(kind: .game).matches(""))
+    }
+}
+
 @Suite struct StoreTests {
     @Test func roundTrip() throws {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("alarms-\(UUID()).json")
@@ -191,6 +235,7 @@ private func onceDates(_ plan: [PlannedRing]) -> [Date] {
             Alarm(date: LocalDate(year: 2026, month: 11, day: 7), label: "Hike day"),
             Alarm(changes: [MorningChange(date: monday, kind: .skip),
                             MorningChange(date: monday.adding(days: 1, calendar: utc), kind: .time(.sevenAM))]),
+            Alarm(checks: [WakeUpCheck(kind: .tag, secret: "04A1", place: "Kitchen"), WakeUpCheck(kind: .game)]),
         ]
         try store.save(alarms)
         #expect(try store.load() == alarms)

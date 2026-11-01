@@ -10,6 +10,8 @@ final class AlarmsModel {
     private(set) var access: AlarmAccess
     /// Shown as a banner when scheduling fails.
     var errorMessage: String?
+    /// The alarm whose wake-up check is on screen.
+    private(set) var activeCheckID: UUID?
 
     private let store: any AlarmStore
     private let scheduler: any RingScheduler
@@ -107,6 +109,27 @@ final class AlarmsModel {
         await reschedule()
     }
 
+    // MARK: Wake-up checks
+
+    var activeCheckAlarm: Alarm? {
+        alarms.first { $0.id == activeCheckID }
+    }
+
+    /// The checks are done (or the math way out was used): the morning is over.
+    /// `how` is "checks" or "math", for the `check.finished` metric.
+    func finishChecks(how: String) async {
+        guard let index = alarms.firstIndex(where: { $0.id == activeCheckID }) else { return }
+        alarms[index].markUp(at: Date())
+        Telemetry.count("check.finished", ["how": how])
+        save()
+        await reschedule()
+    }
+
+    /// Closes the check screen (after Good morning, or when the morning ran out).
+    func closeCheck() {
+        activeCheckID = nil
+    }
+
     // MARK: Access
 
     func requestAccess() async {
@@ -124,7 +147,14 @@ final class AlarmsModel {
         let now = Date()
         var anyUp = false
         for index in alarms.indices {
-            if alarms[index].markUp(at: now) { anyUp = true }
+            if alarms[index].hasChecks {
+                // Its morning ends when the check is done, not when the app opens.
+                if activeCheckID == nil, alarms[index].morningInProgress(at: now) != nil {
+                    activeCheckID = alarms[index].id
+                }
+            } else if alarms[index].markUp(at: now) {
+                anyUp = true
+            }
         }
         if anyUp {
             Telemetry.count("morning.up", ["from": "app"])

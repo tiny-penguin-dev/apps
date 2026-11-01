@@ -80,7 +80,7 @@ struct RingRow: View {
     }
 }
 
-/// Screen 6: any number of rings. Wake-up checks join here in the next phase.
+/// Screen 6: any number of rings, and wake-up checks.
 struct MoreOptionsView: View {
     @Binding var alarm: Alarm
 
@@ -102,6 +102,7 @@ struct MoreOptionsView: View {
                         .buttonStyle(LinkButtonStyle())
                     }
                 }
+                ChecksCard(alarm: $alarm)
             }
             .padding(20)
         }

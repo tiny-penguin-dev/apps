@@ -12,6 +12,8 @@ Status: Draft
 - **How it works:** the flow in plain words
 - **What it changes:** existing flows or features this touches
 - **Scope:** in this version / later / never
+- **What we measure:** new Sentry metrics (name, count or duration, what it tells us),
+  see `docs/telemetry.md`
 - **Open questions** for Gabriel
 
 ## Design
@@ -32,4 +34,5 @@ Status: Not started
 - **Approach:** a few lines on how it fits the current code
 - **Phases:** one PR each, with a "done when" check you can see on a phone
 - **Risks**
+- **Metrics:** add the ones listed under Product with `Telemetry`
 - **Last step:** fold this feature into the app's `PRODUCT.md` and `DESIGN.md`

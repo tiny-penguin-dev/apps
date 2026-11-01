@@ -4,3 +4,12 @@
 PRODUCT_BUNDLE_IDENTIFIER = __BUNDLE__
 MARKETING_VERSION = 0.1.0
 INFOPLIST_KEY_CFBundleDisplayName = __DISPLAY__
+INFOPLIST_FILE = Config/Info.plist
+
+// Sentry (crash reports and metrics, see docs/telemetry.md). Empty means Sentry stays
+// off. CI passes the real DSN from the SENTRY_DSN___ENV__ secret when it archives for
+// TestFlight. To send events from a local build, put the DSN in Config/Secrets.xcconfig
+// (gitignored), writing "https:/$()/" instead of "https://" because xcconfig treats
+// "//" as a comment.
+SENTRY_DSN =
+#include? "Secrets.xcconfig"

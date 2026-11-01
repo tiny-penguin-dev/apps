@@ -56,7 +56,8 @@ Answers "what are we making and why". No screens, no code.
   and **powerful** (customizations for people who want them, tucked away)
 - What's in v1, what waits for later, and what we will never do
 - Platform limits that shape the product (for example what an Apple framework allows)
-- How we'll know it works
+- What we measure: what success looks like and the few anonymous metrics that show it
+  (see "Crash reports and metrics" below)
 - Open questions for Gabriel
 
 **Done when:** Gabriel merges the PR with `Status: Approved <date>`.
@@ -86,7 +87,8 @@ Answers "how do we build it, in what order". Builds only on the approved design.
   phases, each with a "done when" check that can be seen on a phone
 - Then one PR per phase. Each phase should leave something Gabriel can try in TestFlight.
 - Set up the iOS project and CI with `scripts/new-app/new-app.py` (Claude: the
-  `new-app` skill), then fill in the app's `CLAUDE.md`
+  `new-app` skill), then fill in the app's `CLAUDE.md`. This includes Sentry.
+- Add the metrics from `PRODUCT.md` in the phase that builds each flow
 - If the code has to differ from the design, update `DESIGN.md` in the same PR and say so
 
 **Done when:** the phases in `BUILD.md` are all ticked and the app is in TestFlight.
@@ -113,6 +115,18 @@ apps/<name>/features/<feature>/
 - When the feature ships, fold it into the app's `PRODUCT.md` and `DESIGN.md` (and
   their screenshots), so those always describe the app as it is today. The feature
   folder stays as the record of why.
+
+## Crash reports and metrics
+
+Every app uses Sentry, from the first TestFlight build, for crash reports and for simple
+metrics (counts and timings). Details, privacy rules and setup are in
+[`telemetry.md`](telemetry.md).
+
+- `PRODUCT.md` lists what we measure, so metrics are agreed in stage 1, not invented
+  while coding. A bigger feature lists its new metrics in `FEATURE.md`.
+- Nothing personal, no tracking, and a switch in Settings to turn it off.
+- Sentry alone is the default. Add TelemetryDeck only if we end up needing funnels or
+  retention, and decide that in a product doc first.
 
 ## For Claude
 

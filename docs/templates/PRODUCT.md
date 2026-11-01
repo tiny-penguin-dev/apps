@@ -50,9 +50,18 @@ shapes the product.
 - **Later:** good ideas that wait
 - **Never:** what we won't do
 
-## How we'll know it works
+## What we measure
 
-A few signs, without heavy analytics.
+Every app sends crash reports and a few anonymous metrics to Sentry
+(`docs/telemetry.md`). List them here so they're agreed before they're built:
+
+- **Success looks like:** 2 or 3 signs the app is working for people
+- **Metrics:** each one with its name and what it tells us, for example
+  `alarm.created` (count): are people setting alarms after install?
+- **Never collected:** anything personal or typed in, as `docs/telemetry.md` says
+
+Keep the list short. If a question needs funnels or retention, note it here: that's the
+point to consider adding TelemetryDeck.
 
 ## Open questions
 

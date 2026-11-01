@@ -7,6 +7,11 @@ Builds on `PRODUCT.md` (approved <date>) and `DESIGN.md` (approved <date>).
 ## Architecture
 
 A few lines: main frameworks, how data is stored, the main pieces of the app.
+Crash reports and metrics use Sentry through `Telemetry` (`docs/telemetry.md`).
+
+## Metrics
+
+Which phase adds each metric from "What we measure" in `PRODUCT.md`.
 
 ## Phases
 

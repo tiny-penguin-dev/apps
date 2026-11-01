@@ -11,6 +11,13 @@ Read `PRODUCT.md`, `DESIGN.md` and `BUILD.md` first, and check their status line
 - `ios/Config/`: `__NAME__.xcconfig` (bundle ID `__BUNDLE__`, version, display name),
   `Project.xcconfig`, and `testflight.json` (TestFlight testers)
 
+## Crash reports and metrics
+
+Sentry, through `ios/__NAME__/Telemetry.swift`. Add the metrics listed in `PRODUCT.md`
+("What we measure") with `Telemetry.count`/`duration`/`gauge`, and never send anything
+personal. The DSN comes from the `SENTRY_DSN___ENV__` repo secret at archive time. See
+`docs/telemetry.md`.
+
 ## Build and ship
 
 - CI: `.github/workflows/__SLUG__-ios.yml`. PRs build for the simulator; pushes to

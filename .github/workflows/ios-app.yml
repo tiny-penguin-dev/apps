@@ -24,12 +24,23 @@ on:
         required: false
         type: boolean
         default: false
+      sentry-project:
+        description: Sentry project slug, to upload debug symbols after a TestFlight upload (optional, see docs/telemetry.md)
+        required: false
+        type: string
+        default: ""
     secrets:
       ASC_KEY_ID:
         required: false
       ASC_ISSUER_ID:
         required: false
       ASC_PRIVATE_KEY:
+        required: false
+      SENTRY_DSN:
+        description: The app's Sentry DSN, baked into TestFlight builds
+        required: false
+      SENTRY_AUTH_TOKEN:
+        description: Sentry auth token for uploading debug symbols
         required: false
 
 jobs:
@@ -71,6 +82,10 @@ jobs:
       ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
       ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
       ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
+      SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+      SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+      SENTRY_ORG: ${{ vars.SENTRY_ORG }}
+      SENTRY_PROJECT: ${{ inputs.sentry-project }}
     steps:
       - name: Check App Store Connect secrets
         id: secrets
@@ -141,6 +156,10 @@ jobs:
           else
             SIGNING=(CODE_SIGNING_ALLOWED=NO)
           fi
+          # Apps that use Sentry read SENTRY_DSN into their Info.plist.
+          if [ -n "$SENTRY_PROJECT" ] && [ -z "$SENTRY_DSN" ]; then
+            echo "::warning::No Sentry DSN for $SENTRY_PROJECT, so this build won't send crash reports or metrics. Add the app's SENTRY_DSN_<APP> secret (see docs/telemetry.md)."
+          fi
           xcodebuild archive \
             -project "${{ inputs.scheme }}.xcodeproj" \
             -scheme "${{ inputs.scheme }}" \
@@ -148,6 +167,7 @@ jobs:
             -destination 'generic/platform=iOS' \
             -archivePath "$ARCHIVE" \
             CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
+            SENTRY_DSN="$SENTRY_DSN" \
             "${SIGNING[@]}"
 
       - name: Check entitlements
@@ -207,6 +227,20 @@ jobs:
           fi
 
           echo "Uploaded ${{ inputs.scheme }} build $BUILD_NUMBER to App Store Connect." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload debug symbols to Sentry
+        if: steps.secrets.outputs.ready == 'true' && inputs.sentry-project != ''
+        # So crash reports show file names and line numbers. A failure here only
+        # warns: the build is already in TestFlight.
+        run: |
+          if [ -z "$SENTRY_AUTH_TOKEN" ] || [ -z "$SENTRY_ORG" ]; then
+            echo "::warning::Skipping the Sentry symbol upload: set the SENTRY_AUTH_TOKEN secret and SENTRY_ORG variable (see docs/telemetry.md)."
+            exit 0
+          fi
+          npx --yes @sentry/cli@3.8.2 debug-files upload \
+            --org "$SENTRY_ORG" --project "$SENTRY_PROJECT" \
+            --include-sources "$ARCHIVE/dSYMs" \
+            || echo "::warning::Uploading debug symbols to Sentry failed. Crash reports for build $BUILD_NUMBER won't have line numbers."
 
       - name: Remove API key
         if: always()

@@ -14,6 +14,10 @@ stage is approved when Gabriel merges its PR.
 2. Read `docs/brand.md`.
 3. Copy `docs/templates/PRODUCT.md` to `apps/<name>/PRODUCT.md` and fill it in.
    Ask Gabriel the questions you can't answer; don't invent big product decisions.
+   Fill in "What we measure" with a short list of Sentry metrics (read
+   `docs/telemetry.md`): what success looks like, and the few counts or timings that
+   show it. Sentry is the default for crash reports and metrics; don't propose another
+   analytics tool unless the product needs funnels or retention.
 4. Add `apps/<name>/README.md` (one paragraph plus links to the docs) and a row in the
    apps table in the root `README.md`.
 5. Open a PR with just these files. Stop there until it's merged.
@@ -39,9 +43,13 @@ stage is approved when Gabriel merges its PR.
 
 1. Copy `docs/templates/BUILD.md` to `apps/<name>/BUILD.md`, plan small phases with
    "done when" checks, and open it as its own PR.
-2. Once merged, set up the iOS project and CI with the `new-app` skill, then build one
-   phase per PR.
-3. If the code must differ from the design, update `DESIGN.md` in the same PR.
+2. Once merged, set up the iOS project and CI with the `new-app` skill (it includes
+   Sentry), then build one phase per PR.
+3. Add each metric from "What we measure" with `Telemetry` in the phase that builds
+   that flow. Never send anything personal (`docs/telemetry.md`).
+4. If the code must differ from the design, update `DESIGN.md` in the same PR.
+5. Before the first App Store release, check the App Store privacy answers match the
+   app's `PrivacyInfo.xcprivacy` (`docs/telemetry.md`, "App Store privacy").
 
 ## Bigger feature in an existing app
 
@@ -50,7 +58,8 @@ fixes and polish skip it.
 
 1. Read the app's `PRODUCT.md` and `DESIGN.md` so the feature fits what's there.
 2. Copy `docs/templates/FEATURE.md` to `apps/<name>/features/<feature>/FEATURE.md`.
-3. Product section first, in its own PR. Stop until merged.
+3. Product section first, in its own PR, including any new metrics under "What we
+   measure". Stop until merged.
 4. Design section next: copy the app's current mockups into the feature's
    `design/mockups/` and change them, so before and after are easy to compare. Save
    before/after screenshots for changed screens. Publish as an Artifact, open a PR, stop

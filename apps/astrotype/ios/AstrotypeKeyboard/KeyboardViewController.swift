@@ -17,8 +17,11 @@ final class KeyboardViewController: UIInputViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        inputView?.allowsSelfSizing = true
-        view.backgroundColor = Theme.ui(.kb)
+        // No `allowsSelfSizing`: the height comes from the constraint below, and a
+        // self-sizing input view is laid out inset on a wide screen (Gabriel, 1 Nov
+        // 2026: the split keyboard stopped short of the edges). The system draws the
+        // keyboard's backdrop (glass on iOS 26), so nothing here paints a background.
+        view.backgroundColor = .clear
 
         let fullAccess = hasFullAccess
         let dictionary = (try? Lexicon.bundled()) ?? Lexicon(entries: [])
@@ -30,6 +33,9 @@ final class KeyboardViewController: UIInputViewController {
         self.target = target
 
         let keyboard = KeyboardView(model: model)
+        keyboard.backgroundColor = .clear
+        keyboard.bar.backgroundColor = .clear
+        keyboard.surface.backgroundColor = .clear
         keyboard.onSystemKey = { [weak self] key in
             if key == .globe { self?.advanceToNextInputMode() }
         }
@@ -120,7 +126,7 @@ final class KeyboardViewController: UIInputViewController {
         // sit at the bottom.
         let granted = view.bounds.height
         keyboard.frame = CGRect(x: 0, y: 0, width: width, height: granted > 0 ? granted : height)
-        checks.sized(granted: granted, wanted: height)
+        checks.sized(granted: granted, wanted: height, width: width, screenWidth: view.window?.windowScene?.screen.bounds.width ?? 0)
     }
 
     override func textDidChange(_ textInput: UITextInput?) {

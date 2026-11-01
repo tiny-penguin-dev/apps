@@ -66,3 +66,10 @@ Squawk is in the **Build** stage. Read `PRODUCT.md`, `DESIGN.md` and `BUILD.md` 
 - Locally: open `ios/Squawk.xcodeproj` in Xcode 27, or
   `swift test --package-path ios/PenguinKit` (and `ios/SquawkKit`).
 - Alarms can't ring in the simulator. Test ringing on a phone from TestFlight.
+
+## App Store screenshots
+
+- Mock screenshots for now, made from the design mockup: `design/appstore/*.png`
+  (1320 x 2868, the 6.9" iPhone size). Captions and screens are listed in
+  `design/appstore/make-screenshots.mjs`; rerun it with `node` after changing them.
+- Swap them for real app screenshots before the public release.

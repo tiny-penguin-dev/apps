@@ -26,8 +26,8 @@ import Testing
         var settings = KeyboardSettings()
         settings.autospaceDelay = 3
         #expect(settings.composerSettings().autospaceDelay == 1.5)
-        settings.autospaceDelay = 0.1
-        #expect(settings.composerSettings().autospaceDelay == 0.5)
+        settings.autospaceDelay = 0.05
+        #expect(settings.composerSettings().autospaceDelay == 0.1)
     }
 
     @Test func olderSettingsKeepTheirDefaultsForNewKeys() throws {
@@ -37,6 +37,7 @@ import Testing
         #expect(read.autospaceDelay == 1.1)
         #expect(read.spaceSlide)
         #expect(read.backspaceSwipe)
+        #expect(!read.splitOnWide)
     }
 
     @Test func settingsRoundTripThroughAStore() throws {

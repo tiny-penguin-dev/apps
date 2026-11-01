@@ -16,7 +16,7 @@ struct SettingsView: View {
                 Text("Settings").font(.sw(.title)).padding(.top, Theme.Space.s)
 
                 SectionLabel("Typing")
-                Row("Autospace", subtitle: "Write the word after a short pause") {
+                Row("Autospace", subtitle: "Write a swiped word after a short pause") {
                     Toggle("Autospace", isOn: $model.keyboardSettings.autospace).labelsHidden().tint(Theme.mint)
                 }
                 Card {
@@ -39,6 +39,19 @@ struct SettingsView: View {
                 }
                 Row("Swipe left on ⌫", subtitle: "Delete the last word") {
                     Toggle("Swipe left on backspace", isOn: $model.keyboardSettings.backspaceSwipe).labelsHidden().tint(Theme.mint)
+                }
+
+                SectionLabel("Layout").padding(.top, Theme.Space.s)
+                Card {
+                    VStack(alignment: .leading, spacing: Theme.Space.s) {
+                        Picker("Layout on wide screens", selection: $model.keyboardSettings.splitOnWide) {
+                            Text("Full").tag(false)
+                            Text("Split").tag(true)
+                        }
+                        .pickerStyle(.segmented)
+                        Text("On the iPhone Duo's inner screen: one keyboard across, or a half under each thumb.")
+                            .font(.sw(.small)).foregroundStyle(Theme.muted)
+                    }
                 }
 
                 SectionLabel("Look").padding(.top, Theme.Space.s)

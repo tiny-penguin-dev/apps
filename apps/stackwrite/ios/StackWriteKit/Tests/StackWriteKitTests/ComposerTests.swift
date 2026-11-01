@@ -39,6 +39,17 @@ import Testing
         #expect(composer.tick(time: 2).isEmpty)
     }
 
+    @Test func autospaceIsOnlyForSwipedWords() {
+        var composer = Synth.composer()
+        let lifted = Synth.taps(&composer, "the")
+        #expect(composer.autospaceDue == nil)
+        #expect(composer.tick(time: lifted + 5).isEmpty)
+        #expect(composer.state.openWord == "the")
+        // A swipe anywhere in the word brings autospace back.
+        Synth.swipe(&composer, "re", id: 2, at: lifted + 5.1)
+        #expect(composer.autospaceDue != nil)
+    }
+
     @Test func autospaceWaitsWhileAFingerIsDown() {
         var composer = Synth.composer()
         Synth.swipe(&composer, "there", at: 0)

@@ -265,6 +265,17 @@ app's own `UserDefaults` copy until Phase 5 shares them with the extension; Sett
 says so. Home's speed test and drills are drawn as in the design but say "Soon"
 (Phase 7); the trial card counts from the first launch (`Trial`, 14 days).
 
+Also in the Phase 4 PR, from Gabriel's first wide-screen build (the Duo's inner
+screen): iOS granted the keyboard less height than it asked for, and with the keys
+pinned to the bottom the bar was pushed off the top. The keyboard now fills what it is
+granted: `Layout.qwerty(maxHeight:)` shrinks the key height (and then the row gaps)
+until the bar and all four rows fit, and when more is granted the keys sit at the
+bottom. `Layout.qwerty(split:)` adds the split layout as an option on wide screens
+(`KeyboardSettings.splitOnWide`, in the app's Settings and the in-keyboard panel): two
+blocks of five keys at the edges, the home row half a key in, space on both sides (the
+key surface keeps several views per key for that). Autospace is now for swiped words
+only, and its delay goes down to 0.1 s (Gabriel, 1 Nov 2026).
+
 ### Phase 5: Learned words and sync
 
 Learning on commit, boost and forget from the bar, the learned words list in Settings,

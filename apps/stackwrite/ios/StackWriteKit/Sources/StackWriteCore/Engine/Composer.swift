@@ -119,6 +119,10 @@ public struct Composer: Sendable {
 
     public var hasOpenWord: Bool { !pieces.isEmpty }
 
+    /// Autospace is for swiped words: a word pecked out tap by tap waits for space, so
+    /// a pause between letters never cuts it short (Gabriel, 1 Nov 2026).
+    private var autospaceApplies: Bool { pieces.contains { !$0.isTap } }
+
     // MARK: Touches
 
     /// A finger landed. Only letter keys start a piece; the host sends the other keys
@@ -161,7 +165,7 @@ public struct Composer: Sendable {
 
     public mutating func touchCancelled(id: Int, time: TimeInterval) -> [Effect] {
         open[id] = nil
-        if open.isEmpty, !pieces.isEmpty { autospaceDue = settings.autospaceDelay.map { time + $0 } }
+        if open.isEmpty, autospaceApplies { autospaceDue = settings.autospaceDelay.map { time + $0 } }
         return []
     }
 
@@ -313,7 +317,7 @@ public struct Composer: Sendable {
     private mutating func reguess(time: TimeInterval) -> [Effect] {
         candidates = matcher.candidates(for: pieces, limit: settings.guessCount)
         committed = nil
-        autospaceDue = open.isEmpty ? settings.autospaceDelay.map { time + $0 } : nil
+        autospaceDue = open.isEmpty && autospaceApplies ? settings.autospaceDelay.map { time + $0 } : nil
         guard let first = candidates.first else {
             state.bar = .idle
             refreshState()

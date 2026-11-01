@@ -112,4 +112,60 @@ import Testing
         #expect(Key.symbol("?").symbolCharacter == "?")
         #expect(Key.symbol("?").character == nil)
     }
+
+    // MARK: Wide screens
+
+    @Test func splitPullsTheHalvesApart() {
+        let layout = Layout.qwerty(width: 1000, split: true)
+        #expect(layout.split)
+        #expect(layout.isWide)
+        #expect(layout.height == Layout.qwerty(width: 1000).height)
+        for letter in "qwertasdfgzxcv" {
+            #expect(layout.frame(of: .letter(letter))!.maxX < 500, "\(letter)")
+        }
+        for letter in "yuiophjklbnm" {
+            #expect(layout.frame(of: .letter(letter))!.minX > 500, "\(letter)")
+        }
+        #expect(layout.placements.filter { $0.key == .space }.count == 2)
+        #expect(layout.placements.filter { $0.key == .letter("g") }.count == 1)
+        #expect(layout.frame(of: .letter("q"))!.minX == 12)
+        #expect(layout.frame(of: .letter("p"))!.maxX == 988)
+        for placement in layout.placements {
+            #expect(placement.frame.minX >= 0 && placement.frame.maxX <= 1000)
+        }
+        // The middle of the gap still finds the nearest key in the row.
+        #expect(layout.key(at: CGPoint(x: 480, y: layout.frame(of: .letter("t"))!.midY)) == .letter("t"))
+        #expect(layout.side(of: .letter("t")) == .left)
+        #expect(layout.side(of: .letter("y")) == .right)
+        for page in [Layout.Page.numbers, .symbols] {
+            let split = Layout.qwerty(width: 1000, page: page, split: true)
+            #expect(split.placements.count == Layout.qwerty(width: 1000, page: page).placements.count + 1)
+            for placement in split.placements {
+                #expect(placement.frame.minX >= 0 && placement.frame.maxX <= 1000)
+            }
+        }
+    }
+
+    @Test func splitIsIgnoredOnAPhone() {
+        let layout = Layout.qwerty(width: 390, split: true)
+        #expect(!layout.split)
+        #expect(layout == Layout.qwerty(width: 390))
+    }
+
+    @Test func aShorterKeyboardShrinksItsKeys() {
+        let natural = Layout.qwerty(width: 1000)
+        #expect(natural.height == 259)
+        let fitted = Layout.qwerty(width: 1000, maxHeight: 227)
+        #expect(fitted.height <= 227)
+        #expect(fitted.keyHeight < natural.keyHeight)
+        #expect(fitted.keyHeight >= 36)
+        #expect(fitted.frame(of: .letter("q"))!.width == natural.frame(of: .letter("q"))!.width)
+        #expect(fitted.placements.allSatisfy { $0.frame.maxY <= fitted.height })
+        // Room to spare changes nothing.
+        #expect(Layout.qwerty(width: 1000, maxHeight: 400) == natural)
+        // Very little room still keeps four rows.
+        let tiny = Layout.qwerty(width: 390, maxHeight: 140)
+        #expect(tiny.keyHeight >= 28)
+        #expect(tiny.placements.filter { $0.row == 3 }.count == 4)
+    }
 }

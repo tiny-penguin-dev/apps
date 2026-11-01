@@ -40,12 +40,12 @@ public final class KeySurfaceView: UIView {
 
     /// Draw letters as capitals.
     public var shifted = false {
-        didSet { keyViews.values.forEach { $0.shifted = shifted } }
+        didSet { keyViews.values.forEach { $0.forEach { $0.shifted = shifted } } }
     }
 
     /// What the space bar says when idle.
     public var spaceLabel = "StackWrite" {
-        didSet { keyViews[.space]?.label.text = spaceLabel }
+        didSet { keyViews[.space]?.forEach { $0.label.text = spaceLabel } }
     }
 
     /// Draw swipe trails and tap rings.
@@ -77,7 +77,8 @@ public final class KeySurfaceView: UIView {
         var hold: Task<Void, Never>?
     }
 
-    private var keyViews: [Key: KeyView] = [:]
+    /// The views per key: space is placed twice on a split keyboard.
+    private var keyViews: [Key: [KeyView]] = [:]
     private var active: [ObjectIdentifier: Active] = [:]
     private var nextID = 1
     private let effects = CALayer()
@@ -101,14 +102,14 @@ public final class KeySurfaceView: UIView {
     }
 
     private func rebuild() {
-        keyViews.values.forEach { $0.removeFromSuperview() }
+        keyViews.values.forEach { $0.forEach { $0.removeFromSuperview() } }
         keyViews = [:]
         for placement in layout.placements {
             let keyView = KeyView(key: placement.key, spaceLabel: spaceLabel)
             keyView.frame = placement.frame
             keyView.shifted = shifted
             addSubview(keyView)
-            keyViews[placement.key] = keyView
+            keyViews[placement.key, default: []].append(keyView)
         }
         effects.removeFromSuperlayer()
         effects.frame = bounds
@@ -127,7 +128,7 @@ public final class KeySurfaceView: UIView {
             nextID += 1
             let oid = ObjectIdentifier(touch)
             var touchState = Active(id: id, key: key, startKey: key, startPoint: point, side: side, isLetter: key.character != nil, points: [point], trail: nil)
-            keyViews[key]?.flash(side: side)
+            flash(key, side: side)
             switch key {
             case .backspace:
                 touchState.hold = Task { [weak self] in
@@ -144,7 +145,7 @@ public final class KeySurfaceView: UIView {
                     try? await Task.sleep(for: .seconds(Self.holdDelay))
                     guard !Task.isCancelled, let self, let state = self.active[oid], !state.gestured else { return }
                     self.active[oid]?.gestured = true
-                    self.keyViews[.numbers]?.unflash()
+                    self.unflash(.numbers)
                     self.delegate?.keySurfaceDidHoldNumbers(self)
                 }
             default:
@@ -165,8 +166,8 @@ public final class KeySurfaceView: UIView {
             if touchState.isLetter {
                 let now = layout.key(at: point)
                 if now != touchState.key {
-                    if let was = touchState.key { keyViews[was]?.unflash() }
-                    if let now { keyViews[now]?.flash(side: touchState.side) }
+                    if let was = touchState.key { unflash(was) }
+                    if let now { flash(now, side: touchState.side) }
                     touchState.key = now
                 }
                 touchState.points.append(point)
@@ -192,8 +193,8 @@ public final class KeySurfaceView: UIView {
             default:
                 let now = layout.key(at: point)
                 if now != touchState.key {
-                    if let was = touchState.key { keyViews[was]?.unflash() }
-                    if let now { keyViews[now]?.flash(side: touchState.side) }
+                    if let was = touchState.key { unflash(was) }
+                    if let now { flash(now, side: touchState.side) }
                     touchState.key = now
                     if touchState.startKey == .numbers { touchState.hold?.cancel() }
                 }
@@ -207,7 +208,7 @@ public final class KeySurfaceView: UIView {
             guard let touchState = active.removeValue(forKey: ObjectIdentifier(touch)) else { continue }
             touchState.hold?.cancel()
             let point = touch.location(in: self)
-            if let key = touchState.key { keyViews[key]?.unflash() }
+            if let key = touchState.key { unflash(key) }
             if touchState.isLetter {
                 if showsTrails { finish(touchState, at: point) }
                 delegate?.keySurface(self, touchEnded: touchState.id, at: point, time: touch.timestamp)
@@ -221,7 +222,7 @@ public final class KeySurfaceView: UIView {
         for touch in touches {
             guard let touchState = active.removeValue(forKey: ObjectIdentifier(touch)) else { continue }
             touchState.hold?.cancel()
-            if let key = touchState.key { keyViews[key]?.unflash() }
+            if let key = touchState.key { unflash(key) }
             touchState.trail?.removeFromSuperlayer()
             if touchState.isLetter {
                 delegate?.keySurface(self, touchCancelled: touchState.id, time: touch.timestamp)
@@ -250,7 +251,7 @@ public final class KeySurfaceView: UIView {
         let color = Theme.ui(step.side == .left ? .left : .right)
         let reduceMotion = UIAccessibility.isReduceMotionEnabled
         for point in step.points {
-            if let key = layout.key(at: point) { keyViews[key]?.flash(side: step.side) }
+            if let key = layout.key(at: point) { flash(key, side: step.side) }
         }
         let duration: TimeInterval = step.points.count == 1 ? 0.35 : min(1.2, 0.3 + 0.2 * Double(step.points.count))
         let layer = CAShapeLayer()
@@ -279,7 +280,7 @@ public final class KeySurfaceView: UIView {
             MainActor.assumeIsolated {
                 guard let self else { return }
                 for point in step.points {
-                    if let key = self.layout.key(at: point) { self.keyViews[key]?.unflash() }
+                    if let key = self.layout.key(at: point) { self.unflash(key) }
                 }
                 let fade = CABasicAnimation(keyPath: "opacity")
                 fade.fromValue = layer.opacity
@@ -315,6 +316,14 @@ public final class KeySurfaceView: UIView {
             layer.add(draw, forKey: "draw")
         }
         CATransaction.commit()
+    }
+
+    private func flash(_ key: Key, side: Side) {
+        keyViews[key]?.forEach { $0.flash(side: side) }
+    }
+
+    private func unflash(_ key: Key) {
+        keyViews[key]?.forEach { $0.unflash() }
     }
 
     // MARK: Trails and rings

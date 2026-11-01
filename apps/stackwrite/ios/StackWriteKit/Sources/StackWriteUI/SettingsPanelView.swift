@@ -19,6 +19,8 @@ public final class SettingsPanelView: UIView {
     private let delaySlider = UISlider()
     private let trailsLabel = UILabel()
     private let trailsSwitch = UISwitch()
+    private let splitLabel = UILabel()
+    private let splitSwitch = UISwitch()
     private let done = UIButton(configuration: .filled())
 
     public init(settings: KeyboardSettings) {
@@ -31,15 +33,16 @@ public final class SettingsPanelView: UIView {
         title.textColor = Theme.ui(.ink)
         addSubview(title)
 
-        for (label, text) in [(autospaceLabel, "Autospace"), (delayLabel, "Delay"), (trailsLabel, "Trails")] {
+        for (label, text) in [(autospaceLabel, "Autospace"), (delayLabel, "Delay"), (trailsLabel, "Trails"), (splitLabel, "Split on wide screens")] {
             label.text = text
             label.font = Theme.uiFont(size: 15, weight: .semibold)
             label.textColor = Theme.ui(.ink)
             addSubview(label)
         }
-        autospaceLabel.accessibilityHint = "Write the word after a short pause"
+        autospaceLabel.accessibilityHint = "Write a swiped word after a short pause"
         addSubview(autospaceSwitch)
         addSubview(trailsSwitch)
+        addSubview(splitSwitch)
 
         delaySlider.minimumValue = Float(KeyboardSettings.delayRange.lowerBound)
         delaySlider.maximumValue = Float(KeyboardSettings.delayRange.upperBound)
@@ -47,7 +50,7 @@ public final class SettingsPanelView: UIView {
         delaySlider.accessibilityLabel = "Autospace delay"
         addSubview(delaySlider)
 
-        for control in [autospaceSwitch, trailsSwitch] {
+        for control in [autospaceSwitch, trailsSwitch, splitSwitch] {
             control.onTintColor = Theme.ui(.accent)
         }
 
@@ -59,6 +62,11 @@ public final class SettingsPanelView: UIView {
         trailsSwitch.addAction(UIAction { [weak self] _ in
             guard let self else { return }
             self.settings.trails = self.trailsSwitch.isOn
+            self.onChange?(self.settings)
+        }, for: .valueChanged)
+        splitSwitch.addAction(UIAction { [weak self] _ in
+            guard let self else { return }
+            self.settings.splitOnWide = self.splitSwitch.isOn
             self.onChange?(self.settings)
         }, for: .valueChanged)
         delaySlider.addAction(UIAction { [weak self] _ in
@@ -83,6 +91,7 @@ public final class SettingsPanelView: UIView {
     private func render() {
         autospaceSwitch.isOn = settings.autospace
         trailsSwitch.isOn = settings.trails
+        splitSwitch.isOn = settings.splitOnWide
         delaySlider.value = Float(settings.autospaceDelay)
         delaySlider.isEnabled = settings.autospace
         delayLabel.text = "Delay \(String(format: "%.1f", settings.autospaceDelay)) s"
@@ -92,7 +101,7 @@ public final class SettingsPanelView: UIView {
     public override func layoutSubviews() {
         super.layoutSubviews()
         let inset = bounds.insetBy(dx: Theme.Space.l, dy: Theme.Space.s)
-        let rowHeight = max(36, (inset.height - 8) / 5)
+        let rowHeight = max(34, (inset.height - 8) / 6)
         var y = inset.minY
         func row(_ label: UILabel, _ control: UIView) {
             label.frame = CGRect(x: inset.minX, y: y, width: inset.width * 0.5, height: rowHeight)
@@ -107,6 +116,7 @@ public final class SettingsPanelView: UIView {
         delaySlider.frame = CGRect(x: inset.minX + inset.width * 0.38, y: y, width: inset.width * 0.62, height: rowHeight)
         y += rowHeight
         row(trailsLabel, trailsSwitch)
+        row(splitLabel, splitSwitch)
         done.sizeToFit()
         done.frame = CGRect(x: inset.maxX - max(96, done.bounds.width), y: y + (rowHeight - 36) / 2, width: max(96, done.bounds.width), height: 36)
     }

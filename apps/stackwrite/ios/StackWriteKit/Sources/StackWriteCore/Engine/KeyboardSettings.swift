@@ -9,12 +9,12 @@ import Foundation
 ///     composer.settings = settings.composerSettings(from: composer.settings)
 public struct KeyboardSettings: Codable, Sendable, Equatable {
     public static let version = 1
-    public static let delayRange: ClosedRange<TimeInterval> = 0.5...1.5
+    public static let delayRange: ClosedRange<TimeInterval> = 0.1...1.5
 
     public var version = KeyboardSettings.version
-    /// Write the open word after a pause with no finger down.
+    /// Write a swiped word after a pause with no finger down (never a pecked one).
     public var autospace = true
-    /// How long that pause is, 0.5 to 1.5 s.
+    /// How long that pause is, 0.1 to 1.5 s.
     public var autospaceDelay: TimeInterval = 0.9
     /// Draw swipe trails and tap rings.
     public var trails = true
@@ -22,6 +22,8 @@ public struct KeyboardSettings: Codable, Sendable, Equatable {
     public var spaceSlide = true
     /// A swipe left on backspace deletes the last word.
     public var backspaceSwipe = true
+    /// On a wide screen (the iPhone Duo open), pull the two halves apart to the edges.
+    public var splitOnWide = false
 
     public init() {}
 
@@ -34,6 +36,7 @@ public struct KeyboardSettings: Codable, Sendable, Equatable {
         trails = try c.decodeIfPresent(Bool.self, forKey: .trails) ?? true
         spaceSlide = try c.decodeIfPresent(Bool.self, forKey: .spaceSlide) ?? true
         backspaceSwipe = try c.decodeIfPresent(Bool.self, forKey: .backspaceSwipe) ?? true
+        splitOnWide = try c.decodeIfPresent(Bool.self, forKey: .splitOnWide) ?? false
     }
 
     /// `base` with these settings applied; the rest of the engine's settings stay.

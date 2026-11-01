@@ -188,4 +188,5 @@ struct EditAlarmView: View {
 #Preview {
     EditAlarmView(alarm: Alarm(dayTimes: [.friday: TimeOfDay(hour: 7, minute: 30)]), isNew: false)
         .environment(AlarmsModel.preview())
+        .environment(ProModel.preview())
 }

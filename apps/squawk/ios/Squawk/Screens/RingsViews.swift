@@ -4,29 +4,26 @@ import SwiftUI
 /// The "Rings" card in Edit: the timeline, the two quick-add buttons and "More options".
 struct RingsCard: View {
     @Binding var alarm: Alarm
+    @Environment(ProModel.self) private var pro
+    @State private var paywall: ProFeature?
 
     var body: some View {
         Card {
             VStack(alignment: .leading, spacing: 12) {
                 Text("Rings").font(Theme.label)
                 RingTimeline(alarm: $alarm)
-                HStack(spacing: 18) {
-                    Button("+ Soft ring before") {
-                        withAnimation(.spring(duration: 0.4, bounce: 0.4)) { alarm.addSoftRing() }
-                        Telemetry.count("alarm.ring_added", ["kind": "soft"])
-                    }
-                    Button("+ Loud ring after") {
-                        withAnimation(.spring(duration: 0.4, bounce: 0.4)) { alarm.addLoudRing() }
-                        Telemetry.count("alarm.ring_added", ["kind": "loud"])
-                    }
+                let locked = !pro.access.canAddRing(to: alarm)
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 18) { quickAdds(locked: locked) }
+                    VStack(alignment: .leading, spacing: 10) { quickAdds(locked: locked) }
                 }
-                .buttonStyle(LinkButtonStyle())
                 Divider()
                 NavigationLink {
                     MoreOptionsView(alarm: $alarm)
                 } label: {
-                    HStack {
+                    HStack(spacing: 6) {
                         Text("More options").font(Theme.label)
+                        if !pro.access.isPro { ProBadge() }
                         Spacer()
                         Image(systemName: "chevron.right").font(.footnote.weight(.bold)).foregroundStyle(Theme.muted)
                     }
@@ -34,6 +31,19 @@ struct RingsCard: View {
                 }
             }
         }
+        .proSheet($paywall)
+    }
+
+    /// "+ Soft ring before" and "+ Loud ring after". Past the free rings, they open Pro.
+    @ViewBuilder private func quickAdds(locked: Bool) -> some View {
+        ProLinkButton(title: "+ Soft ring before", locked: locked, action: {
+            withAnimation(.spring(duration: 0.4, bounce: 0.4)) { alarm.addSoftRing() }
+            Telemetry.count("alarm.ring_added", ["kind": "soft"])
+        }, onLocked: { paywall = .moreRings })
+        ProLinkButton(title: "+ Loud ring after", locked: locked, action: {
+            withAnimation(.spring(duration: 0.4, bounce: 0.4)) { alarm.addLoudRing() }
+            Telemetry.count("alarm.ring_added", ["kind": "loud"])
+        }, onLocked: { paywall = .moreRings })
     }
 }
 
@@ -83,6 +93,8 @@ struct RingRow: View {
 /// Screen 6: any number of rings, and wake-up checks.
 struct MoreOptionsView: View {
     @Binding var alarm: Alarm
+    @Environment(ProModel.self) private var pro
+    @State private var paywall: ProFeature?
 
     var body: some View {
         ScrollView {
@@ -94,12 +106,16 @@ struct MoreOptionsView: View {
                             .font(.system(.subheadline, design: .rounded, weight: .semibold))
                             .foregroundStyle(Theme.muted)
                         RingTimeline(alarm: $alarm)
-                        NavigationLink {
-                            RingDetail(alarm: $alarm, ringID: nil)
-                        } label: {
-                            Text("+ Add a ring")
+                        if pro.access.canAddRing(to: alarm) {
+                            NavigationLink {
+                                RingDetail(alarm: $alarm, ringID: nil)
+                            } label: {
+                                Text("+ Add a ring")
+                            }
+                            .buttonStyle(LinkButtonStyle())
+                        } else {
+                            ProLinkButton(title: "+ Add a ring", locked: true, action: {}, onLocked: { paywall = .moreRings })
                         }
-                        .buttonStyle(LinkButtonStyle())
                     }
                 }
                 ChecksCard(alarm: $alarm)
@@ -109,6 +125,7 @@ struct MoreOptionsView: View {
         .background(Theme.background)
         .navigationTitle("More options")
         .navigationBarTitleDisplayMode(.inline)
+        .proSheet($paywall)
     }
 }
 
@@ -118,6 +135,8 @@ struct RingDetail: View {
     @Binding var alarm: Alarm
     @State var ringID: UUID?
     @Environment(\.dismiss) private var dismiss
+    @Environment(ProModel.self) private var pro
+    @State private var paywall: ProFeature?
 
     var body: some View {
         ScrollView {
@@ -154,10 +173,11 @@ struct RingDetail: View {
                         Divider()
                         HStack {
                             Text("Color").font(Theme.label)
+                            if !styleAllowed { ProBadge() }
                             Spacer()
                             ForEach(RingColor.allCases, id: \.self) { color in
                                 Button {
-                                    ring.color.wrappedValue = color
+                                    if styleAllowed { ring.color.wrappedValue = color } else { paywall = .ringStyle }
                                 } label: {
                                     Circle()
                                         .fill(color.color)
@@ -172,9 +192,15 @@ struct RingDetail: View {
                         Divider()
                         HStack {
                             Text("Name").font(Theme.label)
-                            TextField("Optional", text: name)
-                                .multilineTextAlignment(.trailing)
-                                .font(Theme.body)
+                            if styleAllowed {
+                                TextField("Optional", text: name)
+                                    .multilineTextAlignment(.trailing)
+                                    .font(Theme.body)
+                            } else {
+                                Spacer()
+                                Button { paywall = .ringStyle } label: { ProBadge() }
+                                    .accessibilityLabel("Name, needs Pro")
+                            }
                         }
                     }
                 }
@@ -196,7 +222,11 @@ struct RingDetail: View {
         .navigationTitle("Ring")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear(perform: addIfNew)
+        .proSheet($paywall)
     }
+
+    /// A ring's own color and name are Pro.
+    private var styleAllowed: Bool { pro.access.allows(.ringStyle) }
 
     private var current: Ring {
         alarm.rings.first { $0.id == ringID } ?? alarm.rings[0]
@@ -262,4 +292,5 @@ extension String {
     NavigationStack {
         MoreOptionsView(alarm: .constant(Alarm(rings: [Ring(), Ring(offsetMinutes: -10, color: .sun)])))
     }
+    .environment(ProModel.preview())
 }

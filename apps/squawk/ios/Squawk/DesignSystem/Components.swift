@@ -164,3 +164,48 @@ extension MorningRecord.Outcome {
         }
     }
 }
+
+/// The little "PRO" tag next to anything that needs Squawk Pro. Tapping the thing it
+/// marks opens the Pro screen.
+struct ProBadge: View {
+    var body: some View {
+        Text("PRO")
+            .font(.system(.caption2, design: .rounded, weight: .black))
+            .tracking(0.8)
+            .foregroundStyle(Theme.sunInk)
+            .padding(.horizontal, 7).padding(.vertical, 3)
+            .background(Theme.sun, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+            .accessibilityLabel("Needs Pro")
+    }
+}
+
+/// A link-style button that opens the Pro screen when `locked`, with a PRO badge.
+/// Use it for "+ Add a check" and the like: the label stays the same either way.
+struct ProLinkButton: View {
+    var title: String
+    var locked: Bool
+    var action: () -> Void
+    var onLocked: () -> Void
+
+    var body: some View {
+        Button {
+            if locked { onLocked() } else { action() }
+        } label: {
+            HStack(spacing: 6) {
+                Text(title)
+                if locked { ProBadge() }
+            }
+        }
+        .buttonStyle(LinkButtonStyle())
+    }
+}
+
+#Preview("Pro badge") {
+    VStack(alignment: .leading, spacing: 16) {
+        ProBadge()
+        ProLinkButton(title: "+ Add a check", locked: true, action: {}, onLocked: {})
+        ProLinkButton(title: "+ Add a check", locked: false, action: {}, onLocked: {})
+    }
+    .padding()
+    .background(Theme.background)
+}

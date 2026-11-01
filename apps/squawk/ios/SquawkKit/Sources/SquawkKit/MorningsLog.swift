@@ -50,12 +50,25 @@ public struct MorningRecord: Codable, Identifiable, Hashable, Sendable {
 /// Every morning Squawk remembers (the last 120 days), newest last.
 public struct MorningsLog: Codable, Hashable, Sendable {
     public private(set) var records: [MorningRecord]
+    /// The longest streak so far. Kept even after old mornings are dropped, since it
+    /// earns outfits (`Outfit.streakToEarn`).
+    public private(set) var bestStreak: Int
 
     /// How many days are kept.
     public static let daysKept = 120
 
-    public init(records: [MorningRecord] = []) {
+    public init(records: [MorningRecord] = [], bestStreak: Int = 0) {
         self.records = records.sorted { $0.date < $1.date }
+        self.bestStreak = bestStreak
+        self.bestStreak = max(bestStreak, streak)
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            records: try c.decode([MorningRecord].self, forKey: .records),
+            bestStreak: try c.decodeIfPresent(Int.self, forKey: .bestStreak) ?? 0
+        )
     }
 
     /// Adds a morning. A second record for the same alarm and morning replaces the first.
@@ -67,6 +80,7 @@ public struct MorningsLog: Codable, Hashable, Sendable {
             let oldest = newest.adding(days: -Self.daysKept, calendar: calendar)
             records.removeAll { $0.date < oldest }
         }
+        bestStreak = max(bestStreak, streak)
     }
 
     public func contains(alarmID: UUID, date: LocalDate) -> Bool {

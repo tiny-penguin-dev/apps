@@ -5,12 +5,17 @@ import SwiftUI
 /// The "Wake-up checks" card in More options: the checks this alarm has, and adding one.
 struct ChecksCard: View {
     @Binding var alarm: Alarm
+    @Environment(ProModel.self) private var pro
     @State private var adding: WakeUpCheck.Kind?
+    @State private var paywall: ProFeature?
 
     var body: some View {
         Card {
             VStack(alignment: .leading, spacing: 12) {
-                Text("Wake-up checks").font(Theme.label)
+                HStack(spacing: 6) {
+                    Text("Wake-up checks").font(Theme.label)
+                    if !pro.access.allows(.checks) { ProBadge() }
+                }
                 Text("With a check on, the last ring comes back every 30 seconds for up to 10 minutes, until you do it.")
                     .font(.system(.subheadline, design: .rounded, weight: .semibold))
                     .foregroundStyle(Theme.muted)
@@ -37,23 +42,27 @@ struct ChecksCard: View {
                         .accessibilityLabel("Remove \(check.kind.title)")
                     }
                 }
-                Menu {
-                    ForEach(availableKinds, id: \.self) { kind in
-                        Button {
-                            if kind == .game {
-                                withAnimation(.spring) { alarm.checks.append(WakeUpCheck(kind: .game)) }
-                                Telemetry.count("check.added", ["kind": "game"])
-                            } else {
-                                adding = kind
+                if !pro.access.allows(.checks) {
+                    ProLinkButton(title: "+ Add a check", locked: true, action: {}, onLocked: { paywall = .checks })
+                } else {
+                    Menu {
+                        ForEach(availableKinds, id: \.self) { kind in
+                            Button {
+                                if kind == .game {
+                                    withAnimation(.spring) { alarm.checks.append(WakeUpCheck(kind: .game)) }
+                                    Telemetry.count("check.added", ["kind": "game"])
+                                } else {
+                                    adding = kind
+                                }
+                            } label: {
+                                Label(kind.title, systemImage: kind.symbol)
                             }
-                        } label: {
-                            Label(kind.title, systemImage: kind.symbol)
                         }
+                    } label: {
+                        Text("+ Add a check")
                     }
-                } label: {
-                    Text("+ Add a check")
+                    .buttonStyle(LinkButtonStyle())
                 }
-                .buttonStyle(LinkButtonStyle())
                 Divider()
                 HStack(alignment: .top, spacing: 10) {
                     Image(systemName: "function").font(.body.weight(.bold)).foregroundStyle(Theme.muted).frame(width: 28)
@@ -63,6 +72,7 @@ struct ChecksCard: View {
                 }
             }
         }
+        .proSheet($paywall)
         .sheet(item: $adding) { kind in
             AddCheckSheet(kind: kind) { check in
                 withAnimation(.spring) { alarm.checks.append(check) }

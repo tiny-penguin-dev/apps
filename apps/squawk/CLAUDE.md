@@ -35,6 +35,15 @@ Squawk is in the **Build** stage. Read `PRODUCT.md`, `DESIGN.md` and `BUILD.md` 
   a check is planned as one-off rings a few mornings ahead, and its last ring repeats
   every 30 s for 10 minutes; doing the check marks the morning done. NFC needs the
   entitlement in `Config/Squawk.entitlements`; CI turns the capability on.
+- Squawk Pro: `ProAccess` in `SquawkKit/Pro.swift` is the one place that says what's
+  free (2 rings, the 3 quick-add sounds, skip next morning, outfits earned with a
+  streak) and what needs Pro; move a feature to free by adding it to `ProFeature.free`.
+  Losing Pro never changes an alarm that's already set. `StoreKitProStore` reads the
+  subscription; `Squawk/Pro/` has `ProModel`, the Pro screen (Apple's
+  `SubscriptionStoreView` with our header), outfits and app icons. Screens gate with
+  `ProLinkButton`/`ProBadge` and `.proSheet($paywall)`. Product IDs are in
+  `ProProducts`; the launch prices are introductory offers in App Store Connect.
+  `Config/Squawk.storekit` lets Xcode test buying without App Store Connect.
 - `ios/Squawk/Sounds/`: the bundled alarm mp3s (from Lanata, cleared for a public app).
   AlarmKit only plays bundled mp3s.
 - `ios/PenguinKit/`: local Swift package with the mascot. `PenguinGeometry` holds every

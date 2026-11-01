@@ -1,0 +1,94 @@
+{
+  "identifier" : "5A5A0001",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+
+  ],
+  "settings" : {
+    "_failTransactionsEnabled" : false,
+    "_locale" : "en_US",
+    "_storefront" : "USA",
+    "_storeKitErrors" : [
+
+    ]
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "5A5A0002",
+      "localizations" : [
+
+      ],
+      "name" : "Squawk Pro",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "49.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "5A5A0003",
+          "introductoryOffer" : {
+            "displayPrice" : "29.99",
+            "internalID" : "5A5A0004",
+            "numberOfPeriods" : 1,
+            "paymentMode" : "payUpFront",
+            "subscriptionPeriod" : "P1Y"
+          },
+          "localizations" : [
+            {
+              "description" : "Every ring, check, sound and outfit.",
+              "displayName" : "Squawk Pro Yearly",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.tinypenguin.squawk.pro.yearly",
+          "recurringSubscriptionPeriod" : "P1Y",
+          "referenceName" : "Squawk Pro Yearly",
+          "subscriptionGroupID" : "5A5A0002",
+          "type" : "RecurringSubscription"
+        },
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "4.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "5A5A0005",
+          "introductoryOffer" : {
+            "displayPrice" : "2.99",
+            "internalID" : "5A5A0006",
+            "numberOfPeriods" : 12,
+            "paymentMode" : "payAsYouGo",
+            "subscriptionPeriod" : "P1M"
+          },
+          "localizations" : [
+            {
+              "description" : "Every ring, check, sound and outfit.",
+              "displayName" : "Squawk Pro Monthly",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.tinypenguin.squawk.pro.monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Squawk Pro Monthly",
+          "subscriptionGroupID" : "5A5A0002",
+          "type" : "RecurringSubscription"
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 3,
+    "minor" : 0
+  }
+}

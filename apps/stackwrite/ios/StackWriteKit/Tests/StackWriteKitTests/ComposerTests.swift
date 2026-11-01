@@ -174,7 +174,7 @@ import Testing
         _ = composer.press(.letter("t"), time: 0)
         _ = composer.press(.letter("o"), time: 0.2)
         #expect(composer.state.openWord == "to")
-        #expect(composer.pieces.allSatisfy(\.isTap))
+        #expect(composer.pieces.allSatisfy { $0.isTap })
     }
 
     @Test func aCancelledTouchTypesNothing() {

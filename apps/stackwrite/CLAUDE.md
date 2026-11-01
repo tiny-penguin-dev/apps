@@ -1,119 +1,75 @@
 # CLAUDE.md: StackWrite
 
-**Read `BRIEF.md` first.** It covers the idea, what exists, the exact feature, model and
-decoder contracts, the phased build plan with "done when" checks, and the open questions
-to ask Gabriel before Phase 3.
+StackWrite v2 is an iPhone keyboard for typing fast with two thumbs. Read, in order,
+`PRODUCT.md` (what and why), `DESIGN.md` (screens, the keyboard, the design system,
+sizes) and `BUILD.md` (architecture, core pieces, phases). All three are approved; work
+on the next unticked phase in `BUILD.md`, one PR per phase. The repo rules are in
+`docs/building.md`.
+
+`BRIEF.md` and `SAMPLES.md` describe v1, the handwriting keyboard, whose code is kept
+behind `Flags.handwritingPad` (PRODUCT.md "Later").
 
 ## Layout
 
-- `ml/`: Python reference implementation. It's the source of truth for features
-  (`phrases.featurize_strokes`), the model (`model.ConvStrokeNet`, 9 features in, blank +
-  a–z + space out) and the decoder (`decode_phrase.beam_search`). The single-word versions
-  (`synth.featurize`, `decode.py`, `train.py`, `finetune.py`) predate finger lifts.
-- `ml/export/`: what the iOS side consumes. Rebuild `lexicon.tsv` and `golden.json` with `python3 make_golden.py`.
-  - `StackWrite.mlpackage`: the Core ML model
-  - `lexicon.tsv`: the word list
-  - `golden.json`: parity test cases
-- `ios/`: the Xcode project. Right now it's a skeleton app that only shows its name and
-  version, used to prove the TestFlight pipeline.
-  - `StackWrite.xcodeproj`: one app target, `StackWrite`, with a shared scheme
-  - `StackWrite/`: app sources and assets (a synchronized folder, so new files are picked
-    up without editing the project)
-    - `Try/`: "Try the keyboard": a text view whose `inputView` is the StackWrite pad.
-      `KeyboardController` holds the typing logic behind a `TextTarget` protocol shaped
-      like `UITextDocumentProxy`, so the keyboard extension can reuse it.
-    - `Train/`: the training screen: prompts 1–4 words and saves their strokes as one sample
-    - `Shared/`: the writing pad, model loading, sample storage and the CloudKit upload
-      (`SampleUploader`, off until the user turns it on)
-    - `Model/`: copies of `ml/export/StackWrite.mlpackage` (as `StrokeModel.mlpackage`)
-      and `lexicon.tsv`. Copy them over after `export.py` (see Python below).
-  - `StackWriteKit/`: local Swift package shared by the app and (later) the keyboard:
-    the sample format (`StrokeSample`, see `SAMPLES.md`), `Recording`, `Features.featurize`,
-    `Lexicon` (flat-array trie), `PhraseDecoder` (beam search) and `Recognizer` (Core ML).
-    Its tests replay `ml/export/golden.json`.
-  - `Config/`: `StackWrite.xcconfig` (bundle ID `com.tinypenguin.stackwrite`, version,
-    display name), `Project.xcconfig`, `Info.plist`, `StackWrite.entitlements` (iCloud
-    container `iCloud.com.tinypenguin.stackwrite`, CloudKit)
-- `cloudkit/`: the CloudKit schema for uploaded samples and the one-time console setup, `testflight.json` (TestFlight
-    testers, synced on every upload; see `docs/ios-release.md`)
-  - Still to add: the keyboard extension target (`com.tinypenguin.stackwrite.keyboard`)
+- `ios/`: the Xcode project (classic `.pbxproj`, synchronized folders, so new files
+  are picked up without editing the project; new targets and packages are not).
+  - `StackWrite/`: the app. `StackWriteApp.swift` (starts `Telemetry`, shows
+    `HelloView` until onboarding is done, then `HomeView`), `Telemetry.swift` (Sentry,
+    see `docs/telemetry.md`), `PrivacyInfo.xcprivacy`. `Try/`, `Train/` and `Shared/`
+    are v1: the handwriting pad, training recorder and the CloudKit sample upload.
+  - `StackWriteKeyboard/`: the keyboard extension (`com.tinypenguin.stackwrite.keyboard`).
+    `KeyboardViewController` draws the shared key surface and types. `ExtensionChecks`
+    is Phase 1 only: it writes the StoreKit, haptics and memory results into the bar.
+  - `StackWriteKit/`: the local package, three targets:
+    - `StackWriteCore`: Core and Services. `Layout` (key geometry), `Lexicon` (the
+      trie), `Flags`. `Handwriting/` holds the v1 engine (`Features`, `PhraseDecoder`,
+      `Recognizer`, `Recording`, `StrokeSample`). Foundation only; tests run on Linux.
+    - `StackWriteUI`: the design system (`Theme` tokens, `Components`, `Art`) and the
+      keyboard's views (`KeySurfaceView`). UIKit and SwiftUI, guarded with
+      `#if canImport(UIKit)` so `swift test` still builds the package on macOS.
+    - `StackWriteKitTests`: Swift Testing. `LayoutTests`, and `GoldenTests` replaying
+      `ml/export/golden.json` for the v1 engine.
+  - `Config/`: `StackWrite.xcconfig` (bundle ID, version, `SENTRY_DSN`),
+    `StackWriteKeyboard.xcconfig` and `StackWriteKeyboard-Info.plist` (the extension),
+    `Info.plist`, `StackWrite.entitlements` (iCloud container for v1 sample uploads),
+    `testflight.json`. Keep the two `MARKETING_VERSION`s equal.
+- `ml/`: the v1 Python training loop (see `ml/README.md`), still used for the opt-in
+  practice-session uploads planned in Phase 7.
+- `design/`: the mockup (`mockups/stackwrite.html`, the keyboard in it works) and
+  screenshots.
 
-  Keep `StackWriteKit` inside this app. Don't move it to the repo's `packages/` unless a
-  second app needs it.
+Keep `StackWriteKit` inside this app. Don't move it to the repo's `packages/` unless a
+second app needs it.
 
-## Commands
+## Build and test
 
-`make` in this folder lists the everyday commands (`Makefile`): `make setup`, `make train`,
-`make eval`, `make download`, `make samples`, `make test`, `make build`. Add a target there
-when a new command is worth remembering, with a `##` comment so it shows in the list.
-
-## iOS (ios/)
+There is no Xcode in Claude's container: push and read the "StackWrite iOS" workflow
+(`.github/workflows/stackwrite-ios.yml`). PRs run `swift test` on the package and build
+the app and the extension for the simulator; pushes to `main` also archive and upload to
+TestFlight, with Sentry's DSN baked in. On a Mac:
 
 ```bash
 cd ios
+swift test --package-path StackWriteKit
 xcodebuild build -project StackWrite.xcodeproj -scheme StackWrite \
   -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO
 ```
 
-Package tests (featurize and decoder also run on Linux with a Swift toolchain; the
-Core ML test needs macOS):
-
-```bash
-swift test --package-path ios/StackWriteKit
-```
-
-CI is `.github/workflows/stackwrite-ios.yml`. It runs the package tests, then builds. PRs build; pushes to `main` also upload to
-TestFlight. See `docs/ios-release.md` at the repo root.
-
-## Python (ml/)
-
-```bash
-cd ml
-pip install -r requirements.txt
-python3 viz.py                                   # render sample synthetic words → out/samples.png
-python3 evaluate.py --model runs/final.pt --sets data/test_all.npz   # needs data built first
-python3 train_phrases.py --init runs/final.pt --out runs/phrase.pt --minutes 60   # Mac GPU, ~1 h
-python3 eval_phrases.py runs/phrase.pt --n 300 [--tune]          # word error rate, word breaks
-python3 export.py --model runs/phrase.pt --out export/StackWrite
-python3 make_golden.py --model runs/phrase.pt                    # Swift parity cases
-cp -R export/StackWrite.mlpackage ../ios/StackWrite/Model/StrokeModel.mlpackage  # after rm -rf the old one
-python3 download_samples.py                                      # uploaded samples → samples/cloud
-python3 eval_real.py samples/cloud --model runs/phrase.pt        # how it reads recorded phrases
-python3 finetune_phrases.py samples/cloud [--ship]               # fine-tune on them (+ copy into the app)
-```
-
-### Retraining on recorded samples
-
-`ml/train_and_ship.py` does the whole loop: download samples, fine-tune `ml/models/base.pt`
-(the synthetic-only phrase model) on all of them, score it against the model in the app
-(`ml/models/shipped.pt`) on held-back sessions, and if it's better, export it into the app
-and update `models/shipped.pt` and `models/shipped.json`. Two ways to run it:
-
-- **Mac (now):** `make train` (or `make train MINUTES=15`) from `apps/stackwrite` on
-  Gabriel's Mac; it runs `ml/train_and_ship.sh`, which pushes to main itself, which builds
-  and uploads to TestFlight. `make train-dry` trains without pushing.
-- **GitHub button (later, off for now):** Actions → "StackWrite train" →
-  Run workflow (`stackwrite-train.yml`) runs the same on a dedicated Mac registered as a
-  self-hosted runner with the label `stackwrite`, commits to main and starts the
-  TestFlight build. Turn it on by setting the repo variable `STACKWRITE_TRAINER` to `on`.
-  The runner uses the iCloud key in `~/.config/stackwrite`, or the repo secrets
-  `CLOUDKIT_KEY_ID` and `CLOUDKIT_PRIVATE_KEY` if set.
-
-See `ml/README.md` for building data, training and personalizing. `data/` and
-intermediate `runs/` are gitignored. Only `runs/final.pt` and the logs are committed;
-`runs/phrase.pt` lives on Gabriel's Mac. `finetune_phrases.py` trains on recorded phrases
-(v2) and the older one-word recordings (v1) mixed with synthetic phrases; `finetune.py` is
-for the old one-stroke model.
+`make` in this folder lists the v1 training commands.
 
 ## Rules
 
-- If you change `featurize`, the model's input/output, or the decoder in Python, update
-  the Swift port, `BRIEF.md`, and regenerate `export/golden.json` in the same change.
-- When you retrain, re-export the Core ML model and regenerate `golden.json` so the Swift
-  parity tests keep passing.
-- `train.py` picks cuda, then the Apple GPU (`mps`), then CPU (`--device` to force one).
-  CTC loss always runs on the CPU because MPS doesn't implement it.
-- Recorded samples use the format in `SAMPLES.md`. Change it in `StrokeSample` and
-  `ml/samples.py` together, and bump `version` if a field changes meaning.
-- Keep recognition fully on-device. The keyboard must work without Full Access.
-- Keep this file up to date as the iOS project takes shape (build, run and test commands).
+- Architecture as in `docs/building.md` §4 and `BUILD.md`: pure, tested logic in
+  `StackWriteCore`; side effects behind protocols with fakes; the extension's
+  `KeyboardModel` and the app's `AppModel` are the only things views talk to; nothing in
+  the package knows about either.
+- Screens use `Theme` tokens and the components in `StackWriteUI`, never a colour or a
+  size of their own. `Layout.qwerty(width:)` is the one source of key geometry.
+- Every phase's done-when is checked at the small size (iPhone Duo outer), the largest
+  text size and the wide size (Duo inner).
+- The keyboard must type without Full Access, and the extension never sends telemetry.
+  Keep the extension under 40 MB; the bar's memory readout (Phase 1) says what is left.
+- Nothing typed ever leaves the phone. Practice sessions upload only from the app, only
+  when the person turns it on.
+- Never write "Nintype" into the product, and never copy its code, data or art.
+- Keep this file current as the targets and commands change.

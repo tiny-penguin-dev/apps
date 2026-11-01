@@ -7,7 +7,12 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		5A0000000000000000000082 /* StackWriteKit in Frameworks */ = {isa = PBXBuildFile; productRef = 5A0000000000000000000081 /* StackWriteKit */; };
+		5A0000000000000000000082 /* StackWriteCore in Frameworks */ = {isa = PBXBuildFile; productRef = 5A0000000000000000000081 /* StackWriteCore */; };
+		5A0000000000000000000086 /* StackWriteUI in Frameworks */ = {isa = PBXBuildFile; productRef = 5A0000000000000000000085 /* StackWriteUI */; };
+		5A0000000000000000000090 /* Sentry-Dynamic in Frameworks */ = {isa = PBXBuildFile; productRef = 5A0000000000000000000092 /* Sentry-Dynamic */; };
+		5A0000000000000000000102 /* StackWriteCore in Frameworks */ = {isa = PBXBuildFile; productRef = 5A0000000000000000000101 /* StackWriteCore */; };
+		5A0000000000000000000104 /* StackWriteUI in Frameworks */ = {isa = PBXBuildFile; productRef = 5A0000000000000000000103 /* StackWriteUI */; };
+		5A0000000000000000000134 /* StackWriteKeyboard.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 5A0000000000000000000110 /* StackWriteKeyboard.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -17,10 +22,14 @@
 		5A0000000000000000000013 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		5A0000000000000000000015 /* StackWrite.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = StackWrite.entitlements; sourceTree = "<group>"; };
 		5A0000000000000000000014 /* StackWriteKit */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = StackWriteKit; sourceTree = "<group>"; };
+		5A0000000000000000000110 /* StackWriteKeyboard.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = StackWriteKeyboard.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		5A0000000000000000000111 /* StackWriteKeyboard.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = StackWriteKeyboard.xcconfig; sourceTree = "<group>"; };
+		5A0000000000000000000112 /* StackWriteKeyboard-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "StackWriteKeyboard-Info.plist"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		5A0000000000000000000020 /* StackWrite */ = {isa = PBXFileSystemSynchronizedRootGroup; path = StackWrite; sourceTree = "<group>"; };
+		5A0000000000000000000120 /* StackWriteKeyboard */ = {isa = PBXFileSystemSynchronizedRootGroup; path = StackWriteKeyboard; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -28,17 +37,61 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				5A0000000000000000000082 /* StackWriteKit in Frameworks */,
+				5A0000000000000000000082 /* StackWriteCore in Frameworks */,
+				5A0000000000000000000086 /* StackWriteUI in Frameworks */,
+				5A0000000000000000000090 /* Sentry-Dynamic in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5A0000000000000000000131 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5A0000000000000000000102 /* StackWriteCore in Frameworks */,
+				5A0000000000000000000104 /* StackWriteUI in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		5A0000000000000000000133 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				5A0000000000000000000134 /* StackWriteKeyboard.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXContainerItemProxy section */
+		5A0000000000000000000151 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 5A0000000000000000000050 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 5A0000000000000000000140;
+			remoteInfo = StackWriteKeyboard;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXTargetDependency section */
+		5A0000000000000000000150 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 5A0000000000000000000140 /* StackWriteKeyboard */;
+			targetProxy = 5A0000000000000000000151 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin PBXGroup section */
 		5A0000000000000000000001 = {
 			isa = PBXGroup;
 			children = (
 				5A0000000000000000000020 /* StackWrite */,
+				5A0000000000000000000120 /* StackWriteKeyboard */,
 				5A0000000000000000000014 /* StackWriteKit */,
 				5A0000000000000000000003 /* Config */,
 				5A0000000000000000000002 /* Products */,
@@ -49,6 +102,7 @@
 			isa = PBXGroup;
 			children = (
 				5A0000000000000000000010 /* StackWrite.app */,
+				5A0000000000000000000110 /* StackWriteKeyboard.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -60,6 +114,8 @@
 				5A0000000000000000000012 /* StackWrite.xcconfig */,
 				5A0000000000000000000013 /* Info.plist */,
 				5A0000000000000000000015 /* StackWrite.entitlements */,
+				5A0000000000000000000111 /* StackWriteKeyboard.xcconfig */,
+				5A0000000000000000000112 /* StackWriteKeyboard-Info.plist */,
 			);
 			path = Config;
 			sourceTree = "<group>";
@@ -74,21 +130,49 @@
 				5A0000000000000000000030 /* Sources */,
 				5A0000000000000000000031 /* Frameworks */,
 				5A0000000000000000000032 /* Resources */,
+				5A0000000000000000000133 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				5A0000000000000000000150 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				5A0000000000000000000020 /* StackWrite */,
 			);
 			name = StackWrite;
 			packageProductDependencies = (
-				5A0000000000000000000081 /* StackWriteKit */,
+				5A0000000000000000000081 /* StackWriteCore */,
+				5A0000000000000000000085 /* StackWriteUI */,
+				5A0000000000000000000092 /* Sentry-Dynamic */,
 			);
 			productName = StackWrite;
 			productReference = 5A0000000000000000000010 /* StackWrite.app */;
 			productType = "com.apple.product-type.application";
+		};
+		5A0000000000000000000140 /* StackWriteKeyboard */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5A0000000000000000000161 /* Build configuration list for PBXNativeTarget "StackWriteKeyboard" */;
+			buildPhases = (
+				5A0000000000000000000130 /* Sources */,
+				5A0000000000000000000131 /* Frameworks */,
+				5A0000000000000000000132 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				5A0000000000000000000120 /* StackWriteKeyboard */,
+			);
+			name = StackWriteKeyboard;
+			packageProductDependencies = (
+				5A0000000000000000000101 /* StackWriteCore */,
+				5A0000000000000000000103 /* StackWriteUI */,
+			);
+			productName = StackWriteKeyboard;
+			productReference = 5A0000000000000000000110 /* StackWriteKeyboard.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -101,6 +185,9 @@
 				LastUpgradeCheck = 1600;
 				TargetAttributes = {
 					5A0000000000000000000040 = {
+						CreatedOnToolsVersion = 16.0;
+					};
+					5A0000000000000000000140 = {
 						CreatedOnToolsVersion = 16.0;
 					};
 				};
@@ -116,6 +203,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				5A0000000000000000000080 /* XCLocalSwiftPackageReference "StackWriteKit" */,
+				5A0000000000000000000091 /* XCRemoteSwiftPackageReference "sentry-cocoa" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 5A0000000000000000000002 /* Products */;
@@ -123,6 +211,7 @@
 			projectRoot = "";
 			targets = (
 				5A0000000000000000000040 /* StackWrite */,
+				5A0000000000000000000140 /* StackWriteKeyboard */,
 			);
 		};
 /* End PBXProject section */
@@ -135,10 +224,24 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		5A0000000000000000000132 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		5A0000000000000000000030 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5A0000000000000000000130 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -176,6 +279,20 @@
 			};
 			name = Release;
 		};
+		5A0000000000000000000174 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 5A0000000000000000000111 /* StackWriteKeyboard.xcconfig */;
+			buildSettings = {
+			};
+			name = Debug;
+		};
+		5A0000000000000000000175 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 5A0000000000000000000111 /* StackWriteKeyboard.xcconfig */;
+			buildSettings = {
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -197,6 +314,15 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		5A0000000000000000000161 /* Build configuration list for PBXNativeTarget "StackWriteKeyboard" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5A0000000000000000000174 /* Debug */,
+				5A0000000000000000000175 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
@@ -206,10 +332,38 @@
 		};
 /* End XCLocalSwiftPackageReference section */
 
+/* Begin XCRemoteSwiftPackageReference section */
+		5A0000000000000000000091 /* XCRemoteSwiftPackageReference "sentry-cocoa" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/getsentry/sentry-cocoa";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 9.32.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
 /* Begin XCSwiftPackageProductDependency section */
-		5A0000000000000000000081 /* StackWriteKit */ = {
+		5A0000000000000000000081 /* StackWriteCore */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = StackWriteKit;
+			productName = StackWriteCore;
+		};
+		5A0000000000000000000085 /* StackWriteUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = StackWriteUI;
+		};
+		5A0000000000000000000092 /* Sentry-Dynamic */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 5A0000000000000000000091 /* XCRemoteSwiftPackageReference "sentry-cocoa" */;
+			productName = "Sentry-Dynamic";
+		};
+		5A0000000000000000000101 /* StackWriteCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = StackWriteCore;
+		};
+		5A0000000000000000000103 /* StackWriteUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = StackWriteUI;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

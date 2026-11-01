@@ -1,0 +1,99 @@
+# Keeps each app's App Store Connect listing in sync with its store/ folder:
+#   apps/<name>/store/screenshots/<language>/   screenshots (asc-upload-screenshots.py)
+#   apps/<name>/store/subscriptions.json        subscriptions (asc-subscriptions.py)
+# Pull requests print what would change; pushes to main make the changes. Things that
+# already match are skipped. See docs/ios-release.md.
+name: App Store
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - apps/*/store/**
+      - scripts/ios/asc.py
+      - scripts/ios/asc-upload-screenshots.py
+      - scripts/ios/asc-subscriptions.py
+      - .github/workflows/app-store.yml
+  pull_request:
+    paths:
+      - apps/*/store/**
+      - scripts/ios/asc.py
+      - scripts/ios/asc-upload-screenshots.py
+      - scripts/ios/asc-subscriptions.py
+      - .github/workflows/app-store.yml
+  workflow_dispatch:
+    inputs:
+      app:
+        description: App folder name (like squawk). Empty does every app.
+        required: false
+        type: string
+        default: ""
+
+concurrency:
+  group: app-store-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    name: Sync
+    runs-on: ubuntu-latest
+    env:
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
+      ONLY_APP: ${{ inputs.app }}
+      # Only main changes App Store Connect.
+      APPLY: ${{ github.ref == 'refs/heads/main' && '--apply' || '' }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Write API key and list apps
+        id: setup
+        run: |
+          set -euo pipefail
+          if [ -z "$ASC_KEY_ID" ] || [ -z "$ASC_ISSUER_ID" ] || [ -z "$ASC_PRIVATE_KEY" ]; then
+            echo "::warning::Skipping: set the ASC_KEY_ID, ASC_ISSUER_ID and ASC_PRIVATE_KEY repo secrets (see docs/ios-release.md)."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          key="$RUNNER_TEMP/AuthKey_$ASC_KEY_ID.p8"
+          printf '%s\n' "$ASC_PRIVATE_KEY" > "$key"
+          echo "ASC_KEY_PATH=$key" >> "$GITHUB_ENV"
+          # "<app> <bundle ID>" for each app with a store/ folder. The bundle ID is the
+          # shortest one in the app's xcconfigs (extensions add a suffix to it).
+          for store in apps/*/store; do
+            [ -d "$store" ] || continue
+            app=$(basename "$(dirname "$store")")
+            if [ -n "$ONLY_APP" ] && [ "$app" != "$ONLY_APP" ]; then continue; fi
+            bundle_id=$(grep -h '^PRODUCT_BUNDLE_IDENTIFIER' apps/$app/ios/Config/*.xcconfig \
+              | sed 's/.*= *//' | awk '{ print length, $0 }' | sort -n | head -1 | cut -d' ' -f2)
+            echo "$app $bundle_id" >> "$RUNNER_TEMP/apps.txt"
+          done
+          echo "ready=true" >> "$GITHUB_OUTPUT"
+
+      - name: Subscriptions
+        if: steps.setup.outputs.ready == 'true'
+        run: |
+          set -euo pipefail
+          while read -r app bundle_id; do
+            # With no subscriptions.json, this prints what App Store Connect has, to start one.
+            echo "::group::$app ($bundle_id)"
+            python3 scripts/ios/asc-subscriptions.py "$bundle_id" "apps/$app/store/subscriptions.json" $APPLY
+            echo "::endgroup::"
+          done < "$RUNNER_TEMP/apps.txt"
+
+      - name: Screenshots
+        # The screenshot script has no dry run, so pull requests skip it.
+        if: steps.setup.outputs.ready == 'true' && github.event_name != 'pull_request'
+        run: |
+          set -euo pipefail
+          while read -r app bundle_id; do
+            [ -d "apps/$app/store/screenshots" ] || continue
+            echo "::group::$app ($bundle_id)"
+            python3 scripts/ios/asc-upload-screenshots.py "$bundle_id" "apps/$app/store/screenshots"
+            echo "::endgroup::"
+          done < "$RUNNER_TEMP/apps.txt"
+
+      - name: Remove API key
+        if: always()
+        run: rm -f "$RUNNER_TEMP"/AuthKey_*.p8

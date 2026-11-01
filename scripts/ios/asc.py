@@ -104,3 +104,26 @@ def run(main, *args):
     except ApiError as e:
         print(f"::error::{e}")
         sys.exit(1)
+
+
+def get_all_with_included(path):
+    """Like get_all, but also returns the included resources, by (type, id)."""
+    items, included = [], {}
+    while path:
+        page = call("GET", path)
+        items += page["data"]
+        for i in page.get("included", []):
+            included[(i["type"], i["id"])] = i
+        path = page.get("links", {}).get("next")
+    return items, included
+
+
+def upload_parts(operations, data):
+    """Send a file to the upload URLs App Store Connect gave for it (they take no token)."""
+    for op in operations:
+        part = data[op["offset"] : op["offset"] + op["length"]]
+        req = urllib.request.Request(op["url"], data=part, method=op["method"])
+        for header in op.get("requestHeaders", []):
+            req.add_header(header["name"], header["value"])
+        with urllib.request.urlopen(req) as resp:
+            resp.read()

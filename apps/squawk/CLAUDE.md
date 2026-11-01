@@ -73,5 +73,11 @@ Squawk is in the **Build** stage. Read `PRODUCT.md`, `DESIGN.md` and `BUILD.md` 
   (1320 x 2868, the 6.9" iPhone size). Captions and screens are listed in
   `design/appstore/make-screenshots.mjs`; rerun it with `node` after changing them.
 - CI uploads `store/screenshots/` to App Store Connect when it changes on `main`
-  (`docs/ios-release.md`, "App Store screenshots").
+  (`docs/ios-release.md`, "App Store listing").
+
+## Subscriptions
+
+- The Pro plans live in `store/subscriptions.json` (prices, launch offers, names,
+  review screenshot `store/pro-review.png`) and sync to App Store Connect from `main`.
+  Product IDs must match `ProProducts` in SquawkKit.
 - Swap them for real app screenshots before the public release.

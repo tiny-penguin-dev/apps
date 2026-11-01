@@ -8,7 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		5A0000000000000000000082 /* PenguinKit in Frameworks */ = {isa = PBXBuildFile; productRef = 5A0000000000000000000081 /* PenguinKit */; };
-		5A0000000000000000000090 /* Sentry in Frameworks */ = {isa = PBXBuildFile; productRef = 5A0000000000000000000092 /* Sentry */; };
+		5A0000000000000000000090 /* Sentry-Dynamic in Frameworks */ = {isa = PBXBuildFile; productRef = 5A0000000000000000000092 /* Sentry-Dynamic */; };
 		5A0000000000000000000086 /* SquawkKit in Frameworks */ = {isa = PBXBuildFile; productRef = 5A0000000000000000000085 /* SquawkKit */; };
 /* End PBXBuildFile section */
 
@@ -30,7 +30,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				5A0000000000000000000082 /* PenguinKit in Frameworks */,
-				5A0000000000000000000090 /* Sentry in Frameworks */,
+				5A0000000000000000000090 /* Sentry-Dynamic in Frameworks */,
 				5A0000000000000000000086 /* SquawkKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -87,7 +87,7 @@
 			name = Squawk;
 			packageProductDependencies = (
 				5A0000000000000000000081 /* PenguinKit */,
-				5A0000000000000000000092 /* Sentry */,
+				5A0000000000000000000092 /* Sentry-Dynamic */,
 				5A0000000000000000000085 /* SquawkKit */,
 			);
 			productName = Squawk;
@@ -236,10 +236,10 @@
 			isa = XCSwiftPackageProductDependency;
 			productName = SquawkKit;
 		};
-		5A0000000000000000000092 /* Sentry */ = {
+		5A0000000000000000000092 /* Sentry-Dynamic */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 5A0000000000000000000091 /* XCRemoteSwiftPackageReference "sentry-cocoa" */;
-			productName = Sentry;
+			productName = "Sentry-Dynamic";
 		};
 /* End XCSwiftPackageProductDependency section */
 

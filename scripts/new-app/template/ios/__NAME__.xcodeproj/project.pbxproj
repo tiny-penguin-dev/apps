@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		5A0000000000000000000090 /* Sentry in Frameworks */ = {isa = PBXBuildFile; productRef = 5A0000000000000000000092 /* Sentry */; };
+		5A0000000000000000000090 /* Sentry-Dynamic in Frameworks */ = {isa = PBXBuildFile; productRef = 5A0000000000000000000092 /* Sentry-Dynamic */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -26,7 +26,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				5A0000000000000000000090 /* Sentry in Frameworks */,
+				5A0000000000000000000090 /* Sentry-Dynamic in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -80,7 +80,7 @@
 			);
 			name = __NAME__;
 			packageProductDependencies = (
-				5A0000000000000000000092 /* Sentry */,
+				5A0000000000000000000092 /* Sentry-Dynamic */,
 			);
 			productName = __NAME__;
 			productReference = 5A0000000000000000000010 /* __NAME__.app */;
@@ -207,10 +207,10 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		5A0000000000000000000092 /* Sentry */ = {
+		5A0000000000000000000092 /* Sentry-Dynamic */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 5A0000000000000000000091 /* XCRemoteSwiftPackageReference "sentry-cocoa" */;
-			productName = Sentry;
+			productName = "Sentry-Dynamic";
 		};
 /* End XCSwiftPackageProductDependency section */
 

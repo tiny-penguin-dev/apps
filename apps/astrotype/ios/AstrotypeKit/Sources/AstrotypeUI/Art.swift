@@ -250,4 +250,78 @@ public struct CloudArt: View {
     }
     .padding().background(Theme.bg)
 }
+
+/// A lightning bolt in a sun-yellow disc, its rays turning slowly (DESIGN.md
+/// "Graphics": the speed test result). Still under Reduce Motion.
+///
+///     BoltArt().frame(width: 170, height: 170)
+public struct BoltArt: View {
+    @State private var turning = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    public init() {}
+
+    public var body: some View {
+        GeometryReader { proxy in
+            let s = min(proxy.size.width, proxy.size.height) / 200
+            ZStack {
+                RaysShape()
+                    .fill(Theme.sun.opacity(0.35))
+                    .frame(width: 200 * s, height: 200 * s)
+                    .rotationEffect(.degrees(turning && !reduceMotion ? 360 : 0))
+                Circle()
+                    .fill(Theme.sun)
+                    .frame(width: 128 * s, height: 128 * s)
+                    .shadow(color: Theme.sunInk.opacity(0.25), radius: 0, y: 6 * s)
+                BoltShape()
+                    .fill(Theme.sunInk)
+                    .frame(width: 56 * s, height: 84 * s)
+            }
+            .frame(width: 200 * s, height: 200 * s)
+            .frame(width: proxy.size.width, height: proxy.size.height)
+        }
+        .aspectRatio(1, contentMode: .fit)
+        .accessibilityLabel("A lightning bolt")
+        .onAppear {
+            guard !reduceMotion else { return }
+            withAnimation(.linear(duration: 24).repeatForever(autoreverses: false)) { turning = true }
+        }
+    }
+
+    /// Twelve short rays around the disc.
+    struct RaysShape: Shape {
+        func path(in rect: CGRect) -> Path {
+            var path = Path()
+            let center = CGPoint(x: rect.midX, y: rect.midY)
+            let inner = rect.width * 0.37
+            let outer = rect.width * 0.5
+            for i in 0..<12 {
+                let angle = CGFloat(i) * .pi / 6
+                let half: CGFloat = .pi / 36
+                path.move(to: CGPoint(x: center.x + cos(angle - half) * inner, y: center.y + sin(angle - half) * inner))
+                path.addLine(to: CGPoint(x: center.x + cos(angle - half * 0.6) * outer, y: center.y + sin(angle - half * 0.6) * outer))
+                path.addLine(to: CGPoint(x: center.x + cos(angle + half * 0.6) * outer, y: center.y + sin(angle + half * 0.6) * outer))
+                path.addLine(to: CGPoint(x: center.x + cos(angle + half) * inner, y: center.y + sin(angle + half) * inner))
+                path.closeSubpath()
+            }
+            return path
+        }
+    }
+
+    /// The bolt, in a 56 by 84 box.
+    struct BoltShape: Shape {
+        func path(in rect: CGRect) -> Path {
+            let w = rect.width, h = rect.height
+            var path = Path()
+            path.move(to: CGPoint(x: rect.minX + w * 0.62, y: rect.minY))
+            path.addLine(to: CGPoint(x: rect.minX + w * 0.08, y: rect.minY + h * 0.56))
+            path.addLine(to: CGPoint(x: rect.minX + w * 0.46, y: rect.minY + h * 0.56))
+            path.addLine(to: CGPoint(x: rect.minX + w * 0.34, y: rect.minY + h))
+            path.addLine(to: CGPoint(x: rect.minX + w * 0.92, y: rect.minY + h * 0.4))
+            path.addLine(to: CGPoint(x: rect.minX + w * 0.54, y: rect.minY + h * 0.4))
+            path.closeSubpath()
+            return path
+        }
+    }
+}
 #endif

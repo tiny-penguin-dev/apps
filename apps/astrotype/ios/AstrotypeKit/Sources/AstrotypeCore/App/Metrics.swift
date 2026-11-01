@@ -6,10 +6,13 @@ import Foundation
 public protocol Metrics: Sendable {
     func count(_ name: String, _ attributes: [String: String])
     func duration(_ name: String, seconds: Double)
+    /// A current value, like a speed test's words per minute.
+    func gauge(_ name: String, value: Double, _ attributes: [String: String])
 }
 
 public extension Metrics {
     func count(_ name: String) { count(name, [:]) }
+    func gauge(_ name: String, value: Double) { gauge(name, value: value, [:]) }
 }
 
 /// Remembers what was sent, for tests.
@@ -18,6 +21,7 @@ public final class RecordingMetrics: Metrics, @unchecked Sendable {
         public var name: String
         public var attributes: [String: String]
         public var seconds: Double?
+        public var value: Double?
     }
 
     private let lock = NSLock()
@@ -32,11 +36,16 @@ public final class RecordingMetrics: Metrics, @unchecked Sendable {
 
     public func count(_ name: String, _ attributes: [String: String]) {
         lock.lock(); defer { lock.unlock() }
-        entries.append(Entry(name: name, attributes: attributes, seconds: nil))
+        entries.append(Entry(name: name, attributes: attributes, seconds: nil, value: nil))
     }
 
     public func duration(_ name: String, seconds: Double) {
         lock.lock(); defer { lock.unlock() }
-        entries.append(Entry(name: name, attributes: [:], seconds: seconds))
+        entries.append(Entry(name: name, attributes: [:], seconds: seconds, value: nil))
+    }
+
+    public func gauge(_ name: String, value: Double, _ attributes: [String: String]) {
+        lock.lock(); defer { lock.unlock() }
+        entries.append(Entry(name: name, attributes: attributes, seconds: nil, value: value))
     }
 }

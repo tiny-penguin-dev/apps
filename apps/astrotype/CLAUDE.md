@@ -21,7 +21,9 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
     (`TurnOnView`, `SyncView`, `TryItView`, and `SetupPage`, their shared shape),
     `HelloView`, `HomeView`, `SettingsView`, `LearnedWordsView`, `PracticeView`,
     `ProView` (the subscription screen, StoreKit's `SubscriptionStoreView`),
-    `TrialOverView` (the sheet, once),
+    `TrialOverView` (the sheet, once), `MilestoneView` (the sheet, once each),
+    `Practice/` (`SpeedTestView` on ours or Apple's keyboard, `SpeedResultView`,
+    `DrillView`),
     `Keyboard/KeyboardSession` (a text view whose input view is the shared keyboard,
     with Try it's replay),
     `Telemetry.swift` (Sentry, see `docs/telemetry.md`), `PrivacyInfo.xcprivacy`.
@@ -52,7 +54,11 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
       `ProStore` with `MemoryProStore`, `TrialStore` and `ProCache` as files),
       `StoreKitProStore` (the live `ProStore`), `KeyboardStatus` (is the keyboard on),
       `Metrics` (protocol; the app's live one is `Telemetry`), `TryWord` (the Try it
-      words and their strokes), `Week`. `Handwriting/` holds the v1 engine (`Features`, `PhraseDecoder`, `Recognizer`,
+      words and their strokes), `Week`, `SpeedTest` (the test as it runs, `SpeedResult`),
+      `Drill` (the three drills and their words), `Milestone` and `Streak`,
+      `PracticeRecording` (a session's touches, `TouchRecorder`, `PracticeStore`, the
+      `PracticeUploader` protocol with its fake; the live one is
+      `Sync/CloudKitPracticeUploader`). `Handwriting/` holds the v1 engine (`Features`, `PhraseDecoder`, `Recognizer`,
       `Recording`, `StrokeSample`). Foundation only; tests run on Linux.
     - `AstrotypeUI`: the design system (`Theme` tokens, `Components`, `Art`) and the
       keyboard's views: `KeyboardView` (bar plus keys, the pages, the settings panel;
@@ -70,7 +76,8 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
       fixture in `Fixtures/swipes.json`, through `Synth`'s straight-line swipes),
       `GeometryTests`, `LayoutTests`, `KeyboardSettingsTests`, `AppCoreTests` (the
       `App/` pieces), `ProTests` (`Entitlement`, the trial and Pro files, the memory
-      store), `SyncTests` (stores, snapshots, `Syncer`, `Backup`), and
+      store), `PracticeTests` (the speed test, streak and milestones, the drills on the
+      engine, recordings), `SyncTests` (stores, snapshots, `Syncer`, `Backup`), and
       `GoldenTests` replaying
       `ml/export/golden.json` for the v1 engine.
   - `Config/`: `Astrotype.xcconfig` (bundle ID, version, `SENTRY_DSN`),
@@ -81,8 +88,8 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
     `testflight.json`. Keep the two `MARKETING_VERSION`s equal.
 - `store/`: the App Store listing kept in the repo (`subscriptions.json`, the Pro
   plans; screenshots later), synced by `.github/workflows/app-store.yml`.
-- `ml/`: the v1 Python training loop (see `ml/README.md`), still used for the opt-in
-  practice-session uploads planned in Phase 7.
+- `ml/`: the v1 Python training loop (see `ml/README.md`); the opt-in practice-session
+  uploads (`PracticeSession` records) land in the same container for it to read.
 - `design/`: the mockup (`mockups/astrotype.html`, the keyboard in it works) and
   screenshots.
 

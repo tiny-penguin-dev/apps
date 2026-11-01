@@ -50,6 +50,10 @@ public final class KeySurfaceView: UIView {
 
     /// Draw swipe trails and tap rings.
     public var showsTrails = true
+    /// Keys outlined in a thumb's colour (a drill's next word, DESIGN.md screen 8).
+    public var hints: [Key: Side] = [:] {
+        didSet { applyHints() }
+    }
     /// Settings: a slide on space moves the cursor; a swipe left on backspace deletes a word.
     public var spaceSlideEnabled = true
     public var backspaceSwipeEnabled = true
@@ -115,6 +119,13 @@ public final class KeySurfaceView: UIView {
         effects.frame = bounds
         layer.addSublayer(effects)
         invalidateIntrinsicContentSize()
+        applyHints()
+    }
+
+    private func applyHints() {
+        for (key, views) in keyViews {
+            views.forEach { $0.hint(side: hints[key]) }
+        }
     }
 
     // MARK: Touches
@@ -461,6 +472,17 @@ final class KeyView: UIView {
             self.label.textColor = Theme.ui(self.key == .space ? .muted : .keyInk)
             self.transform = .identity
         }
+    }
+
+    /// Outline the key in a thumb's colour, or clear it.
+    func hint(side: Side?) {
+        guard let side else {
+            layer.borderWidth = 0
+            layer.borderColor = nil
+            return
+        }
+        layer.borderWidth = 3
+        layer.borderColor = Theme.ui(side == .left ? .left : .right).cgColor
     }
 }
 #endif

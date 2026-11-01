@@ -41,6 +41,11 @@ public final class KeyboardModel {
     public var onSettingsChange: ((KeyboardSettings) -> Void)?
     /// The bar should say this for a moment (a second thumb on the free keyboard).
     public var onNotice: ((Composer.Notice) -> Void)?
+    /// A word already written was swapped for another from the bar (a fix).
+    public var onFix: (() -> Void)?
+    /// Every touch on the keys as the engine sees it, for the app's practice
+    /// recordings (never set in the extension).
+    public var onTouch: ((TouchRecorder.Phase, Int, CGPoint, TimeInterval) -> Void)?
     /// What the person may use (`Entitlement`): the host sets it from the App Store
     /// and the trial. Everything is allowed until it does.
     public var entitlement: Entitlement = .full {
@@ -117,18 +122,22 @@ public final class KeyboardModel {
     // MARK: Input
 
     public func touchBegan(id: Int, at point: CGPoint, time: TimeInterval) {
+        onTouch?(.began, id, point, time)
         apply(composer.touchDown(id: id, at: point, time: time))
     }
 
     public func touchMoved(id: Int, to point: CGPoint, time: TimeInterval) {
+        onTouch?(.moved, id, point, time)
         apply(composer.touchMoved(id: id, to: point, time: time))
     }
 
     public func touchEnded(id: Int, at point: CGPoint, time: TimeInterval) {
+        onTouch?(.ended, id, point, time)
         apply(composer.touchUp(id: id, at: point, time: time))
     }
 
     public func touchCancelled(id: Int, time: TimeInterval) {
+        onTouch?(.cancelled, id, .zero, time)
         apply(composer.touchCancelled(id: id, time: time))
     }
 
@@ -141,6 +150,7 @@ public final class KeyboardModel {
     }
 
     public func choose(guess index: Int) {
+        if case .fix(_, let chosen) = composer.state.bar, chosen != index { onFix?() }
         apply(composer.choose(guess: index, time: now))
     }
 

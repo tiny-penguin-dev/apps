@@ -21,6 +21,11 @@ struct AppEnvironment {
     /// Where the trial's start is written for the keyboard extension to read (the App
     /// Group); nil in tests.
     var trialStore: TrialStore?
+    /// Practice recordings waiting to be sent, and what sends them; nil in tests.
+    var practiceStore: PracticeStore?
+    var practiceUploader: PracticeUploader?
+    /// What a recording says about where it was made (no name or account).
+    var device: PracticeRecording.Device
     var metrics: Metrics
     var now: () -> Date
     var appVersion: String
@@ -39,6 +44,10 @@ struct AppEnvironment {
             extensionStatus: KeyboardFiles.shared(KeyboardFiles.status).map { FileExtensionStatusStore(url: $0) as ExtensionStatusReading } ?? FakeExtensionStatus(),
             proStore: StoreKitProStore(),
             trialStore: TrialStore(url: dataFile(KeyboardFiles.trial)),
+            practiceStore: PracticeStore(folder: KeyboardFiles.own("Practice")),
+            practiceUploader: CloudKitPracticeUploader(),
+            device: PracticeRecording.Device(model: DeviceInfo.model, system: DeviceInfo.system,
+                                             app: DeviceInfo.appVersion, writer: DeviceInfo.writerID),
             metrics: LiveMetrics(),
             now: { Date() },
             appVersion: DeviceInfo.appVersion,
@@ -77,6 +86,9 @@ struct AppEnvironment {
         extensionStatus: ExtensionStatusReading = FakeExtensionStatus(),
         proStore: ProStore = MemoryProStore(),
         trialStore: TrialStore? = nil,
+        practiceStore: PracticeStore? = nil,
+        practiceUploader: PracticeUploader? = nil,
+        device: PracticeRecording.Device = PracticeRecording.Device(model: "iPhone", system: "iOS 26", app: "0.2.0", writer: "test"),
         metrics: Metrics = RecordingMetrics(),
         now: @escaping () -> Date = { Date(timeIntervalSince1970: 1_793_491_200) },
         appVersion: String = "0.2.0",
@@ -85,7 +97,8 @@ struct AppEnvironment {
     ) -> AppEnvironment {
         AppEnvironment(appStateStore: appStateStore, settingsStore: settingsStore, wordStore: wordStore, cloudSync: cloudSync,
                        keyboardStatus: keyboardStatus, extensionStatus: extensionStatus, proStore: proStore,
-                       trialStore: trialStore, metrics: metrics, now: now,
+                       trialStore: trialStore, practiceStore: practiceStore, practiceUploader: practiceUploader,
+                       device: device, metrics: metrics, now: now,
                        appVersion: appVersion, backup: backup, openSettings: openSettings)
     }
 }
@@ -98,5 +111,9 @@ struct LiveMetrics: Metrics {
 
     func duration(_ name: String, seconds: Double) {
         Telemetry.duration(name, seconds: seconds)
+    }
+
+    func gauge(_ name: String, value: Double, _ attributes: [String: String]) {
+        Telemetry.gauge(name, value: value, attributes)
     }
 }

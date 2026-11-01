@@ -133,6 +133,9 @@ struct SettingsView: View {
                     Toggle("Share anonymous usage data", isOn: $shareUsage).labelsHidden().tint(Theme.mint)
                         .onChange(of: shareUsage) { Telemetry.isEnabled = shareUsage }
                 }
+                Row("Send practice sessions", subtitle: "The touches from speed tests and drills here in the app, with the words they typed, to tune the keyboard. Never from other apps, no name attached.") {
+                    Toggle("Send practice sessions", isOn: $model.sharePractice).labelsHidden().tint(Theme.mint)
+                }
 
                 if Flags.handwritingPad {
                     HandwritingSettings()

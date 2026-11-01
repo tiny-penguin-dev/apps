@@ -36,6 +36,26 @@ DEFINE SCHEMA
         GRANT READ TO "_creator"
     );
 
+    // One practice session in the app (a speed test or a drill): the touches and
+    // the words they typed, sent only when the person turned "Send practice sessions"
+    // on (AstrotypeCore `PracticeRecording`). The record name is the recording's ID.
+    RECORD TYPE PracticeSession (
+        "___createTime" TIMESTAMP SORTABLE,
+        "___createdBy"  REFERENCE,
+        "___etag"       STRING,
+        "___modTime"    TIMESTAMP,
+        "___modifiedBy" REFERENCE,
+        "___recordID"   REFERENCE QUERYABLE,
+        json            STRING,
+        kind            STRING QUERYABLE,
+        label           STRING,
+        version         INT64,
+        writer          STRING QUERYABLE,
+        GRANT WRITE TO "_creator",
+        GRANT CREATE TO "_icloud",
+        GRANT READ TO "_world"
+    );
+
     RECORD TYPE Users (
         "___createTime" TIMESTAMP,
         "___createdBy"  REFERENCE,

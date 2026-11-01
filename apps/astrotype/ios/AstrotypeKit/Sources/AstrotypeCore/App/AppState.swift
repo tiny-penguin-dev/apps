@@ -21,6 +21,17 @@ public struct AppState: Codable, Sendable, Equatable {
     public var lastRunVersion: String?
     /// The Trial over sheet was shown (once, on the first launch after the trial ended).
     public var trialOverShown = false
+    /// The best speed test on the Astrotype keyboard, and the last few tests.
+    public var bestWordsPerMinute: Int?
+    public var speedTests: [SpeedResult] = []
+    /// The speed test typed on Apple's keyboard, for the comparison on Home.
+    public var appleWordsPerMinute: Int?
+    /// When each drill was last finished, by `Drill.ID` raw value.
+    public var drillsDone: [String: Date] = [:]
+    /// Milestones whose sheet was shown, by raw value.
+    public var milestonesSeen: [String] = []
+    /// Send the touches of speed tests and drills to tune the keyboard. Off by default.
+    public var sharePractice = false
 
     public init() {}
 
@@ -34,6 +45,30 @@ public struct AppState: Codable, Sendable, Equatable {
         practiceDays = try c.decodeIfPresent([String].self, forKey: .practiceDays) ?? []
         lastRunVersion = try c.decodeIfPresent(String.self, forKey: .lastRunVersion)
         trialOverShown = try c.decodeIfPresent(Bool.self, forKey: .trialOverShown) ?? false
+        bestWordsPerMinute = try c.decodeIfPresent(Int.self, forKey: .bestWordsPerMinute)
+        speedTests = try c.decodeIfPresent([SpeedResult].self, forKey: .speedTests) ?? []
+        appleWordsPerMinute = try c.decodeIfPresent(Int.self, forKey: .appleWordsPerMinute)
+        drillsDone = try c.decodeIfPresent([String: Date].self, forKey: .drillsDone) ?? [:]
+        milestonesSeen = try c.decodeIfPresent([String].self, forKey: .milestonesSeen) ?? []
+        sharePractice = try c.decodeIfPresent(Bool.self, forKey: .sharePractice) ?? false
+    }
+
+    /// Keeps the last 30 speed tests and the best on the Astrotype keyboard. Returns
+    /// whether this one is a new best.
+    @discardableResult
+    public mutating func record(_ result: SpeedResult) -> Bool {
+        speedTests.append(result)
+        if speedTests.count > 30 { speedTests.removeFirst(speedTests.count - 30) }
+        switch result.keyboard {
+        case .apple:
+            appleWordsPerMinute = result.wordsPerMinute
+            return false
+        case .astrotype:
+            let best = bestWordsPerMinute ?? 0
+            guard result.wordsPerMinute > best else { return false }
+            bestWordsPerMinute = result.wordsPerMinute
+            return true
+        }
     }
 
     /// A day as "2026-11-01" in `calendar`'s time zone, the key `practiceDays` uses.

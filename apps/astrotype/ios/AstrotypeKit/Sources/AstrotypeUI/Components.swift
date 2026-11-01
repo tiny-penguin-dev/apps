@@ -335,4 +335,43 @@ public struct Confetti: View {
         .onAppear { fallen = true }
     }
 }
+
+/// A drill's five words in a row: done ones mint, the current one outlined, the rest
+/// waiting (DESIGN.md screen 8).
+public struct WordCards: View {
+    var words: [String]
+    var current: Int
+
+    public init(words: [String], current: Int) {
+        self.words = words
+        self.current = current
+    }
+
+    public var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: Theme.Space.s) {
+                ForEach(Array(words.enumerated()), id: \.offset) { index, word in
+                    let done = index < current
+                    let now = index == current
+                    Text(word)
+                        .font(.system(.body, design: .rounded, weight: .heavy))
+                        .padding(.horizontal, 14).padding(.vertical, 10)
+                        .background(
+                            RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous)
+                                .fill(done ? Theme.mint : Theme.card)
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous)
+                                .strokeBorder(Theme.accent, lineWidth: now ? 2 : 0)
+                        )
+                        .foregroundStyle(done ? .white : now ? Theme.ink : Theme.muted)
+                        .scaleEffect(now ? 1.04 : 1)
+                        .animation(Theme.Motion.quickSpring, value: current)
+                        .accessibilityLabel(done ? "\(word), done" : now ? "\(word), now" : word)
+                }
+            }
+            .padding(.vertical, 2)
+        }
+    }
+}
 #endif

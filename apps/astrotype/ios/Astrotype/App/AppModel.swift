@@ -223,6 +223,88 @@ final class AppModel {
         state.recordPractice(at: now)
     }
 
+    /// Days in a row with practice, for the result screen's chip.
+    var streak: Int { Streak.days(practiceDays: state.practiceDays, now: now) }
+
+    var bestWordsPerMinute: Int? { state.bestWordsPerMinute }
+    var appleWordsPerMinute: Int? { state.appleWordsPerMinute }
+    var speedTests: [SpeedResult] { state.speedTests }
+
+    /// A speed test finished: kept, the best updated, counted as `speedtest.finished`.
+    /// Returns whether it is a new best on the Astrotype keyboard.
+    @discardableResult
+    func speedTestFinished(_ result: SpeedResult) -> Bool {
+        state.recordPractice(at: now)
+        let best = state.record(result)
+        environment.metrics.gauge("speedtest.finished", value: Double(result.wordsPerMinute), ["keyboard": result.keyboard.rawValue])
+        return best
+    }
+
+    /// A drill's five words were typed: ticked on Home today, counted as `drill.finished`.
+    func drillFinished(_ id: Drill.ID) {
+        state.recordPractice(at: now)
+        state.drillsDone[id.rawValue] = now
+        environment.metrics.count("drill.finished", ["drill": id.rawValue])
+    }
+
+    /// Whether a drill was finished today (the tick on Home).
+    func isDrillDone(_ id: Drill.ID) -> Bool {
+        guard let date = state.drillsDone[id.rawValue] else { return false }
+        return AppState.dayKey(date) == AppState.dayKey(now)
+    }
+
+    // MARK: Milestones
+
+    /// The next milestone sheet to show, if one was reached and not seen yet.
+    var pendingMilestone: Milestone? {
+        let reached = Milestone.reached(bestWordsPerMinute: state.bestWordsPerMinute, practiceDays: state.practiceDays,
+                                        learnedWords: learnedWords.recent.count)
+        return Milestone.pending(reached: reached, seen: state.milestonesSeen)
+    }
+
+    func milestoneSeen(_ milestone: Milestone) {
+        guard !state.milestonesSeen.contains(milestone.rawValue) else { return }
+        state.milestonesSeen.append(milestone.rawValue)
+    }
+
+    // MARK: Practice recordings
+
+    /// Send the touches of speed tests and drills to tune the keyboard (off by default,
+    /// Settings → Privacy). Nothing from other apps, ever.
+    var sharePractice: Bool {
+        get { state.sharePractice }
+        set {
+            guard state.sharePractice != newValue else { return }
+            state.sharePractice = newValue
+            if newValue { uploadPractice() }
+        }
+    }
+
+    /// Where a recording says it was made.
+    var device: PracticeRecording.Device { environment.device }
+
+    /// A session's recording: kept and sent when sharing is on, dropped otherwise.
+    func savePractice(_ recording: PracticeRecording) {
+        guard state.sharePractice, let store = environment.practiceStore else { return }
+        try? store.save(recording)
+        uploadPractice()
+    }
+
+    private var uploadingPractice = false
+
+    /// Sends what is waiting, in the background. Safe to call often.
+    func uploadPractice() {
+        guard state.sharePractice, !uploadingPractice,
+              let store = environment.practiceStore, let uploader = environment.practiceUploader else { return }
+        let pending = store.pending()
+        guard !pending.isEmpty else { return }
+        uploadingPractice = true
+        Task { @MainActor in
+            if let sent = try? await uploader.upload(pending) { store.markUploaded(sent) }
+            uploadingPractice = false
+        }
+    }
+
     // MARK: Learned words
 
     /// Re-reads the shared words (the keyboard may have learned some since).

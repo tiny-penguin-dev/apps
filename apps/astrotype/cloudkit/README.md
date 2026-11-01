@@ -5,6 +5,10 @@ The app uploads training samples to the **public database** of the iCloud contai
 Anyone signed into iCloud can create records and only edit their own. Reading needs a
 token or key that only the team can make. `ml/download_samples.py` pulls them down.
 
+With "Send practice sessions" on (Settings → Privacy, off by default), the app also
+sends the touches of its own speed tests and drills as `PracticeSession` records to the
+public database (`AstrotypeCore/App/PracticeRecording.swift` describes the JSON).
+
 The keyboard's learned words and settings sync through the **private database** of the
 same container: one `KeyboardData` record per account, which every device of that
 account reads, merges with its own copy and writes back (`AstrotypeCore/Sync`). Both
@@ -15,7 +19,7 @@ needs iCloud with this container too (see `docs/ios-release.md`, "Entitlements")
 
 The container `iCloud.com.tinypenguin.astrotype` is new with the rename (1 Nov 2026); the
 old `iCloud.com.tinypenguin.stackwrite` container and its key are not used any more, so
-all three steps are done again for it, and `schema.ckdb` carries both record types.
+all three steps are done again for it, and `schema.ckdb` carries all three record types.
 
 1. **Container.** The TestFlight workflow turns iCloud on for the App ID and lets
    automatic signing register the container (see `docs/ios-release.md`). If that fails,

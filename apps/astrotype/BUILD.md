@@ -375,6 +375,39 @@ CloudKit loop. Metrics: `speedtest.finished`, `drill.finished`.
 confetti, finishing a drill ticks it on Home, and an uploaded session appears in
 `ml/samples/cloud`.
 
+Notes (1 Nov 2026, the Phase 7 PR): built as planned. `SpeedTest` (Core) is the test as
+it runs: three sentences from a pool of twelve in everyday lowercase words
+(`SpeedTest.pick`, seedable), the clock starting on the first touch, a wrong word
+counted as a miss and the field cleared to try again, a fix from the bar counted
+through `KeyboardModel.onFix`. Words per minute is the usual measure, characters typed
+(letters and the spaces between words) over five, per minute, so a long word counts
+for more than a short one. "Versus Apple's keyboard" is measured, not assumed: the
+result screen offers "Now try Apple's keyboard", which runs the same three sentences
+(same seed) through the system keyboard in a plain text field, and Home's meter shows
+the two numbers once both exist; until then it says so. The best, the last thirty
+tests, Apple's number, when each drill was last finished, the milestones seen and the
+practice-sharing switch are in `AppState`. `Drill` (Core) holds the three drills with
+five words each, every word carrying its strokes like the Try it words, so the hint,
+the key lights (`KeySurfaceView.hints`, the keys of the next word outlined in the
+thumb's colour) and the engine test come from one place; the doubled-letter words mark
+the tap as inside the swipe and the test plays them overlapping. Drills are a Pro
+feature (`ProFeature.drills`): on the free keyboard the rows carry the PRO badge and
+open the Pro screen. `Streak` counts days in a row from `practiceDays` (yesterday's
+streak stands until today is over); `Milestone` has the three from PRODUCT.md §7 (40
+words a minute, seven days practised, a hundred learned words), each shown once from
+Home in `MilestoneView` with confetti (the themes and trail colours they were to unlock
+come with themes). The opt-in upload: `TouchRecorder` collects a session's touches
+through `KeyboardModel.onTouch` (layout units, seconds from the first touch) and the
+words committed; `PracticeRecording` is the JSON, `PracticeStore` the pending folder
+(`Application Support/Astrotype/Practice`, moved to `Uploaded/` once sent) and
+`CloudKitPracticeUploader` sends them as `PracticeSession` records to the public
+database (`cloudkit/schema.ckdb`, imported by the workflow; the production deploy is
+still the console click). Off by default, Settings → Privacy → "Send practice sessions",
+and only the app's own speed tests and drills record; the extension has no recorder.
+Metrics: `speedtest.finished` (gauge, words per minute, with `keyboard`),
+`drill.finished` (`drill`). `ml/download_samples.py` does not read `PracticeSession`
+records yet; that comes with the first tuning pass.
+
 ### Phase 8: Polish and the store
 
 Dark mode pass, Dynamic Type and VoiceOver as in `DESIGN.md` Accessibility, Reduce

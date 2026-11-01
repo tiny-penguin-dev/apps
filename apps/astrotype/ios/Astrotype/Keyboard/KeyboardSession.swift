@@ -15,6 +15,12 @@ final class KeyboardSession: NSObject, UITextViewDelegate {
     var onCommit: ((String) -> Void)?
     /// The keyboard learned, boosted or forgot a word.
     var onWordsChange: ((LearnedWords) -> Void)?
+    /// A written word was swapped from the bar (the speed test counts fixes).
+    var onFix: (() -> Void)?
+    /// A touch began on the keys (the speed test starts its clock).
+    var onFirstTouch: (() -> Void)?
+    /// The session's touches, while recording (`startRecording`).
+    private var recorder: TouchRecorder?
 
     init(settingsStore: SettingsStore, learned: LearnedWords = LearnedWords()) {
         let dictionary = (try? Lexicon.bundled()) ?? Lexicon(entries: [])
@@ -29,8 +35,46 @@ final class KeyboardSession: NSObject, UITextViewDelegate {
             self.keyboard.frame.size.height = height
             self.target.textView?.reloadInputViews()
         }
-        model.onCommit = { [weak self] word in self?.onCommit?(word) }
+        model.onCommit = { [weak self] word in
+            self?.recorder?.committed(word)
+            self?.onCommit?(word)
+        }
         model.onWordsChange = { [weak self] words in self?.onWordsChange?(words) }
+        model.onFix = { [weak self] in self?.onFix?() }
+        model.onTouch = { [weak self] phase, id, point, time in
+            guard let self else { return }
+            if phase == .began { onFirstTouch?() }
+            recorder?.touch(phase, id: id, x: point.x, y: point.y, time: time)
+        }
+    }
+
+    // MARK: Recording
+
+    /// Starts collecting the touches (a speed test or a drill, with sharing on).
+    func startRecording(kind: String) {
+        let layout = model.layout
+        recorder = TouchRecorder(kind: kind, layoutWidth: layout.width, layoutHeight: layout.height, split: layout.split)
+    }
+
+    /// Stops and hands back what was collected, nil when nothing was recorded.
+    func stopRecording(expected: String, device: PracticeRecording.Device, now: Date,
+                       wordsPerMinute: Int? = nil, fixes: Int? = nil) -> PracticeRecording? {
+        defer { recorder = nil }
+        guard let recorder, recorder.touchCount > 0 else { return nil }
+        return recorder.recording(expected: expected, device: device, now: now, wordsPerMinute: wordsPerMinute, fixes: fixes)
+    }
+
+    // MARK: Drill hints
+
+    /// Outlines the keys of a drill word in each thumb's colour; nil clears them.
+    func hint(_ word: Drill.Word?) {
+        guard let word else {
+            keyboard.surface.hints = [:]
+            return
+        }
+        var hints: [Key: Side] = [:]
+        for (letter, side) in Drill.keys(for: word) { hints[.letter(letter)] = side }
+        keyboard.surface.hints = hints
     }
 
     var text: String { target.textView?.text ?? "" }

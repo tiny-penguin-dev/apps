@@ -1,0 +1,14 @@
+#include "../../../../config/ios/Project.xcconfig"
+
+// The keyboard extension (BUILD.md "Architecture"). Its version must match the app's.
+PRODUCT_NAME = $(TARGET_NAME)
+PRODUCT_BUNDLE_IDENTIFIER = com.tinypenguin.stackwrite.keyboard
+MARKETING_VERSION = 0.2.0
+CURRENT_PROJECT_VERSION = 1
+INFOPLIST_FILE = Config/StackWriteKeyboard-Info.plist
+GENERATE_INFOPLIST_FILE = YES
+INFOPLIST_KEY_CFBundleDisplayName = StackWrite
+TARGETED_DEVICE_FAMILY = 1
+SKIP_INSTALL = YES
+SWIFT_EMIT_LOC_STRINGS = YES
+LD_RUNPATH_SEARCH_PATHS = $(inherited) @executable_path/Frameworks @executable_path/../../Frameworks

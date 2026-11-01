@@ -1,7 +1,7 @@
 import CloudKit
 import Foundation
 import Observation
-import StackWriteKit
+import StackWriteCore
 
 /// Sends saved samples to the public CloudKit database, where
 /// `ml/download_samples.py` picks them up for training. Each sample is a

@@ -1,6 +1,6 @@
 import Foundation
 import Observation
-import StackWriteKit
+import StackWriteCore
 
 /// Loads the model and dictionary once, off the main thread, and reads strokes.
 /// Also keeps the writer's recent lifts between letters, so a slow writer's

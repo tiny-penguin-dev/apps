@@ -153,6 +153,14 @@ with the dictionary loaded.
 turned on in Settings and types letters into Notes, the key surface fits the three sizes
 with Apple's proportions, and the extension sits under 40 MB.
 
+Notes (1 Nov 2026, the Phase 1 PR): built as planned, with two things deferred. The App Group
+entitlement waits for Phase 5, because the group has to be registered in the developer
+portal by hand (like the iCloud container) and nothing needs it before sync; the
+extension's bundle ID is registered by automatic signing on the first TestFlight run.
+The checks show in the keyboard's bar on a phone: StoreKit's answer, "haptic on every
+key" (feel for it) and how much memory is left under the limit. Results to be written
+here once Gabriel has tried the build.
+
 ### Phase 2: One finger, the whole engine
 
 `Composer` and `Matcher` with taps and one-finger swipes, the bar's three states, the

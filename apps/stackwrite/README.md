@@ -13,14 +13,12 @@ folder and may come back as an input mode; the sections below describe it.
 
 ## Status
 
-- **Model prototype: done** (`ml/`). Trained on synthetic phrases only: 98.7% of 1–4 word
-  phrases come out exactly right, word breaks included. Real writing is the next test.
-- **iOS app: in-app keyboard and training.** "Try the keyboard" types into a text field
-  with the StackWrite pad, all on device. "Write training phrases" records labeled samples
-  (format in `SAMPLES.md`) and exports them as a zip. No keyboard extension yet. See
-  `BRIEF.md` for the build plan.
-- **Training on real writing:** `ml/finetune.py` takes exported samples, fine-tunes the
-  model (Apple GPU on a Mac), scores it on held-back words and can copy it into the app.
+- **v2, Phase 1 (building):** the keyboard extension types plain taps in any app, the
+  design system and the shared key surface are in `ios/StackWriteKit`, Sentry is wired.
+  Phases in `BUILD.md`.
+- **v1 model prototype: done** (`ml/`), kept for the practice-session loop. Trained on
+  synthetic phrases only: 98.7% of 1–4 word phrases come out exactly right.
+- **v1 handwriting pad:** in the code behind `Flags.handwritingPad`, not shown.
 
 ## Commands
 
@@ -35,7 +33,7 @@ BRIEF.md   v1 build plan, plus the exact contracts the Swift code must match
 SAMPLES.md the recorded-sample format shared by the app and the training scripts
 CLAUDE.md  how to work on this app
 ml/        Python prototype: data synthesis, training, decoder, Core ML export
-ios/       Xcode project: the app (keyboard extension comes later)
+ios/       Xcode project: the app, the keyboard extension and the StackWriteKit package
 ```
 
 ![Synthetic training samples](ml/out/samples.png)

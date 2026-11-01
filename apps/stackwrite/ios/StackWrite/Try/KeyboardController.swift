@@ -1,6 +1,6 @@
 import Foundation
 import Observation
-import StackWriteKit
+import StackWriteCore
 
 /// The text the keyboard types into. Matches the parts of `UITextDocumentProxy`
 /// the keyboard uses, so the keyboard extension can reuse this controller.

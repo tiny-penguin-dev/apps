@@ -1,4 +1,4 @@
-import StackWriteKit
+import StackWriteCore
 import SwiftUI
 
 /// A square pad that records finger strokes. Each stroke is reported when the

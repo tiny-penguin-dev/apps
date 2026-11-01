@@ -1,4 +1,4 @@
-import StackWriteKit
+import StackWriteCore
 import SwiftUI
 
 /// Shows a short phrase to write and saves the strokes as a labeled training

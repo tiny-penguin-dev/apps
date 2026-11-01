@@ -26,6 +26,12 @@ Squawk is in the **Build** stage. Read `PRODUCT.md`, `DESIGN.md` and `BUILD.md` 
   re-plans; opening the app mid-morning cancels the rest of it) and `AlarmKitScheduler`,
   the only code that talks to AlarmKit. "I'm up" on the ringing screen runs
   `SquawkUpIntent`.
+- Wake-up checks: `ios/Squawk/Checks/` (`TagReader` reads an NFC sticker's id with
+  CoreNFC, `CodeScanner` wraps VisionKit's barcode scanner), `Screens/CheckFlowView.swift`
+  (tag, code, penguin game, math way out) and `Screens/ChecksSetup.swift`. An alarm with
+  a check is planned as one-off rings a few mornings ahead, and its last ring repeats
+  every 30 s for 10 minutes; doing the check marks the morning done. NFC needs the
+  entitlement in `Config/Squawk.entitlements`; CI turns the capability on.
 - `ios/Squawk/Sounds/`: the bundled alarm mp3s (from Lanata, cleared for a public app).
   AlarmKit only plays bundled mp3s.
 - `ios/PenguinKit/`: local Swift package with the mascot. `PenguinGeometry` holds every

@@ -6,7 +6,7 @@ record uses it. Apple's API can't create app records, so a missing one
 stops the run with the steps to create it by hand.
 
 With an entitlements file, also turns on the matching capabilities for the
-bundle ID (iCloud with CloudKit today). Neither the API nor signing with
+bundle ID (iCloud with CloudKit, NFC tag reading). Neither the API nor signing with
 an API key can create iCloud containers or link them to an app, so that's
 done once by hand (see docs/ios-release.md).
 
@@ -27,6 +27,7 @@ CAPABILITIES = {
         "ICLOUD",
         [{"key": "ICLOUD_VERSION", "options": [{"key": "XCODE_6", "enabled": True}]}],
     ),
+    "com.apple.developer.nfc.readersession.formats": ("NFC_TAG_READING", []),
 }
 
 

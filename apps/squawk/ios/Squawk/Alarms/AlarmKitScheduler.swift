@@ -57,9 +57,15 @@ final class AlarmKitScheduler: RingScheduler {
     /// Builds the AlarmKit configuration off the main actor, so the non-Sendable
     /// configuration never crosses actors.
     private nonisolated func schedule(_ ring: PlannedRing) async -> Bool {
-        let stopButton = AlarmButton(text: "Stop", textColor: .white, systemImageName: "stop.fill")
+        // With a wake-up check, Stop only quiets this ring (the next one comes in 30 s),
+        // so it's honestly labeled "Snooze". The check itself happens in the app.
+        let stopButton = ring.needsCheck
+            ? AlarmButton(text: "Snooze", textColor: .white, systemImageName: "zzz")
+            : AlarmButton(text: "Stop", textColor: .white, systemImageName: "stop.fill")
         // A second button makes iOS show tap buttons instead of "slide to stop".
-        let upButton = AlarmButton(text: "I'm up", textColor: .white, systemImageName: "sun.max.fill")
+        let upButton = ring.needsCheck
+            ? AlarmButton(text: "I'm up", textColor: .white, systemImageName: "checkmark.circle.fill")
+            : AlarmButton(text: "I'm up", textColor: .white, systemImageName: "sun.max.fill")
         let alert = AlarmPresentation.Alert(
             title: LocalizedStringResource(stringLiteral: ring.title),
             stopButton: stopButton,
@@ -74,14 +80,22 @@ final class AlarmKitScheduler: RingScheduler {
             metadata: metadata,
             tintColor: Color(hex: ring.color.hex)
         )
-        let intent = SquawkStopIntent(alarmID: ring.alarmID.uuidString)
-        let configuration = AlarmManager.AlarmConfiguration.alarm(
-            schedule: Self.schedule(for: ring.schedule),
-            attributes: attributes,
-            stopIntent: intent,
-            secondaryIntent: SquawkUpIntent(alarmID: ring.alarmID.uuidString),
-            sound: .named(ring.sound.fileName)
-        )
+        let id = ring.alarmID.uuidString
+        let configuration = ring.needsCheck
+            ? AlarmManager.AlarmConfiguration.alarm(
+                schedule: Self.schedule(for: ring.schedule),
+                attributes: attributes,
+                stopIntent: SquawkStopIntent(alarmID: id),
+                secondaryIntent: SquawkOpenCheckIntent(alarmID: id),
+                sound: .named(ring.sound.fileName)
+            )
+            : AlarmManager.AlarmConfiguration.alarm(
+                schedule: Self.schedule(for: ring.schedule),
+                attributes: attributes,
+                stopIntent: SquawkStopIntent(alarmID: id),
+                secondaryIntent: SquawkUpIntent(alarmID: id),
+                sound: .named(ring.sound.fileName)
+            )
         do {
             _ = try await manager.schedule(id: ring.id, configuration: configuration)
             return true
@@ -155,5 +169,26 @@ struct SquawkUpIntent: LiveActivityIntent {
     func perform() async throws -> some IntentResult {
         await AlarmsModel.shared.imUp(alarmID: alarmID)
         return .result()
+    }
+}
+
+/// "I'm up" on an alarm with a wake-up check: opens Squawk to the check screen.
+struct SquawkOpenCheckIntent: LiveActivityIntent {
+    static let title: LocalizedStringResource = "Open wake-up check"
+    static let description = IntentDescription("Opens Squawk to turn off the alarm with its wake-up check.")
+    static let openAppWhenRun = true
+
+    @Parameter(title: "Alarm ID")
+    var alarmID: String
+
+    init() {}
+
+    init(alarmID: String) {
+        self.alarmID = alarmID
+    }
+
+    func perform() async throws -> some IntentResult {
+        // The app shows the check when it comes to the front (AlarmsModel.refresh).
+        .result()
     }
 }

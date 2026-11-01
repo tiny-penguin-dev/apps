@@ -5,6 +5,8 @@ PRODUCT_BUNDLE_IDENTIFIER = com.tinypenguin.squawk
 MARKETING_VERSION = 0.1.0
 INFOPLIST_KEY_CFBundleDisplayName = Squawk
 INFOPLIST_FILE = Config/Info.plist
+// NFC tag reading, for the "scan a tag" wake-up check.
+CODE_SIGN_ENTITLEMENTS = Config/Squawk.entitlements
 
 // Sentry (crash reports and metrics, see docs/telemetry.md). Empty means Sentry stays
 // off. CI passes the real DSN from the SENTRY_DSN_SQUAWK secret when it archives for

@@ -17,8 +17,11 @@ public struct PlannedRing: Hashable, Sendable {
     public let title: String
     public let sound: AlarmSound
     public let color: RingColor
-    /// True for the alarm's last ring (where wake-up checks will hang off later).
+    /// True for the alarm's last ring (and its repeats, with a wake-up check).
     public let isLastRing: Bool
+    /// The alarm has a wake-up check: "Stop" only snoozes, and the way to turn it off
+    /// is in the app.
+    public var needsCheck: Bool = false
 }
 
 /// Turns saved alarms into the AlarmKit alarms to schedule. This is the one place that
@@ -34,7 +37,14 @@ public enum AlarmPlanner {
     /// on a weekly repeat.
     static let weeksAhead = 4
 
+    /// Mornings planned ahead for an alarm with a wake-up check. Re-planned whenever the
+    /// app opens or a morning ends.
+    static let checkMorningsAhead = 3
+
     public static func plan(_ alarm: Alarm, now: Date, calendar: Calendar = .current) -> [PlannedRing] {
+        if alarm.hasChecks {
+            return planWithChecks(alarm, now: now, calendar: calendar)
+        }
         let lastID = alarm.sortedRings.last?.id
 
         func once(_ day: LocalDate) -> [PlannedRing] {
@@ -85,6 +95,48 @@ public enum AlarmPlanner {
                     id: StableID.make("\(alarm.id)|\(ring.id)|\(group.days.map(\.rawValue))"),
                     alarmID: alarm.id, ringID: ring.id, schedule: .weekly(time, days),
                     title: alarm.title, sound: ring.sound, color: ring.color, isLastRing: ring.id == lastID
+                ))
+            }
+        }
+        return result
+    }
+
+    /// With a wake-up check, every ring is a one-off alarm, and the last one comes back
+    /// every 30 seconds for 10 minutes. Doing the check marks the morning done, and the
+    /// re-plan cancels the rest.
+    static func planWithChecks(_ alarm: Alarm, now: Date, calendar: Calendar) -> [PlannedRing] {
+        var days: [LocalDate] = []
+        if let date = alarm.date {
+            days = [date]
+        } else {
+            let today = LocalDate(now, calendar: calendar)
+            for offset in -1...14 where days.count < checkMorningsAhead {
+                let day = today.adding(days: offset, calendar: calendar)
+                if alarm.isPending(day, now: now, calendar: calendar) { days.append(day) }
+            }
+        }
+
+        let repeats = Int(Alarm.checkWindowSeconds / Alarm.checkRepeatSeconds)
+        var result: [PlannedRing] = []
+        for day in days {
+            let rings = alarm.ringTimes(on: day, calendar: calendar)
+            guard let last = rings.last else { continue }
+            for item in rings.dropLast() where item.fire > now {
+                result.append(PlannedRing(
+                    id: StableID.make("\(alarm.id)|\(item.ring.id)|\(day)"),
+                    alarmID: alarm.id, ringID: item.ring.id, schedule: .once(item.fire),
+                    title: alarm.title, sound: item.ring.sound, color: item.ring.color,
+                    isLastRing: false, needsCheck: true
+                ))
+            }
+            for k in 0..<repeats {
+                let fire = last.fire.addingTimeInterval(Double(k) * Alarm.checkRepeatSeconds)
+                guard fire > now else { continue }
+                result.append(PlannedRing(
+                    id: StableID.make("\(alarm.id)|\(last.ring.id)|\(day)|\(k)"),
+                    alarmID: alarm.id, ringID: last.ring.id, schedule: .once(fire),
+                    title: alarm.title, sound: last.ring.sound, color: last.ring.color,
+                    isLastRing: true, needsCheck: true
                 ))
             }
         }

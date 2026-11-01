@@ -9,5 +9,15 @@
 	<!-- AlarmKit asks for permission with this text. -->
 	<key>NSAlarmKitUsageDescription</key>
 	<string>Squawk rings on your lock screen, even on silent or in Focus.</string>
+	<!-- Wake-up checks. -->
+	<key>NFCReaderUsageDescription</key>
+	<string>Squawk reads your wake-up tag to turn off the alarm.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Squawk scans your wake-up code to turn off the alarm.</string>
+	<!-- Needed to read ISO 14443 tags (most NFC stickers). Squawk only reads the tag's id. -->
+	<key>com.apple.developer.nfc.readersession.iso7816.select-identifiers</key>
+	<array>
+		<string>D2760000850101</string>
+	</array>
 </dict>
 </plist>

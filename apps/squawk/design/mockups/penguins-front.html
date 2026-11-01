@@ -58,7 +58,7 @@ h1{font-size:34px;font-weight:900;margin:0}
 <main>
   <h1>Squawk, facing forward</h1>
   <p class="lead">Five takes, from most "logo" to most round: 1 the arch, 2 rounded bottom with legs to the edge, 3 rounded bottom with no legs, 4 a soft arch, and 5 the pebble. All have mid-size flippers. Below each: the front icon on light and dark, the matching side-view logo, and five moods.</p>
-  <section class="opt" aria-label="Side by side"><div class="compare" id="compare"></div><div class="compare ci" id="compareIcons"></div></section>
+  <section class="opt" aria-label="Side by side"><div class="compare" id="compare"></div><div class="compare ci" id="compareIcons"></div><div class="compare ci" id="compareSide"></div></section>
   <div id="list" style="display:flex;flex-direction:column;gap:20px"></div>
 </main>
 
@@ -109,6 +109,7 @@ const ARCHR="M50 96 A50 50 0 0 1 150 96 V152 Q150 188 114 188 H86 Q50 188 50 152
 const SOFT="M100 46 C128 46 150 68 150 98 C151 122 156 146 152 164 C147 183 128 190 100 190 C72 190 53 183 48 164 C44 146 49 122 50 98 C50 68 72 46 100 46Z";
 const sideArchR=(b,w)=>`<path d="M54 92 A46 46 0 0 1 146 92 V152 Q146 188 112 188 H88 Q54 188 54 152 Z" fill="${b}"/><path d="M68 160 V140 A30 30 0 0 1 128 140 V160 Q128 182 106 182 H90 Q68 182 68 160 Z" fill="${w}"/><circle cx="112" cy="88" r="10" fill="${w}"/><path d="M145 84 L171 94 L145 104Z" fill="${BEAK}"/>`;
 const sideArchD=(b,w)=>`<path d="M54 92 A46 46 0 0 1 146 92 V170 Q146 188 128 188 H72 Q54 188 54 170 Z" fill="${b}"/><path d="M72 188 V140 A26 26 0 0 1 124 140 V188 Z" fill="${w}"/><path d="M88 188 V176 A10 10 0 0 1 108 176 V188 Z" fill="${b}"/><circle cx="112" cy="88" r="10" fill="${w}"/><path d="M145 84 L171 94 L145 104Z" fill="${BEAK}"/>`;
+const sideSoft=(b,w)=>`<path d="M100 46 C126 46 146 66 146 96 C147 120 151 146 147 164 C142 182 124 189 100 189 C76 189 58 182 53 164 C49 146 53 120 54 96 C54 66 74 46 100 46Z" fill="${b}"/><path d="M68 160 V140 A30 30 0 0 1 128 140 V160 Q128 182 106 182 H90 Q68 182 68 160 Z" fill="${w}"/><circle cx="112" cy="88" r="10" fill="${w}"/><path d="M145 84 L171 94 L145 104Z" fill="${BEAK}"/>`;
 const ARCHD="M50 96 A50 50 0 0 1 150 96 V170 Q150 188 132 188 H68 Q50 188 50 170 Z";
 const OPTIONS=[
 {id:"1",name:"Logo arch",side:sideArch,
@@ -132,7 +133,7 @@ const OPTIONS=[
   <path d="${ARCHD}" fill="${b}"/><path d="M70 188 V140 A30 30 0 0 1 130 140 V188 Z" fill="${w}"/><path d="M90 188 V176 A10 10 0 0 1 110 176 V188 Z" fill="${b}"/>
   <g style="--bd:${b}">${darkEyes(m,82,118,90)}</g>${frontBeak(m,104)}
   ${icon?"":`<circle cx="66" cy="110" r="6" fill="${CHEEK}" opacity=".85"/><circle cx="134" cy="110" r="6" fill="${CHEEK}" opacity=".85"/>${feet(190)}`}`,sq)},
-{id:"4",name:"Soft arch",side:sideArchR,
+{id:"4",name:"Soft arch",side:sideSoft,
  about:"Halfway between the arch and the pebble: arch on top, sides that bulge out a little, and a round bottom. Keeps the belly window, with no leg notch.",
  good:"The best of both: logo-like head, cuddly body.",watch:"The side-view logo would need the same soft bottom to match.",
  draw:(m,b="var(--peng)",w="#fff",icon)=>wrap(m,`${wings(b,m,"M56 103 C41 115 34 140 38 161 C48 156 55 142 59 127 Z",55,106)}
@@ -152,6 +153,7 @@ const MOODS=[["sleep","Asleep"],["awake","Awake"],["proud","Proud"],["grumpy","G
 const svg=(inner,label,st="")=>`<svg viewBox="0 0 200 200" role="img" aria-label="${label}" style="${st}">${inner}</svg>`;
 document.getElementById("compare").innerHTML=OPTIONS.map(o=>`<a class="mood" href="#h${o.id}" style="text-decoration:none">${svg(shadow+o.draw("awake"),o.name)}<b>${o.id}</b><span>${o.name}</span></a>`).join("");
 document.getElementById("compareIcons").innerHTML=OPTIONS.map(o=>`<div class="icon l">${svg(o.draw("awake",NAVY,"#fff",true),o.name+" app icon")}</div>`).join("");
+document.getElementById("compareSide").innerHTML=OPTIONS.map(o=>`<div class="icon l">${svg(o.side(NAVY,"#fff"),o.name+" side logo")}</div>`).join("");
 document.getElementById("list").innerHTML=OPTIONS.map(o=>`<section class="opt" aria-labelledby="h${o.id}">
   <div class="head"><span class="tag">${o.id}</span><h2 id="h${o.id}">${o.name}</h2></div>
   <p>${o.about}</p>

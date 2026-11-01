@@ -59,7 +59,7 @@ public struct Matcher: Sendable {
             }
         } else {
             matches.sort { $0.score > $1.score }
-            out = Array(matches.prefix(limit))
+            out = matches.prefix(limit).map { Candidate(word: $0.word, score: $0.score) }
             if out.isEmpty {
                 // Nothing fits: type the keys the swipe started and ended on, so a
                 // word still comes out and can be fixed.

@@ -99,7 +99,7 @@ code (`StackWriteKit/Theme`, `docs/building.md` rule 1). Screens only use these.
 | 7 | Speed test result | A bolt in a sun, the words per minute, fixes, versus Apple's, confetti on a new best. | [07](design/screens/07-result.png) |
 | 8 | Drill | One habit per drill. Word cards, the keys of the next word outlined in the thumb's color. | [08](design/screens/08-drill.png) |
 | 9 | Settings | Typing (two-thumb, autospace and its delay, learned words), gestures, layout, look, sync, Pro. | [09](design/screens/09-settings.png) |
-| 10 | StackWrite Pro | A gold star tile with the two trails, four perks, yearly and monthly, "Start 14 days free". Prices are placeholders for Gabriel. | [10](design/screens/10-pro.png) |
+| 10 | StackWrite Pro | A gold star tile with the two trails, four perks, yearly and monthly, "Start 14 days free". | [10](design/screens/10-pro.png) |
 | 11 | Trial over | The keyboard faded, with z's. What is resting, what still works, the person's own best speed as the reason to keep Pro. | [11](design/screens/11-trial-over.png) |
 | 12 | Typing in Messages | The keyboard in another app. Bar in "Fix" mode after a commit, the open word underlined in the field. | [12](design/screens/12-messages.png), [dark](design/screens/12-messages-dark.png), [small](design/screens/12-messages-small.png), [wide](design/screens/12-messages-wide.png) |
 | 13 | Free keyboard | After the trial: taps and one-finger swipes. A second thumb shows "Two thumbs is in StackWrite Pro" in the bar instead of typing. | [13](design/screens/13-free.png) |
@@ -276,6 +276,6 @@ Three sizes, all in the mockup's Size buttons (`docs/building.md` rule 2):
 
 ## Open questions
 
-1. Pro prices: $19.99 a year and $2.99 a month are placeholders on the Pro screen. Pick
-   the real ones.
-2. The app icon: a key tile with the two trails (above), or something else?
+1. The app icon: a key tile with the two trails (above), or something else?
+
+Answered (1 Nov 2026): Pro is $19.99 a year and $2.99 a month, as on the Pro screen.

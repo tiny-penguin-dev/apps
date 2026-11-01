@@ -59,6 +59,7 @@ h1{font-size:34px;font-weight:900;margin:0}
   <h1>Squawk, facing forward</h1>
   <p class="lead">Four takes, from most "logo" to most round: 1 the arch, 2 rounded bottom with legs to the edge, 3 rounded bottom with no legs, and 4 the pebble. All have mid-size flippers. Below each: the front icon on light and dark, the matching side-view logo, and five moods.</p>
   <section class="opt" aria-label="Side by side"><div class="compare" id="compare"></div><div class="compare ci" id="compareIcons"></div><div class="compare ci" id="compareSide"></div></section>
+  <section class="opt" aria-labelledby="hcolor"><div class="head"><span class="tag">Color</span><h2 id="hcolor">Body color</h2></div><p>Brand navy is what every penguin uses now (Tiny Penguin #0F1B2D). Soft navy is from the first mockup (#1E2945). Pure black is here just to compare.</p><div id="colors"></div></section>
   <section class="opt" aria-labelledby="hbeak"><div class="head"><span class="tag">Beak</span><h2 id="hbeak">Beak options on penguin 2</h2></div><p>A: the old wide beak. B: a bit narrower and longer, with softly rounded corners (chosen, now used on every penguin). C: very pointy.</p><div class="compare" id="beaks" style="grid-template-columns:repeat(3,minmax(0,1fr))"></div><div class="compare ci" id="beakIcons" style="grid-template-columns:repeat(3,minmax(0,1fr))"></div></section>
   <div id="list" style="display:flex;flex-direction:column;gap:20px"></div>
 </main>
@@ -152,6 +153,8 @@ const svg=(inner,label,st="")=>`<svg viewBox="0 0 200 200" role="img" aria-label
 document.getElementById("compare").innerHTML=OPTIONS.map(o=>`<a class="mood" href="#h${o.id}" style="text-decoration:none">${svg(shadow+o.draw("awake"),o.name)}<b>${o.id}</b><span>${o.name}</span></a>`).join("");
 document.getElementById("compareIcons").innerHTML=OPTIONS.map(o=>`<div class="icon l">${svg(o.draw("awake",NAVY,"#fff",true),o.name+" app icon")}</div>`).join("");
 document.getElementById("compareSide").innerHTML=OPTIONS.map(o=>`<div class="icon l">${svg(o.side(NAVY,"#fff"),o.name+" side logo")}</div>`).join("");
+{const C=[["Brand navy","#0F1B2D"],["Soft navy","#1E2945"],["Pure black","#000000"]];
+ document.getElementById("colors").innerHTML=C.map(([n,c])=>`<h3 style="margin:18px 0 6px">${n} <span style="font-weight:600;opacity:.6">${c}</span></h3><div class="compare">${OPTIONS.map(o=>`<div class="mood">${svg(shadow+o.draw("awake",c),o.name+" in "+n)}<b>${o.id}</b></div>`).join("")}</div><div class="compare ci">${OPTIONS.map(o=>`<div class="icon l">${svg(o.draw("awake",c,"#fff",true),o.name+" icon in "+n)}</div>`).join("")}</div>`).join("");}
 {const o2=OPTIONS.find(o=>o.id==="2");const names=["A · Current","B · Chosen","C · Very pointy"];
  document.getElementById("beaks").innerHTML=names.map((n,v)=>{BEAKV=v;const h=`<div class="mood"><svg viewBox="58 62 84 64" role="img" aria-label="Close-up, beak ${n}" style="max-width:220px;border-radius:16px">${o2.draw("awake")}</svg>${svg(shadow+o2.draw("awake"),"Penguin 2, beak "+n)}<b>${n}</b></div>`;return h}).join("");
  document.getElementById("beakIcons").innerHTML=names.map((n,v)=>{BEAKV=v;return `<div class="icon l">${svg(o2.draw("awake",NAVY,"#fff",true),"Icon, beak "+n)}</div>`}).join("");BEAKV=1;}

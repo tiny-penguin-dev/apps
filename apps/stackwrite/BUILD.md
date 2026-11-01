@@ -158,8 +158,20 @@ entitlement waits for Phase 5, because the group has to be registered in the dev
 portal by hand (like the iCloud container) and nothing needs it before sync; the
 extension's bundle ID is registered by automatic signing on the first TestFlight run.
 The checks show in the keyboard's bar on a phone: StoreKit's answer, "haptic on every
-key" (feel for it) and how much memory is left under the limit. Results to be written
-here once Gabriel has tried the build.
+key" (feel for it) and how much memory is left under the limit. Results from Gabriel's
+phone (1 Nov 2026, build 0.2.0, Full Access off): "StoreKit ok (0 active, pay yes)",
+so StoreKit 2 answers inside the extension and Phase 6 reads entitlements there
+directly, no App Group pass-through needed; 166 MB left under the limit with the
+dictionary not yet loaded (Phase 2 loads it; the bar keeps the readout so the number
+with the trie can be read the same way). Haptics: none at all with Full Access off, so
+`UIImpactFeedbackGenerator` does nothing in the extension by itself; the key click was
+silent too because the Phase 1 build played it outside a `UIInputViewAudioFeedback`
+view, which Phase 2 corrects. To try next: Full Access on. If haptics stay silent, the
+keyboard keeps visual feedback only (flash, ring, trail), as planned. Two more things
+from the first build in the Claude app: the bottom row was clipped (the keys are now
+pinned to the bottom and the bar shows granted/asked height), and the keyboard was dark
+because the app asks for a dark keyboard; it now follows `keyboardAppearance` like
+Apple's keyboard does.
 
 ### Phase 2: One finger, the whole engine
 
@@ -171,6 +183,21 @@ practice field runs the same keyboard.
 **Done when:** swiping t-h-e-r-e writes "there", a tap inside a swipe writes a doubled
 letter, the first guess is right for 9 of 10 words in a 50-word fixture, and a candidate
 list takes under 5 ms on a phone.
+
+Notes (1 Nov 2026, the Phase 2 PR): built as planned, with the API trimmed from the
+sketch above. `Composer`'s effects are only text edits and haptics (`insert`,
+`deleteBackward`, `mark`, `commit`, `clearMark`, `haptic`); flashes, trails and tap
+rings are drawn by the key surface itself, which already has the touches. The open
+word is marked text (`setMarkedText`), so the field underlines it and a commit is
+`unmarkText`. A tap is a touch that stays within 18 pt; a swipe's keys are the letters
+under a 4 pt walk along its path, runs collapsed, and the matcher may use a crossed key
+twice for a doubled letter, so "hello" and "coffee" come from one swipe each (a tap
+inside a swipe for a double is Phase 3, with the second thumb). The matcher's score adds
+a path-length term so "the" does not win a swipe that went on to "there". The fixture
+(`Tests/Fixtures/swipes.json`) is 50 common words swiped as straight lines between key
+centres, 50 of 50 right; recorded swipes replace it as they come in. The phone timing
+goes here once measured; the CI test only bounds it loosely in a debug build. The app's
+Home has "Try the keyboard", a field whose input view is the same `KeyboardView`.
 
 ### Phase 3: Two thumbs and the keyboard's gestures
 

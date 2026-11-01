@@ -2,54 +2,60 @@ import StackWriteCore
 import StackWriteUI
 import UIKit
 
-/// The keyboard extension. Phase 1: a plain tap keyboard on the shared key surface,
-/// with a note in the bar that reports the two checks (StoreKit, haptics) and memory.
-/// The engine (pieces, swipes, the bar's guesses) arrives in Phase 2.
-final class KeyboardViewController: UIInputViewController, KeySurfaceDelegate {
-    private let bar = UILabel()
-    private let surface = KeySurfaceView()
+/// The keyboard extension: the shared `KeyboardView` typing into the text document
+/// proxy through the engine. The bar's idle note still carries the Phase 1 checks
+/// (StoreKit, memory, Full Access) until they are read on a phone.
+final class KeyboardViewController: UIInputViewController {
+    private var keyboard: KeyboardView?
+    private var target: ProxyTarget?
     private var heightConstraint: NSLayoutConstraint?
     private let checks = ExtensionChecks()
-    private var shifted = false
-    private var capsLock = false
-    private var lastShiftTap: Date?
-
-    static let barHeight: CGFloat = 44
+    private var edits = 0
 
     override func viewDidLoad() {
         super.viewDidLoad()
         inputView?.allowsSelfSizing = true
         view.backgroundColor = Theme.ui(.kb)
 
-        bar.font = Theme.uiFont(size: 13, weight: .bold)
-        bar.textColor = Theme.ui(.muted)
-        bar.textAlignment = .center
-        bar.adjustsFontSizeToFitWidth = true
-        bar.minimumScaleFactor = 0.7
-        bar.text = "Both thumbs, one word"
-        view.addSubview(bar)
+        let dictionary = (try? Lexicon.bundled()) ?? Lexicon(entries: [])
+        let model = KeyboardModel(composer: Composer(dictionary: dictionary, layout: Layout.qwerty(width: 390)))
+        let target = ProxyTarget(controller: self)
+        model.target = target
+        self.target = target
 
-        surface.delegate = self
-        view.addSubview(surface)
+        let keyboard = KeyboardView(model: model)
+        keyboard.onSystemKey = { [weak self] key in
+            if key == .globe { self?.advanceToNextInputMode() }
+            // The numbers page comes in Phase 3.
+        }
+        view.addSubview(keyboard)
+        self.keyboard = keyboard
 
-        checks.run(hasFullAccess: hasFullAccess) { [weak self] note in
-            self?.bar.text = note
+        checks.run(hasFullAccess: hasFullAccess) { [weak keyboard] note in
+            keyboard?.bar.note = note
         }
     }
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        updateShiftForContext()
+        followKeyboardAppearance()
+        keyboard?.model.contextChanged()
+    }
+
+    /// Light or dark as the app asked for its keyboard, like Apple's keyboard does.
+    private func followKeyboardAppearance() {
+        switch textDocumentProxy.keyboardAppearance ?? .default {
+        case .dark: view.overrideUserInterfaceStyle = .dark
+        case .light: view.overrideUserInterfaceStyle = .light
+        default: view.overrideUserInterfaceStyle = .unspecified
+        }
     }
 
     override func viewWillLayoutSubviews() {
         super.viewWillLayoutSubviews()
         let width = view.bounds.width
-        guard width > 0 else { return }
-        if surface.layout.width != width {
-            surface.layout = Layout.qwerty(width: width)
-        }
-        let height = Self.barHeight + surface.layout.height
+        guard width > 0, let keyboard else { return }
+        let height = KeyboardView.height(forWidth: width)
         if let heightConstraint {
             if heightConstraint.constant != height { heightConstraint.constant = height }
         } else {
@@ -58,59 +64,38 @@ final class KeyboardViewController: UIInputViewController, KeySurfaceDelegate {
             constraint.isActive = true
             heightConstraint = constraint
         }
-        bar.frame = CGRect(x: 8, y: 0, width: width - 16, height: Self.barHeight)
-        surface.frame = CGRect(x: 0, y: Self.barHeight, width: width, height: surface.layout.height)
+        // Pinned to the bottom: if iOS grants less height than asked, the bar gives way
+        // and the keys stay whole (the first build's bottom row was clipped).
+        let granted = view.bounds.height
+        keyboard.frame = CGRect(x: 0, y: granted > 0 ? granted - height : 0, width: width, height: height)
+        checks.sized(granted: granted, wanted: height)
     }
 
     override func textDidChange(_ textInput: UITextInput?) {
         super.textDidChange(textInput)
-        updateShiftForContext()
+        followKeyboardAppearance()
+        keyboard?.model.contextChanged()
+        edits += 1
+        if edits % 5 == 0 { checks.refresh() }
+    }
+}
+
+/// The engine's text target on the extension's document proxy.
+@MainActor
+final class ProxyTarget: TextTarget {
+    private unowned let controller: UIInputViewController
+
+    init(controller: UIInputViewController) {
+        self.controller = controller
     }
 
-    // MARK: Keys
+    private var proxy: UITextDocumentProxy { controller.textDocumentProxy }
 
-    func keySurface(_ surface: KeySurfaceView, didTap key: Key, side: Side) {
-        checks.keyTapped()
-        switch key {
-        case .letter(let c):
-            textDocumentProxy.insertText(shifted || capsLock ? String(c).uppercased() : String(c))
-            if shifted, !capsLock { setShift(false) }
-        case .space:
-            textDocumentProxy.insertText(" ")
-            updateShiftForContext()
-        case .returnKey:
-            textDocumentProxy.insertText("\n")
-            updateShiftForContext()
-        case .backspace:
-            textDocumentProxy.deleteBackward()
-            updateShiftForContext()
-        case .shift:
-            if let last = lastShiftTap, Date().timeIntervalSince(last) < 0.35 {
-                capsLock.toggle()
-                setShift(capsLock)
-            } else {
-                capsLock = false
-                setShift(!shifted)
-            }
-            lastShiftTap = Date()
-        case .numbers:
-            break // The numbers page comes in Phase 3.
-        case .globe:
-            advanceToNextInputMode()
-        }
+    var textBeforeCursor: String? { proxy.documentContextBeforeInput }
+    func insert(_ text: String) { proxy.insertText(text) }
+    func deleteBackward() { proxy.deleteBackward() }
+    func mark(_ text: String) {
+        proxy.setMarkedText(text, selectedRange: NSRange(location: text.utf16.count, length: 0))
     }
-
-    private func setShift(_ on: Bool) {
-        shifted = on
-        surface.shifted = on || capsLock
-    }
-
-    /// Capital at the start of a sentence, like Apple's keyboard.
-    private func updateShiftForContext() {
-        guard !capsLock else { return }
-        let before = textDocumentProxy.documentContextBeforeInput ?? ""
-        let trimmed = before.trimmingCharacters(in: .whitespaces)
-        let startsSentence = trimmed.isEmpty || trimmed.hasSuffix(".") || trimmed.hasSuffix("?") || trimmed.hasSuffix("!") || before.hasSuffix("\n")
-        setShift(startsSentence && (before.isEmpty || before.last!.isWhitespace || before.last!.isNewline))
-    }
+    func unmark() { proxy.unmarkText() }
 }

@@ -14,8 +14,8 @@ let package = Package(
         .library(name: "StackWriteUI", targets: ["StackWriteUI"]),
     ],
     targets: [
-        .target(name: "StackWriteCore"),
+        .target(name: "StackWriteCore", resources: [.copy("Resources/lexicon.tsv")]),
         .target(name: "StackWriteUI", dependencies: ["StackWriteCore"]),
-        .testTarget(name: "StackWriteKitTests", dependencies: ["StackWriteCore"]),
+        .testTarget(name: "StackWriteKitTests", dependencies: ["StackWriteCore"], exclude: ["Fixtures"]),
     ]
 )

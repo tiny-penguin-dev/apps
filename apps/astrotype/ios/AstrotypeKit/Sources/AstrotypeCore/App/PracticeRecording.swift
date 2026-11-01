@@ -115,15 +115,13 @@ public struct TouchRecorder: Sendable, Equatable {
 /// Recordings waiting to go up, as files in a folder; each moves to `Uploaded/` once sent.
 public struct PracticeStore: Sendable {
     public let folder: URL
-    private let fileManager: FileManager
 
-    public init(folder: URL, fileManager: FileManager = .default) {
+    public init(folder: URL) {
         self.folder = folder
-        self.fileManager = fileManager
     }
 
     public func save(_ recording: PracticeRecording) throws {
-        try fileManager.createDirectory(at: folder, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
         encoder.outputFormatting = [.sortedKeys]
@@ -132,7 +130,7 @@ public struct PracticeStore: Sendable {
 
     /// The oldest recordings still to send, at most `limit`.
     public func pending(limit: Int = 50) -> [PracticeRecording] {
-        let files = (try? fileManager.contentsOfDirectory(at: folder, includingPropertiesForKeys: [.contentModificationDateKey]))?
+        let files = (try? FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: [.contentModificationDateKey]))?
             .filter { $0.pathExtension == "json" } ?? []
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
@@ -148,12 +146,12 @@ public struct PracticeStore: Sendable {
     /// Sent: the file moves to `Uploaded/`, kept for export and in case we want it back.
     public func markUploaded(_ ids: [UUID]) {
         let uploaded = folder.appendingPathComponent("Uploaded", isDirectory: true)
-        try? fileManager.createDirectory(at: uploaded, withIntermediateDirectories: true)
+        try? FileManager.default.createDirectory(at: uploaded, withIntermediateDirectories: true)
         for id in ids {
             let from = url(id)
             let to = uploaded.appendingPathComponent(from.lastPathComponent)
-            try? fileManager.removeItem(at: to)
-            try? fileManager.moveItem(at: from, to: to)
+            try? FileManager.default.removeItem(at: to)
+            try? FileManager.default.moveItem(at: from, to: to)
         }
     }
 

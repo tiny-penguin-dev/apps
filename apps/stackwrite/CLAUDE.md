@@ -18,22 +18,30 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
     `App/` (`AppModel`, the only thing views talk to; `AppEnvironment`, the one place
     real services are named; `LiveMetrics` on `Telemetry`), `Onboarding/`
     (`TurnOnView`, `SyncView`, `TryItView`, and `SetupPage`, their shared shape),
-    `HelloView`, `HomeView`, `SettingsView`, `PracticeView`, `Keyboard/KeyboardSession`
-    (a text view whose input view is the shared keyboard, with Try it's replay),
+    `HelloView`, `HomeView`, `SettingsView`, `LearnedWordsView`, `PracticeView`,
+    `Keyboard/KeyboardSession` (a text view whose input view is the shared keyboard,
+    with Try it's replay),
     `Telemetry.swift` (Sentry, see `docs/telemetry.md`), `PrivacyInfo.xcprivacy`.
     `Try/`, `Train/` and `Shared/` are v1: the handwriting pad, training recorder and
     the CloudKit sample upload, reachable from Settings behind the flag.
   - `StackWriteKeyboard/`: the keyboard extension (`com.tinypenguin.stackwrite.keyboard`).
-    `KeyboardViewController` hosts the shared `KeyboardView` and types through
-    `ProxyTarget` (the text document proxy). `ExtensionChecks` is Phase 1 only: it
-    writes the StoreKit and memory readings into the bar's idle note.
+    `KeyboardViewController` hosts the shared `KeyboardView`, types through
+    `ProxyTarget` (the text document proxy), picks the stores (own files, mirrored to
+    the App Group with Full Access) and, with Full Access, writes `ExtensionStatus`
+    and runs a `SyncController`. `ExtensionChecks` is Phase 1 only: it writes the
+    StoreKit and memory readings into the bar's idle note.
   - `StackWriteKit/`: the local package, three targets:
     - `StackWriteCore`: Core and Services. `Layout` (key geometry), `Lexicon` (the
       trie, built from `Resources/lexicon.tsv`), `Flags`, and `Engine/`: `Composer`
       (touches in, effects out, pure, time passed in), `Matcher` (pieces to ranked
       candidates: trie search plus DTW, two-thumb orderings and split swipes),
       `Piece`, `Geometry`, `LearnedWords`, `KeyboardSettings` (the in-keyboard settings
-      and their `SettingsStore`). `App/` holds the app's own Core and Services:
+      and their `SettingsStore`). `Sync/` holds the data layer: `Stores` (`JSONFile`,
+      `WordStore` and file, memory and mirrored stores for words and settings),
+      `KeyboardFiles` (where the files are: own container and App Group), `CloudSync`
+      (`SyncSnapshot`, the protocol, `Syncer`'s fetch-merge-write round, the fake),
+      `CloudKitSync` (the live one), `ExtensionStatus`, `Backup`. `App/` holds the
+      app's own Core and Services:
       `AppState` and `AppStateStore`, `Trial`, `KeyboardStatus` (is the keyboard on),
       `Metrics` (protocol; the app's live one is `Telemetry`), `TryWord` (the Try it
       words and their strokes), `Week`. `Handwriting/` holds the v1 engine (`Features`, `PhraseDecoder`, `Recognizer`,
@@ -43,17 +51,21 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
       owns a `KeyboardModel`), `BarView`, `KeySurfaceView` (touch stream, flashes,
       trails, rings, and the gestures: space slide, backspace swipe and hold, "123"
       hold), `SettingsPanelView`, `KeyboardModel` (applies the composer's effects to a
-      `TextTarget`, runs the autospace timer, keeps the settings; `TextViewTarget` for
-      a `UITextView`). UIKit and SwiftUI, guarded
+      `TextTarget`, runs the autospace timer, keeps the settings and the learned words,
+      learns, boosts and forgets; `TextViewTarget` for a `UITextView`),
+      `SyncController` (a model's words and settings in step with a `CloudSync`).
+      UIKit and SwiftUI, guarded
       with `#if canImport(UIKit)` so `swift test` still builds the package on macOS.
     - `StackWriteKitTests`: Swift Testing. `ComposerTests`, `MatcherTests` (the 50-word
       fixture in `Fixtures/swipes.json`, through `Synth`'s straight-line swipes),
       `GeometryTests`, `LayoutTests`, `KeyboardSettingsTests`, `AppCoreTests` (the
-      `App/` pieces), and `GoldenTests` replaying
+      `App/` pieces), `SyncTests` (stores, snapshots, `Syncer`, `Backup`), and
+      `GoldenTests` replaying
       `ml/export/golden.json` for the v1 engine.
   - `Config/`: `StackWrite.xcconfig` (bundle ID, version, `SENTRY_DSN`),
     `StackWriteKeyboard.xcconfig` and `StackWriteKeyboard-Info.plist` (the extension),
-    `Info.plist`, `StackWrite.entitlements` (iCloud container for v1 sample uploads),
+    `Info.plist`, `StackWrite.entitlements` and `StackWriteKeyboard.entitlements` (the
+    App Group and the iCloud container, shared by both targets),
     `testflight.json`. Keep the two `MARKETING_VERSION`s equal.
 - `ml/`: the v1 Python training loop (see `ml/README.md`), still used for the opt-in
   practice-session uploads planned in Phase 7.

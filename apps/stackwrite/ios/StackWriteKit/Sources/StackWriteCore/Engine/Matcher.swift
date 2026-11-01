@@ -27,7 +27,16 @@ public struct Candidate: Sendable, Equatable {
 public struct Matcher: Sendable {
     public var dictionary: Lexicon
     public var layout: Layout
-    public var learned: LearnedWords
+    /// What the person taught the keyboard: a weight on dictionary words, and words of
+    /// their own, which a swipe can land on like any other (`learnedPrior`).
+    public var learned: LearnedWords {
+        didSet { learnedLexicon = Self.lexicon(of: learned) }
+    }
+    /// The person's own words as a small trie, searched beside the dictionary.
+    private var learnedLexicon: Lexicon
+    /// The log frequency a word of the person's own counts as (rare, like a word near
+    /// the end of the dictionary); its learned weight lifts it from there.
+    public var learnedPrior: Float = -8
     /// Score per key width of mean path distance.
     public var pathWeight = 1.0
     /// Score per unit of log frequency (0 for the most common word, about -9 for rare).
@@ -44,6 +53,11 @@ public struct Matcher: Sendable {
         self.dictionary = dictionary
         self.layout = layout
         self.learned = learned
+        self.learnedLexicon = Self.lexicon(of: learned)
+    }
+
+    static func lexicon(of learned: LearnedWords) -> Lexicon {
+        Lexicon(entries: learned.entries.filter { $0.value.weight > 0 }.map { Lexicon.Entry(word: $0.key, frequency: 1) })
     }
 
     public func candidates(for pieces: [Piece], limit: Int = 3) -> [Candidate] {
@@ -68,7 +82,11 @@ public struct Matcher: Sendable {
         var best: [String: Double] = [:]
         for ordering in orderings {
             for segments in segmentations(of: ordering) {
-                for (word, score) in search(segments) {
+                for (word, score) in search(segments, in: dictionary, prior: nil) {
+                    best[word] = max(best[word] ?? -.infinity, score)
+                }
+                guard learnedLexicon.nodeCount > 1 else { continue }
+                for (word, score) in search(segments, in: learnedLexicon, prior: learnedPrior) {
                     best[word] = max(best[word] ?? -.infinity, score)
                 }
             }
@@ -201,7 +219,9 @@ public struct Matcher: Sendable {
         var doubled: Bool
     }
 
-    private func search(_ segments: [Segment]) -> [String: Double] {
+    /// The words in `lexicon` that the segments can spell, with their scores. `prior`
+    /// stands in for the lexicon's own word frequencies when given.
+    private func search(_ segments: [Segment], in lexicon: Lexicon, prior fixedPrior: Float?) -> [String: Double] {
         // The best score per word: two paths through the keys can spell the same word.
         var best: [String: Double] = [:]
         var seen = Set<SearchState>()
@@ -218,7 +238,7 @@ public struct Matcher: Sendable {
             let keys = segment.keys
             // The same crossed key again, for a doubled letter in a swipe ("hello", "coffee").
             if state.lastKey >= 0, !state.doubled, !segment.isTap,
-               let child = dictionary.child(of: state.node, label: Self.index(of: keys[state.lastKey])) {
+               let child = lexicon.child(of: state.node, label: Self.index(of: keys[state.lastKey])) {
                 var next = counts
                 next[next.count - 1] += 1
                 queue.append((SearchState(segment: state.segment, lastKey: state.lastKey, node: child, doubled: true), next))
@@ -229,8 +249,9 @@ public struct Matcher: Sendable {
                 : segment.skippable
             if canLeave {
                 if state.segment == segments.count - 1 {
-                    if let prior = dictionary.logPrior(at: state.node) {
-                        let word = dictionary.word(at: state.node)
+                    if let own = lexicon.logPrior(at: state.node) {
+                        let prior = fixedPrior ?? own
+                        let word = lexicon.word(at: state.node)
                         let value = score(word: word, prior: prior, counts: counts, segments: segments)
                         best[word] = max(best[word] ?? -.infinity, value)
                     }
@@ -244,7 +265,7 @@ public struct Matcher: Sendable {
                 ? (segment.anchoredStart ? 0..<min(1, keys.count) : 0..<keys.count)
                 : (state.lastKey + 1)..<keys.count
             for j in range {
-                guard let child = dictionary.child(of: state.node, label: Self.index(of: keys[j])) else { continue }
+                guard let child = lexicon.child(of: state.node, label: Self.index(of: keys[j])) else { continue }
                 var next = counts
                 next[next.count - 1] += 1
                 queue.append((SearchState(segment: state.segment, lastKey: j, node: child, doubled: false), next))

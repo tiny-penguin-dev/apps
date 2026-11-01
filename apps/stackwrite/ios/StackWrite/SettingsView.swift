@@ -2,9 +2,9 @@ import StackWriteCore
 import StackWriteUI
 import SwiftUI
 
-/// DESIGN.md screen 9, the rows that exist so far: typing, gestures, look, the
-/// keyboard's status, sync, privacy and the version. Two-thumb typing, learned words,
-/// layouts and Pro come with their phases.
+/// DESIGN.md screen 9, the rows that exist so far: typing and the learned words,
+/// gestures, layout, look, the keyboard's status, sync, privacy and the version.
+/// Two-thumb typing and Pro come with their phases.
 struct SettingsView: View {
     @Bindable var model: AppModel
     @Binding var path: [HomeView.Route]
@@ -32,6 +32,9 @@ struct SettingsView: View {
                 }
                 .opacity(model.keyboardSettings.autospace ? 1 : 0.5)
                 .disabled(!model.keyboardSettings.autospace)
+                Row("Learned words", subtitle: learnedWordsSubtitle) {
+                    Button("Open") { path.append(.learnedWords) }.buttonStyle(.small)
+                }
 
                 SectionLabel("Gestures").padding(.top, Theme.Space.s)
                 Row("Slide on space", subtitle: "Move the cursor") {
@@ -67,10 +70,19 @@ struct SettingsView: View {
                         Button("Turn on") { path.append(.turnOn) }.buttonStyle(.small)
                     }
                 }
-                Row("iCloud sync", subtitle: "Needs Full Access in Settings. Words and settings start syncing in an update.") {
-                    Button("Set up") { path.append(.sync) }.buttonStyle(.small)
+                Row("iCloud sync", subtitle: syncSubtitle) {
+                    switch model.syncState {
+                    case .needsFullAccess:
+                        Button("Set up") { path.append(.sync) }.buttonStyle(.small)
+                    case .syncing:
+                        ProgressView().tint(Theme.accent)
+                    case .idle:
+                        Button("Sync now") { model.sync() }.buttonStyle(.small)
+                    case .failed:
+                        Button("Retry") { model.sync() }.buttonStyle(.small)
+                    }
                 }
-                Text("Until then, these settings apply to the keyboard in this app; the keyboard in other apps has its own, under a held 123.")
+                Text("With Full Access, the keyboard follows these settings and your words sync over iCloud. Without it, the keyboard in other apps keeps its own settings, under a held 123.")
                     .font(.sw(.small)).foregroundStyle(Theme.muted).padding(.horizontal, Theme.Space.xs)
 
                 SectionLabel("Privacy").padding(.top, Theme.Space.s)
@@ -95,6 +107,33 @@ struct SettingsView: View {
         .foregroundStyle(Theme.ink)
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
+        .onAppear {
+            model.refreshKeyboardStatus()
+            model.reloadWords()
+        }
+    }
+
+    private var learnedWordsSubtitle: String {
+        let count = model.learnedWords.recent.count
+        switch count {
+        case 0: return "Words you peck out that the keyboard doesn't know end up here."
+        case 1: return "1 word the keyboard learned from you."
+        default: return "\(count) words the keyboard learned from you."
+        }
+    }
+
+    private var syncSubtitle: String {
+        switch model.syncState {
+        case .needsFullAccess:
+            return "Needs Full Access in Settings. Then your words and settings follow you to your other devices."
+        case .syncing:
+            return "Syncing…"
+        case .idle(let last):
+            guard let last else { return "On. Nothing to sync yet." }
+            return "On. Last synced \(last.formatted(.relative(presentation: .named)))."
+        case .failed(let message):
+            return message
+        }
     }
 }
 

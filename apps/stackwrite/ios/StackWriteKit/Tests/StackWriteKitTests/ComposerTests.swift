@@ -22,6 +22,66 @@ import Testing
         }
     }
 
+    @Test func anUnknownTappedWordIsLearnedOnCommit() {
+        var composer = Synth.composer()
+        let lifted = Synth.taps(&composer, "zorblat")
+        #expect(composer.state.openWord == "zorblat")
+        let effects = composer.press(.space, time: lifted + 0.1)
+        #expect(effects.contains(.learn("zorblat")))
+
+        // The host adds it; the next time it is known, so it is not learned again.
+        composer.learned.learn("zorblat")
+        let again = Synth.taps(&composer, "zorblat", at: lifted + 1)
+        let effects2 = composer.press(.space, time: again + 0.1)
+        #expect(!effects2.contains(.learn("zorblat")))
+
+        // Dictionary words are never learned.
+        let the = Synth.taps(&composer, "the", at: again + 2)
+        let effects3 = composer.press(.space, time: the + 0.1)
+        #expect(!effects3.contains(where: isLearn))
+    }
+
+    @Test func aSwipedWordIsNeverLearned() {
+        var composer = Synth.composer()
+        Synth.swipe(&composer, "there")
+        let effects = composer.press(.space, time: 0.5)
+        #expect(!effects.contains(where: isLearn))
+    }
+
+    private func isLearn(_ effect: Effect) -> Bool {
+        if case .learn = effect { return true }
+        return false
+    }
+
+    @Test func learnedWordsAreOfferedToSwipes() {
+        var composer = Synth.composer()
+        Synth.swipe(&composer, "zorblat")
+        #expect(composer.state.openWord != "zorblat")
+        composer.reset()
+        composer.learned.learn("zorblat")
+        Synth.swipe(&composer, "zorblat", at: 1)
+        #expect(composer.state.openWord == "zorblat")
+    }
+
+    @Test func forgettingAReadingDropsItFromTheFixBar() {
+        var composer = Synth.composer()
+        let lifted = Synth.taps(&composer, "the")
+        _ = composer.press(.space, time: lifted + 0.1)
+        guard case .fix(let words, let chosen) = composer.state.bar, words.count > 1 else {
+            Issue.record("expected the fix bar with readings, got \(composer.state.bar)")
+            return
+        }
+        let other = words.first { $0 != words[chosen] }!
+        composer.learned.forget(other)
+        _ = composer.learnedDidChange(time: lifted + 0.2)
+        if case .fix(let kept, let keptChosen) = composer.state.bar {
+            #expect(!kept.contains(other))
+            #expect(kept[keptChosen] == words[chosen])
+        } else {
+            #expect(composer.state.bar == .idle)
+        }
+    }
+
     @Test func theOpenWordIsMarkedInTheField() {
         var composer = Synth.composer()
         let effects = Synth.swipe(&composer, "there")

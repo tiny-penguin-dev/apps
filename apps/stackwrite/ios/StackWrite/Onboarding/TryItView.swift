@@ -59,7 +59,8 @@ struct TryItView: View {
         .background(Theme.bg.ignoresSafeArea())
         .onAppear {
             guard session == nil else { return }
-            let session = KeyboardSession(settingsStore: MemorySettingsStore(model.keyboardSettings))
+            let session = KeyboardSession(settingsStore: MemorySettingsStore(model.keyboardSettings), learned: model.learnedWords)
+            session.onWordsChange = { words in model.learnedWordsChanged(words) }
             session.onCommit = { word in committed(word) }
             self.session = session
         }

@@ -2,8 +2,9 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- The keyboard extension. Full Access stays off here: the app asks for it, for
-	     iCloud sync only, and the keyboard types without it (PRODUCT.md §8). -->
+	<!-- The keyboard extension. It asks for Full Access (RequestsOpenAccess), which the
+	     app explains and only iCloud sync uses; the keyboard types without it
+	     (PRODUCT.md §8). -->
 	<key>NSExtension</key>
 	<dict>
 		<key>NSExtensionAttributes</key>
@@ -15,7 +16,7 @@
 			<key>PrimaryLanguage</key>
 			<string>en-US</string>
 			<key>RequestsOpenAccess</key>
-			<false/>
+			<true/>
 		</dict>
 		<key>NSExtensionPointIdentifier</key>
 		<string>com.apple.keyboard-service</string>

@@ -3,11 +3,14 @@ import StackWriteUI
 import UIKit
 
 /// The keyboard extension: the shared `KeyboardView` typing into the text document
-/// proxy through the engine. The bar's idle note still carries the Phase 1 checks
-/// (StoreKit, memory, Full Access) until they are read on a phone.
+/// proxy through the engine. Words and settings live in the extension's own container
+/// and, with Full Access, in the App Group and iCloud too (BUILD.md "Data"). The bar's
+/// idle note still carries the Phase 1 checks (StoreKit, memory, Full Access) while
+/// the phases are measured on a phone.
 final class KeyboardViewController: UIInputViewController {
     private var keyboard: KeyboardView?
     private var target: ProxyTarget?
+    private var sync: SyncController?
     private var heightConstraint: NSLayoutConstraint?
     private let checks = ExtensionChecks()
     private var edits = 0
@@ -17,9 +20,11 @@ final class KeyboardViewController: UIInputViewController {
         inputView?.allowsSelfSizing = true
         view.backgroundColor = Theme.ui(.kb)
 
+        let fullAccess = hasFullAccess
         let dictionary = (try? Lexicon.bundled()) ?? Lexicon(entries: [])
+        let (settingsStore, wordStore) = Self.stores(fullAccess: fullAccess)
         let model = KeyboardModel(composer: Composer(dictionary: dictionary, layout: Layout.qwerty(width: 390)),
-                                  store: UserDefaultsSettingsStore())
+                                  store: settingsStore, wordStore: wordStore)
         let target = ProxyTarget(controller: self)
         model.target = target
         self.target = target
@@ -31,9 +36,55 @@ final class KeyboardViewController: UIInputViewController {
         view.addSubview(keyboard)
         self.keyboard = keyboard
 
-        checks.run(hasFullAccess: hasFullAccess) { [weak keyboard] note in
+        if fullAccess { startSync(model: model) }
+
+        checks.run(hasFullAccess: fullAccess) { [weak keyboard] note in
             keyboard?.bar.note = note
         }
+    }
+
+    /// The extension's own files, which it can always write, mirrored to the App Group's
+    /// when Full Access allows. The Phase 3 settings in `UserDefaults` move over once.
+    private static func stores(fullAccess: Bool) -> (SettingsStore, WordStore) {
+        let own = FileSettingsStore(url: KeyboardFiles.own(KeyboardFiles.settings))
+        let legacy = UserDefaultsSettingsStore()
+        if own.load() == nil, let old = legacy.load() {
+            own.save(old, changed: legacy.lastChanged() ?? .distantPast)
+        }
+        let ownWords = FileWordStore(url: KeyboardFiles.own(KeyboardFiles.words))
+        guard fullAccess,
+              let sharedSettings = KeyboardFiles.shared(KeyboardFiles.settings),
+              let sharedWords = KeyboardFiles.shared(KeyboardFiles.words) else {
+            return (own, ownWords)
+        }
+        return (MirroredSettingsStore(own: own, shared: FileSettingsStore(url: sharedSettings)),
+                MirroredWordStore(own: ownWords, shared: FileWordStore(url: sharedWords)))
+    }
+
+    /// With Full Access: tell the app we have it, and keep words and settings in step
+    /// with iCloud (now, and after each change).
+    private func startSync(model: KeyboardModel) {
+        guard let url = KeyboardFiles.shared(KeyboardFiles.status) else { return }
+        let statusStore = FileExtensionStatusStore(url: url)
+        var status = statusStore.load() ?? ExtensionStatus(fullAccess: true, seen: Date())
+        status.fullAccess = true
+        status.seen = Date()
+        statusStore.save(status)
+
+        let sync = SyncController(model: model, cloud: CloudKitSync())
+        sync.onResult = { result in
+            var status = statusStore.load() ?? ExtensionStatus(fullAccess: true, seen: Date())
+            switch result {
+            case .success(let date):
+                status.lastSync = date
+                status.lastSyncError = nil
+            case .failure(let error):
+                status.lastSyncError = error.localizedDescription
+            }
+            statusStore.save(status)
+        }
+        self.sync = sync
+        sync.sync()
     }
 
     override func viewWillAppear(_ animated: Bool) {

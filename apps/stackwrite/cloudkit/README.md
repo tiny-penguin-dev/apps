@@ -5,6 +5,12 @@ The app uploads training samples to the **public database** of the iCloud contai
 Anyone signed into iCloud can create records and only edit their own. Reading needs a
 token or key that only the team can make. `ml/download_samples.py` pulls them down.
 
+The keyboard's learned words and settings sync through the **private database** of the
+same container: one `KeyboardData` record per account, which every device of that
+account reads, merges with its own copy and writes back (`StackWriteCore/Sync`). Both
+the app and the keyboard extension (with Full Access) use it, so the extension's App ID
+needs iCloud with this container too (see `docs/ios-release.md`, "Entitlements").
+
 ## One-time setup
 
 1. **Container.** The TestFlight workflow turns iCloud on for the App ID and lets
@@ -30,6 +36,14 @@ token or key that only the team can make. `ml/download_samples.py` pulls them do
    In the console → Settings → Tokens & Keys → Server-to-Server Keys, add a key with that
    public key (production environment), and put its Key ID in
    `~/.config/stackwrite/cloudkit-key-id`.
+
+## Adding a record type
+
+TestFlight builds use the production environment, which never creates record types on
+its own: a new type (like `KeyboardData` in Phase 5) is saved to development with the
+import above and then deployed, before the build that uses it goes out. Until then the
+sync fails with "unknown record type" and the keyboard keeps working from its local
+copy.
 
 ## Changing the schema
 

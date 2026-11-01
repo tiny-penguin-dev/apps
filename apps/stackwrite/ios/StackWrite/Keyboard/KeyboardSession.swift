@@ -13,10 +13,13 @@ final class KeyboardSession: NSObject, UITextViewDelegate {
     let target = TextViewTarget()
     /// A word went into the field.
     var onCommit: ((String) -> Void)?
+    /// The keyboard learned, boosted or forgot a word.
+    var onWordsChange: ((LearnedWords) -> Void)?
 
-    init(settingsStore: SettingsStore) {
+    init(settingsStore: SettingsStore, learned: LearnedWords = LearnedWords()) {
         let dictionary = (try? Lexicon.bundled()) ?? Lexicon(entries: [])
-        model = KeyboardModel(composer: Composer(dictionary: dictionary, layout: Layout.qwerty(width: 390)), store: settingsStore)
+        model = KeyboardModel(composer: Composer(dictionary: dictionary, layout: Layout.qwerty(width: 390)),
+                              store: settingsStore, wordStore: MemoryWordStore(learned))
         model.target = target
         keyboard = StackWriteUI.KeyboardView(model: model)
         keyboard.autoresizingMask = [.flexibleWidth]
@@ -27,6 +30,7 @@ final class KeyboardSession: NSObject, UITextViewDelegate {
             self.target.textView?.reloadInputViews()
         }
         model.onCommit = { [weak self] word in self?.onCommit?(word) }
+        model.onWordsChange = { [weak self] words in self?.onWordsChange?(words) }
     }
 
     var text: String { target.textView?.text ?? "" }

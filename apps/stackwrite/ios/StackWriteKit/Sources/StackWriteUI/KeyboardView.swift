@@ -46,6 +46,8 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         surface.delegate = self
         surface.layout = model.layout
         bar.onChoose = { [weak self] index in self?.model.choose(guess: index) }
+        bar.onBoost = { [weak self] index in self?.model.boost(guess: index) }
+        bar.onForget = { [weak self] index in self?.model.forget(guess: index) }
         model.onChange = { [weak self] in self?.render() }
         model.onHaptic = { [weak self] haptic in self?.play(haptic) }
         keyHaptic.prepare()

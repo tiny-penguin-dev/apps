@@ -1,0 +1,9 @@
+#include "../../../../config/ios/Project.xcconfig"
+#include "../../../../config/ios/App.xcconfig"
+
+PRODUCT_BUNDLE_IDENTIFIER = com.tinypenguin.squawk
+MARKETING_VERSION = 0.1.0
+INFOPLIST_KEY_CFBundleDisplayName = Squawk
+
+// AlarmKit needs iOS 26.
+IPHONEOS_DEPLOYMENT_TARGET = 26.0

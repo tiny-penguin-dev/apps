@@ -3,9 +3,16 @@ import Foundation
 /// A key on the keyboard.
 public enum Key: Hashable, Sendable {
     case letter(Character)
+    /// A digit or punctuation mark on the numbers and symbols pages; types itself.
+    case symbol(Character)
     case shift
     case backspace
+    /// Switch to the numbers page ("123").
     case numbers
+    /// Switch to the symbols page ("#+=").
+    case symbols
+    /// Back to the letters ("ABC").
+    case letters
     case globe
     case space
     case returnKey
@@ -14,6 +21,20 @@ public enum Key: Hashable, Sendable {
     public var character: Character? {
         if case .letter(let c) = self { return c }
         return nil
+    }
+
+    /// The character a symbol key types.
+    public var symbolCharacter: Character? {
+        if case .symbol(let c) = self { return c }
+        return nil
+    }
+
+    /// Shift, backspace, the page keys, the globe and return: drawn darker.
+    public var isFunction: Bool {
+        switch self {
+        case .letter, .symbol, .space: false
+        default: true
+        }
     }
 }
 
@@ -30,6 +51,7 @@ public enum Side: Sendable, Equatable {
 ///     layout.key(at: CGPoint(x: 40, y: 30))   // .letter("w")
 ///     layout.frame(of: .space)
 ///     layout.side(of: .letter("h"))           // .right
+///     Layout.qwerty(width: 390, page: .numbers).key(at: CGPoint(x: 40, y: 30))  // .symbol("2")
 public struct Layout: Sendable, Equatable {
     public struct Placement: Sendable, Equatable {
         public let key: Key
@@ -37,11 +59,23 @@ public struct Layout: Sendable, Equatable {
         public let row: Int
     }
 
+    /// The keyboard's pages: letters, then "123" and "#+=" like Apple's.
+    public enum Page: Sendable, Equatable {
+        case letters, numbers, symbols
+    }
+
     public static let rows: [[Character]] = [
         Array("qwertyuiop"), Array("asdfghjkl"), Array("zxcvbnm"),
     ]
+    static let numberRows: [[Character]] = [
+        Array("1234567890"), Array("-/:;()$&@\""), Array(".,?!'"),
+    ]
+    static let symbolRows: [[Character]] = [
+        Array("[]{}#%^*+="), Array("_\\|~<>€£¥•"), Array(".,?!'"),
+    ]
 
     public let width: CGFloat
+    public let page: Page
     /// The keyboard's height, keys and padding included (the bar is not part of it).
     public let height: CGFloat
     public let keyHeight: CGFloat
@@ -53,8 +87,8 @@ public struct Layout: Sendable, Equatable {
 
     /// The standard layout for a width: 33 pt keys at 390 pt (an iPhone), wider on the
     /// iPhone Duo's screens, capped at 58 pt so a swipe keeps its shape on a wide
-    /// screen (DESIGN.md "Sizes").
-    public static func qwerty(width: CGFloat) -> Layout {
+    /// screen (DESIGN.md "Sizes"). Every page has the same height.
+    public static func qwerty(width: CGFloat, page: Page = .letters) -> Layout {
         let margin: CGFloat = 3
         let gap = min(8, max(4, (6 * width / 390).rounded()))
         let unit = min(58, ((width - 2 * margin - 9 * gap) / 10).rounded(.down))
@@ -71,35 +105,47 @@ public struct Layout: Sendable, Equatable {
         func add(_ key: Key, row: Int, x: CGFloat, width w: CGFloat) {
             placements.append(Placement(key: key, frame: CGRect(x: x, y: y(row), width: w, height: keyHeight), row: row))
         }
-        func letters(_ chars: [Character], row: Int, from x: CGFloat) -> CGFloat {
+        func keys(_ chars: [Character], as make: (Character) -> Key, row: Int, from x: CGFloat) -> CGFloat {
             var x = x
             for c in chars {
-                add(.letter(c), row: row, x: x, width: unit)
+                add(make(c), row: row, x: x, width: unit)
                 x += unit + gap
             }
             return x
         }
 
-        _ = letters(rows[0], row: 0, from: left)
-        _ = letters(rows[1], row: 1, from: left + (unit + gap) / 2)
-
         let wideKey = (1.45 * unit).rounded()
-        let row2Width = 2 * wideKey + 7 * unit + 8 * gap
-        var x = ((width - row2Width) / 2).rounded()
-        add(.shift, row: 2, x: x, width: wideKey)
-        x = letters(rows[2], row: 2, from: x + wideKey + gap)
-        add(.backspace, row: 2, x: x, width: wideKey)
+        var x: CGFloat
+        switch page {
+        case .letters:
+            _ = keys(rows[0], as: Key.letter, row: 0, from: left)
+            _ = keys(rows[1], as: Key.letter, row: 1, from: left + (unit + gap) / 2)
+            let row2Width = 2 * wideKey + 7 * unit + 8 * gap
+            x = ((width - row2Width) / 2).rounded()
+            add(.shift, row: 2, x: x, width: wideKey)
+            x = keys(rows[2], as: Key.letter, row: 2, from: x + wideKey + gap)
+            add(.backspace, row: 2, x: x, width: wideKey)
+        case .numbers, .symbols:
+            let table = page == .numbers ? numberRows : symbolRows
+            _ = keys(table[0], as: Key.symbol, row: 0, from: left)
+            _ = keys(table[1], as: Key.symbol, row: 1, from: left)
+            let row2Width = 2 * wideKey + 5 * unit + 6 * gap
+            x = ((width - row2Width) / 2).rounded()
+            add(page == .numbers ? .symbols : .numbers, row: 2, x: x, width: wideKey)
+            x = keys(table[2], as: Key.symbol, row: 2, from: x + wideKey + gap)
+            add(.backspace, row: 2, x: x, width: wideKey)
+        }
 
         let fnKey = (1.33 * unit).rounded()
         let returnKey = (2.66 * unit).rounded()
         let space = rowWidth - 2 * fnKey - returnKey - 3 * gap
         x = left
-        add(.numbers, row: 3, x: x, width: fnKey); x += fnKey + gap
+        add(page == .letters ? .numbers : .letters, row: 3, x: x, width: fnKey); x += fnKey + gap
         add(.globe, row: 3, x: x, width: fnKey); x += fnKey + gap
         add(.space, row: 3, x: x, width: space); x += space + gap
         add(.returnKey, row: 3, x: x, width: returnKey)
 
-        return Layout(width: width, height: top + 4 * keyHeight + 3 * rowGap + bottom,
+        return Layout(width: width, page: page, height: top + 4 * keyHeight + 3 * rowGap + bottom,
                       keyHeight: keyHeight, gap: gap, placements: placements, top: top, rowGap: rowGap)
     }
 

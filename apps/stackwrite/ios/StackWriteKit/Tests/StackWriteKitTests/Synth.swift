@@ -56,6 +56,49 @@ enum Synth {
         return t - 0.15 + 0.08
     }
 
+    /// One thumb's touch in a two-thumb script: a tap (one letter) or a straight swipe,
+    /// down at `start` and lifted at `end`.
+    struct Stroke {
+        var letters: String
+        var id: Int
+        var start: TimeInterval
+        var end: TimeInterval
+
+        static func tap(_ letter: Character, id: Int, at time: TimeInterval) -> Stroke {
+            Stroke(letters: String(letter), id: id, start: time, end: time + 0.08)
+        }
+
+        static func swipe(_ letters: String, id: Int, from start: TimeInterval, to end: TimeInterval) -> Stroke {
+            Stroke(letters: letters, id: id, start: start, end: end)
+        }
+    }
+
+    /// Plays strokes from both thumbs as the keyboard would see them: every touch event
+    /// in time order, with the strokes overlapping as their times say.
+    @discardableResult
+    static func play(_ composer: inout Composer, _ strokes: [Stroke]) -> [Composer.Effect] {
+        enum Kind: Int { case down, move, up }
+        var events: [(time: TimeInterval, kind: Kind, id: Int, point: CGPoint)] = []
+        for stroke in strokes {
+            let points = stroke.letters.count == 1 ? [center(stroke.letters.first!)] : path(stroke.letters)
+            events.append((time: stroke.start, kind: .down, id: stroke.id, point: points[0]))
+            for (i, point) in points.enumerated().dropFirst() {
+                events.append((time: stroke.start + (stroke.end - stroke.start) * Double(i) / Double(points.count - 1), kind: .move, id: stroke.id, point: point))
+            }
+            events.append((time: stroke.end, kind: .up, id: stroke.id, point: points[points.count - 1]))
+        }
+        events.sort { $0.time == $1.time ? $0.kind.rawValue < $1.kind.rawValue : $0.time < $1.time }
+        var effects: [Composer.Effect] = []
+        for event in events {
+            switch event.kind {
+            case .down: effects += composer.touchDown(id: event.id, at: event.point, time: event.time)
+            case .move: effects += composer.touchMoved(id: event.id, to: event.point, time: event.time)
+            case .up: effects += composer.touchUp(id: event.id, at: event.point, time: event.time)
+            }
+        }
+        return effects
+    }
+
     struct Fixture: Decodable {
         var word: String
         /// The keys the finger goes through (a doubled letter is crossed once).

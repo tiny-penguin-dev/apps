@@ -58,4 +58,58 @@ import Testing
         #expect(layout.side(of: .letter("y")) == .right)
         #expect(layout.side(at: CGPoint(x: 10, y: 10)) == .left)
     }
+
+    // MARK: Pages (Phase 3)
+
+    @Test func numbersPageHasApplesRows() {
+        let layout = Layout.qwerty(width: 390, page: .numbers)
+        #expect(layout.page == .numbers)
+        #expect(layout.height == Layout.qwerty(width: 390).height)
+        #expect(layout.placements.filter { $0.row == 0 }.count == 10)
+        #expect(layout.placements.filter { $0.row == 1 }.count == 10)
+        #expect(layout.placements.filter { $0.row == 2 }.count == 7)
+        #expect(layout.placements.filter { $0.row == 3 }.count == 4)
+        #expect(layout.frame(of: .symbol("1")) != nil)
+        #expect(layout.frame(of: .symbol("@")) != nil)
+        #expect(layout.frame(of: .symbols) != nil)
+        #expect(layout.frame(of: .letters) != nil)
+        #expect(layout.frame(of: .numbers) == nil)
+        #expect(layout.frame(of: .letter("q")) == nil)
+        let one = layout.frame(of: .symbol("1"))!
+        #expect(layout.key(at: CGPoint(x: one.midX, y: one.midY)) == .symbol("1"))
+        #expect(layout.frame(of: .symbol("1"))!.width == Layout.qwerty(width: 390).frame(of: .letter("q"))!.width)
+    }
+
+    @Test func symbolsPageGoesBackToNumbers() {
+        let layout = Layout.qwerty(width: 390, page: .symbols)
+        #expect(layout.frame(of: .symbol("[")) != nil)
+        #expect(layout.frame(of: .symbol("€")) != nil)
+        #expect(layout.frame(of: .numbers) != nil)
+        #expect(layout.frame(of: .symbols) == nil)
+        #expect(layout.frame(of: .letters) != nil)
+        #expect(layout.placements.filter { $0.row == 2 }.count == 7)
+    }
+
+    @Test(arguments: [320.0, 390.0, 744.0] as [CGFloat])
+    func everyPageFits(width: CGFloat) {
+        for page in [Layout.Page.numbers, .symbols] {
+            let layout = Layout.qwerty(width: width, page: page)
+            for placement in layout.placements {
+                #expect(placement.frame.minX >= 0)
+                #expect(placement.frame.maxX <= width)
+                #expect(placement.frame.maxY <= layout.height)
+            }
+        }
+    }
+
+    @Test func functionKeysAreDrawnDarker() {
+        #expect(Key.shift.isFunction)
+        #expect(Key.letters.isFunction)
+        #expect(Key.globe.isFunction)
+        #expect(!Key.letter("a").isFunction)
+        #expect(!Key.symbol("1").isFunction)
+        #expect(!Key.space.isFunction)
+        #expect(Key.symbol("?").symbolCharacter == "?")
+        #expect(Key.symbol("?").character == nil)
+    }
 }

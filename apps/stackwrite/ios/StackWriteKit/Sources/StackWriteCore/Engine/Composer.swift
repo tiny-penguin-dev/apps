@@ -87,6 +87,7 @@ public struct Composer: Sendable {
         var side: Side
         var start: TimeInterval
         var points: [CGPoint]
+        var times: [TimeInterval]
         var startKey: Character
     }
 
@@ -134,7 +135,7 @@ public struct Composer: Sendable {
                 state.bar = .idle
             }
         }
-        open[id] = Open(side: layout.side(at: point), start: time, points: [point], startKey: letter)
+        open[id] = Open(side: layout.side(at: point), start: time, points: [point], times: [time], startKey: letter)
         autospaceDue = nil
         effects.append(.haptic(.key))
         refreshState()
@@ -143,12 +144,14 @@ public struct Composer: Sendable {
 
     public mutating func touchMoved(id: Int, to point: CGPoint, time: TimeInterval) -> [Effect] {
         open[id]?.points.append(point)
+        open[id]?.times.append(time)
         return []
     }
 
     public mutating func touchUp(id: Int, at point: CGPoint, time: TimeInterval) -> [Effect] {
         guard var touch = open.removeValue(forKey: id) else { return [] }
         touch.points.append(point)
+        touch.times.append(time)
         let piece = Self.piece(from: touch, id: id, end: time, layout: layout, tapThreshold: settings.tapThreshold)
         guard !piece.keys.isEmpty else { return [] }
         pieces.append(piece)
@@ -264,6 +267,43 @@ public struct Composer: Sendable {
         autospaceDue = nil
         state.bar = .idle
         refreshState()
+    }
+
+    /// Swipe left on backspace: drop the open word, or delete back through the last word
+    /// and the spaces after it.
+    public mutating func deleteWord(time: TimeInterval) -> [Effect] {
+        committed = nil
+        state.bar = .idle
+        autospaceDue = nil
+        if !pieces.isEmpty {
+            pieces = []
+            candidates = []
+            refreshState()
+            return [.haptic(.key), .clearMark]
+        }
+        var count = 0
+        var rest = Substring(contextBefore)
+        while let last = rest.last, last.isWhitespace || last.isNewline { count += 1; rest = rest.dropLast() }
+        while let last = rest.last, !(last.isWhitespace || last.isNewline) { count += 1; rest = rest.dropLast() }
+        refreshState()
+        return [.haptic(.key), .deleteBackward(max(1, count))]
+    }
+
+    /// The cursor is about to move (a slide on the space bar): the open word goes in as
+    /// it stands, with nothing after it, and the fix bar closes.
+    public mutating func cursorWillMove() -> [Effect] {
+        guard hasOpenWord else {
+            committed = nil
+            state.bar = .idle
+            refreshState()
+            return []
+        }
+        var effects = commit(trailing: "", time: 0)
+        effects.removeAll { $0 == .insert("") }
+        committed = nil
+        state.bar = .idle
+        refreshState()
+        return effects
     }
 
     // MARK: Words
@@ -385,6 +425,6 @@ public struct Composer: Sendable {
         }
         let isTap = travel < tapThreshold || keys.count <= 1
         if isTap { keys = [touch.startKey] }
-        return Piece(id: id, side: touch.side, start: touch.start, end: end, points: touch.points, keys: keys, isTap: isTap)
+        return Piece(id: id, side: touch.side, start: touch.start, end: end, points: touch.points, times: touch.times, keys: keys, isTap: isTap)
     }
 }

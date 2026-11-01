@@ -95,4 +95,60 @@ import Testing
         let risen = Matcher(dictionary: Synth.lexicon, layout: Synth.layout, learned: boosted).candidates(for: composer.pieces)
         #expect(risen.first?.word == "three")
     }
+
+    // MARK: Two thumbs (Phase 3)
+
+    /// DESIGN.md "Try it": left taps s and e, right swipes o-m and t-h-i-n-g, overlapping.
+    @Test func twoThumbsTypeSomething() {
+        var composer = Synth.composer()
+        Synth.play(&composer, [
+            .tap("s", id: 1, at: 0.00),
+            .swipe("om", id: 2, from: 0.15, to: 0.45),
+            .tap("e", id: 3, at: 0.40),
+            .swipe("thing", id: 4, from: 0.55, to: 1.00),
+        ])
+        #expect(composer.state.openWord == "something")
+        #expect(composer.pieces.count == 4)
+    }
+
+    /// A tap that lands while the other thumb's swipe is over a key doubles that letter.
+    @Test func aTapInsideASwipeDoublesTheLetter() {
+        var composer = Synth.composer()
+        Synth.play(&composer, [.swipe("helo", id: 1, from: 0, to: 0.6), .tap("l", id: 2, at: 0.4)])
+        #expect(composer.state.openWord == "hello")
+        composer = Synth.composer()
+        Synth.play(&composer, [.swipe("cofe", id: 1, from: 0, to: 0.6), .tap("f", id: 2, at: 0.3)])
+        #expect(composer.state.openWord == "coffee")
+    }
+
+    /// Two taps that land within the swap window are read in the order that spells a word.
+    @Test func tapsThatLandTogetherAreTriedBothWays() {
+        var composer = Synth.composer()
+        Synth.play(&composer, [.tap("h", id: 1, at: 0.00), .tap("t", id: 2, at: 0.06), .tap("e", id: 1, at: 0.30)])
+        #expect(composer.state.openWord == "the")
+        composer = Synth.composer()
+        Synth.play(&composer, [.tap("h", id: 1, at: 0.00), .tap("t", id: 2, at: 0.20), .tap("e", id: 1, at: 0.30)])
+        #expect(composer.state.openWord == "hte")
+    }
+
+    @Test func aTapJustAfterASwipeStartsCanComeFirst() {
+        var composer = Synth.composer()
+        Synth.play(&composer, [.swipe("hanks", id: 2, from: 0, to: 0.5), .tap("t", id: 1, at: 0.05)])
+        #expect(composer.state.openWord == "thanks")
+    }
+
+    @Test func piecesKeepTheirTouchDownOrderOtherwise() {
+        var composer = Synth.composer()
+        Synth.play(&composer, [.swipe("key", id: 1, from: 0, to: 0.3), .swipe("board", id: 2, from: 0.25, to: 0.8)])
+        #expect(composer.state.openWord == "keyboard")
+    }
+
+    @Test func orderingsSwapOnlyWithinTheWindow() {
+        func piece(_ letter: Character, at time: TimeInterval) -> Piece {
+            .tap(letter, at: Synth.center(letter), time: time)
+        }
+        #expect(Matcher.orderings(of: [piece("t", at: 0), piece("h", at: 0.5)], swapWindow: 0.12).count == 1)
+        #expect(Matcher.orderings(of: [piece("t", at: 0), piece("h", at: 0.05)], swapWindow: 0.12).count == 2)
+        #expect(Matcher.orderings(of: [piece("t", at: 0), piece("h", at: 0.05), piece("e", at: 0.1)], swapWindow: 0.12).count == 4)
+    }
 }

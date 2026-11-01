@@ -14,6 +14,8 @@ public protocol TextTarget: AnyObject {
     func mark(_ text: String)
     /// Turn the marked text into ordinary text.
     func unmark()
+    /// Move the cursor by `offset` characters (negative is left).
+    func moveCursor(by offset: Int)
 }
 
 /// The keyboard's model, one per host (BUILD.md "The engine runs in both processes"):
@@ -28,14 +30,30 @@ public protocol TextTarget: AnyObject {
 public final class KeyboardModel {
     public private(set) var composer: Composer
     public weak var target: TextTarget?
-    /// Called after every change to the bar, the open word or shift.
+    /// Called after every change to the bar, the open word, shift or the settings.
     public var onChange: (() -> Void)?
     public var onHaptic: ((Composer.Haptic) -> Void)?
+    /// The person's keyboard settings; saved to `store` on every change.
+    public var keyboardSettings: KeyboardSettings {
+        didSet {
+            guard keyboardSettings != oldValue else { return }
+            composer.settings = keyboardSettings.composerSettings(from: composer.settings)
+            store?.save(keyboardSettings)
+            onChange?()
+        }
+    }
+    public var store: SettingsStore?
 
     private var autospace: Task<Void, Never>?
 
-    public init(composer: Composer) {
+    /// `store`'s settings apply when it has any; otherwise the defaults.
+    public init(composer: Composer, store: SettingsStore? = nil) {
+        var composer = composer
+        let settings = store?.load() ?? KeyboardSettings()
+        composer.settings = settings.composerSettings(from: composer.settings)
         self.composer = composer
+        self.store = store
+        self.keyboardSettings = settings
     }
 
     public var state: Composer.State { composer.state }
@@ -78,6 +96,20 @@ public final class KeyboardModel {
 
     public func choose(guess index: Int) {
         apply(composer.choose(guess: index, time: now))
+    }
+
+    /// A slide on the space bar: the open word goes in, then the cursor moves.
+    public func moveCursor(by offset: Int) {
+        guard offset != 0 else { return }
+        apply(composer.cursorWillMove())
+        target?.moveCursor(by: offset)
+        composer.setContext(before: target?.textBeforeCursor)
+        onChange?()
+    }
+
+    /// A swipe left on backspace.
+    public func deleteWord() {
+        apply(composer.deleteWord(time: now))
     }
 
     /// The field changed (the host's `textDidChange`): re-read the context.
@@ -156,5 +188,10 @@ public final class TextViewTarget: TextTarget {
         textView?.setMarkedText(text, selectedRange: NSRange(location: text.utf16.count, length: 0))
     }
     public func unmark() { textView?.unmarkText() }
+    public func moveCursor(by offset: Int) {
+        guard let textView, let selected = textView.selectedTextRange,
+              let position = textView.position(from: selected.start, offset: offset) else { return }
+        textView.selectedTextRange = textView.textRange(from: position, to: position)
+    }
 }
 #endif

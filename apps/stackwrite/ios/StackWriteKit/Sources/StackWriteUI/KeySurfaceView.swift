@@ -9,15 +9,24 @@ public protocol KeySurfaceDelegate: AnyObject {
     func keySurface(_ surface: KeySurfaceView, touchMoved id: Int, to point: CGPoint, time: TimeInterval)
     func keySurface(_ surface: KeySurfaceView, touchEnded id: Int, at point: CGPoint, time: TimeInterval)
     func keySurface(_ surface: KeySurfaceView, touchCancelled id: Int, time: TimeInterval)
-    /// A finger tapped a key that is not a letter (landed and lifted on it).
+    /// A finger tapped a key that is not a letter (landed and lifted on it). Backspace
+    /// held down repeats this.
     func keySurface(_ surface: KeySurfaceView, didTap key: Key, side: Side)
+    /// A finger slid along the space bar by `steps` more characters (negative is left).
+    func keySurface(_ surface: KeySurfaceView, didSlideSpace steps: Int)
+    /// A finger swiped left from backspace.
+    func keySurfaceDidSwipeBackspace(_ surface: KeySurfaceView)
+    /// A finger held the "123" key.
+    func keySurfaceDidHoldNumbers(_ surface: KeySurfaceView)
 }
 
 /// The keys. One UIKit view that draws a `Layout` and reports touches, with multitouch
 /// on so each thumb is its own touch. Letter keys stream their touches (down, moves,
-/// up) so the engine can tell taps from swipes; the other keys report a tap. Keys
-/// flash in the thumb's colour (teal left, coral right), taps leave a ring that pings
-/// out, swipes draw a trail that fades after lift (DESIGN.md "Pieces").
+/// up) so the engine can tell taps from swipes; the other keys report a tap, or one of
+/// the keyboard's gestures (DESIGN.md "The keyboard"): a slide on space moves the
+/// cursor, a swipe left from backspace deletes a word, backspace held repeats, "123"
+/// held opens the settings. Keys flash in the thumb's colour (teal left, coral right),
+/// taps leave a ring that pings out, swipes draw a trail that fades after lift.
 ///
 ///     let surface = KeySurfaceView()
 ///     surface.delegate = self
@@ -42,13 +51,27 @@ public final class KeySurfaceView: UIView {
     /// Draw swipe trails and tap rings.
     public var showsTrails = true
 
+    /// How far a finger slides on space for one cursor step.
+    public static let cursorStep: CGFloat = 12
+    /// How far left of backspace a swipe has to travel to delete a word.
+    public static let wordSwipe: CGFloat = 40
+    static let holdDelay: TimeInterval = 0.45
+    static let repeatInterval: TimeInterval = 0.09
+
     private struct Active {
         var id: Int
         var key: Key?
+        let startKey: Key
+        let startPoint: CGPoint
         var side: Side
         var isLetter: Bool
         var points: [CGPoint]
         var trail: CAShapeLayer?
+        /// Cursor steps already reported for a slide on space.
+        var slideSteps = 0
+        /// A slide, a swipe or a hold took this touch: no tap when it lifts.
+        var gestured = false
+        var hold: Task<Void, Never>?
     }
 
     private var keyViews: [Key: KeyView] = [:]
@@ -99,8 +122,32 @@ public final class KeySurfaceView: UIView {
             let side = layout.side(at: point)
             let id = nextID
             nextID += 1
-            active[ObjectIdentifier(touch)] = Active(id: id, key: key, side: side, isLetter: key.character != nil, points: [point], trail: nil)
+            let oid = ObjectIdentifier(touch)
+            var touchState = Active(id: id, key: key, startKey: key, startPoint: point, side: side, isLetter: key.character != nil, points: [point], trail: nil)
             keyViews[key]?.flash(side: side)
+            switch key {
+            case .backspace:
+                touchState.hold = Task { [weak self] in
+                    try? await Task.sleep(for: .seconds(Self.holdDelay))
+                    while !Task.isCancelled {
+                        guard let self, self.active[oid] != nil else { return }
+                        self.active[oid]?.gestured = true
+                        self.delegate?.keySurface(self, didTap: .backspace, side: side)
+                        try? await Task.sleep(for: .seconds(Self.repeatInterval))
+                    }
+                }
+            case .numbers:
+                touchState.hold = Task { [weak self] in
+                    try? await Task.sleep(for: .seconds(Self.holdDelay))
+                    guard !Task.isCancelled, let self, let state = self.active[oid], !state.gestured else { return }
+                    self.active[oid]?.gestured = true
+                    self.keyViews[.numbers]?.unflash()
+                    self.delegate?.keySurfaceDidHoldNumbers(self)
+                }
+            default:
+                break
+            }
+            active[oid] = touchState
             if key.character != nil {
                 delegate?.keySurface(self, touchBegan: id, at: point, time: touch.timestamp)
             }
@@ -112,32 +159,56 @@ public final class KeySurfaceView: UIView {
             let oid = ObjectIdentifier(touch)
             guard var touchState = active[oid] else { continue }
             let point = touch.location(in: self)
-            let now = layout.key(at: point)
-            if now != touchState.key {
-                if let was = touchState.key { keyViews[was]?.unflash() }
-                if let now { keyViews[now]?.flash(side: touchState.side) }
-                touchState.key = now
-            }
             if touchState.isLetter {
+                let now = layout.key(at: point)
+                if now != touchState.key {
+                    if let was = touchState.key { keyViews[was]?.unflash() }
+                    if let now { keyViews[now]?.flash(side: touchState.side) }
+                    touchState.key = now
+                }
                 touchState.points.append(point)
                 if showsTrails { drawTrail(&touchState) }
                 active[oid] = touchState
                 delegate?.keySurface(self, touchMoved: touchState.id, to: point, time: touch.timestamp)
-            } else {
-                active[oid] = touchState
+                continue
             }
+            switch touchState.startKey {
+            case .space:
+                let steps = Int((point.x - touchState.startPoint.x) / Self.cursorStep)
+                if steps != touchState.slideSteps {
+                    touchState.gestured = true
+                    delegate?.keySurface(self, didSlideSpace: steps - touchState.slideSteps)
+                    touchState.slideSteps = steps
+                }
+            case .backspace:
+                if !touchState.gestured, touchState.startPoint.x - point.x >= Self.wordSwipe {
+                    touchState.gestured = true
+                    touchState.hold?.cancel()
+                    delegate?.keySurfaceDidSwipeBackspace(self)
+                }
+            default:
+                let now = layout.key(at: point)
+                if now != touchState.key {
+                    if let was = touchState.key { keyViews[was]?.unflash() }
+                    if let now { keyViews[now]?.flash(side: touchState.side) }
+                    touchState.key = now
+                    if touchState.startKey == .numbers { touchState.hold?.cancel() }
+                }
+            }
+            active[oid] = touchState
         }
     }
 
     public override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
         for touch in touches {
             guard let touchState = active.removeValue(forKey: ObjectIdentifier(touch)) else { continue }
+            touchState.hold?.cancel()
             let point = touch.location(in: self)
             if let key = touchState.key { keyViews[key]?.unflash() }
             if touchState.isLetter {
                 if showsTrails { finish(touchState, at: point) }
                 delegate?.keySurface(self, touchEnded: touchState.id, at: point, time: touch.timestamp)
-            } else if let key = touchState.key {
+            } else if !touchState.gestured, let key = touchState.key {
                 delegate?.keySurface(self, didTap: key, side: touchState.side)
             }
         }
@@ -146,6 +217,7 @@ public final class KeySurfaceView: UIView {
     public override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
         for touch in touches {
             guard let touchState = active.removeValue(forKey: ObjectIdentifier(touch)) else { continue }
+            touchState.hold?.cancel()
             if let key = touchState.key { keyViews[key]?.unflash() }
             touchState.trail?.removeFromSuperlayer()
             if touchState.isLetter {
@@ -234,10 +306,10 @@ final class KeyView: UIView {
         layer.shadowOpacity = 0.25
         layer.shadowOffset = CGSize(width: 0, height: 1)
         layer.shadowRadius = 0
-        backgroundColor = Theme.ui(key.character == nil && key != .space ? .keyDark : .key)
+        backgroundColor = Theme.ui(key.isFunction ? .keyDark : .key)
         label.textAlignment = .center
         label.textColor = Theme.ui(key == .space ? .muted : .keyInk)
-        label.font = Theme.uiFont(size: fontSize, weight: key == .space ? .heavy : key.character == nil ? .medium : .bold)
+        label.font = Theme.uiFont(size: fontSize, weight: key == .space ? .heavy : key.isFunction ? .medium : .bold)
         label.adjustsFontSizeToFitWidth = true
         label.minimumScaleFactor = 0.6
         label.text = text
@@ -253,7 +325,7 @@ final class KeyView: UIView {
 
     private var fontSize: CGFloat {
         switch key {
-        case .letter: 21
+        case .letter, .symbol: 21
         case .space: 13
         case .shift, .backspace: 18
         default: 14
@@ -263,9 +335,12 @@ final class KeyView: UIView {
     private var text: String {
         switch key {
         case .letter(let c): shifted ? String(c).uppercased() : String(c)
+        case .symbol(let c): String(c)
         case .shift: "⇧"
         case .backspace: "⌫"
         case .numbers: "123"
+        case .symbols: "#+="
+        case .letters: "ABC"
         case .globe: "🌐"
         case .space: spaceLabel
         case .returnKey: "return"
@@ -282,7 +357,7 @@ final class KeyView: UIView {
 
     func unflash() {
         UIView.animate(withDuration: 0.25) {
-            self.backgroundColor = Theme.ui(self.key.character == nil && self.key != .space ? .keyDark : .key)
+            self.backgroundColor = Theme.ui(self.key.isFunction ? .keyDark : .key)
             self.label.textColor = Theme.ui(self.key == .space ? .muted : .keyInk)
             self.transform = .identity
         }

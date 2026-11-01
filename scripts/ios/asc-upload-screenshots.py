@@ -212,6 +212,9 @@ def sync_set(localization_id, locale, display_type, files):
         print(f"{locale} {display_type}: up to date ({len(files)} screenshots).")
         return
     print(f"{locale} {display_type}: uploading {len(files)} screenshots (replacing {len(current)}).")
+    if current:
+        print(f"  App Store Connect has: {have}")
+        print(f"  The repo has:          {want}")
     for s in current:
         call("DELETE", f"/appScreenshots/{s['id']}")
     ids = [upload(set_id, name, path, md5) for name, path, md5 in files]

@@ -224,6 +224,89 @@ private func onceDates(_ plan: [PlannedRing]) -> [Date] {
     }
 }
 
+@Suite struct MorningsLogTests {
+    private let threeRings = Alarm(days: Weekday.weekdays, rings: [Ring(offsetMinutes: -10), Ring(), Ring(offsetMinutes: 5)])
+
+    @Test func outcomeDependsOnWhichRingYouGotUpOn() {
+        #expect(threeRings.record(upAt: at(2, 6, 52), calendar: utc)?.outcome == .firstRing)
+        let middle = threeRings.record(upAt: at(2, 7, 1), calendar: utc)
+        #expect(middle?.outcome == .fine)
+        #expect(middle?.ringNumber == 2)
+        #expect(middle?.ringCount == 3)
+        // The last ring has gone off, but the morning is already over for a plain alarm.
+        #expect(threeRings.record(upAt: at(2, 7, 5), calendar: utc) == nil)
+        #expect(threeRings.record(upAt: at(2, 6, 0), calendar: utc) == nil)
+    }
+
+    @Test func lastRingWithACheck() {
+        var alarm = threeRings
+        alarm.checks = [WakeUpCheck(kind: .game)]
+        let record = alarm.record(upAt: at(2, 7, 8), calendar: utc)
+        #expect(record?.outcome == .lastRing)
+        #expect(record?.ringNumber == 3)
+    }
+
+    @Test func faintsWhenTheCheckRunsOut() {
+        var alarm = threeRings
+        alarm.checks = [WakeUpCheck(kind: .game)]
+        #expect(alarm.faintedMornings(before: at(2, 7, 10), calendar: utc).isEmpty)
+        let fainted = alarm.faintedMornings(before: at(2, 7, 16), calendar: utc)
+        #expect(fainted.map(\.date) == [monday])
+        #expect(fainted.first?.outcome == .fainted)
+        alarm.setChange(.done, on: monday)
+        #expect(alarm.faintedMornings(before: at(2, 7, 16), calendar: utc).isEmpty)
+    }
+
+    private func record(_ day: Int, _ outcome: MorningRecord.Outcome, alarm: UUID = UUID()) -> MorningRecord {
+        MorningRecord(alarmID: alarm, date: LocalDate(year: 2026, month: 11, day: day), outcome: outcome,
+                      upAt: nil, ringNumber: 1, ringCount: 1)
+    }
+
+    @Test func streakCountsFirstRingMorningsInARow() {
+        var log = MorningsLog()
+        for (day, outcome) in [(2, .lastRing), (3, .firstRing), (4, .firstRing), (6, .firstRing)] as [(Int, MorningRecord.Outcome)] {
+            log.add(record(day, outcome), calendar: utc)
+        }
+        #expect(log.streak == 3)
+        // A harder second alarm on the same morning breaks it.
+        log.add(record(6, .fine), calendar: utc)
+        #expect(log.streak == 0)
+    }
+
+    @Test func sameAlarmAndMorningReplaces() {
+        let id = UUID()
+        var log = MorningsLog()
+        log.add(record(2, .lastRing, alarm: id), calendar: utc)
+        log.add(record(2, .firstRing, alarm: id), calendar: utc)
+        #expect(log.records.count == 1)
+        #expect(log.streak == 1)
+    }
+
+    @Test func weekAndUnseen() {
+        var log = MorningsLog()
+        log.add(record(1, .fine), calendar: utc)      // Sunday of the week before
+        log.add(record(2, .firstRing), calendar: utc) // Monday
+        log.add(record(4, .lastRing), calendar: utc)  // Wednesday
+        let week = log.week(of: at(5, 9), calendar: utc)
+        #expect(week == [.monday: .firstRing, .wednesday: .lastRing])
+        let unseen = log.unseen(now: at(5, 9), calendar: utc)
+        #expect(unseen?.date == LocalDate(year: 2026, month: 11, day: 4))
+        log.markSeen(unseen!.id)
+        #expect(log.unseen(now: at(5, 9), calendar: utc) == nil)
+    }
+
+    @Test func storeRoundTrip() throws {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("mornings-\(UUID()).json")
+        defer { try? FileManager.default.removeItem(at: url) }
+        let store = FileMorningsStore(url: url)
+        #expect(try store.load().records.isEmpty)
+        var log = MorningsLog()
+        log.add(record(2, .firstRing), calendar: utc)
+        try store.save(log)
+        #expect(try store.load() == log)
+    }
+}
+
 @Suite struct StoreTests {
     @Test func roundTrip() throws {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("alarms-\(UUID()).json")

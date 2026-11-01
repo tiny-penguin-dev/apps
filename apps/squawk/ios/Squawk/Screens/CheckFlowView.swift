@@ -3,7 +3,7 @@ import SquawkKit
 import SwiftUI
 
 /// Screens 9–11: the wake-up checks for the alarm that's ringing, one after another,
-/// with the math way out always one tap away. Ends on a simple Good morning.
+/// with the math way out always one tap away. Ends on Good morning.
 struct CheckFlowView: View {
     var alarm: Alarm
     @Environment(AlarmsModel.self) private var model
@@ -17,7 +17,10 @@ struct CheckFlowView: View {
             Theme.background.ignoresSafeArea()
             switch stage {
             case .done:
-                GoodMorningView { model.closeCheck() }
+                GoodMorningView(record: model.goodMorning, log: model.log) {
+                    model.closeGoodMorning()
+                    model.closeCheck()
+                }
                     .transition(.scale(scale: 0.9).combined(with: .opacity))
             case .math:
                 MathWayOut(onSolved: { finish(how: "math") }, onBack: { withAnimation(.spring) { stage = .checks } })
@@ -321,42 +324,5 @@ struct MathWayOut: View {
         default:
             if answer.count < 4 { answer += key }
         }
-    }
-}
-
-// MARK: Good morning
-
-/// A simple Good morning for now. The full one (reactions, streaks, confetti) is phase 5.
-private struct GoodMorningView: View {
-    var onClose: () -> Void
-
-    var body: some View {
-        VStack(spacing: 18) {
-            Spacer()
-            PenguinView(mood: .proud).frame(width: 180, height: 180)
-            Text("Rise and waddle!").font(Theme.title(34))
-            Text("You're up. The rest of this morning's rings are off.")
-                .font(Theme.body)
-                .foregroundStyle(Theme.muted)
-                .multilineTextAlignment(.center)
-            Spacer()
-            Button("Start my day", action: onClose).buttonStyle(PillButtonStyle())
-        }
-        .padding(24)
-    }
-}
-
-/// Shakes side to side each time `count` changes.
-struct Shake: GeometryEffect {
-    var count: Int
-    var animatableData: CGFloat
-
-    init(count: Int) {
-        self.count = count
-        self.animatableData = CGFloat(count)
-    }
-
-    func effectValue(size: CGSize) -> ProjectionTransform {
-        ProjectionTransform(CGAffineTransform(translationX: 10 * sin(animatableData * .pi * 4), y: 0))
     }
 }

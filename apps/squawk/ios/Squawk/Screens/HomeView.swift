@@ -13,9 +13,15 @@ struct HomeView: View {
         ZStack(alignment: .bottomTrailing) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
-                    Text(greeting)
-                        .font(Theme.title(32))
-                        .padding(.top, 8)
+                    HStack(alignment: .firstTextBaseline) {
+                        Text(greeting)
+                            .font(Theme.title(32))
+                        Spacer()
+                        if model.log.streak > 0 {
+                            StreakChip(streak: model.log.streak)
+                        }
+                    }
+                    .padding(.top, 8)
                     banners
                     SleepCard(nextRing: model.nextRing(), anyOn: model.alarms.contains(where: \.isOn))
                         .onLongPressGesture(minimumDuration: 1.2) { showGallery = true }
@@ -174,6 +180,7 @@ struct AlarmCard: View {
                     Toggle("On", isOn: Binding(get: { alarm.isOn }, set: { model.setOn($0, for: alarm) }))
                         .labelsHidden()
                         .tint(Theme.mint)
+                        .wobble(on: alarm.isOn)
                         .sensoryFeedback(.selection, trigger: alarm.isOn)
                 }
                 if alarm.isOn, let day = alarm.upcomingMorning(after: Date()) {

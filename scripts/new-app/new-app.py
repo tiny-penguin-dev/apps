@@ -69,7 +69,7 @@ def main() -> int:
         sys.exit("Slug must be lowercase letters, digits and dashes.")
     display = a.display or a.name
     bundle = a.bundle or f"com.tinypenguin.{slug.replace('-', '')}"
-    env = slug.upper().replace("-", "_")  # for secret names, e.g. SENTRY_DSN_SQUAWK
+    env = slug.upper().replace("-", "_")  # e.g. SQUAWK, for names in capitals
     values = {"__NAME__": a.name, "__SLUG__": slug, "__DISPLAY__": display, "__BUNDLE__": bundle,
               "__ENV__": env}
 
@@ -105,8 +105,7 @@ def main() -> int:
     print(f"\n{display} is set up: bundle ID {bundle}, scheme {a.name}, folder apps/{slug}.")
     print("Next: add a row to the apps table in README.md, push, and do the one-time Apple")
     print('setup in docs/ios-release.md ("One-time setup for each new app").')
-    print(f"Sentry: create a Sentry project named {slug} and add its DSN as the repo secret")
-    print(f"SENTRY_DSN_{env} (docs/telemetry.md).")
+    print(f"Sentry: the first TestFlight run creates the Sentry project {slug} (docs/telemetry.md).")
     return 0
 
 

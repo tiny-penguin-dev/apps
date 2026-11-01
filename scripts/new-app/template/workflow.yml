@@ -40,6 +40,5 @@ jobs:
       ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
       ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
       ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
-      # Sentry: one shared auth token, one DSN per app (docs/telemetry.md).
+      # Sentry: CI creates the project and looks up its DSN (docs/telemetry.md).
       SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-      SENTRY_DSN: ${{ secrets.SENTRY_DSN___ENV__ }}

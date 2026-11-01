@@ -37,10 +37,10 @@ on:
       ASC_PRIVATE_KEY:
         required: false
       SENTRY_DSN:
-        description: The app's Sentry DSN, baked into TestFlight builds
+        description: The app's Sentry DSN (optional override; normally looked up with SENTRY_AUTH_TOKEN)
         required: false
       SENTRY_AUTH_TOKEN:
-        description: Sentry auth token for uploading debug symbols
+        description: Sentry token (project:read, project:write) to create the app's project, look up its DSN and upload debug symbols
         required: false
 
 jobs:
@@ -151,6 +151,18 @@ jobs:
         if: steps.secrets.outputs.ready == 'true' && hashFiles(format('{0}/Config/testflight.json', inputs.app-dir)) != ''
         run: python3 "$GITHUB_WORKSPACE/scripts/ios/asc-sync-testers.py" "$BUNDLE_ID" Config/testflight.json
 
+      - name: Prepare Sentry
+        if: steps.secrets.outputs.ready == 'true' && inputs.sentry-project != ''
+        # Creates the app's Sentry project if it's missing and looks up its DSN.
+        # A problem here only warns: the build ships with Sentry off.
+        run: |
+          if [ -z "$SENTRY_AUTH_TOKEN" ]; then
+            echo "::warning::No SENTRY_AUTH_TOKEN secret, so this build ships with Sentry off (see docs/telemetry.md)."
+            exit 0
+          fi
+          python3 "$GITHUB_WORKSPACE/scripts/ios/sentry-prepare-app.py" "$SENTRY_PROJECT" "${{ inputs.scheme }}" \
+            || echo "::warning::Couldn't set up Sentry, so this build ships with Sentry off."
+
       - name: Archive
         if: steps.secrets.outputs.ready == 'true'
         run: |
@@ -166,7 +178,7 @@ jobs:
           fi
           # Apps that use Sentry read SENTRY_DSN into their Info.plist.
           if [ -n "$SENTRY_PROJECT" ] && [ -z "$SENTRY_DSN" ]; then
-            echo "::warning::No Sentry DSN for $SENTRY_PROJECT, so this build won't send crash reports or metrics. Add the app's SENTRY_DSN_<APP> secret (see docs/telemetry.md)."
+            echo "::warning::No Sentry DSN for $SENTRY_PROJECT, so this build won't send crash reports or metrics (see docs/telemetry.md)."
           fi
           xcodebuild archive \
             -project "${{ inputs.scheme }}.xcodeproj" \
@@ -242,7 +254,7 @@ jobs:
         # warns: the build is already in TestFlight.
         run: |
           if [ -z "$SENTRY_AUTH_TOKEN" ] || [ -z "$SENTRY_ORG" ]; then
-            echo "::warning::Skipping the Sentry symbol upload: set the SENTRY_AUTH_TOKEN secret and SENTRY_ORG variable (see docs/telemetry.md)."
+            echo "::warning::Skipping the Sentry symbol upload: Sentry isn't set up (see docs/telemetry.md)."
             exit 0
           fi
           npx --yes @sentry/cli@3.8.2 debug-files upload \

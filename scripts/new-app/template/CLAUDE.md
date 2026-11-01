@@ -17,7 +17,7 @@ Read `PRODUCT.md`, `DESIGN.md` and `BUILD.md` first, and check their status line
 
 Sentry, through `ios/__NAME__/Telemetry.swift`. Add the metrics listed in `PRODUCT.md`
 ("What we measure") with `Telemetry.count`/`duration`/`gauge`, and never send anything
-personal. The DSN comes from the `SENTRY_DSN___ENV__` repo secret at archive time. See
+personal. CI creates the Sentry project `__SLUG__` and bakes in its DSN at archive time. See
 `docs/telemetry.md`.
 
 ## Build and ship

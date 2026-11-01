@@ -46,9 +46,8 @@ app's `PRODUCT.md` and `DESIGN.md` should already be approved. If they aren't, u
    - Create the app record in App Store Connect with the bundle ID (the first TestFlight
      run registers the bundle ID and then stops until the record exists)
    - If the app uses iCloud, register its container and tick it on the App ID
-   - Create the app's Sentry project (named after the folder) and add its DSN as the
-     repo secret `SENTRY_DSN_<APP>`, e.g. `SENTRY_DSN_SQUAWK`. The first time only,
-     also the `SENTRY_AUTH_TOKEN` secret and `SENTRY_ORG` variable.
+   - Nothing for Sentry: the first TestFlight run creates the app's Sentry project and
+     looks up its DSN, as long as the repo has the `SENTRY_AUTH_TOKEN` secret
    - Fill in the App Store privacy answers listed in `docs/telemetry.md`
    - Re-run the workflow after that
 8. After merge, pushes to `main` that touch `apps/<slug>/ios/` upload to TestFlight.
@@ -70,6 +69,6 @@ in the first build phase, with a `swift test` step in the app's workflow.
 ## Changing the template
 
 The template is in `scripts/new-app/template/`. Tokens `__NAME__`, `__SLUG__`,
-`__DISPLAY__`, `__BUNDLE__` and `__ENV__` (slug in capitals, for secret names) are replaced in file names and contents. If you change
+`__DISPLAY__`, `__BUNDLE__` and `__ENV__` (slug in capitals) are replaced in file names and contents. If you change
 how iOS apps are set up (shared xcconfigs, the reusable workflow), update the template
 in the same change.

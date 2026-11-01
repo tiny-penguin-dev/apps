@@ -58,8 +58,10 @@ agreed before they're built.
 The DSN tells the app where to send events. It's baked into the app at build time and
 never committed:
 
-- **TestFlight and App Store builds**: CI passes the `SENTRY_DSN_<APP>` repo secret
-  (for example `SENTRY_DSN_SQUAWK`) as the `SENTRY_DSN` build setting when it archives.
+- **TestFlight and App Store builds**: before archiving, CI runs
+  `scripts/ios/sentry-prepare-app.py`, which finds the app's Sentry project (creating
+  it if it's new) and looks up its DSN. CI passes that as the `SENTRY_DSN` build
+  setting. A caller workflow can still pass a `SENTRY_DSN` secret to override it.
 - **Simulator builds in CI and local builds**: no DSN, so Sentry stays off.
 - **To test Sentry from a local build**: create `Config/Secrets.xcconfig` (gitignored)
   with `SENTRY_DSN = https:/$()/<key>@<host>/<project>`. The `$()` is needed because
@@ -74,21 +76,18 @@ the upload fails it only warns, since the build is already in TestFlight.
 
 ## One-time setup
 
-For the repo (once):
+Once for the repo, nothing per app:
 
 | Where | Name | Value |
 |---|---|---|
-| Repo secret | `SENTRY_AUTH_TOKEN` | A Sentry organization auth token (Settings → Developer Settings → Organization Tokens). It can upload debug files. |
-| Repo variable | `SENTRY_ORG` | The Sentry organization slug |
+| Repo secret | `SENTRY_AUTH_TOKEN` | A Sentry token with `project:read` and `project:write` scopes: a personal token (User Settings → Personal Tokens) or an internal integration. An organization token (`sntrys_...`) is not enough, because it can't create projects. |
+| Repo variable (optional) | `SENTRY_ORG` | The Sentry organization slug. Only needed if the token can see more than one organization. |
+| Repo variable (optional) | `SENTRY_TEAM` | The team that owns new projects. Default: the organization's first team. |
 
-For each new app:
-
-1. In Sentry, create a project for the app (platform: Apple iOS), named after the
-   app's folder, for example `squawk`.
-2. Copy its DSN (Project Settings → Client Keys) into a repo secret named
-   `SENTRY_DSN_<APP>`, the folder name in capitals with `-` as `_`.
-3. Push to `main`. The next TestFlight build sends crash reports and metrics. Until the
-   DSN secret exists, the TestFlight run warns and the build ships with Sentry off.
+After that, each app's first TestFlight build creates its Sentry project, named after
+the app's folder (for example `squawk`), and every build gets its DSN automatically.
+Without the token, or if Sentry can't be reached, the run warns and the build ships
+with Sentry off.
 
 ## App Store privacy
 

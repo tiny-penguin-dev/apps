@@ -67,8 +67,8 @@ IDs and use cloud-managed signing.
 Until these secrets exist, the TestFlight job is skipped with a warning and only the
 build runs.
 
-Sentry (crash reports and metrics) needs a `SENTRY_AUTH_TOKEN` secret, a `SENTRY_ORG`
-variable and one `SENTRY_DSN_<APP>` secret per app. See [`telemetry.md`](telemetry.md).
+Sentry (crash reports and metrics) needs one `SENTRY_AUTH_TOKEN` secret; CI creates each
+app's Sentry project itself. See [`telemetry.md`](telemetry.md).
 
 ## One-time setup for each new app
 
@@ -79,9 +79,7 @@ variable and one `SENTRY_DSN_<APP>` secret per app. See [`telemetry.md`](telemet
    ID. Apple's API can't create app records.
 3. If the app uses iCloud, register its container and link it to the App ID (see
    "Entitlements" above). The API can't do this either.
-4. Create the app's Sentry project and its `SENTRY_DSN_<APP>` secret
-   ([`telemetry.md`](telemetry.md), "One-time setup").
-5. Re-run the workflow. The build appears in TestFlight after Apple finishes processing
+4. Re-run the workflow. The build appears in TestFlight after Apple finishes processing
    it.
 
 ## TestFlight testers

@@ -38,6 +38,7 @@ import Testing
         #expect(read.spaceSlide)
         #expect(read.backspaceSwipe)
         #expect(!read.splitOnWide)
+        #expect(read.haptics)
     }
 
     @Test func settingsRoundTripThroughAStore() throws {

@@ -7,6 +7,7 @@ import SwiftUI
 /// after the fifth, confetti and Home.
 struct TryItView: View {
     var model: AppModel
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var session: KeyboardSession?
     @State private var index = 0
     @State private var done = false
@@ -50,7 +51,7 @@ struct TryItView: View {
             .padding(.horizontal, Theme.Space.gutter)
             .frame(maxWidth: 560)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-            .animation(Theme.Motion.spring, value: index)
+            .animation(Theme.Motion.spring(reduceMotion: reduceMotion), value: index)
             if done {
                 Confetti().ignoresSafeArea()
             }

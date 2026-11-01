@@ -8,6 +8,7 @@ struct TurnOnView: View {
     var model: AppModel
     var inSetup: Bool
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         ZStack {
@@ -29,7 +30,7 @@ struct TurnOnView: View {
                         }
                     }
                 }
-                .animation(Theme.Motion.spring, value: model.isKeyboardOn)
+                .animation(Theme.Motion.spring(reduceMotion: reduceMotion), value: model.isKeyboardOn)
             } buttons: {
                 if model.isKeyboardOn {
                     Button(inSetup ? "Next" : "Done") { finish() }

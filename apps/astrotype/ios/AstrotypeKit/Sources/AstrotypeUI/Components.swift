@@ -8,6 +8,7 @@ import SwiftUI
 public struct PrimaryButtonStyle: ButtonStyle {
     public enum Kind: Sendable { case primary, small, ghost }
     var kind: Kind
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     public init(kind: Kind = .primary) { self.kind = kind }
 
@@ -36,8 +37,8 @@ public struct PrimaryButtonStyle: ButtonStyle {
                         .shadow(color: .black.opacity(0.25), radius: 0, y: pressed ? edge / 2 : edge)
                 )
                 .offset(y: pressed ? edge / 2 : 0)
-                .scaleEffect(pressed ? 0.98 : 1)
-                .animation(Theme.Motion.quickSpring, value: pressed)
+                .scaleEffect(pressed && !reduceMotion ? 0.98 : 1)
+                .animation(Theme.Motion.quickSpring(reduceMotion: reduceMotion), value: pressed)
         }
     }
 }
@@ -62,11 +63,13 @@ public struct Card<Content: View>: View {
     }
 }
 
-/// A card row: a title, an optional subtitle, and something on the right.
+/// A card row: a title, an optional subtitle, and something on the right; at the
+/// accessibility text sizes the something moves under the text so nothing squeezes.
 public struct Row<Trailing: View>: View {
     var title: String
     var subtitle: String?
     @ViewBuilder var trailing: Trailing
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     public init(_ title: String, subtitle: String? = nil, @ViewBuilder trailing: () -> Trailing) {
         self.title = title
@@ -76,18 +79,29 @@ public struct Row<Trailing: View>: View {
 
     public var body: some View {
         Card {
-            HStack(spacing: Theme.Space.m) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title).font(.system(.body, design: .rounded, weight: .bold))
-                    if let subtitle {
-                        Text(subtitle).font(.sw(.small)).foregroundStyle(Theme.muted)
-                    }
+            if typeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: Theme.Space.s) {
+                    text
+                    trailing
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                trailing
+            } else {
+                HStack(spacing: Theme.Space.m) {
+                    text
+                    trailing
+                }
             }
         }
         .foregroundStyle(Theme.ink)
+    }
+
+    private var text: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title).font(.system(.body, design: .rounded, weight: .bold))
+            if let subtitle {
+                Text(subtitle).font(.sw(.small)).foregroundStyle(Theme.muted)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
@@ -137,7 +151,7 @@ public struct ProBadge: View {
 
     public var body: some View {
         Text("PRO")
-            .font(.system(size: 10, weight: .black, design: .rounded))
+            .font(.system(.caption2, design: .rounded, weight: .black))
             .tracking(0.8)
             .padding(.horizontal, 7).padding(.vertical, 3)
             .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Theme.sun))
@@ -270,6 +284,7 @@ public struct Banner: View {
     var text: String
     var action: String
     var onAction: () -> Void
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     public init(_ text: String, action: String, onAction: @escaping () -> Void) {
         self.text = text
@@ -278,7 +293,8 @@ public struct Banner: View {
     }
 
     public var body: some View {
-        HStack(spacing: Theme.Space.m) {
+        let layout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: Theme.Space.s)) : AnyLayout(HStackLayout(spacing: Theme.Space.m))
+        layout {
             Text(text).font(.system(.body, design: .rounded, weight: .bold))
                 .frame(maxWidth: .infinity, alignment: .leading)
             Button(action, action: onAction)
@@ -341,6 +357,7 @@ public struct Confetti: View {
 public struct WordCards: View {
     var words: [String]
     var current: Int
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     public init(words: [String], current: Int) {
         self.words = words
@@ -365,8 +382,8 @@ public struct WordCards: View {
                                 .strokeBorder(Theme.accent, lineWidth: now ? 2 : 0)
                         )
                         .foregroundStyle(done ? .white : now ? Theme.ink : Theme.muted)
-                        .scaleEffect(now ? 1.04 : 1)
-                        .animation(Theme.Motion.quickSpring, value: current)
+                        .scaleEffect(now && !reduceMotion ? 1.04 : 1)
+                        .animation(Theme.Motion.quickSpring(reduceMotion: reduceMotion), value: current)
                         .accessibilityLabel(done ? "\(word), done" : now ? "\(word), now" : word)
                 }
             }

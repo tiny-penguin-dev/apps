@@ -9,6 +9,7 @@ import UIKit
 /// through the system keyboard). Ends in the result screen.
 struct SpeedTestView: View {
     var model: AppModel
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var keyboard: PracticeKeyboard
     @Binding var path: [HomeView.Route]
     @State private var test: SpeedTest
@@ -37,7 +38,7 @@ struct SpeedTestView: View {
                 typing.transition(.opacity)
             }
         }
-        .animation(Theme.Motion.spring, value: result != nil)
+        .animation(Theme.Motion.spring(reduceMotion: reduceMotion), value: result != nil)
         .background(Theme.bg.ignoresSafeArea())
         .foregroundStyle(Theme.ink)
         .navigationBarTitleDisplayMode(.inline)
@@ -58,7 +59,7 @@ struct SpeedTestView: View {
             sentence
                 .font(.system(.title3, design: .rounded, weight: .semibold))
                 .fixedSize(horizontal: false, vertical: true)
-                .animation(Theme.Motion.quickSpring, value: test.typedWords)
+                .animation(Theme.Motion.quickSpring(reduceMotion: reduceMotion), value: test.typedWords)
             Text(keyboard == .apple
                  ? "Sentence \(test.sentence + 1) of \(test.sentences.count), on Apple's keyboard. Space after each word."
                  : "Sentence \(test.sentence + 1) of \(test.sentences.count). Space after each word; a wrong word clears to try again.")

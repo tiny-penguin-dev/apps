@@ -19,7 +19,7 @@ struct SpeedResultView: View {
                 VStack(spacing: Theme.Space.m) {
                     BoltArt().frame(width: 170, height: 170).padding(.top, Theme.Space.l)
                     Text("\(result.wordsPerMinute)")
-                        .font(.sw(.big))
+                        .bigNumberFont()
                         .contentTransition(.numericText())
                     Text(result.keyboard == .apple ? "words per minute on Apple's keyboard" : "words per minute")
                         .font(.system(.body, design: .rounded, weight: .heavy))

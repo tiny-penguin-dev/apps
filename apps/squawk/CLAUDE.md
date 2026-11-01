@@ -13,7 +13,9 @@ Squawk is in the **Build** stage. Read `PRODUCT.md`, `DESIGN.md` and `BUILD.md` 
 
 - `ios/Squawk.xcodeproj`: the app (scheme `Squawk`, bundle ID `com.tinypenguin.squawk`,
   iOS 26+). Build settings are in `ios/Config/Squawk.xcconfig`, not the `.pbxproj`.
-- `ios/Squawk/`: app screens and `Theme.swift` (colors and type from `DESIGN.md`).
+- `ios/Squawk/`: app screens, `Theme.swift` (colors and type from `DESIGN.md`) and
+  `Telemetry.swift` (Sentry crash reports and metrics, see `docs/telemetry.md`). App code
+  calls `Telemetry`, never Sentry directly. List new metrics in `PRODUCT.md` first.
 - `ios/PenguinKit/`: local Swift package with the mascot. `PenguinGeometry` holds every
   part as a path on a 200×200 canvas, matching penguin 2 in
   `design/mockups/penguins-front.html`. `PenguinView(mood:style:accessory:waving:)` draws

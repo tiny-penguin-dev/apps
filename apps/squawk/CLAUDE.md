@@ -13,14 +13,17 @@ Squawk is in the **Build** stage. Read `PRODUCT.md`, `DESIGN.md` and `BUILD.md` 
 
 - `ios/Squawk.xcodeproj`: the app (scheme `Squawk`, bundle ID `com.tinypenguin.squawk`,
   iOS 26+). Build settings are in `ios/Config/Squawk.xcconfig`, not the `.pbxproj`.
-- `ios/Squawk/`: app screens, `Theme.swift` (colors and type from `DESIGN.md`) and
+- `ios/Squawk/`: app screens, `DesignSystem/` (`Theme.swift` colors and type from
+  `DESIGN.md`, `Components.swift`, `Motion.swift` with fish confetti, wobble and shake) and
   `Telemetry.swift` (Sentry crash reports and metrics, see `docs/telemetry.md`). App code
   calls `Telemetry`, never Sentry directly. List new metrics in `PRODUCT.md` first.
 - `ios/SquawkKit/`: local Swift package with the alarm model (`Alarm`, `Ring`,
   `TimeOfDay`, `Weekday`), one-morning changes (`MorningChange` in `Mornings.swift`:
   skip, new time, or "already up"), `AlarmPlanner` (alarms → the AlarmKit alarms to
   schedule; a weekday whose next morning has a change rings as one-off alarms for a
-  few weeks, since AlarmKit can't skip one week of a repeating alarm),
+  few weeks, since AlarmKit can't skip one week of a repeating alarm), the mornings log
+  (`MorningsLog.swift`: how each morning went, the streak and this week's dots, saved
+  in `mornings.json`),
   `FileAlarmStore` (JSON in Application Support) and the sound list. No UI, no AlarmKit.
 - `ios/Squawk/Alarms/`: `AlarmsModel` (the app's alarms; every change saves and
   re-plans; opening the app mid-morning cancels the rest of it) and `AlarmKitScheduler`,

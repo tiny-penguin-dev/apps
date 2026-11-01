@@ -249,6 +249,7 @@ anything typed. People can turn this off in Settings.
 | `morning.changed` (`kind`: skip / time) | How often people skip or move just the next morning |
 | `check.added` (`kind`: tag / code / game) | Which wake-up checks people pick |
 | `check.finished` (`how`: checks / math) | How often the checks get done, and how often people need the way out |
+| `morning.result` (`outcome`: firstRing / fine / lastRing / fainted) | How mornings go, and whether Squawk helps people get up earlier |
 | `morning.up` (`from`: app / button) | How mornings end early: opening the app or tapping "I'm up" |
 
 More get added here as phases land (rings, checks, mornings, Pro).

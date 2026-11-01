@@ -100,3 +100,67 @@ extension Binding where Value == TimeOfDay {
         Binding<Date>(get: { wrappedValue.pickerDate }, set: { wrappedValue = TimeOfDay(pickerDate: $0) })
     }
 }
+
+/// The fish streak chip on Home: mornings in a row up on the first ring.
+struct StreakChip: View {
+    var streak: Int
+
+    var body: some View {
+        Label("\(streak)", systemImage: "fish.fill")
+            .font(.system(.subheadline, design: .rounded, weight: .heavy))
+            .monospacedDigit()
+            .padding(.horizontal, 12).padding(.vertical, 7)
+            .background(Theme.sun.opacity(0.25), in: Capsule())
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(streak == 1 ? "1 morning up on the first ring" : "\(streak) mornings in a row up on the first ring")
+    }
+}
+
+/// This week's mornings, Monday to Sunday: a dot per day, colored by how it went.
+struct WeekDots: View {
+    var week: [Weekday: MorningRecord.Outcome]
+
+    var body: some View {
+        HStack(spacing: 8) {
+            ForEach(Weekday.allCases) { day in
+                VStack(spacing: 6) {
+                    Circle()
+                        .fill(week[day].map(\.color) ?? Theme.ice)
+                        .frame(width: 22, height: 22)
+                        .overlay {
+                            if week[day] == .firstRing {
+                                Image(systemName: "star.fill").font(.system(size: 10, weight: .black)).foregroundStyle(.white)
+                            }
+                        }
+                    Text(day.letter)
+                        .font(.system(.caption, design: .rounded, weight: .bold))
+                        .foregroundStyle(Theme.muted)
+                }
+                .frame(maxWidth: .infinity)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("\(day.full): \(week[day]?.spoken ?? "no alarm")")
+            }
+        }
+    }
+}
+
+extension MorningRecord.Outcome {
+    /// Mint for the first ring, sun in between, coral for the last ring, muted for a faint.
+    var color: Color {
+        switch self {
+        case .firstRing: Theme.mint
+        case .fine: Theme.sun
+        case .lastRing: Theme.coral
+        case .fainted: Theme.muted
+        }
+    }
+
+    var spoken: String {
+        switch self {
+        case .firstRing: "up on the first ring"
+        case .fine: "up before the last ring"
+        case .lastRing: "up on the last ring"
+        case .fainted: "the alarm ran out"
+        }
+    }
+}

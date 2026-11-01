@@ -7,6 +7,7 @@ struct RootView: View {
     @State private var model = AlarmsModel.shared
     @AppStorage("onboarding.done") private var onboardingDone = false
     @Environment(\.scenePhase) private var scenePhase
+    @State private var confetti = false
 
     var body: some View {
         ZStack {
@@ -15,9 +16,15 @@ struct RootView: View {
                 HomeView()
                     .transition(.opacity)
             } else {
-                OnboardingFlow { withAnimation(.spring) { onboardingDone = true } }
+                OnboardingFlow {
+                    withAnimation(.spring) { onboardingDone = true }
+                    celebrate()
+                }
                     .transition(.opacity)
             }
+        }
+        .overlay {
+            if confetti { FishConfetti().ignoresSafeArea() }
         }
         .environment(model)
         .foregroundStyle(Theme.ink)
@@ -26,16 +33,38 @@ struct RootView: View {
             if phase == .active { Task { await model.refresh() } }
         }
         .task { await model.refresh() }
-        .fullScreenCover(isPresented: checkShowing) {
-            if let alarm = model.activeCheckAlarm {
-                CheckFlowView(alarm: alarm)
-                    .environment(model)
+        .fullScreenCover(isPresented: coverShowing) {
+            Group {
+                if let alarm = model.activeCheckAlarm {
+                    CheckFlowView(alarm: alarm)
+                } else {
+                    GoodMorningView(record: model.goodMorning, log: model.log) { model.closeGoodMorning() }
+                }
             }
+            .environment(model)
         }
     }
 
-    private var checkShowing: Binding<Bool> {
-        Binding(get: { model.activeCheckID != nil }, set: { if !$0 { model.closeCheck() } })
+    /// Fish confetti when setup is done (DESIGN.md "Success").
+    private func celebrate() {
+        confetti = true
+        Task {
+            try? await Task.sleep(for: .seconds(4))
+            confetti = false
+        }
+    }
+
+    /// The wake-up check, then Good morning, over everything else.
+    private var coverShowing: Binding<Bool> {
+        Binding(
+            get: { model.activeCheckID != nil || model.goodMorning != nil },
+            set: { showing in
+                if !showing {
+                    model.closeGoodMorning()
+                    model.closeCheck()
+                }
+            }
+        )
     }
 }
 

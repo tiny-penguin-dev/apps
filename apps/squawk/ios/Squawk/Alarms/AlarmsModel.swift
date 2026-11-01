@@ -2,7 +2,8 @@ import Foundation
 import Observation
 import SquawkKit
 
-/// The app's alarms. Every change is saved, then re-planned and handed to AlarmKit.
+/// The app's alarms and mornings. Every change is saved, then re-planned and handed to
+/// AlarmKit.
 @MainActor
 @Observable
 final class AlarmsModel {
@@ -12,16 +13,23 @@ final class AlarmsModel {
     var errorMessage: String?
     /// The alarm whose wake-up check is on screen.
     private(set) var activeCheckID: UUID?
+    /// How past mornings went: Squawk's reactions and the streak.
+    private(set) var log = MorningsLog()
+    /// The morning the Good morning screen is showing.
+    private(set) var goodMorning: MorningRecord?
 
     private let store: any AlarmStore
+    private let morningsStore: any MorningsStore
     private let scheduler: any RingScheduler
 
-    init(store: any AlarmStore, scheduler: any RingScheduler) {
+    init(store: any AlarmStore, morningsStore: any MorningsStore, scheduler: any RingScheduler) {
         self.store = store
+        self.morningsStore = morningsStore
         self.scheduler = scheduler
         self.access = scheduler.access
         do {
             alarms = try store.load()
+            log = try morningsStore.load()
         } catch {
             Telemetry.report(error)
         }
@@ -34,14 +42,15 @@ final class AlarmsModel {
     /// The real thing: alarms on disk, rung by AlarmKit.
     static func live() -> AlarmsModel {
         let store: any AlarmStore = (try? FileAlarmStore.standard()) ?? MemoryAlarmStore()
-        return AlarmsModel(store: store, scheduler: AlarmKitScheduler.shared)
+        let mornings: any MorningsStore = (try? FileMorningsStore.standard()) ?? MemoryMorningsStore()
+        return AlarmsModel(store: store, morningsStore: mornings, scheduler: AlarmKitScheduler.shared)
     }
 
     static func preview(_ alarms: [Alarm] = [
         Alarm(dayTimes: [.friday: TimeOfDay(hour: 7, minute: 30)]),
         Alarm(time: TimeOfDay(hour: 6, minute: 15), date: LocalDate(Date().addingTimeInterval(86_400 * 6)), label: "Hike day"),
     ]) -> AlarmsModel {
-        AlarmsModel(store: MemoryAlarmStore(alarms), scheduler: PreviewScheduler())
+        AlarmsModel(store: MemoryAlarmStore(alarms), morningsStore: MemoryMorningsStore(), scheduler: PreviewScheduler())
     }
 
     // MARK: Changes
@@ -102,8 +111,11 @@ final class AlarmsModel {
 
     /// "I'm up" on the ringing screen: cancels the rest of that alarm's rings this morning.
     func imUp(alarmID: String) async {
-        guard let index = alarms.firstIndex(where: { $0.id.uuidString == alarmID }),
-              alarms[index].markUp(at: Date()) else { return }
+        let now = Date()
+        guard let index = alarms.firstIndex(where: { $0.id.uuidString == alarmID }) else { return }
+        // Logged now, shown on Good morning the next time the app opens.
+        logUp(index, at: now, show: false)
+        guard alarms[index].markUp(at: now) else { return }
         Telemetry.count("morning.up", ["from": "button"])
         save()
         await reschedule()
@@ -119,10 +131,39 @@ final class AlarmsModel {
     /// `how` is "checks" or "math", for the `check.finished` metric.
     func finishChecks(how: String) async {
         guard let index = alarms.firstIndex(where: { $0.id == activeCheckID }) else { return }
-        alarms[index].markUp(at: Date())
+        let now = Date()
+        logUp(index, at: now, show: true)
+        alarms[index].markUp(at: now)
         Telemetry.count("check.finished", ["how": how])
         save()
         await reschedule()
+    }
+
+    // MARK: Mornings
+
+    /// Closes Good morning; its morning won't show again.
+    func closeGoodMorning() {
+        guard let goodMorning else { return }
+        log.markSeen(goodMorning.id)
+        self.goodMorning = nil
+        saveLog()
+    }
+
+    /// Records how the morning in progress went, before it's marked done.
+    private func logUp(_ index: Int, at now: Date, show: Bool) {
+        guard let record = alarms[index].record(upAt: now) else { return }
+        log.add(record)
+        Telemetry.count("morning.result", ["outcome": record.outcome.rawValue])
+        if show { goodMorning = record }
+        saveLog()
+    }
+
+    private func saveLog() {
+        do {
+            try morningsStore.save(log)
+        } catch {
+            Telemetry.report(error)
+        }
     }
 
     /// Closes the check screen (after Good morning, or when the morning ran out).
@@ -146,19 +187,35 @@ final class AlarmsModel {
         access = scheduler.access
         let now = Date()
         var anyUp = false
+        // A check screen left open after its morning ran out closes.
+        if goodMorning == nil, let alarm = activeCheckAlarm, alarm.morningInProgress(at: now) == nil {
+            activeCheckID = nil
+        }
         for index in alarms.indices {
             if alarms[index].hasChecks {
                 // Its morning ends when the check is done, not when the app opens.
                 if activeCheckID == nil, alarms[index].morningInProgress(at: now) != nil {
                     activeCheckID = alarms[index].id
                 }
-            } else if alarms[index].markUp(at: now) {
-                anyUp = true
+            } else if alarms[index].morningInProgress(at: now) != nil {
+                logUp(index, at: now, show: true)
+                if alarms[index].markUp(at: now) { anyUp = true }
+            }
+            // Mornings whose wake-up check rang out: Squawk faints.
+            for record in alarms[index].faintedMornings(before: now)
+            where !log.contains(alarmID: record.alarmID, date: record.date) {
+                log.add(record)
+                Telemetry.count("morning.result", ["outcome": record.outcome.rawValue])
+                saveLog()
             }
         }
         if anyUp {
             Telemetry.count("morning.up", ["from": "app"])
             save()
+        }
+        // A morning ended from the ringing screen, or one that rang out, shows now.
+        if goodMorning == nil, activeCheckID == nil {
+            goodMorning = log.unseen(now: now)
         }
         await reschedule()
     }

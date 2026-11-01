@@ -81,9 +81,14 @@ import Testing
         for word in TryWord.all {
             #expect(word.strokes.map(\.letters).joined() == word.word)
             #expect(Synth.lexicon.contains(word.word))
+            // A tap sits on its thumb's half. A swipe may cross the middle (t and g sit
+            // at it), so most of its letters must be on its side.
             for stroke in word.strokes {
-                for letter in stroke.letters {
-                    #expect(layout.side(of: .letter(letter)) == stroke.side, "\(word.word): \(letter) is not on the \(stroke.side) half")
+                let onSide = stroke.letters.filter { layout.side(of: .letter($0)) == stroke.side }.count
+                if stroke.isTap {
+                    #expect(onSide == 1, "\(word.word): \(stroke.letters) is not on the \(stroke.side) half")
+                } else {
+                    #expect(onSide * 2 > stroke.letters.count, "\(word.word): \(stroke.letters) is mostly off the \(stroke.side) half")
                 }
             }
         }

@@ -11,7 +11,7 @@ import Testing
         #expect(Set(a).count == 3)
         #expect(SpeedTest.pick(seed: 8) != a)
         for sentence in SpeedTest.sentences {
-            #expect(sentence.allSatisfy { ($0.isLetter && $0.isLowercase) || $0 == " " }, sentence)
+            #expect(sentence.allSatisfy { ($0.isLetter && $0.isLowercase) || $0 == " " }, "\(sentence)")
         }
     }
 
@@ -108,7 +108,7 @@ import Testing
             for word in drill.words {
                 // The strokes spell the word (a doubled letter is crossed once by the swipe).
                 let letters = word.strokes.map(\.letters).joined()
-                #expect(Set(letters) == Set(word.text), word.text)
+                #expect(Set(letters) == Set(word.text), "\(word.text)")
             }
         }
         #expect(Drill.named(.switching).hintText == "Left swipes w→e, right swipes n→t. Keys light up to show which thumb.")
@@ -206,14 +206,18 @@ import Testing
         func result(_ wpm: Int, _ keyboard: PracticeKeyboard = .astrotype) -> SpeedResult {
             SpeedResult(wordsPerMinute: wpm, fixes: 0, misses: 0, words: 30, seconds: 60, date: date, keyboard: keyboard)
         }
-        #expect(state.record(result(30)))
-        #expect(!state.record(result(25)))
-        #expect(state.record(result(31)))
+        let first = state.record(result(30))
+        #expect(first)
+        let slower = state.record(result(25))
+        #expect(!slower)
+        let faster = state.record(result(31))
+        #expect(faster)
         #expect(state.bestWordsPerMinute == 31)
-        #expect(!state.record(result(50, .apple)))
+        let apple = state.record(result(50, .apple))
+        #expect(!apple)
         #expect(state.appleWordsPerMinute == 50)
         #expect(state.bestWordsPerMinute == 31)
-        for i in 0..<40 { state.record(result(i)) }
+        for i in 0..<40 { _ = state.record(result(i)) }
         #expect(state.speedTests.count == 30)
         #expect(state.bestWordsPerMinute == 39)
     }

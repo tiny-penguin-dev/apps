@@ -51,6 +51,7 @@ from asc import ApiError, call, find, get_all, get_all_with_included, run, uploa
 
 BASE_TERRITORY = "USA"
 APPLY = False
+FAILED = []
 
 
 def change(description, action, check=None):
@@ -58,7 +59,13 @@ def change(description, action, check=None):
     instead, which reads what the change would need, so mistakes show up before main."""
     print(("" if APPLY else "Would: ") + description)
     if APPLY:
-        return action()
+        try:
+            return action()
+        except ApiError as e:
+            # Keep going so one refused change doesn't hold up the rest; fail at the end.
+            FAILED.append(description)
+            print(f"::warning::Couldn't {description}: {e}")
+            return None
     if check:
         check()
     return None
@@ -355,6 +362,8 @@ def main(bundle_id, config_path, *flags):
     with open(config_path) as f:
         config = json.load(f)
     sync(app_id, config, os.path.dirname(config_path))
+    if FAILED:
+        sys.exit("::error::App Store Connect refused: " + "; ".join(FAILED))
     print("Done." if APPLY else "Dry run: nothing changed. Changes apply on main.")
 
 

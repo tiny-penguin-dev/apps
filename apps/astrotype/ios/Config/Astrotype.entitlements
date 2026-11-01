@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Words and settings are shared with the keyboard extension through the App Group. -->
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>group.com.tinypenguin.astrotype</string>
+	</array>
+	<!-- Training samples upload to this container's public CloudKit database; the
+	     keyboard's words and settings sync through its private database. -->
+	<key>com.apple.developer.icloud-container-identifiers</key>
+	<array>
+		<string>iCloud.com.tinypenguin.astrotype</string>
+	</array>
+	<key>com.apple.developer.icloud-services</key>
+	<array>
+		<string>CloudKit</string>
+	</array>
+</dict>
+</plist>

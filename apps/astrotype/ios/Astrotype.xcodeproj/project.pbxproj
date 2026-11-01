@@ -1,0 +1,371 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		5A0000000000000000000082 /* AstrotypeCore in Frameworks */ = {isa = PBXBuildFile; productRef = 5A0000000000000000000081 /* AstrotypeCore */; };
+		5A0000000000000000000086 /* AstrotypeUI in Frameworks */ = {isa = PBXBuildFile; productRef = 5A0000000000000000000085 /* AstrotypeUI */; };
+		5A0000000000000000000090 /* Sentry-Dynamic in Frameworks */ = {isa = PBXBuildFile; productRef = 5A0000000000000000000092 /* Sentry-Dynamic */; };
+		5A0000000000000000000102 /* AstrotypeCore in Frameworks */ = {isa = PBXBuildFile; productRef = 5A0000000000000000000101 /* AstrotypeCore */; };
+		5A0000000000000000000104 /* AstrotypeUI in Frameworks */ = {isa = PBXBuildFile; productRef = 5A0000000000000000000103 /* AstrotypeUI */; };
+		5A0000000000000000000134 /* AstrotypeKeyboard.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 5A0000000000000000000110 /* AstrotypeKeyboard.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		5A0000000000000000000010 /* Astrotype.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Astrotype.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		5A0000000000000000000011 /* Project.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Project.xcconfig; sourceTree = "<group>"; };
+		5A0000000000000000000012 /* Astrotype.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Astrotype.xcconfig; sourceTree = "<group>"; };
+		5A0000000000000000000013 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		5A0000000000000000000015 /* Astrotype.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Astrotype.entitlements; sourceTree = "<group>"; };
+		5A0000000000000000000014 /* AstrotypeKit */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = AstrotypeKit; sourceTree = "<group>"; };
+		5A0000000000000000000110 /* AstrotypeKeyboard.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = AstrotypeKeyboard.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		5A0000000000000000000111 /* AstrotypeKeyboard.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = AstrotypeKeyboard.xcconfig; sourceTree = "<group>"; };
+		5A0000000000000000000112 /* AstrotypeKeyboard-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "AstrotypeKeyboard-Info.plist"; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		5A0000000000000000000020 /* Astrotype */ = {isa = PBXFileSystemSynchronizedRootGroup; path = Astrotype; sourceTree = "<group>"; };
+		5A0000000000000000000120 /* AstrotypeKeyboard */ = {isa = PBXFileSystemSynchronizedRootGroup; path = AstrotypeKeyboard; sourceTree = "<group>"; };
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		5A0000000000000000000031 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5A0000000000000000000082 /* AstrotypeCore in Frameworks */,
+				5A0000000000000000000086 /* AstrotypeUI in Frameworks */,
+				5A0000000000000000000090 /* Sentry-Dynamic in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5A0000000000000000000131 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5A0000000000000000000102 /* AstrotypeCore in Frameworks */,
+				5A0000000000000000000104 /* AstrotypeUI in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		5A0000000000000000000133 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				5A0000000000000000000134 /* AstrotypeKeyboard.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXContainerItemProxy section */
+		5A0000000000000000000151 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 5A0000000000000000000050 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 5A0000000000000000000140;
+			remoteInfo = AstrotypeKeyboard;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXTargetDependency section */
+		5A0000000000000000000150 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 5A0000000000000000000140 /* AstrotypeKeyboard */;
+			targetProxy = 5A0000000000000000000151 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin PBXGroup section */
+		5A0000000000000000000001 = {
+			isa = PBXGroup;
+			children = (
+				5A0000000000000000000020 /* Astrotype */,
+				5A0000000000000000000120 /* AstrotypeKeyboard */,
+				5A0000000000000000000014 /* AstrotypeKit */,
+				5A0000000000000000000003 /* Config */,
+				5A0000000000000000000002 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		5A0000000000000000000002 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				5A0000000000000000000010 /* Astrotype.app */,
+				5A0000000000000000000110 /* AstrotypeKeyboard.appex */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		5A0000000000000000000003 /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				5A0000000000000000000011 /* Project.xcconfig */,
+				5A0000000000000000000012 /* Astrotype.xcconfig */,
+				5A0000000000000000000013 /* Info.plist */,
+				5A0000000000000000000015 /* Astrotype.entitlements */,
+				5A0000000000000000000111 /* AstrotypeKeyboard.xcconfig */,
+				5A0000000000000000000112 /* AstrotypeKeyboard-Info.plist */,
+			);
+			path = Config;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		5A0000000000000000000040 /* Astrotype */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5A0000000000000000000061 /* Build configuration list for PBXNativeTarget "Astrotype" */;
+			buildPhases = (
+				5A0000000000000000000030 /* Sources */,
+				5A0000000000000000000031 /* Frameworks */,
+				5A0000000000000000000032 /* Resources */,
+				5A0000000000000000000133 /* Embed Foundation Extensions */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				5A0000000000000000000150 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				5A0000000000000000000020 /* Astrotype */,
+			);
+			name = Astrotype;
+			packageProductDependencies = (
+				5A0000000000000000000081 /* AstrotypeCore */,
+				5A0000000000000000000085 /* AstrotypeUI */,
+				5A0000000000000000000092 /* Sentry-Dynamic */,
+			);
+			productName = Astrotype;
+			productReference = 5A0000000000000000000010 /* Astrotype.app */;
+			productType = "com.apple.product-type.application";
+		};
+		5A0000000000000000000140 /* AstrotypeKeyboard */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5A0000000000000000000161 /* Build configuration list for PBXNativeTarget "AstrotypeKeyboard" */;
+			buildPhases = (
+				5A0000000000000000000130 /* Sources */,
+				5A0000000000000000000131 /* Frameworks */,
+				5A0000000000000000000132 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				5A0000000000000000000120 /* AstrotypeKeyboard */,
+			);
+			name = AstrotypeKeyboard;
+			packageProductDependencies = (
+				5A0000000000000000000101 /* AstrotypeCore */,
+				5A0000000000000000000103 /* AstrotypeUI */,
+			);
+			productName = AstrotypeKeyboard;
+			productReference = 5A0000000000000000000110 /* AstrotypeKeyboard.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		5A0000000000000000000050 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1600;
+				LastUpgradeCheck = 1600;
+				TargetAttributes = {
+					5A0000000000000000000040 = {
+						CreatedOnToolsVersion = 16.0;
+					};
+					5A0000000000000000000140 = {
+						CreatedOnToolsVersion = 16.0;
+					};
+				};
+			};
+			buildConfigurationList = 5A0000000000000000000060 /* Build configuration list for PBXProject "Astrotype" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 5A0000000000000000000001;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				5A0000000000000000000080 /* XCLocalSwiftPackageReference "AstrotypeKit" */,
+				5A0000000000000000000091 /* XCRemoteSwiftPackageReference "sentry-cocoa" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 5A0000000000000000000002 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				5A0000000000000000000040 /* Astrotype */,
+				5A0000000000000000000140 /* AstrotypeKeyboard */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		5A0000000000000000000032 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5A0000000000000000000132 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		5A0000000000000000000030 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5A0000000000000000000130 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		5A0000000000000000000070 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 5A0000000000000000000011 /* Project.xcconfig */;
+			buildSettings = {
+			};
+			name = Debug;
+		};
+		5A0000000000000000000071 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 5A0000000000000000000011 /* Project.xcconfig */;
+			buildSettings = {
+			};
+			name = Release;
+		};
+		5A0000000000000000000072 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 5A0000000000000000000012 /* Astrotype.xcconfig */;
+			buildSettings = {
+			};
+			name = Debug;
+		};
+		5A0000000000000000000073 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 5A0000000000000000000012 /* Astrotype.xcconfig */;
+			buildSettings = {
+			};
+			name = Release;
+		};
+		5A0000000000000000000174 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 5A0000000000000000000111 /* AstrotypeKeyboard.xcconfig */;
+			buildSettings = {
+			};
+			name = Debug;
+		};
+		5A0000000000000000000175 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 5A0000000000000000000111 /* AstrotypeKeyboard.xcconfig */;
+			buildSettings = {
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		5A0000000000000000000060 /* Build configuration list for PBXProject "Astrotype" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5A0000000000000000000070 /* Debug */,
+				5A0000000000000000000071 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		5A0000000000000000000061 /* Build configuration list for PBXNativeTarget "Astrotype" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5A0000000000000000000072 /* Debug */,
+				5A0000000000000000000073 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		5A0000000000000000000161 /* Build configuration list for PBXNativeTarget "AstrotypeKeyboard" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5A0000000000000000000174 /* Debug */,
+				5A0000000000000000000175 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		5A0000000000000000000080 /* XCLocalSwiftPackageReference "AstrotypeKit" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = AstrotypeKit;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		5A0000000000000000000091 /* XCRemoteSwiftPackageReference "sentry-cocoa" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/getsentry/sentry-cocoa";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 9.32.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		5A0000000000000000000081 /* AstrotypeCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = AstrotypeCore;
+		};
+		5A0000000000000000000085 /* AstrotypeUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = AstrotypeUI;
+		};
+		5A0000000000000000000092 /* Sentry-Dynamic */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 5A0000000000000000000091 /* XCRemoteSwiftPackageReference "sentry-cocoa" */;
+			productName = "Sentry-Dynamic";
+		};
+		5A0000000000000000000101 /* AstrotypeCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = AstrotypeCore;
+		};
+		5A0000000000000000000103 /* AstrotypeUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = AstrotypeUI;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 5A0000000000000000000050 /* Project object */;
+}

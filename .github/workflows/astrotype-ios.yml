@@ -1,0 +1,42 @@
+name: Astrotype iOS
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - apps/astrotype/ios/**
+      - apps/astrotype/ml/export/**
+      - config/ios/**
+      - scripts/ios/**
+      - .github/workflows/ios-app.yml
+      - .github/workflows/astrotype-ios.yml
+  pull_request:
+    paths:
+      - apps/astrotype/ios/**
+      - apps/astrotype/ml/export/**
+      - config/ios/**
+      - scripts/ios/**
+      - .github/workflows/ios-app.yml
+      - .github/workflows/astrotype-ios.yml
+  workflow_dispatch:
+    inputs:
+      deploy:
+        description: Upload to TestFlight
+        type: boolean
+        default: true
+
+concurrency:
+  group: astrotype-ios-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ios:
+    uses: ./.github/workflows/ios-app.yml
+    with:
+      app-dir: apps/astrotype/ios
+      scheme: Astrotype
+      test-package: AstrotypeKit
+      sentry-project: astrotype
+      # Pushes to main ship to TestFlight; PRs only build.
+      deploy: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.deploy) }}
+    secrets: inherit

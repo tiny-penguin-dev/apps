@@ -107,7 +107,7 @@ PR. The manifest also declares `UserDefaults` use (reason `CA92.1`), which
 
 ## Adding Sentry to an app made before this
 
-StackWrite predates this setup. To add Sentry to an existing app: add the
+Astrotype predates this setup. To add Sentry to an existing app: add the
 `sentry-cocoa` package to the target in Xcode, copy `Telemetry.swift` and
 `PrivacyInfo.xcprivacy` from the template (merging with any manifest the app already
 has), add the `SentryDSN` key and `SENTRY_DSN =` setting as in the template's

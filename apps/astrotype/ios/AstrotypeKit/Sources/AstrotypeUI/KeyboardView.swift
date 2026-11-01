@@ -29,8 +29,13 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
     private var fittedKeysHeight: CGFloat?
 
     private var panel: SettingsPanelView?
-    private let keyHaptic = UIImpactFeedbackGenerator(style: .light)
-    private let commitHaptic = UIImpactFeedbackGenerator(style: .medium)
+    /// Whether the host can play haptics at all: the extension only with Full Access
+    /// (DESIGN.md "Motion"), the app always. With the haptics setting, decides `play`.
+    public var hapticsAvailable = true {
+        didSet { if hapticsAvailable && !oldValue { keyHaptic.prepare() } }
+    }
+    private let keyHaptic = UIImpactFeedbackGenerator(style: .soft)
+    private let commitHaptic = UIImpactFeedbackGenerator(style: .light)
 
     /// The height for a width: the bar plus the keys.
     public static func height(forWidth width: CGFloat) -> CGFloat {
@@ -113,6 +118,7 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         }
         surface.shifted = model.state.isShifted
         surface.showsTrails = model.keyboardSettings.trails
+        surface.showsFlashes = model.keyboardSettings.trails
         surface.spaceSlideEnabled = model.keyboardSettings.spaceSlide
         surface.backspaceSwipeEnabled = model.keyboardSettings.backspaceSwipe
         panel?.allowsSplit = model.entitlement.allows(.splitLayout)
@@ -120,12 +126,11 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
     }
 
     private func play(_ haptic: Composer.Haptic) {
+        if haptic == .key { UIDevice.current.playInputClick() }
+        guard hapticsAvailable, model.keyboardSettings.haptics else { return }
         switch haptic {
-        case .key:
-            keyHaptic.impactOccurred()
-            UIDevice.current.playInputClick()
-        case .commit:
-            commitHaptic.impactOccurred()
+        case .key: keyHaptic.impactOccurred()
+        case .commit: commitHaptic.impactOccurred()
         }
     }
 

@@ -20,7 +20,8 @@
               "name": "Pro Yearly",
               "description": "Two-thumb typing, layouts, drills and more"
             }
-          }
+          },
+          "reviewScreenshot": "pro-review.png"
         },
         {
           "productId": "com.tinypenguin.astrotype.pro.monthly",
@@ -34,7 +35,8 @@
               "name": "Pro Monthly",
               "description": "Two-thumb typing, layouts, drills and more"
             }
-          }
+          },
+          "reviewScreenshot": "pro-review.png"
         }
       ]
     }

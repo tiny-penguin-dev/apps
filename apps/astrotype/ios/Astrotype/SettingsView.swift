@@ -84,9 +84,12 @@ struct SettingsView: View {
                     }
                 }
 
-                SectionLabel("Look").padding(.top, Theme.Space.s)
-                Row("Trails and flashes", subtitle: "Show which thumb did what") {
+                SectionLabel("Look and feel").padding(.top, Theme.Space.s)
+                Row("Trails and flashes", subtitle: "Show which thumb did what. Off saves battery.") {
                     Toggle("Trails and flashes", isOn: $model.keyboardSettings.trails).labelsHidden().tint(Theme.mint)
+                }
+                Row("Haptics", subtitle: "A soft tap on each key, a firmer one on each word. In other apps this needs Full Access.") {
+                    Toggle("Haptics", isOn: $model.keyboardSettings.haptics).labelsHidden().tint(Theme.mint)
                 }
 
                 SectionLabel("Keyboard").padding(.top, Theme.Space.s)

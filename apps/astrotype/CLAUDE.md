@@ -86,12 +86,17 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
     `Info.plist`, `Astrotype.entitlements` and `AstrotypeKeyboard.entitlements` (the
     App Group and the iCloud container, shared by both targets),
     `testflight.json`. Keep the two `MARKETING_VERSION`s equal.
-- `store/`: the App Store listing kept in the repo (`subscriptions.json`, the Pro
-  plans; screenshots later), synced by `.github/workflows/app-store.yml`.
+- `store/`: the App Store listing kept in the repo, synced by
+  `.github/workflows/app-store.yml`: `subscriptions.json` (the Pro plans) with
+  `pro-review.png` (their App Review screenshot), `screenshots/en-US/` (the App Store
+  screenshots) and `privacy.md` (the App Privacy answers, matching
+  `PrivacyInfo.xcprivacy`; a change to one changes the other).
 - `ml/`: the v1 Python training loop (see `ml/README.md`); the opt-in practice-session
   uploads (`PracticeSession` records) land in the same container for it to read.
-- `design/`: the mockup (`mockups/astrotype.html`, the keyboard in it works) and
-  screenshots.
+- `design/`: the mockup (`mockups/astrotype.html`, the keyboard in it works), the
+  screen captures the design doc links, the icon's SVGs (`icon/`) and
+  `appstore/make-screenshots.mjs`, which renders the store screenshots from the mockup
+  (Playwright) until real ones replace them.
 
 Keep `AstrotypeKit` inside this app. Don't move it to the repo's `packages/` unless a
 second app needs it.

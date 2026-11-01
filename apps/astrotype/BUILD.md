@@ -418,6 +418,45 @@ icon, App Store screenshots at every size, the privacy label matching the manife
 VoiceOver, trails still draw under Reduce Motion, and the App Store listing is ready to
 submit.
 
+Notes (1 Nov 2026, the Phase 8 PR): built in the container, to be checked on a phone
+(no simulator here); what to look at is listed at the end. Dark mode was already a
+token in `Theme` for every colour; this pass added a pressed-key shade. Dynamic Type:
+the app's text styles were system styles already, so the fixed sizes went: the result's
+big number and the wide title scale with the person's setting up to a cap
+(`bigNumberFont()`, `displayTitleFont()`, a `@ScaledMetric` modifier), the PRO badge is
+a text style, `Row` and the Home banner stack their control under the text at the
+accessibility sizes, and the bar's text scales one step (`Theme.uiFont(size:weight:scaledWith:upTo:)`,
+re-rendered on a text-size change) while the keys stay the height thumbs learned.
+VoiceOver: `KeySurfaceView` is an accessibility container with one `KeyElement` per
+key (trait `keyboardKey`, so VoiceOver's touch typing works: touch to hear, lift to
+type; double-tap types too), named like Apple's keys ("capital A" when shifted, "Delete",
+"Next keyboard"); an activated letter goes through the engine as a tap at the key's
+centre, so the bar builds the word as usual, and swipe typing is off under VoiceOver.
+The bar's guesses were already buttons under "Suggestions" with the chosen one
+"selected"; drill rows say "in Astrotype Pro" when they lead to the Pro screen. Reduce
+Motion: a trail still draws and then just goes after the same 1.2 s, a tap's ring shows
+still, keys do not pop, the app's springs become short fades, the setup screens fade
+instead of sliding, and the art and confetti were already still. Haptics by Phase 1's
+finding: the extension prepares and plays its generators only with Full Access
+(`KeyboardView.hapticsAvailable`), a soft tap per key and a light one per word, behind a
+new `KeyboardSettings.haptics` (Settings → Look and feel; not in the in-keyboard panel,
+which is the no-Full-Access panel). The battery saver is the existing "Trails and
+flashes" switch, which now turns the flashes off too (a hit key darkens a shade,
+`KeySurfaceView.showsFlashes`). `Flags.extensionReadout` is off. The store:
+`design/appstore/make-screenshots.mjs` renders six 6.9" screenshots from the mockup into
+`store/screenshots/en-US/` (App Store Connect scales them to the other iPhone sizes; the
+app is iPhone-only, so no iPad set) and `store/pro-review.png`, the Pro screen for App
+Review, which `subscriptions.json` now points at; the workflow uploads both from main.
+`PrivacyInfo.xcprivacy` gained the practice sessions (Other User Content, not linked,
+App Functionality) and `store/privacy.md` has the App Privacy answers to enter by hand.
+The icon's PNGs were already in the asset catalog from its SVGs.
+
+To check on a phone: the keyboard with VoiceOver on (touch typing, the bar), the app at
+the largest accessibility text size (Settings rows, Home, the result screen), Reduce
+Motion (a swipe's trail stays and goes), haptics with Full Access on and off, and the
+"Trails and flashes" switch. Replace the mockup screenshots with real ones before
+submitting.
+
 ## Risks
 
 - **Memory in the extension.** iOS kills keyboards quietly. Phase 1 measures with the

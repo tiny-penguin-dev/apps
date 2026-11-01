@@ -81,9 +81,11 @@ struct HomeView: View {
 
     private func header(wide: Bool) -> some View {
         HStack(alignment: .top) {
-            Text(wide ? "Both flippers, go." : "Both\nflippers, go.")
-                .font(wide ? .system(size: 36, weight: .black, design: .rounded) : .sw(.title))
-                .fixedSize(horizontal: false, vertical: true)
+            if wide {
+                Text("Both flippers, go.").displayTitleFont().fixedSize(horizontal: false, vertical: true)
+            } else {
+                Text("Both\nflippers, go.").font(.sw(.title)).fixedSize(horizontal: false, vertical: true)
+            }
             Spacer()
             ThumbsArt(animated: false).frame(width: 72, height: 72)
         }
@@ -97,7 +99,9 @@ struct HomeView: View {
                     HStack {
                         Text("Speed test").font(.sw(.heading))
                         Spacer()
-                        if let best = model.bestWordsPerMinute { Chip("Best \(best) wpm") }
+                        if let best = model.bestWordsPerMinute {
+                            Chip("Best \(best) wpm").accessibilityLabel("Best \(best) words per minute")
+                        }
                     }
                     if let best = model.bestWordsPerMinute {
                         let apple = model.appleWordsPerMinute
@@ -193,6 +197,6 @@ struct HomeView: View {
             }
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("\(drill.title), \(drill.subtitle)\(model.isDrillDone(drill.id) ? ", done today" : "")")
+        .accessibilityLabel("\(drill.title), \(drill.subtitle)\(model.isDrillDone(drill.id) ? ", done today" : "")\(allowed ? "" : ", in Astrotype Pro")")
     }
 }

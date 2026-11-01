@@ -33,7 +33,7 @@ jobs:
     with:
       app-dir: apps/squawk/ios
       scheme: Squawk
-      test-package: PenguinKit
+      test-package: PenguinKit SquawkKit
       sentry-project: squawk
       # Pushes to main ship to TestFlight; PRs only build.
       deploy: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.deploy) }}

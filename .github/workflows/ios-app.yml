@@ -15,7 +15,7 @@ on:
         required: true
         type: string
       test-package:
-        description: Local Swift package to run `swift test` on before the build, relative to app-dir (optional)
+        description: Local Swift packages to run `swift test` on before the build, relative to app-dir, separated by spaces (optional)
         required: false
         type: string
         default: ""
@@ -56,9 +56,17 @@ jobs:
       - name: Show Xcode version
         run: xcodebuild -version
 
-      - name: Test Swift package
+      - name: Test Swift packages
         if: inputs.test-package != ''
-        run: swift test --package-path "${{ inputs.test-package }}"
+        env:
+          PACKAGES: ${{ inputs.test-package }}
+        run: |
+          set -e
+          for package in $PACKAGES; do
+            echo "::group::swift test $package"
+            swift test --package-path "$package"
+            echo "::endgroup::"
+          done
 
       - name: Build for simulator
         run: |

@@ -11,16 +11,19 @@ Builds on `PRODUCT.md` (approved 2026-10-31) and `DESIGN.md` (approved 2026-10-3
 - **Two local Swift packages inside `apps/squawk/ios/`**, so the app target stays thin:
   - `PenguinKit`: the mascot (see below). Knows nothing about alarms or Squawk.
   - `SquawkKit`: the alarm model, storage, scheduling and checks. No UI.
-- **Data:** SwiftData on the phone, behind one `AlarmStore` protocol, so iCloud sync can
-  be added later without touching screens. No account, no server.
+- **Data:** a small JSON file on the phone (`FileAlarmStore`), behind one `AlarmStore`
+  protocol, so iCloud sync can be added later without touching screens. No account, no
+  server. (Planned as SwiftData; a versioned JSON file turned out simpler for a short
+  list of alarms and runs in the package tests.)
 - **Model (open lists, like Lanata's Morning):** `Alarm` has a time, days or a date,
-  `dayTimes` (different time on some days), `rings` (one by default), `checks`
-  (`WakeUpCheck` enum: `.tag`, `.code`, `.game`; later `.shortcut`, `.steps`), and empty
-  `actions` and `conditions` lists for later. Adding a kind is adding one enum case.
-- **One scheduler** (`AlarmScheduler`) turns saved alarms into AlarmKit alarms: each group
+  `dayTimes` (different time on some days), `rings` (one by default) and `checks`
+  (`WakeUpCheck` enum: `.tag`, `.code`, `.game`; later `.shortcut`, `.steps`). Actions and
+  conditions join the same way when their version comes. Adding a kind is one enum case.
+- **One planner and one scheduler.** `AlarmPlanner` (in `SquawkKit`, unit tested) turns saved alarms into AlarmKit alarms: each group
   of days with the same time becomes one weekly repeating alarm per ring. Alarms with
   checks are planned a few mornings ahead and re-planned whenever the app opens or a
-  morning ends. Every screen goes through it; nothing else talks to AlarmKit.
+  morning ends. `AlarmKitScheduler` in the app hands that plan to AlarmKit. Every screen
+  goes through them; nothing else talks to AlarmKit.
 - **Pro is checked in one place** (`ProAccess`, StoreKit 2). Moving a feature between free
   and Pro is a one-line change.
 - **Sentry** for crash reports and metrics, the Tiny Penguin default, set up the way the

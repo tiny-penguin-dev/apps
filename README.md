@@ -23,7 +23,8 @@ docs/             repo-wide guides (e.g. ios-release.md)
 
 Apps go Product → Design → Build, and Gabriel approves each stage. See
 [docs/app-workflow.md](docs/app-workflow.md) for the steps and
-[docs/brand.md](docs/brand.md) for the shared Tiny Penguin look and feel.
+[docs/brand.md](docs/brand.md) for the shared Tiny Penguin look and feel, and
+[docs/building.md](docs/building.md) for how the design and the code are put together.
 
 1. Create `apps/<name>/` with `PRODUCT.md` from `docs/templates/`, plus a short `README.md`.
 2. Once the product is approved, add `DESIGN.md` and clickable mockups in `design/`.

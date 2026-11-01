@@ -7,9 +7,18 @@ Read `PRODUCT.md`, `DESIGN.md` and `BUILD.md` first, and check their status line
 
 - `ios/__NAME__.xcodeproj`: one app target, `__NAME__`, with a shared scheme
 - `ios/__NAME__/`: app sources and assets (a synchronized folder, so new files are
-  picked up without editing the project)
+  picked up without editing the project). The design system goes in
+  `ios/__NAME__/DesignSystem/`, and Core and Services in a `__NAME__Kit` local package
+  (`docs/building.md`).
 - `ios/Config/`: `__NAME__.xcconfig` (bundle ID `__BUNDLE__`, version, display name),
   `Project.xcconfig`, and `testflight.json` (TestFlight testers)
+
+## Crash reports and metrics
+
+Sentry, through `ios/__NAME__/Telemetry.swift`. Add the metrics listed in `PRODUCT.md`
+("What we measure") with `Telemetry.count`/`duration`/`gauge`, and never send anything
+personal. The DSN comes from the `SENTRY_DSN___ENV__` repo secret at archive time. See
+`docs/telemetry.md`.
 
 ## Build and ship
 

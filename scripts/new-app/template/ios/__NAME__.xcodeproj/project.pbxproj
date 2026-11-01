@@ -6,10 +6,15 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		5A0000000000000000000090 /* Sentry-Dynamic in Frameworks */ = {isa = PBXBuildFile; productRef = 5A0000000000000000000092 /* Sentry-Dynamic */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		5A0000000000000000000010 /* __NAME__.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = __NAME__.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		5A0000000000000000000011 /* Project.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Project.xcconfig; sourceTree = "<group>"; };
 		5A0000000000000000000012 /* __NAME__.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = __NAME__.xcconfig; sourceTree = "<group>"; };
+		5A0000000000000000000013 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -21,6 +26,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				5A0000000000000000000090 /* Sentry-Dynamic in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -49,6 +55,7 @@
 			children = (
 				5A0000000000000000000011 /* Project.xcconfig */,
 				5A0000000000000000000012 /* __NAME__.xcconfig */,
+				5A0000000000000000000013 /* Info.plist */,
 			);
 			path = Config;
 			sourceTree = "<group>";
@@ -72,6 +79,9 @@
 				5A0000000000000000000020 /* __NAME__ */,
 			);
 			name = __NAME__;
+			packageProductDependencies = (
+				5A0000000000000000000092 /* Sentry-Dynamic */,
+			);
 			productName = __NAME__;
 			productReference = 5A0000000000000000000010 /* __NAME__.app */;
 			productType = "com.apple.product-type.application";
@@ -100,6 +110,9 @@
 			);
 			mainGroup = 5A0000000000000000000001;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				5A0000000000000000000091 /* XCRemoteSwiftPackageReference "sentry-cocoa" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 5A0000000000000000000002 /* Products */;
 			projectDirPath = "";
@@ -181,6 +194,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		5A0000000000000000000091 /* XCRemoteSwiftPackageReference "sentry-cocoa" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/getsentry/sentry-cocoa";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 9.32.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		5A0000000000000000000092 /* Sentry-Dynamic */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 5A0000000000000000000091 /* XCRemoteSwiftPackageReference "sentry-cocoa" */;
+			productName = "Sentry-Dynamic";
+		};
+/* End XCSwiftPackageProductDependency section */
 
 	};
 	rootObject = 5A0000000000000000000050 /* Project object */;

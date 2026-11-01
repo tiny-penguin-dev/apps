@@ -8,6 +8,8 @@
 
 /* Begin PBXBuildFile section */
 		5A0000000000000000000082 /* PenguinKit in Frameworks */ = {isa = PBXBuildFile; productRef = 5A0000000000000000000081 /* PenguinKit */; };
+		5A0000000000000000000090 /* Sentry-Dynamic in Frameworks */ = {isa = PBXBuildFile; productRef = 5A0000000000000000000092 /* Sentry-Dynamic */; };
+		5A0000000000000000000086 /* SquawkKit in Frameworks */ = {isa = PBXBuildFile; productRef = 5A0000000000000000000085 /* SquawkKit */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -15,6 +17,7 @@
 		5A0000000000000000000011 /* Project.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Project.xcconfig; sourceTree = "<group>"; };
 		5A0000000000000000000012 /* Squawk.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Squawk.xcconfig; sourceTree = "<group>"; };
 		5A0000000000000000000014 /* PenguinKit */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = PenguinKit; sourceTree = "<group>"; };
+		5A0000000000000000000015 /* SquawkKit */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = SquawkKit; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -27,6 +30,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				5A0000000000000000000082 /* PenguinKit in Frameworks */,
+				5A0000000000000000000090 /* Sentry-Dynamic in Frameworks */,
+				5A0000000000000000000086 /* SquawkKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -38,6 +43,7 @@
 			children = (
 				5A0000000000000000000020 /* Squawk */,
 				5A0000000000000000000014 /* PenguinKit */,
+				5A0000000000000000000015 /* SquawkKit */,
 				5A0000000000000000000003 /* Config */,
 				5A0000000000000000000002 /* Products */,
 			);
@@ -81,6 +87,8 @@
 			name = Squawk;
 			packageProductDependencies = (
 				5A0000000000000000000081 /* PenguinKit */,
+				5A0000000000000000000092 /* Sentry-Dynamic */,
+				5A0000000000000000000085 /* SquawkKit */,
 			);
 			productName = Squawk;
 			productReference = 5A0000000000000000000010 /* Squawk.app */;
@@ -112,6 +120,8 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				5A0000000000000000000080 /* XCLocalSwiftPackageReference "PenguinKit" */,
+				5A0000000000000000000084 /* XCLocalSwiftPackageReference "SquawkKit" */,
+				5A0000000000000000000091 /* XCRemoteSwiftPackageReference "sentry-cocoa" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 5A0000000000000000000002 /* Products */;
@@ -200,12 +210,36 @@
 			isa = XCLocalSwiftPackageReference;
 			relativePath = PenguinKit;
 		};
+		5A0000000000000000000084 /* XCLocalSwiftPackageReference "SquawkKit" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = SquawkKit;
+		};
 /* End XCLocalSwiftPackageReference section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		5A0000000000000000000091 /* XCRemoteSwiftPackageReference "sentry-cocoa" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/getsentry/sentry-cocoa";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 9.32.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
 		5A0000000000000000000081 /* PenguinKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = PenguinKit;
+		};
+		5A0000000000000000000085 /* SquawkKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = SquawkKit;
+		};
+		5A0000000000000000000092 /* Sentry-Dynamic */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 5A0000000000000000000091 /* XCRemoteSwiftPackageReference "sentry-cocoa" */;
+			productName = "Sentry-Dynamic";
 		};
 /* End XCSwiftPackageProductDependency section */
 

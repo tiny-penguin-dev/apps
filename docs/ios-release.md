@@ -67,6 +67,9 @@ IDs and use cloud-managed signing.
 Until these secrets exist, the TestFlight job is skipped with a warning and only the
 build runs.
 
+Sentry (crash reports and metrics) needs a `SENTRY_AUTH_TOKEN` secret, a `SENTRY_ORG`
+variable and one `SENTRY_DSN_<APP>` secret per app. See [`telemetry.md`](telemetry.md).
+
 ## One-time setup for each new app
 
 1. Push to `main` (or run the app's workflow by hand). The TestFlight job registers
@@ -76,7 +79,9 @@ build runs.
    ID. Apple's API can't create app records.
 3. If the app uses iCloud, register its container and link it to the App ID (see
    "Entitlements" above). The API can't do this either.
-4. Re-run the workflow. The build appears in TestFlight after Apple finishes processing
+4. Create the app's Sentry project and its `SENTRY_DSN_<APP>` secret
+   ([`telemetry.md`](telemetry.md), "One-time setup").
+5. Re-run the workflow. The build appears in TestFlight after Apple finishes processing
    it.
 
 ## TestFlight testers
@@ -115,5 +120,6 @@ python3 scripts/new-app/new-app.py Squawk --display "Squawk"
 It creates `apps/<slug>/ios/` (the Xcode project, `Config/` xcconfigs,
 `testflight.json`, a placeholder screen and icon) and `.github/workflows/<slug>-ios.yml`
 from `scripts/new-app/template/`. The bundle ID defaults to
-`com.tinypenguin.<slug>`. Then add any entitlements the app needs, push, and do the
+`com.tinypenguin.<slug>`. The app comes with Sentry set up (see
+[`telemetry.md`](telemetry.md)). Then add any entitlements the app needs, push, and do the
 per-app Apple setup above.

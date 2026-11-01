@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Create a new iOS app in this repo from the template next to this script.
 
-Makes apps/<slug>/ios (Xcode project, config, placeholder app and icon), the
+Makes apps/<slug>/ios (Xcode project with Sentry, config, placeholder app and icon), the
 app's CI workflow, and a CLAUDE.md and README.md if the app doesn't have them
 yet. Existing files are never overwritten.
 
@@ -69,7 +69,9 @@ def main() -> int:
         sys.exit("Slug must be lowercase letters, digits and dashes.")
     display = a.display or a.name
     bundle = a.bundle or f"com.tinypenguin.{slug.replace('-', '')}"
-    values = {"__NAME__": a.name, "__SLUG__": slug, "__DISPLAY__": display, "__BUNDLE__": bundle}
+    env = slug.upper().replace("-", "_")  # for secret names, e.g. SENTRY_DSN_SQUAWK
+    values = {"__NAME__": a.name, "__SLUG__": slug, "__DISPLAY__": display, "__BUNDLE__": bundle,
+              "__ENV__": env}
 
     app_dir = REPO / "apps" / slug
     if (app_dir / "ios").exists():
@@ -103,6 +105,8 @@ def main() -> int:
     print(f"\n{display} is set up: bundle ID {bundle}, scheme {a.name}, folder apps/{slug}.")
     print("Next: add a row to the apps table in README.md, push, and do the one-time Apple")
     print('setup in docs/ios-release.md ("One-time setup for each new app").')
+    print(f"Sentry: create a Sentry project named {slug} and add its DSN as the repo secret")
+    print(f"SENTRY_DSN_{env} (docs/telemetry.md).")
     return 0
 
 

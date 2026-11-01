@@ -233,6 +233,21 @@ The build doc turns this into the real structure.
 - People keep using it: still active after 30 days.
 - Reviews mention "cute" and "it actually wakes me up".
 
+## 10b. What we measure
+
+Anonymous counts only, sent to Sentry (see `docs/telemetry.md`). No names, labels or
+anything typed. People can turn this off in Settings.
+
+| Metric | What it tells us |
+|---|---|
+| `onboarding.finished` (duration) | How long first setup takes (goal: under 30 seconds) |
+| `alarm.created` (`kind`: repeat / once) | How many alarms people make |
+| `alarm.deleted` | Alarms people give up on |
+| `alarm.schedule_failed` | AlarmKit refused a ring (goal: zero) |
+| `alarms.total` (gauge) | How many alarms people keep |
+
+More get added here as phases land (rings, checks, mornings, Pro).
+
 ## 11. Open questions
 
 1. Do people who subscribe at the launch price keep it after prices go up?

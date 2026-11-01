@@ -8,6 +8,7 @@
 .env
 .env.*
 !.env.example
+Secrets.xcconfig
 
 # Node
 node_modules

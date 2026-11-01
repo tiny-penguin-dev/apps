@@ -14,6 +14,8 @@ final class ExtensionChecks {
     private var report: ((String) -> Void)?
     private var granted: CGFloat = 0
     private var wanted: CGFloat = 0
+    private var width: CGFloat = 0
+    private var screenWidth: CGFloat = 0
 
     func run(hasFullAccess: Bool, report: @escaping (String) -> Void) {
         self.hasFullAccess = hasFullAccess
@@ -38,17 +40,20 @@ final class ExtensionChecks {
         publish()
     }
 
-    /// The height iOS granted the keyboard against the height it asked for.
-    func sized(granted: CGFloat, wanted: CGFloat) {
-        guard granted != self.granted || wanted != self.wanted else { return }
+    /// The height iOS granted the keyboard against the height it asked for, and the
+    /// width it got against the screen's (a wide screen should give the whole width).
+    func sized(granted: CGFloat, wanted: CGFloat, width: CGFloat, screenWidth: CGFloat) {
+        guard granted != self.granted || wanted != self.wanted || width != self.width || screenWidth != self.screenWidth else { return }
         self.granted = granted
         self.wanted = wanted
+        self.width = width
+        self.screenWidth = screenWidth
         publish()
     }
 
     private func publish() {
         let mb = Double(Self.availableBytes()) / 1_048_576
-        report?("\(storeKit) · \(String(format: "%.0f", mb)) MB left · \(Int(granted))/\(Int(wanted)) pt · full access \(hasFullAccess ? "on" : "off")")
+        report?("\(storeKit) · \(String(format: "%.0f", mb)) MB · h \(Int(granted))/\(Int(wanted)) · w \(Int(width))/\(Int(screenWidth)) · full access \(hasFullAccess ? "on" : "off")")
     }
 
     /// How much memory the extension can still use before iOS kills it. The budget in

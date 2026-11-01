@@ -35,6 +35,26 @@ final class KeyboardSession: NSObject, UITextViewDelegate {
 
     var text: String { target.textView?.text ?? "" }
 
+    /// Gives the keyboard the height it needs at `width` before (or after) UIKit reads
+    /// it. UIKit sizes an input view from its frame when it comes up, and the frame
+    /// started at a phone's height: on a wide screen the taller keys were cut off when
+    /// the resize after the first layout came too late (Gabriel, 1 Nov 2026).
+    func fit(width: CGFloat) {
+        guard width > 0 else { return }
+        let height = AstrotypeUI.KeyboardView.height(forWidth: width)
+        guard keyboard.frame.size.height != height || keyboard.frame.size.width != width else { return }
+        keyboard.frame = CGRect(x: 0, y: 0, width: width, height: height)
+        target.textView?.reloadInputViews()
+    }
+
+    /// The width of the window the keyboard will come up in, before any view has one.
+    static var windowWidth: CGFloat {
+        let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first { $0.activationState == .foregroundActive }
+            ?? UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
+        guard let scene else { return 390 }
+        return scene.keyWindow?.bounds.width ?? scene.screen.bounds.width
+    }
+
     /// Empties the field and drops any open word.
     func clear() {
         target.textView?.text = ""
@@ -75,6 +95,7 @@ struct KeyboardField: UIViewRepresentable {
         textView.autocorrectionType = .no
         textView.spellCheckingType = .no
         textView.autocapitalizationType = .none
+        session.fit(width: KeyboardSession.windowWidth)
         textView.inputView = session.keyboard
         textView.delegate = session
         session.target.textView = textView
@@ -82,5 +103,7 @@ struct KeyboardField: UIViewRepresentable {
         return textView
     }
 
-    func updateUIView(_ uiView: UITextView, context: Context) {}
+    func updateUIView(_ uiView: UITextView, context: Context) {
+        if let width = uiView.window?.bounds.width { session.fit(width: width) }
+    }
 }

@@ -63,7 +63,7 @@ def main() -> int:
     a = p.parse_args()
 
     if not re.fullmatch(r"[A-Z][A-Za-z0-9]*", a.name):
-        sys.exit("Name must be PascalCase letters and digits, like Squawk or StackWrite.")
+        sys.exit("Name must be PascalCase letters and digits, like Squawk or Astrotype.")
     slug = a.slug or a.name.lower()
     if not re.fullmatch(r"[a-z][a-z0-9-]*", slug):
         sys.exit("Slug must be lowercase letters, digits and dashes.")

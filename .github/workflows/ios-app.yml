@@ -1,5 +1,5 @@
 # Reusable workflow: build an iOS app, and optionally ship it to TestFlight.
-# Each app has a small caller workflow (see stackwrite-ios.yml) that passes
+# Each app has a small caller workflow (see astrotype-ios.yml) that passes
 # its folder and scheme. Shared by every iOS app in the repo.
 name: iOS app
 
@@ -7,7 +7,7 @@ on:
   workflow_call:
     inputs:
       app-dir:
-        description: Folder that holds the app's .xcodeproj (e.g. apps/stackwrite/ios)
+        description: Folder that holds the app's .xcodeproj (e.g. apps/astrotype/ios)
         required: true
         type: string
       scheme:

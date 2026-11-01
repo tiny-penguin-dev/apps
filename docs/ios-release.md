@@ -14,7 +14,7 @@ at https://github.com/actions/runner-images/blob/main/images/macos/xcode-27-arm6
 - `.github/workflows/ios-app.yml` is a reusable workflow shared by every iOS app. It
   builds the app for the simulator, then, when asked, archives it and uploads it to
   TestFlight.
-- Each app has a small caller workflow (e.g. `stackwrite-ios.yml`) that passes the
+- Each app has a small caller workflow (e.g. `astrotype-ios.yml`) that passes the
   app's folder and scheme, and only runs when that app's files change.
 - Pull requests only build. Pushes to `main` build and upload to TestFlight. You can
   also run an app's workflow by hand from the Actions tab.

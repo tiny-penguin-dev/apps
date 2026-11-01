@@ -21,16 +21,23 @@ all three steps are done again for it, and `schema.ckdb` carries both record typ
    automatic signing register the container (see `docs/ios-release.md`). If that fails,
    create it by hand in developer.apple.com → Identifiers → iCloud Containers, then turn
    on iCloud (CloudKit) for `com.tinypenguin.astrotype` with this container.
-2. **Schema.** In the CloudKit Console (icloud.developer.apple.com) → this container →
-   Settings → Tokens, create a management token, then on the Mac:
+2. **Schema.** The "Astrotype CloudKit schema" workflow
+   (`.github/workflows/astrotype-cloudkit.yml`) imports `schema.ckdb` into the
+   development environment whenever the file changes on `main`, or when run by hand.
+   It needs the repo secret `CLOUDKIT_MANAGEMENT_TOKEN`: in the CloudKit Console
+   (icloud.developer.apple.com) open your account's Settings → Tokens, create a
+   management token and paste it into Settings → Secrets and variables → Actions.
+   Apple's `cktool` cannot deploy to production, so after a green run open the console
+   → this container → Schema → **Deploy Schema Changes…** and confirm. TestFlight and
+   App Store builds use production; builds run from Xcode use development.
+
+   The same thing by hand on the Mac:
 
        xcrun cktool save-token --type management        # paste the token
        xcrun cktool import-schema --team-id YNMFSUHQ46 \
          --container-id iCloud.com.tinypenguin.astrotype \
          --environment development --file schema.ckdb
 
-   Then in the console: Schema → **Deploy Schema Changes…** to production. TestFlight
-   and App Store builds use production; builds run from Xcode use development.
 3. **Download key.** Make a key pair for `download_samples.py`:
 
        mkdir -p ~/.config/astrotype
@@ -44,14 +51,14 @@ all three steps are done again for it, and `schema.ckdb` carries both record typ
 ## Adding a record type
 
 TestFlight builds use the production environment, which never creates record types on
-its own: a new type (like `KeyboardData` in Phase 5) is saved to development with the
-import above and then deployed, before the build that uses it goes out. Until then the
-sync fails with "unknown record type" and the keyboard keeps working from its local
-copy.
+its own: a new type (like `KeyboardData` in Phase 5) reaches development through the
+workflow when `schema.ckdb` lands on `main`, and is then deployed in the console, before
+the build that uses it goes out. Until then the sync fails with "unknown record type"
+and the keyboard keeps working from its local copy.
 
 ## Changing the schema
 
-Edit `schema.ckdb`, import it to development as above, test with a build from Xcode,
-then deploy to production. Production only allows adding fields and types, never
-removing them, so treat it as append-only. Keep `SampleUploader.swift` and
+Edit `schema.ckdb`; merging it imports it to development. Test with a build from Xcode,
+then deploy to production in the console. Production only allows adding fields and
+types, never removing them, so treat it as append-only. Keep `SampleUploader.swift` and
 `ml/download_samples.py` in step.

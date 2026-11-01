@@ -2,7 +2,7 @@ import Foundation
 import Testing
 @testable import SquawkKit
 
-private var utc: Calendar = {
+private let utc: Calendar = {
     var c = Calendar(identifier: .gregorian)
     c.timeZone = TimeZone(identifier: "UTC")!
     return c

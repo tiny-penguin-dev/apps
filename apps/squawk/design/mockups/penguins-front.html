@@ -46,7 +46,7 @@ h1{font-size:34px;font-weight:900;margin:0}
 .lines{animation:lines .5s ease-in-out infinite alternate}
 @keyframes lines{to{opacity:.3}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important}}
-.compare{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+.compare{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
 .compare .mood b{color:var(--ink);font-size:13px}
 .compare .mood span{font-size:11px;color:var(--muted);text-align:center}
 @media (max-width:640px){.compare{grid-template-columns:repeat(3,minmax(0,1fr))}}
@@ -57,7 +57,7 @@ h1{font-size:34px;font-weight:900;margin:0}
 
 <main>
   <h1>Squawk, facing forward</h1>
-  <p class="lead">Five takes, from most "logo" to most round: 1 the arch, 2 rounded bottom with legs to the edge, 3 rounded bottom with no legs, 4 a soft arch, and 5 the pebble. All have mid-size flippers. Below each: the front icon on light and dark, the matching side-view logo, and five moods.</p>
+  <p class="lead">Four takes, from most "logo" to most round: 1 the arch, 2 rounded bottom with legs to the edge, 3 rounded bottom with no legs, and 4 the pebble. All have mid-size flippers. Below each: the front icon on light and dark, the matching side-view logo, and five moods.</p>
   <section class="opt" aria-label="Side by side"><div class="compare" id="compare"></div><div class="compare ci" id="compareIcons"></div><div class="compare ci" id="compareSide"></div></section>
   <div id="list" style="display:flex;flex-direction:column;gap:20px"></div>
 </main>
@@ -133,14 +133,7 @@ const OPTIONS=[
   <path d="${ARCHD}" fill="${b}"/><path d="M70 188 V140 A30 30 0 0 1 130 140 V188 Z" fill="${w}"/><path d="M90 188 V176 A10 10 0 0 1 110 176 V188 Z" fill="${b}"/>
   <g style="--bd:${b}">${darkEyes(m,82,118,90)}</g>${frontBeak(m,104)}
   ${icon?"":`<circle cx="66" cy="110" r="6" fill="${CHEEK}" opacity=".85"/><circle cx="134" cy="110" r="6" fill="${CHEEK}" opacity=".85"/>${feet(190)}`}`,sq)},
-{id:"4",name:"Soft arch",side:sideSoft,
- about:"Halfway between the arch and the pebble: arch on top, sides that bulge out a little, and a round bottom. Keeps the belly window, with no leg notch.",
- good:"The best of both: logo-like head, cuddly body.",watch:"The side-view logo would need the same soft bottom to match.",
- draw:(m,b="var(--peng)",w="#fff",icon)=>wrap(m,`${wings(b,m,"M56 103 C41 115 34 140 38 161 C48 156 55 142 59 127 Z",55,106)}
-  <path d="${SOFT}" fill="${b}"/><path d="M66 162 V142 A34 34 0 0 1 134 142 V162 Q134 184 110 185 H90 Q66 184 66 162 Z" fill="${w}"/>
-  <g style="--bd:${b}">${darkEyes(m,82,118,92)}</g>${frontBeak(m,106)}
-  ${icon?"":`<circle cx="66" cy="112" r="6" fill="${CHEEK}" opacity=".85"/><circle cx="134" cy="112" r="6" fill="${CHEEK}" opacity=".85"/>${feet(191)}`}`,sq)},
-{id:"5",name:"Pebble",side:sidePeb,
+{id:"4",name:"Pebble",side:sidePeb,
  about:"The round pebble with flippers that start inside its sides and curve down along the body, like a real penguin. They flap up for big moments.",
  good:"Cuddly and natural. Flippers give it body language without looking stuck on.",watch:"Slightly wider silhouette for the icon.",
  draw:(m,b="var(--peng)",w="#fff",icon)=>wrap(m,`${wings(b,m,MID,56,108)}

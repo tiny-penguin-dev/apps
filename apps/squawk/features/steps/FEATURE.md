@@ -6,7 +6,7 @@ build up to the alarm.
 
 ## Product
 
-Status: Draft
+Status: Approved 2026-11-01
 
 ### The problem
 

@@ -12,7 +12,9 @@ before it is approved. Going back is fine: if building shows a design problem, u
 the design doc (and get it approved again) rather than quietly building something else.
 
 All apps share one look and feel. Read [`brand.md`](brand.md) before writing product
-copy or designing a screen.
+copy or designing a screen, and [`building.md`](building.md) before designing a
+screen or writing code: it has the rules for the design system, every screen size,
+careful core code and the architecture.
 
 ## Where things live
 
@@ -76,6 +78,11 @@ product doc.
 - Animation notes: what moves, when, and why it's fun
 - Copy: button labels, empty states, error messages and notifications, in the brand voice
 - Accessibility: Dynamic Type, VoiceOver labels, Reduce Motion fallbacks
+- Design system: the tokens and components every screen is built from, named the same
+  in the mockups and the code (`building.md`, rule 1)
+- Sizes: how the key screens look on the smallest phone, a regular phone and the wide
+  inner screen of the iPhone Duo, and what happens when the app resizes
+  (`building.md`, rule 2)
 
 **Done when:** Gabriel merges the PR with `Status: Approved <date>`.
 
@@ -83,8 +90,14 @@ product doc.
 
 Answers "how do we build it, in what order". Builds only on the approved design.
 
-- `BUILD.md` comes first, in its own PR: the architecture in a few lines, then small
-  phases, each with a "done when" check that can be seen on a phone
+- `BUILD.md` comes first, in its own PR: the architecture in a few lines (the layers
+  in `building.md`, and which pieces are core), then small phases, each with a "done
+  when" check that can be seen on a phone
+- Build the design system first, then the screens from it. Core pieces (the design
+  system, the model, the store, a local package) get their API thought through and
+  tests before they are used (`building.md`, rules 1, 3 and 4)
+- Every phase is checked on the small size, the largest text size and the wide size
+  (`building.md`, rule 2)
 - Then one PR per phase. Each phase should leave something Gabriel can try in TestFlight.
 - Set up the iOS project and CI with `scripts/new-app/new-app.py` (Claude: the
   `new-app` skill), then fill in the app's `CLAUDE.md`. This includes Sentry.
@@ -139,5 +152,7 @@ metrics (counts and timings). Details, privacy rules and setup are in
   Gabriel asks for a throwaway spike. Put spikes in `apps/<name>/spikes/` and say they're
   throwaway.
 - Keep stage PRs small and about one stage, so approving one is an easy yes.
+- Follow `building.md` when designing or coding: one design system per app, every
+  size, careful core, one architecture. Say in a PR description when it touches core.
 - When a doc leaves an open question, ask Gabriel instead of guessing, and record the
   answer in the doc.

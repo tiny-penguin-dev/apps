@@ -7,7 +7,9 @@ Read `PRODUCT.md`, `DESIGN.md` and `BUILD.md` first, and check their status line
 
 - `ios/__NAME__.xcodeproj`: one app target, `__NAME__`, with a shared scheme
 - `ios/__NAME__/`: app sources and assets (a synchronized folder, so new files are
-  picked up without editing the project)
+  picked up without editing the project). The design system goes in
+  `ios/__NAME__/DesignSystem/`, and Core and Services in a `__NAME__Kit` local package
+  (`docs/building.md`).
 - `ios/Config/`: `__NAME__.xcconfig` (bundle ID `__BUNDLE__`, version, display name),
   `Project.xcconfig`, and `testflight.json` (TestFlight testers)
 

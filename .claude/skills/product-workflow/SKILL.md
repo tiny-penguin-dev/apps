@@ -29,22 +29,34 @@ stage is approved when Gabriel merges its PR.
 
 ## Design stage
 
-1. Copy `docs/templates/DESIGN.md` to `apps/<name>/DESIGN.md`.
+1. Read `docs/building.md` (rules 1 and 2), then copy `docs/templates/DESIGN.md` to
+   `apps/<name>/DESIGN.md`. Fill in "Design system" (the tokens and components every
+   screen uses) and "Sizes" (the key screens on the smallest phone, a regular phone and
+   the wide inner screen of the iPhone Duo, and what happens on resize).
 2. Build clickable mockups in `apps/<name>/design/mockups/` as self-contained HTML
    (inline CSS and JS), phone-sized (about 390 x 844), with the real animations
-   sketched in. Load the `artifact-design` skill first, then publish each mockup as a
-   private Artifact so Gabriel can tap through it on his phone, and put the link in
-   `DESIGN.md`.
+   sketched in. Build them from the design system's tokens and components (CSS
+   variables and shared classes named like the components), and add a size switch
+   that shows the key screens at the small, phone and wide sizes. Load the
+   `artifact-design` skill first, then publish each mockup as a private Artifact so
+   Gabriel can tap through it on his phone, and put the link in `DESIGN.md`.
 3. Save PNG screenshots of the key screens to `apps/<name>/design/screens/` with
    Playwright (preinstalled), so they show in the PR.
 4. Open a PR. Share the Artifact link in the thread. Stop until it's merged.
 
 ## Build stage
 
-1. Copy `docs/templates/BUILD.md` to `apps/<name>/BUILD.md`, plan small phases with
-   "done when" checks, and open it as its own PR.
+1. Read `docs/building.md` (rules 3 and 4), then copy `docs/templates/BUILD.md` to
+   `apps/<name>/BUILD.md`. Lay the architecture out in the four places (Core,
+   Services, Model, UI), list the core pieces with how each is called, plan small
+   phases with "done when" checks (each checked at the small size, the largest text
+   size and the wide size), and open it as its own PR.
 2. Once merged, set up the iOS project and CI with the `new-app` skill (it includes
-   Sentry), then build one phase per PR.
+   Sentry), then build one phase per PR. Phase 1 builds the design system
+   (`ios/<Name>/DesignSystem/`) and the `<Name>Kit` package with the first core
+   pieces and their tests; later phases build screens from them. Give a core piece
+   its API and tests before a screen uses it, and say in the PR description when a
+   PR touches core.
 3. Add each metric from "What we measure" with `Telemetry` in the phase that builds
    that flow. Never send anything personal (`docs/telemetry.md`).
 4. If the code must differ from the design, update `DESIGN.md` in the same PR.
@@ -61,10 +73,13 @@ fixes and polish skip it.
 3. Product section first, in its own PR, including any new metrics under "What we
    measure". Stop until merged.
 4. Design section next: copy the app's current mockups into the feature's
-   `design/mockups/` and change them, so before and after are easy to compare. Save
-   before/after screenshots for changed screens. Publish as an Artifact, open a PR, stop
+   `design/mockups/` and change them, so before and after are easy to compare. Use the
+   app's design system; say which components the feature reuses and which it adds,
+   and show changed screens at the small and wide sizes too. Save before/after
+   screenshots for changed screens. Publish as an Artifact, open a PR, stop
    until merged.
-5. Build section, then the code, one phase per PR.
+5. Build section, then the code, one phase per PR. Anything reusable or central goes
+   in the design system or `<Name>Kit` with tests, following `docs/building.md`.
 6. In the last PR, fold the feature into the app's `PRODUCT.md` and `DESIGN.md`.
 
 ## Approval

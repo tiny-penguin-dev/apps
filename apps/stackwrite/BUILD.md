@@ -211,6 +211,27 @@ off.
 right swipes o-m and t-h-i-n-g, overlapping), and every gesture in `DESIGN.md`'s
 keyboard section works in Messages.
 
+Notes (1 Nov 2026, the Phase 3 PR): the matcher reads the pieces in touch-down order
+and tries two that landed within 120 ms of each other both ways (at most four
+orderings). A tap that lands while the other thumb's swipe is still moving is also
+tried where the swipe had got to: the swipe is split at the key under the finger at
+that moment (each point of a piece carries its time), the tap goes in between, and the
+split parts are scored as one path, so h-e-l-o with an l tap mid-swipe is "hello" and
+c-o-f-e with an f tap is "coffee"; the plain reading stays in the running, so the e of
+"something" works whether it lands during the o-m swipe or just after. Synthetic
+two-thumb scripts cover these in `MatcherTests`; recorded ones replace them when
+Phase 7 brings the recorder. Gestures live in `KeySurfaceView` (the view already has
+the touches) and reach the engine as two calls: `cursorWillMove` (a slide on space
+writes the open word with nothing after it, then the host moves the cursor, 12 pt per
+character) and `deleteWord` (a 40 pt swipe left from backspace drops the open word, or
+the previous word and the space after it). Backspace held repeats after 0.45 s every
+90 ms. Numbers and symbols are Apple's pages, same key size and height as the letters;
+a space on them goes back to the letters. "123" held for 0.45 s opens the settings
+panel over the keys: autospace, its delay (0.5 to 1.5 s) and trails, kept as
+`KeyboardSettings` in the extension's own `UserDefaults` (no App Group yet, so the app
+and the keyboard each have their own until Phase 5 moves them to the group and
+iCloud). Shift, caps lock and sentence capitals were already in the Phase 2 composer.
+
 ### Phase 4: The app
 
 First launch (Hello, Turn on the keyboard with detection through the active input

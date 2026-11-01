@@ -45,7 +45,8 @@ struct PracticeField: UIViewRepresentable {
 
         override init() {
             let dictionary = (try? Lexicon.bundled()) ?? Lexicon(entries: [])
-            model = KeyboardModel(composer: Composer(dictionary: dictionary, layout: Layout.qwerty(width: 390)))
+            model = KeyboardModel(composer: Composer(dictionary: dictionary, layout: Layout.qwerty(width: 390)),
+                                  store: UserDefaultsSettingsStore())
             model.target = target
             keyboard = StackWriteUI.KeyboardView(model: model)
             keyboard.autoresizingMask = [.flexibleWidth]

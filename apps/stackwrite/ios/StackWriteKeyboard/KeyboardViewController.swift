@@ -18,7 +18,8 @@ final class KeyboardViewController: UIInputViewController {
         view.backgroundColor = Theme.ui(.kb)
 
         let dictionary = (try? Lexicon.bundled()) ?? Lexicon(entries: [])
-        let model = KeyboardModel(composer: Composer(dictionary: dictionary, layout: Layout.qwerty(width: 390)))
+        let model = KeyboardModel(composer: Composer(dictionary: dictionary, layout: Layout.qwerty(width: 390)),
+                                  store: UserDefaultsSettingsStore())
         let target = ProxyTarget(controller: self)
         model.target = target
         self.target = target
@@ -26,7 +27,6 @@ final class KeyboardViewController: UIInputViewController {
         let keyboard = KeyboardView(model: model)
         keyboard.onSystemKey = { [weak self] key in
             if key == .globe { self?.advanceToNextInputMode() }
-            // The numbers page comes in Phase 3.
         }
         view.addSubview(keyboard)
         self.keyboard = keyboard
@@ -98,4 +98,5 @@ final class ProxyTarget: TextTarget {
         proxy.setMarkedText(text, selectedRange: NSRange(location: text.utf16.count, length: 0))
     }
     func unmark() { proxy.unmarkText() }
+    func moveCursor(by offset: Int) { proxy.adjustTextPosition(byCharacterOffset: offset) }
 }

@@ -205,4 +205,38 @@ import Testing
         #expect(composer.state.bar == .idle)
         #expect(composer.autospaceDue == nil)
     }
+
+    // MARK: Gestures (Phase 3)
+
+    @Test func deleteWordDropsTheOpenWord() {
+        var composer = Synth.composer()
+        Synth.swipe(&composer, "there")
+        let effects = composer.deleteWord(time: 0.5)
+        #expect(effects == [.haptic(.key), .clearMark])
+        #expect(composer.state.openWord == nil)
+        #expect(composer.state.bar == .idle)
+        #expect(composer.autospaceDue == nil)
+    }
+
+    @Test func deleteWordRemovesThePreviousWordAndItsSpace() {
+        var composer = Synth.composer()
+        composer.setContext(before: "hello world ")
+        #expect(composer.deleteWord(time: 0) == [.haptic(.key), .deleteBackward(6)])
+        composer.setContext(before: "hello")
+        #expect(composer.deleteWord(time: 0) == [.haptic(.key), .deleteBackward(5)])
+        composer.setContext(before: "")
+        #expect(composer.deleteWord(time: 0) == [.haptic(.key), .deleteBackward(1)])
+    }
+
+    @Test func cursorWillMoveWritesTheOpenWordWithoutASpace() {
+        var composer = Synth.composer()
+        Synth.swipe(&composer, "there")
+        let effects = composer.cursorWillMove()
+        #expect(effects.contains(.commit("there")))
+        #expect(!effects.contains(.insert(" ")))
+        #expect(!effects.contains(.insert("")))
+        #expect(composer.state.openWord == nil)
+        #expect(composer.state.bar == .idle)
+        #expect(composer.cursorWillMove().isEmpty)
+    }
 }

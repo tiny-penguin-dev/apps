@@ -26,18 +26,21 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
     - `StackWriteCore`: Core and Services. `Layout` (key geometry), `Lexicon` (the
       trie, built from `Resources/lexicon.tsv`), `Flags`, and `Engine/`: `Composer`
       (touches in, effects out, pure, time passed in), `Matcher` (pieces to ranked
-      candidates: trie search plus DTW), `Piece`, `Geometry`, `LearnedWords`.
-      `Handwriting/` holds the v1 engine (`Features`, `PhraseDecoder`, `Recognizer`,
+      candidates: trie search plus DTW, two-thumb orderings and split swipes),
+      `Piece`, `Geometry`, `LearnedWords`, `KeyboardSettings` (the in-keyboard settings
+      and their `SettingsStore`). `Handwriting/` holds the v1 engine (`Features`, `PhraseDecoder`, `Recognizer`,
       `Recording`, `StrokeSample`). Foundation only; tests run on Linux.
     - `StackWriteUI`: the design system (`Theme` tokens, `Components`, `Art`) and the
-      keyboard's views: `KeyboardView` (bar plus keys, owns a `KeyboardModel`),
-      `BarView`, `KeySurfaceView` (touch stream, flashes, trails, rings),
-      `KeyboardModel` (applies the composer's effects to a `TextTarget`, runs the
-      autospace timer; `TextViewTarget` for a `UITextView`). UIKit and SwiftUI, guarded
+      keyboard's views: `KeyboardView` (bar plus keys, the pages, the settings panel;
+      owns a `KeyboardModel`), `BarView`, `KeySurfaceView` (touch stream, flashes,
+      trails, rings, and the gestures: space slide, backspace swipe and hold, "123"
+      hold), `SettingsPanelView`, `KeyboardModel` (applies the composer's effects to a
+      `TextTarget`, runs the autospace timer, keeps the settings; `TextViewTarget` for
+      a `UITextView`). UIKit and SwiftUI, guarded
       with `#if canImport(UIKit)` so `swift test` still builds the package on macOS.
     - `StackWriteKitTests`: Swift Testing. `ComposerTests`, `MatcherTests` (the 50-word
       fixture in `Fixtures/swipes.json`, through `Synth`'s straight-line swipes),
-      `GeometryTests`, `LayoutTests`, and `GoldenTests` replaying
+      `GeometryTests`, `LayoutTests`, `KeyboardSettingsTests`, and `GoldenTests` replaying
       `ml/export/golden.json` for the v1 engine.
   - `Config/`: `StackWrite.xcconfig` (bundle ID, version, `SENTRY_DSN`),
     `StackWriteKeyboard.xcconfig` and `StackWriteKeyboard-Info.plist` (the extension),

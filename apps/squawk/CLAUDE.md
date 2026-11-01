@@ -17,10 +17,15 @@ Squawk is in the **Build** stage. Read `PRODUCT.md`, `DESIGN.md` and `BUILD.md` 
   `Telemetry.swift` (Sentry crash reports and metrics, see `docs/telemetry.md`). App code
   calls `Telemetry`, never Sentry directly. List new metrics in `PRODUCT.md` first.
 - `ios/SquawkKit/`: local Swift package with the alarm model (`Alarm`, `Ring`,
-  `TimeOfDay`, `Weekday`), `AlarmPlanner` (alarms → the AlarmKit alarms to schedule),
+  `TimeOfDay`, `Weekday`), one-morning changes (`MorningChange` in `Mornings.swift`:
+  skip, new time, or "already up"), `AlarmPlanner` (alarms → the AlarmKit alarms to
+  schedule; a weekday whose next morning has a change rings as one-off alarms for a
+  few weeks, since AlarmKit can't skip one week of a repeating alarm),
   `FileAlarmStore` (JSON in Application Support) and the sound list. No UI, no AlarmKit.
 - `ios/Squawk/Alarms/`: `AlarmsModel` (the app's alarms; every change saves and
-  re-plans) and `AlarmKitScheduler`, the only code that talks to AlarmKit.
+  re-plans; opening the app mid-morning cancels the rest of it) and `AlarmKitScheduler`,
+  the only code that talks to AlarmKit. "I'm up" on the ringing screen runs
+  `SquawkUpIntent`.
 - `ios/Squawk/Sounds/`: the bundled alarm mp3s (from Lanata, cleared for a public app).
   AlarmKit only plays bundled mp3s.
 - `ios/PenguinKit/`: local Swift package with the mascot. `PenguinGeometry` holds every

@@ -1,8 +1,8 @@
 import SquawkKit
 import SwiftUI
 
-/// Screen 5: time, days or a date, different times on some days, sound and label.
-/// Extra rings and "More options" come in the next phase.
+/// Screen 5: time, days or a date, different times on some days, rings, label, and
+/// skip next morning.
 struct EditAlarmView: View {
     @State var alarm: Alarm
     var isNew: Bool
@@ -43,20 +43,30 @@ struct EditAlarmView: View {
                         dayTimesCard
                     }
 
+                    RingsCard(alarm: $alarm)
+
                     Card {
                         VStack(alignment: .leading, spacing: 14) {
-                            NavigationLink {
-                                SoundPicker(soundID: soundID)
-                            } label: {
-                                row("Sound", value: alarm.rings[0].sound.name)
-                            }
-                            Divider()
                             HStack {
                                 Text("Label").font(Theme.label)
                                 TextField("Wake up", text: $alarm.label)
                                     .multilineTextAlignment(.trailing)
                                     .font(Theme.body)
                             }
+                        }
+                    }
+
+                    if !isNew, let day = alarm.upcomingMorning(after: Date()) {
+                        Card {
+                            Toggle(isOn: skipNext(day)) {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Skip next morning").font(Theme.label)
+                                    Text(day.morningName.capitalizedFirst + ", " + day.formatted())
+                                        .font(.system(.subheadline, design: .rounded, weight: .semibold))
+                                        .foregroundStyle(Theme.muted)
+                                }
+                            }
+                            .tint(Theme.mint)
                         }
                     }
 
@@ -133,14 +143,11 @@ struct EditAlarmView: View {
 
     // MARK: Helpers
 
-    private func row(_ title: String, value: String) -> some View {
-        HStack {
-            Text(title).font(Theme.label)
-            Spacer()
-            Text(value).font(Theme.body).foregroundStyle(Theme.muted)
-            Image(systemName: "chevron.right").font(.footnote.weight(.bold)).foregroundStyle(Theme.muted)
-        }
-        .contentShape(Rectangle())
+    private func skipNext(_ day: LocalDate) -> Binding<Bool> {
+        Binding(
+            get: { alarm.change(on: day) == .skip },
+            set: { alarm.setChange($0 ? .skip : nil, on: day) }
+        )
     }
 
     private var oneTime: Binding<Bool> {
@@ -162,10 +169,6 @@ struct EditAlarmView: View {
             get: { (alarm.dayTimes[day] ?? alarm.time).pickerDate },
             set: { alarm.dayTimes[day] = TimeOfDay(pickerDate: $0) }
         )
-    }
-
-    private var soundID: Binding<String> {
-        Binding(get: { alarm.rings[0].soundID }, set: { alarm.rings[0].soundID = $0 })
     }
 
     /// Today if the time is still ahead, otherwise tomorrow.

@@ -146,46 +146,132 @@ struct SleepCard: View {
     }
 }
 
-/// One alarm: big time, schedule line, on/off.
+/// One alarm: big time, schedule line, on/off, and the next morning's skip or change.
 struct AlarmCard: View {
     var alarm: Alarm
     var onTap: () -> Void
     @Environment(AlarmsModel.self) private var model
+    @State private var changingNext = false
 
     var body: some View {
         Card {
-            HStack(alignment: .center) {
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack(alignment: .firstTextBaseline, spacing: 4) {
-                        Text(alarm.time.short)
-                            .font(.system(size: 48, weight: .black, design: .rounded))
-                            .monospacedDigit()
-                        Text(alarm.time.period)
-                            .font(.system(.title3, design: .rounded, weight: .heavy))
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(alignment: .center) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack(alignment: .firstTextBaseline, spacing: 4) {
+                            Text(alarm.time.short)
+                                .font(.system(size: 48, weight: .black, design: .rounded))
+                                .monospacedDigit()
+                            Text(alarm.time.period)
+                                .font(.system(.title3, design: .rounded, weight: .heavy))
+                        }
+                        Text(subtitle)
+                            .font(.system(.subheadline, design: .rounded, weight: .semibold))
+                            .foregroundStyle(Theme.muted)
                     }
-                    Text(subtitle)
-                        .font(.system(.subheadline, design: .rounded, weight: .semibold))
-                        .foregroundStyle(Theme.muted)
+                    .opacity(alarm.isOn ? 1 : 0.55)
+                    Spacer()
+                    Toggle("On", isOn: Binding(get: { alarm.isOn }, set: { model.setOn($0, for: alarm) }))
+                        .labelsHidden()
+                        .tint(Theme.mint)
+                        .sensoryFeedback(.selection, trigger: alarm.isOn)
                 }
-                .opacity(alarm.isOn ? 1 : 0.55)
-                Spacer()
-                Toggle("On", isOn: Binding(get: { alarm.isOn }, set: { model.setOn($0, for: alarm) }))
-                    .labelsHidden()
-                    .tint(Theme.mint)
-                    .sensoryFeedback(.selection, trigger: alarm.isOn)
+                if alarm.isOn, let day = alarm.upcomingMorning(after: Date()) {
+                    nextMorning(day)
+                }
             }
         }
         .contentShape(Rectangle())
         .onTapGesture(perform: onTap)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(alarm.time.full), \(subtitle), \(alarm.isOn ? "on" : "off")")
+        .accessibilityElement(children: .contain)
         .accessibilityAction(named: "Edit", onTap)
+        .sheet(isPresented: $changingNext) {
+            if let day = alarm.upcomingMorning(after: Date()) {
+                ChangeNextSheet(alarm: alarm, day: day)
+            }
+        }
+    }
+
+    /// "Skip tomorrow · Change", or what's changed with an Undo.
+    @ViewBuilder private func nextMorning(_ day: LocalDate) -> some View {
+        let name = day.morningName
+        HStack(spacing: 16) {
+            switch alarm.change(on: day) {
+            case .skip:
+                Label("Skipping \(name)", systemImage: "moon.zzz.fill")
+                    .font(.system(.subheadline, design: .rounded, weight: .bold))
+                Spacer()
+                Button("Undo") { model.undoNext(alarm) }
+            case .time(let time):
+                Label("\(name.capitalizedFirst) at \(time.full) only", systemImage: "clock.fill")
+                    .font(.system(.subheadline, design: .rounded, weight: .bold))
+                Spacer()
+                Button("Undo") { model.undoNext(alarm) }
+            case .done, nil:
+                Button("Skip \(name)") { model.skipNext(alarm) }
+                Button("Change \(name) only") { changingNext = true }
+                Spacer()
+            }
+        }
+        .buttonStyle(LinkButtonStyle())
+        .sensoryFeedback(.selection, trigger: alarm.changes)
     }
 
     private var subtitle: String {
         if !alarm.isOn { return "Off. Squawk will sleep in too." }
-        let line = alarm.scheduleLine()
-        return alarm.label.isEmpty ? line : "\(line) · \(alarm.label)"
+        var parts = [alarm.scheduleLine()]
+        if alarm.rings.count > 1 { parts.append("\(alarm.rings.count) rings") }
+        if !alarm.label.isEmpty { parts.append(alarm.label) }
+        return parts.joined(separator: " · ")
+    }
+}
+
+/// The "change next morning only" sheet: a new time for one morning.
+struct ChangeNextSheet: View {
+    var alarm: Alarm
+    var day: LocalDate
+    @State private var time: TimeOfDay
+    @Environment(AlarmsModel.self) private var model
+    @Environment(\.dismiss) private var dismiss
+
+    init(alarm: Alarm, day: LocalDate) {
+        self.alarm = alarm
+        self.day = day
+        _time = State(initialValue: alarm.scheduledTime(on: day) ?? alarm.time)
+    }
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 12) {
+                DatePicker("Time", selection: $time.asDate, displayedComponents: .hourAndMinute)
+                    .datePickerStyle(.wheel)
+                    .labelsHidden()
+                Text("Only \(day.morningName) changes. Every other morning stays the same.")
+                    .font(.system(.subheadline, design: .rounded, weight: .semibold))
+                    .foregroundStyle(Theme.muted)
+                    .multilineTextAlignment(.center)
+                Spacer()
+            }
+            .padding(20)
+            .background(Theme.background)
+            .navigationTitle("\(day.morningName.capitalizedFirst) only")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        model.changeNext(alarm, time: time)
+                        dismiss()
+                    }
+                    .fontWeight(.heavy)
+                }
+            }
+        }
+        .presentationDetents([.medium])
+        .foregroundStyle(Theme.ink)
+        .tint(Theme.accent)
     }
 }
 

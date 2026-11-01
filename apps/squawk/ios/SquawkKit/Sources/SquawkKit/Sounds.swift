@@ -19,6 +19,10 @@ public struct AlarmSound: Identifiable, Hashable, Sendable {
     ]
 
     public static let standard = all[0]
+    /// For "+ Soft ring before".
+    public static let soft = all[1]
+    /// For "+ Loud ring after".
+    public static let loud = all[6]
 
     /// The sound with this id, or the standard one if it's unknown (an alarm must
     /// never end up silent).

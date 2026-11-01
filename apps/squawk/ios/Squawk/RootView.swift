@@ -4,7 +4,7 @@ import SwiftUI
 
 /// First launch shows the setup screens; after that, Home.
 struct RootView: View {
-    @State private var model = AlarmsModel.live()
+    @State private var model = AlarmsModel.shared
     @AppStorage("onboarding.done") private var onboardingDone = false
     @Environment(\.scenePhase) private var scenePhase
 

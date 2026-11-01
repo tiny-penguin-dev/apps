@@ -28,28 +28,55 @@ public enum AlarmPlanner {
         alarms.filter(\.isOn).flatMap { plan($0, now: now, calendar: calendar) }
     }
 
-    public static func plan(_ alarm: Alarm, now: Date, calendar: Calendar = .current) -> [PlannedRing] {
-        let rings = alarm.rings.sorted { $0.offsetMinutes < $1.offsetMinutes }
-        let lastID = rings.last?.id
-        var result: [PlannedRing] = []
+    /// How many weeks of one-off rings to plan for a weekday whose next morning has a
+    /// change. AlarmKit can't skip one week of a repeating alarm, so that weekday rings
+    /// as one-off alarms until the next re-plan (any time the app opens) puts it back
+    /// on a weekly repeat.
+    static let weeksAhead = 4
 
-        if let date = alarm.date {
-            guard let wake = date.date(at: alarm.time, calendar: calendar) else { return [] }
-            for ring in rings {
-                let fire = wake.addingTimeInterval(Double(ring.offsetMinutes) * 60)
-                guard fire > now else { continue }
-                result.append(PlannedRing(
-                    id: StableID.make("\(alarm.id)|\(ring.id)|once"),
-                    alarmID: alarm.id, ringID: ring.id, schedule: .once(fire),
-                    title: alarm.title, sound: ring.sound, color: ring.color, isLastRing: ring.id == lastID
-                ))
-            }
-            return result
+    public static func plan(_ alarm: Alarm, now: Date, calendar: Calendar = .current) -> [PlannedRing] {
+        let lastID = alarm.sortedRings.last?.id
+
+        func once(_ day: LocalDate) -> [PlannedRing] {
+            alarm.ringTimes(on: day, calendar: calendar)
+                .filter { $0.fire > now }
+                .map { item in
+                    PlannedRing(
+                        id: StableID.make("\(alarm.id)|\(item.ring.id)|\(day)"),
+                        alarmID: alarm.id, ringID: item.ring.id, schedule: .once(item.fire),
+                        title: alarm.title, sound: item.ring.sound, color: item.ring.color,
+                        isLastRing: item.ring.id == lastID
+                    )
+                }
         }
 
-        // Each group of days with the same time becomes one weekly alarm per ring.
-        for group in alarm.timeGroups {
-            for ring in rings {
+        if let date = alarm.date {
+            return once(date)
+        }
+
+        // Weekdays whose next morning has a change ring as one-off alarms for a while.
+        let today = LocalDate(now, calendar: calendar)
+        var seen: Set<Weekday> = []
+        var changed: [Weekday: LocalDate] = [:]
+        for offset in -1...7 {
+            let day = today.adding(days: offset, calendar: calendar)
+            let weekday = day.weekday(calendar: calendar)
+            guard !seen.contains(weekday), alarm.isPending(day, now: now, calendar: calendar) else { continue }
+            seen.insert(weekday)
+            if alarm.change(on: day) != nil { changed[weekday] = day }
+        }
+
+        var result: [PlannedRing] = []
+        for (_, day) in changed.sorted(by: { $0.value < $1.value }) {
+            for week in 0...weeksAhead {
+                result += once(day.adding(days: 7 * week, calendar: calendar))
+            }
+        }
+
+        // Every other group of days with the same time becomes one weekly alarm per ring.
+        let weeklyDays = alarm.days.subtracting(changed.keys)
+        for group in alarm.timeGroups(for: weeklyDays) {
+            for ring in alarm.sortedRings {
                 let shifted = group.time.minutesAfterMidnight + ring.offsetMinutes
                 let dayShift = Int((Double(shifted) / 1440).rounded(.down))
                 let time = group.time.adding(minutes: ring.offsetMinutes)

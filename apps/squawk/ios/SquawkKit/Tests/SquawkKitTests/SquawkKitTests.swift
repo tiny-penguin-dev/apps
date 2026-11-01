@@ -93,6 +93,93 @@ private let sundayNight = utc.date(from: DateComponents(year: 2026, month: 11, d
     }
 }
 
+private func at(_ day: Int, _ hour: Int, _ minute: Int = 0) -> Date {
+    utc.date(from: DateComponents(year: 2026, month: 11, day: day, hour: hour, minute: minute))!
+}
+
+private let monday = LocalDate(year: 2026, month: 11, day: 2)
+
+private func onceDates(_ plan: [PlannedRing]) -> [Date] {
+    plan.compactMap { ring -> Date? in
+        guard case .once(let date) = ring.schedule else { return nil }
+        return date
+    }.sorted()
+}
+
+@Suite struct MorningTests {
+    @Test func skippingNextMondayKeepsTheMondaysAfter() {
+        var alarm = Alarm(days: Weekday.weekdays)
+        #expect(alarm.upcomingMorning(after: sundayNight, calendar: utc) == monday)
+        alarm.setChange(.skip, on: monday)
+        let plan = AlarmPlanner.plan(alarm, now: sundayNight, calendar: utc)
+        #expect(plan.contains { $0.schedule == .weekly(.sevenAM, [.tuesday, .wednesday, .thursday, .friday]) })
+        #expect(onceDates(plan) == [at(9, 7), at(16, 7), at(23, 7), at(30, 7)])
+        #expect(alarm.nextRing(after: sundayNight, calendar: utc) == at(3, 7))
+        // Still the upcoming morning, so it can be un-skipped.
+        #expect(alarm.upcomingMorning(after: sundayNight, calendar: utc) == monday)
+    }
+
+    @Test func changingNextMorningOnly() {
+        var alarm = Alarm(days: Weekday.weekdays, rings: [Ring(), Ring(offsetMinutes: -10)])
+        alarm.setChange(.time(TimeOfDay(hour: 8, minute: 30)), on: monday)
+        let dates = onceDates(AlarmPlanner.plan(alarm, now: sundayNight, calendar: utc))
+        #expect(Array(dates.prefix(3)) == [at(2, 8, 20), at(2, 8, 30), at(9, 6, 50)])
+        #expect(dates.count == 10)
+        #expect(alarm.nextRing(after: sundayNight, calendar: utc) == at(2, 8, 20))
+    }
+
+    @Test func imUpCancelsTheRestOfThisMorning() {
+        var alarm = Alarm(days: Weekday.weekdays, rings: [Ring(), Ring(offsetMinutes: 5)])
+        // Before the first ring, nothing is cancelled.
+        let tooEarly = alarm.markUp(at: at(2, 6, 55), calendar: utc)
+        #expect(!tooEarly)
+        let up = alarm.markUp(at: at(2, 7, 2), calendar: utc)
+        #expect(up)
+        #expect(alarm.change(on: monday) == .done)
+        let plan = AlarmPlanner.plan(alarm, now: at(2, 7, 2), calendar: utc)
+        #expect(!onceDates(plan).contains(at(2, 7, 5)))
+        #expect(onceDates(plan).first == at(9, 7))
+        #expect(alarm.nextRing(after: at(2, 7, 2), calendar: utc) == at(3, 7))
+        // Once the morning is over, Monday goes back to repeating weekly.
+        let later = AlarmPlanner.plan(alarm, now: at(2, 8), calendar: utc)
+        #expect(onceDates(later).isEmpty)
+        #expect(later.contains { $0.schedule == .weekly(.sevenAM, Array(Weekday.weekdays).sorted()) })
+    }
+
+    @Test func imUpOnAOneTimeAlarm() {
+        var alarm = Alarm(date: monday, rings: [Ring(), Ring(offsetMinutes: 5)])
+        alarm.markUp(at: at(2, 7, 1), calendar: utc)
+        #expect(AlarmPlanner.plan(alarm, now: at(2, 7, 1), calendar: utc).isEmpty)
+        #expect(alarm.upcomingMorning(after: sundayNight, calendar: utc) == nil)
+    }
+
+    @Test func oldChangesAreDropped() {
+        var alarm = Alarm()
+        alarm.setChange(.skip, on: LocalDate(year: 2026, month: 10, day: 20))
+        alarm.setChange(.skip, on: monday)
+        alarm.dropOldChanges(now: sundayNight, calendar: utc)
+        #expect(alarm.changes == [MorningChange(date: monday, kind: .skip)])
+    }
+
+    @Test func extraRings() {
+        var alarm = Alarm()
+        alarm.addSoftRing()
+        alarm.addLoudRing()
+        alarm.addSoftRing()
+        #expect(alarm.sortedRings.map(\.offsetMinutes) == [-20, -10, 0, 5])
+        #expect(alarm.sortedRings[0].offsetText == "20 min before")
+        #expect(alarm.sortedRings[3].summary(wake: .sevenAM) == "7:05 · Rush")
+        #expect(Ring(offsetMinutes: 65).offsetText == "1 h 5 min after")
+    }
+
+    @Test func localDates() {
+        #expect(monday.adding(days: 6, calendar: utc) == LocalDate(year: 2026, month: 11, day: 8))
+        #expect(monday.adding(days: -2, calendar: utc) == LocalDate(year: 2026, month: 10, day: 31))
+        #expect(monday.weekday(calendar: utc) == .monday)
+        #expect(monday.description == "2026-11-02")
+    }
+}
+
 @Suite struct StoreTests {
     @Test func roundTrip() throws {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("alarms-\(UUID()).json")
@@ -102,6 +189,8 @@ private let sundayNight = utc.date(from: DateComponents(year: 2026, month: 11, d
         let alarms = [
             Alarm(dayTimes: [.friday: TimeOfDay(hour: 7, minute: 30)], label: "Work"),
             Alarm(date: LocalDate(year: 2026, month: 11, day: 7), label: "Hike day"),
+            Alarm(changes: [MorningChange(date: monday, kind: .skip),
+                            MorningChange(date: monday.adding(days: 1, calendar: utc), kind: .time(.sevenAM))]),
         ]
         try store.save(alarms)
         #expect(try store.load() == alarms)

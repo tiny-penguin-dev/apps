@@ -12,6 +12,8 @@ final class ExtensionChecks {
     private var storeKit = "StoreKit …"
     private var hasFullAccess = false
     private var report: ((String) -> Void)?
+    private var granted: CGFloat = 0
+    private var wanted: CGFloat = 0
 
     func run(hasFullAccess: Bool, report: @escaping (String) -> Void) {
         self.hasFullAccess = hasFullAccess
@@ -36,9 +38,17 @@ final class ExtensionChecks {
         publish()
     }
 
+    /// The height iOS granted the keyboard against the height it asked for.
+    func sized(granted: CGFloat, wanted: CGFloat) {
+        guard granted != self.granted || wanted != self.wanted else { return }
+        self.granted = granted
+        self.wanted = wanted
+        publish()
+    }
+
     private func publish() {
         let mb = Double(Self.availableBytes()) / 1_048_576
-        report?("\(storeKit) · \(String(format: "%.0f", mb)) MB left · full access \(hasFullAccess ? "on" : "off")")
+        report?("\(storeKit) · \(String(format: "%.0f", mb)) MB left · \(Int(granted))/\(Int(wanted)) pt · full access \(hasFullAccess ? "on" : "off")")
     }
 
     /// How much memory the extension can still use before iOS kills it. The budget in

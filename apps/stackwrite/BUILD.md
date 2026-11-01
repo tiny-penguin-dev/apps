@@ -163,7 +163,15 @@ phone (1 Nov 2026, build 0.2.0, Full Access off): "StoreKit ok (0 active, pay ye
 so StoreKit 2 answers inside the extension and Phase 6 reads entitlements there
 directly, no App Group pass-through needed; 166 MB left under the limit with the
 dictionary not yet loaded (Phase 2 loads it; the bar keeps the readout so the number
-with the trie can be read the same way). Haptics: see the Phase 2 notes once confirmed.
+with the trie can be read the same way). Haptics: none at all with Full Access off, so
+`UIImpactFeedbackGenerator` does nothing in the extension by itself; the key click was
+silent too because the Phase 1 build played it outside a `UIInputViewAudioFeedback`
+view, which Phase 2 corrects. To try next: Full Access on. If haptics stay silent, the
+keyboard keeps visual feedback only (flash, ring, trail), as planned. Two more things
+from the first build in the Claude app: the bottom row was clipped (the keys are now
+pinned to the bottom and the bar shows granted/asked height), and the keyboard was dark
+because the app asks for a dark keyboard; it now follows `keyboardAppearance` like
+Apple's keyboard does.
 
 ### Phase 2: One finger, the whole engine
 

@@ -38,7 +38,17 @@ final class KeyboardViewController: UIInputViewController {
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
+        followKeyboardAppearance()
         keyboard?.model.contextChanged()
+    }
+
+    /// Light or dark as the app asked for its keyboard, like Apple's keyboard does.
+    private func followKeyboardAppearance() {
+        switch textDocumentProxy.keyboardAppearance ?? .default {
+        case .dark: view.overrideUserInterfaceStyle = .dark
+        case .light: view.overrideUserInterfaceStyle = .light
+        default: view.overrideUserInterfaceStyle = .unspecified
+        }
     }
 
     override func viewWillLayoutSubviews() {
@@ -54,11 +64,16 @@ final class KeyboardViewController: UIInputViewController {
             constraint.isActive = true
             heightConstraint = constraint
         }
-        keyboard.frame = CGRect(x: 0, y: 0, width: width, height: height)
+        // Pinned to the bottom: if iOS grants less height than asked, the bar gives way
+        // and the keys stay whole (the first build's bottom row was clipped).
+        let granted = view.bounds.height
+        keyboard.frame = CGRect(x: 0, y: granted > 0 ? granted - height : 0, width: width, height: height)
+        checks.sized(granted: granted, wanted: height)
     }
 
     override func textDidChange(_ textInput: UITextInput?) {
         super.textDidChange(textInput)
+        followKeyboardAppearance()
         keyboard?.model.contextChanged()
         edits += 1
         if edits % 5 == 0 { checks.refresh() }

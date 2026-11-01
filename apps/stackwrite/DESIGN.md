@@ -106,7 +106,9 @@ code (`StackWriteKit/Theme`, `docs/building.md` rule 1). Screens only use these.
 
 Not drawn yet (simple, same style): the numbers and symbols pages, the in-keyboard
 settings panel (gear under the `123` hold menu, for when Full Access is off), learned
-words list, snippets editor, split and one-handed layouts, the milestone sheet.
+words list, snippets editor, one-handed layouts, the milestone sheet. The split layout
+(an option on wide screens, Gabriel, 1 Nov 2026) is Apple's: five keys a side at the
+screen's edges, space on both sides, the home row half a key in.
 
 ## The keyboard
 
@@ -130,8 +132,9 @@ This is the product, so it gets its own section.
 - **The open word** shows in the text field underlined in teal, so the person sees what
   space will write without looking at the bar.
 - **Commit:** space, punctuation, or autospace after 0.9 s with no finger down (the
-  delay is a setting, 0.5 to 1.5 s). On autospace the bar gives a tiny squeeze so the
-  person notices the word went in.
+  delay is a setting, 0.1 to 1.5 s). Autospace is for swiped words only: a word pecked
+  out tap by tap waits for space (Gabriel, 1 Nov 2026). On autospace the bar gives a
+  tiny squeeze so the person notices the word went in.
 - **Backspace:** with an open word, removes the last piece. Otherwise one character.
   Swipe left on it deletes the last word; the keys to the left of it do not need to be
   crossed, 40 pt of travel is enough.

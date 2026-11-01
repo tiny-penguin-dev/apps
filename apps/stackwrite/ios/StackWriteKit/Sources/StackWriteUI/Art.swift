@@ -97,7 +97,67 @@ public struct ThumbsArt: View {
     }
 }
 
+/// A cloud above a phone and a laptop, a teal and a coral line joining them
+/// (the Keep your words everywhere screen). Floats gently unless Reduce Motion is on.
+public struct CloudArt: View {
+    @State private var floating = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    public init() {}
+
+    public var body: some View {
+        GeometryReader { proxy in
+            let s = min(proxy.size.width, proxy.size.height) / 200
+            ZStack {
+                CloudShape().fill(Theme.card)
+                CloudShape().stroke(Theme.line, lineWidth: 4 * s)
+                Path { path in
+                    path.move(to: CGPoint(x: 80 * s, y: 118 * s))
+                    path.addLine(to: CGPoint(x: 70 * s, y: 150 * s))
+                }
+                .stroke(Theme.left, style: StrokeStyle(lineWidth: 8 * s, lineCap: .round))
+                Path { path in
+                    path.move(to: CGPoint(x: 124 * s, y: 118 * s))
+                    path.addLine(to: CGPoint(x: 136 * s, y: 150 * s))
+                }
+                .stroke(Theme.right, style: StrokeStyle(lineWidth: 8 * s, lineCap: .round))
+                RoundedRectangle(cornerRadius: 6 * s).fill(Theme.card)
+                    .overlay(RoundedRectangle(cornerRadius: 6 * s).stroke(Theme.line, lineWidth: 4 * s))
+                    .frame(width: 26 * s, height: 44 * s).position(x: 62 * s, y: 170 * s)
+                RoundedRectangle(cornerRadius: 6 * s).fill(Theme.card)
+                    .overlay(RoundedRectangle(cornerRadius: 6 * s).stroke(Theme.line, lineWidth: 4 * s))
+                    .frame(width: 60 * s, height: 36 * s).position(x: 142 * s, y: 174 * s)
+            }
+            .frame(width: 200 * s, height: 200 * s)
+            .offset(y: floating ? -4 * s : 4 * s)
+            .frame(width: proxy.size.width, height: proxy.size.height)
+        }
+        .aspectRatio(1, contentMode: .fit)
+        .accessibilityLabel("A cloud linked to a phone and a laptop")
+        .onAppear {
+            guard !reduceMotion else { return }
+            withAnimation(.easeInOut(duration: 2.4).repeatForever(autoreverses: true)) { floating = true }
+        }
+    }
+
+    struct CloudShape: Shape {
+        func path(in rect: CGRect) -> Path {
+            let s = rect.width / 200
+            var path = Path()
+            path.addEllipse(in: CGRect(x: 40 * s, y: 60 * s, width: 70 * s, height: 60 * s))
+            path.addEllipse(in: CGRect(x: 80 * s, y: 40 * s, width: 80 * s, height: 70 * s))
+            path.addEllipse(in: CGRect(x: 110 * s, y: 70 * s, width: 56 * s, height: 50 * s))
+            path.addRoundedRect(in: CGRect(x: 48 * s, y: 90 * s, width: 112 * s, height: 30 * s), cornerSize: CGSize(width: 15 * s, height: 15 * s))
+            return path
+        }
+    }
+}
+
 #Preview {
-    ThumbsArt().frame(width: 220, height: 220).padding().background(Theme.bg)
+    VStack {
+        ThumbsArt().frame(width: 220, height: 220)
+        CloudArt().frame(width: 200, height: 200)
+    }
+    .padding().background(Theme.bg)
 }
 #endif

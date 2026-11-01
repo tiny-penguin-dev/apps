@@ -26,7 +26,8 @@ all three steps are done again for it, and `schema.ckdb` carries both record typ
    development environment whenever the file changes on `main`, or when run by hand.
    It needs the repo secret `CLOUDKIT_MANAGEMENT_TOKEN`: in the CloudKit Console
    (icloud.developer.apple.com) open your account's Settings → Tokens, create a
-   management token and paste it into Settings → Secrets and variables → Actions.
+   management token and paste it into Settings → Secrets and variables → Actions
+   (`cktool` reads it from that variable; nothing goes in a Keychain).
    Apple's `cktool` cannot deploy to production, so after a green run open the console
    → this container → Schema → **Deploy Schema Changes…** and confirm. TestFlight and
    App Store builds use production; builds run from Xcode use development.

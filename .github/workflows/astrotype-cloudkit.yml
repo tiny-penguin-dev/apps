@@ -4,7 +4,7 @@
 # iCloud.com.tinypenguin.astrotype → Schema → "Deploy Schema Changes to Production…".
 # See apps/astrotype/cloudkit/README.md.
 #
-# Needs the repo secret CLOUDKIT_MANAGEMENT_TOKEN: a CloudKit management token, made in
+# Needs the repo secret CLOUDKIT_MANAGEMENT_TOKEN (cktool reads that variable): a management token, made in
 # the CloudKit Console under your account's Settings → Tokens (shown once).
 name: Astrotype CloudKit schema
 
@@ -23,6 +23,9 @@ concurrency:
 env:
   TEAM_ID: YNMFSUHQ46
   CONTAINER_ID: iCloud.com.tinypenguin.astrotype
+  # cktool reads the management token from this variable; nothing is saved to the
+  # Keychain. GitHub masks the secret in the log.
+  CLOUDKIT_MANAGEMENT_TOKEN: ${{ secrets.CLOUDKIT_MANAGEMENT_TOKEN }}
 
 jobs:
   import:
@@ -34,30 +37,23 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Show cktool
-        run: |
-          xcodebuild -version
-          xcrun cktool --help || true
-          xcrun cktool save-token --help || true
-
-      - name: Validate the schema file
-        run: xcrun cktool validate-schema --file schema.ckdb
-
-      - name: Save the management token
-        env:
-          CLOUDKIT_MANAGEMENT_TOKEN: ${{ secrets.CLOUDKIT_MANAGEMENT_TOKEN }}
+      - name: Check the token is there
         run: |
           if [ -z "$CLOUDKIT_MANAGEMENT_TOKEN" ]; then
             echo "::error::The CLOUDKIT_MANAGEMENT_TOKEN secret is not set (Settings → Secrets and variables → Actions)."
             exit 1
           fi
-          # save-token normally prompts for the token; feed it on stdin. The token never
-          # appears in the log: GitHub masks the secret and the command does not echo it.
-          printf '%s\n' "$CLOUDKIT_MANAGEMENT_TOKEN" | xcrun cktool save-token --type management
+          xcrun cktool version
+
+      - name: Validate the schema file
+        run: |
+          xcrun cktool validate-schema \
+            --team-id "$TEAM_ID" \
+            --container-id "$CONTAINER_ID" \
+            --environment development \
+            --file schema.ckdb
 
       - name: Import the schema into development
-        env:
-          CLOUDKIT_MANAGEMENT_TOKEN: ${{ secrets.CLOUDKIT_MANAGEMENT_TOKEN }}
         run: |
           xcrun cktool import-schema \
             --team-id "$TEAM_ID" \

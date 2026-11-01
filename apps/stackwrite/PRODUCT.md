@@ -259,13 +259,13 @@ More get added here as phases land.
 
 ## 11. Open questions
 
-1. Pro price (monthly and yearly). Decided with the paywall screen in the design stage.
+None right now.
 
 Answered (1 Nov 2026): this is StackWrite v2 rather than a new app, on the App Store.
 Keep the name StackWrite for now; it will be replaced later. Free is the basic keyboard
 with one-finger swipe, Pro is everything else with a two-week trial. The handwriting pad
 comes later but stays in the code. iCloud sync from day one, which is why the app asks for
-Full Access (section 8).
+Full Access (section 8). Pro is $19.99 a year and $2.99 a month (1 Nov 2026).
 
 ## 12. Where the ideas came from
 

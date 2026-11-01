@@ -200,8 +200,8 @@ backup before a version change leaves nothing behind.
 
 ### Phase 6: StackWrite Pro
 
-StoreKit 2 subscription (yearly and monthly, two-week trial from first launch, prices
-from Gabriel), `Entitlement`, the Pro screen, Pro badges in Settings, the Trial over
+StoreKit 2 subscription ($19.99 a year, $2.99 a month, two-week trial from first
+launch), `Entitlement`, the Pro screen, Pro badges in Settings, the Trial over
 sheet, free mode in the keyboard (one thumb, the one-line nudge), Pro status inside the
 extension by whichever route Phase 1 found. Metrics: `trial.started`, `pro.subscribed`.
 
@@ -250,6 +250,6 @@ submit.
 
 ## Open questions
 
-1. Pro prices (yearly and monthly) for Phase 6. $19.99 and $2.99 are placeholders.
-2. Keep the v1 CloudKit container for practice-session uploads, or a fresh one? Keeping
-   it is the default.
+None right now. Answered by Gabriel (1 Nov 2026): Pro is $19.99 a year and $2.99 a
+month, as on the Pro screen; practice-session uploads keep the v1 CloudKit container
+(`iCloud.com.tinypenguin.stackwrite`).

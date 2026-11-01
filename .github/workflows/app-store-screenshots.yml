@@ -57,3 +57,16 @@ jobs:
             python3 scripts/ios/asc-upload-screenshots.py "$bundle_id" "$folder"
             echo "::endgroup::"
           done
+
+          # Subscriptions: changes only apply on main; anywhere else they're printed.
+          apply=""
+          if [ "$GITHUB_REF" = "refs/heads/main" ]; then apply="--apply"; fi
+          for store in apps/*/store; do
+            app=$(basename "$(dirname "$store")")
+            if [ -n "$ONLY_APP" ] && [ "$app" != "$ONLY_APP" ]; then continue; fi
+            bundle_id=$(grep -h '^PRODUCT_BUNDLE_IDENTIFIER' apps/$app/ios/Config/*.xcconfig \
+              | sed 's/.*= *//' | awk '{ print length, $0 }' | sort -n | head -1 | cut -d' ' -f2)
+            echo "::group::$app subscriptions"
+            python3 scripts/ios/asc-subscriptions.py "$bundle_id" "$store/subscriptions.json" $apply
+            echo "::endgroup::"
+          done

@@ -14,20 +14,30 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
 - `ios/`: the Xcode project (classic `.pbxproj`, synchronized folders, so new files
   are picked up without editing the project; new targets and packages are not).
   - `StackWrite/`: the app. `StackWriteApp.swift` (starts `Telemetry`, shows
-    `HelloView` until onboarding is done, then `HomeView`), `Telemetry.swift` (Sentry,
-    see `docs/telemetry.md`), `PrivacyInfo.xcprivacy`. `Try/`, `Train/` and `Shared/`
+    `HelloView` until onboarding is done, then `HomeView`), `PracticeView` (a text view
+    whose input view is the shared keyboard), `Telemetry.swift` (Sentry, see
+    `docs/telemetry.md`), `PrivacyInfo.xcprivacy`. `Try/`, `Train/` and `Shared/`
     are v1: the handwriting pad, training recorder and the CloudKit sample upload.
   - `StackWriteKeyboard/`: the keyboard extension (`com.tinypenguin.stackwrite.keyboard`).
-    `KeyboardViewController` draws the shared key surface and types. `ExtensionChecks`
-    is Phase 1 only: it writes the StoreKit, haptics and memory results into the bar.
+    `KeyboardViewController` hosts the shared `KeyboardView` and types through
+    `ProxyTarget` (the text document proxy). `ExtensionChecks` is Phase 1 only: it
+    writes the StoreKit and memory readings into the bar's idle note.
   - `StackWriteKit/`: the local package, three targets:
     - `StackWriteCore`: Core and Services. `Layout` (key geometry), `Lexicon` (the
-      trie), `Flags`. `Handwriting/` holds the v1 engine (`Features`, `PhraseDecoder`,
-      `Recognizer`, `Recording`, `StrokeSample`). Foundation only; tests run on Linux.
+      trie, built from `Resources/lexicon.tsv`), `Flags`, and `Engine/`: `Composer`
+      (touches in, effects out, pure, time passed in), `Matcher` (pieces to ranked
+      candidates: trie search plus DTW), `Piece`, `Geometry`, `LearnedWords`.
+      `Handwriting/` holds the v1 engine (`Features`, `PhraseDecoder`, `Recognizer`,
+      `Recording`, `StrokeSample`). Foundation only; tests run on Linux.
     - `StackWriteUI`: the design system (`Theme` tokens, `Components`, `Art`) and the
-      keyboard's views (`KeySurfaceView`). UIKit and SwiftUI, guarded with
-      `#if canImport(UIKit)` so `swift test` still builds the package on macOS.
-    - `StackWriteKitTests`: Swift Testing. `LayoutTests`, and `GoldenTests` replaying
+      keyboard's views: `KeyboardView` (bar plus keys, owns a `KeyboardModel`),
+      `BarView`, `KeySurfaceView` (touch stream, flashes, trails, rings),
+      `KeyboardModel` (applies the composer's effects to a `TextTarget`, runs the
+      autospace timer; `TextViewTarget` for a `UITextView`). UIKit and SwiftUI, guarded
+      with `#if canImport(UIKit)` so `swift test` still builds the package on macOS.
+    - `StackWriteKitTests`: Swift Testing. `ComposerTests`, `MatcherTests` (the 50-word
+      fixture in `Fixtures/swipes.json`, through `Synth`'s straight-line swipes),
+      `GeometryTests`, `LayoutTests`, and `GoldenTests` replaying
       `ml/export/golden.json` for the v1 engine.
   - `Config/`: `StackWrite.xcconfig` (bundle ID, version, `SENTRY_DSN`),
     `StackWriteKeyboard.xcconfig` and `StackWriteKeyboard-Info.plist` (the extension),

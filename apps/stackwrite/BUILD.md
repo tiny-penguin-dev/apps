@@ -172,6 +172,21 @@ practice field runs the same keyboard.
 letter, the first guess is right for 9 of 10 words in a 50-word fixture, and a candidate
 list takes under 5 ms on a phone.
 
+Notes (1 Nov 2026, the Phase 2 PR): built as planned, with the API trimmed from the
+sketch above. `Composer`'s effects are only text edits and haptics (`insert`,
+`deleteBackward`, `mark`, `commit`, `clearMark`, `haptic`); flashes, trails and tap
+rings are drawn by the key surface itself, which already has the touches. The open
+word is marked text (`setMarkedText`), so the field underlines it and a commit is
+`unmarkText`. A tap is a touch that stays within 18 pt; a swipe's keys are the letters
+under a 4 pt walk along its path, runs collapsed, and the matcher may use a crossed key
+twice for a doubled letter, so "hello" and "coffee" come from one swipe each (a tap
+inside a swipe for a double is Phase 3, with the second thumb). The matcher's score adds
+a path-length term so "the" does not win a swipe that went on to "there". The fixture
+(`Tests/Fixtures/swipes.json`) is 50 common words swiped as straight lines between key
+centres, 50 of 50 right; recorded swipes replace it as they come in. The phone timing
+goes here once measured; the CI test only bounds it loosely in a debug build. The app's
+Home has "Try the keyboard", a field whose input view is the same `KeyboardView`.
+
 ### Phase 3: Two thumbs and the keyboard's gestures
 
 Multitouch pieces merged by touch-down time with the swap window, left and right

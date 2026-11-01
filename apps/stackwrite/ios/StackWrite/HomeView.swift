@@ -13,10 +13,15 @@ struct HomeView: View {
         NavigationStack {
             List {
                 Section {
-                    Text("The keyboard is on its way. Phase 1 of the build: turn StackWrite on in Settings › General › Keyboard › Keyboards and tap letters in any app. The bar shows the StoreKit, haptics and memory checks.")
-                        .font(.footnote)
+                    NavigationLink {
+                        PracticeView()
+                    } label: {
+                        Label("Try the keyboard", systemImage: "keyboard")
+                    }
                 } header: {
-                    Text("Phase 1")
+                    Text("Phase 2")
+                } footer: {
+                    Text("Tap or swipe with one finger. Space, a pause or punctuation writes the word; the bar offers fixes after. In other apps, turn StackWrite on in Settings › General › Keyboard › Keyboards.")
                 }
 
                 Section {

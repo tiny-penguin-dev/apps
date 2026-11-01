@@ -4,13 +4,20 @@ import UIKit
 
 @MainActor
 public protocol KeySurfaceDelegate: AnyObject {
-    /// A finger tapped a key (landed and lifted on it). `side` is the thumb it came from.
+    /// A finger landed on a letter key. `id` names the touch until it lifts.
+    func keySurface(_ surface: KeySurfaceView, touchBegan id: Int, at point: CGPoint, time: TimeInterval)
+    func keySurface(_ surface: KeySurfaceView, touchMoved id: Int, to point: CGPoint, time: TimeInterval)
+    func keySurface(_ surface: KeySurfaceView, touchEnded id: Int, at point: CGPoint, time: TimeInterval)
+    func keySurface(_ surface: KeySurfaceView, touchCancelled id: Int, time: TimeInterval)
+    /// A finger tapped a key that is not a letter (landed and lifted on it).
     func keySurface(_ surface: KeySurfaceView, didTap key: Key, side: Side)
 }
 
-/// The keys. One UIKit view that draws a `Layout` and reports taps, with multitouch on
-/// so each thumb is its own touch. Keys flash in the thumb's colour (teal left, coral
-/// right). Swipes and trails come in Phase 2.
+/// The keys. One UIKit view that draws a `Layout` and reports touches, with multitouch
+/// on so each thumb is its own touch. Letter keys stream their touches (down, moves,
+/// up) so the engine can tell taps from swipes; the other keys report a tap. Keys
+/// flash in the thumb's colour (teal left, coral right), taps leave a ring that pings
+/// out, swipes draw a trail that fades after lift (DESIGN.md "Pieces").
 ///
 ///     let surface = KeySurfaceView()
 ///     surface.delegate = self
@@ -32,8 +39,22 @@ public final class KeySurfaceView: UIView {
         didSet { keyViews[.space]?.label.text = spaceLabel }
     }
 
+    /// Draw swipe trails and tap rings.
+    public var showsTrails = true
+
+    private struct Active {
+        var id: Int
+        var key: Key?
+        var side: Side
+        var isLetter: Bool
+        var points: [CGPoint]
+        var trail: CAShapeLayer?
+    }
+
     private var keyViews: [Key: KeyView] = [:]
-    private var touchKeys: [ObjectIdentifier: Key] = [:]
+    private var active: [ObjectIdentifier: Active] = [:]
+    private var nextID = 1
+    private let effects = CALayer()
 
     public override init(frame: CGRect) {
         super.init(frame: frame)
@@ -48,6 +69,11 @@ public final class KeySurfaceView: UIView {
         CGSize(width: UIView.noIntrinsicMetric, height: layout.height)
     }
 
+    public override func layoutSubviews() {
+        super.layoutSubviews()
+        effects.frame = bounds
+    }
+
     private func rebuild() {
         keyViews.values.forEach { $0.removeFromSuperview() }
         keyViews = [:]
@@ -58,6 +84,9 @@ public final class KeySurfaceView: UIView {
             addSubview(keyView)
             keyViews[placement.key] = keyView
         }
+        effects.removeFromSuperlayer()
+        effects.frame = bounds
+        layer.addSublayer(effects)
         invalidateIntrinsicContentSize()
     }
 
@@ -67,43 +96,121 @@ public final class KeySurfaceView: UIView {
         for touch in touches {
             let point = touch.location(in: self)
             guard let key = layout.key(at: point) else { continue }
-            touchKeys[ObjectIdentifier(touch)] = key
-            keyViews[key]?.flash(side: layout.side(at: point))
+            let side = layout.side(at: point)
+            let id = nextID
+            nextID += 1
+            active[ObjectIdentifier(touch)] = Active(id: id, key: key, side: side, isLetter: key.character != nil, points: [point], trail: nil)
+            keyViews[key]?.flash(side: side)
+            if key.character != nil {
+                delegate?.keySurface(self, touchBegan: id, at: point, time: touch.timestamp)
+            }
         }
     }
 
     public override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
         for touch in touches {
-            let id = ObjectIdentifier(touch)
-            guard let was = touchKeys[id] else { continue }
+            let oid = ObjectIdentifier(touch)
+            guard var touchState = active[oid] else { continue }
             let point = touch.location(in: self)
             let now = layout.key(at: point)
-            if now != was {
-                keyViews[was]?.unflash()
-                if let now {
-                    keyViews[now]?.flash(side: layout.side(at: point))
-                }
-                touchKeys[id] = now
+            if now != touchState.key {
+                if let was = touchState.key { keyViews[was]?.unflash() }
+                if let now { keyViews[now]?.flash(side: touchState.side) }
+                touchState.key = now
+            }
+            if touchState.isLetter {
+                touchState.points.append(point)
+                if showsTrails { drawTrail(&touchState) }
+                active[oid] = touchState
+                delegate?.keySurface(self, touchMoved: touchState.id, to: point, time: touch.timestamp)
+            } else {
+                active[oid] = touchState
             }
         }
     }
 
     public override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
         for touch in touches {
-            let id = ObjectIdentifier(touch)
+            guard let touchState = active.removeValue(forKey: ObjectIdentifier(touch)) else { continue }
             let point = touch.location(in: self)
-            if let key = touchKeys.removeValue(forKey: id) {
-                keyViews[key]?.unflash()
-                delegate?.keySurface(self, didTap: key, side: layout.side(at: point))
+            if let key = touchState.key { keyViews[key]?.unflash() }
+            if touchState.isLetter {
+                if showsTrails { finish(touchState, at: point) }
+                delegate?.keySurface(self, touchEnded: touchState.id, at: point, time: touch.timestamp)
+            } else if let key = touchState.key {
+                delegate?.keySurface(self, didTap: key, side: touchState.side)
             }
         }
     }
 
     public override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
         for touch in touches {
-            if let key = touchKeys.removeValue(forKey: ObjectIdentifier(touch)) {
-                keyViews[key]?.unflash()
+            guard let touchState = active.removeValue(forKey: ObjectIdentifier(touch)) else { continue }
+            if let key = touchState.key { keyViews[key]?.unflash() }
+            touchState.trail?.removeFromSuperlayer()
+            if touchState.isLetter {
+                delegate?.keySurface(self, touchCancelled: touchState.id, time: touch.timestamp)
             }
+        }
+    }
+
+    // MARK: Trails and rings
+
+    private func drawTrail(_ touchState: inout Active) {
+        let path = UIBezierPath()
+        path.move(to: touchState.points[0])
+        for point in touchState.points.dropFirst() { path.addLine(to: point) }
+        if touchState.trail == nil {
+            let trail = CAShapeLayer()
+            trail.fillColor = nil
+            trail.strokeColor = Theme.ui(touchState.side == .left ? .left : .right).cgColor
+            trail.lineWidth = 9
+            trail.lineCap = .round
+            trail.lineJoin = .round
+            trail.opacity = 0.85
+            effects.addSublayer(trail)
+            touchState.trail = trail
+        }
+        touchState.trail?.path = path.cgPath
+    }
+
+    private func finish(_ touchState: Active, at point: CGPoint) {
+        if let trail = touchState.trail {
+            let fade = CABasicAnimation(keyPath: "opacity")
+            fade.fromValue = 0.85
+            fade.toValue = 0
+            fade.duration = Theme.Motion.trailFade
+            fade.fillMode = .forwards
+            fade.isRemovedOnCompletion = false
+            CATransaction.begin()
+            CATransaction.setCompletionBlock { trail.removeFromSuperlayer() }
+            trail.add(fade, forKey: "fade")
+            CATransaction.commit()
+        } else {
+            let ring = CAShapeLayer()
+            let radius: CGFloat = 14
+            ring.bounds = CGRect(x: 0, y: 0, width: 2 * radius, height: 2 * radius)
+            ring.position = point
+            ring.path = UIBezierPath(ovalIn: ring.bounds).cgPath
+            ring.fillColor = nil
+            ring.strokeColor = Theme.ui(touchState.side == .left ? .left : .right).cgColor
+            ring.lineWidth = 2
+            effects.addSublayer(ring)
+            let grow = CABasicAnimation(keyPath: "transform.scale")
+            grow.fromValue = 0.5
+            grow.toValue = 1.6
+            let fade = CABasicAnimation(keyPath: "opacity")
+            fade.fromValue = 0.9
+            fade.toValue = 0
+            let group = CAAnimationGroup()
+            group.animations = [grow, fade]
+            group.duration = Theme.Motion.tapRing
+            group.fillMode = .forwards
+            group.isRemovedOnCompletion = false
+            CATransaction.begin()
+            CATransaction.setCompletionBlock { ring.removeFromSuperlayer() }
+            ring.add(group, forKey: "ping")
+            CATransaction.commit()
         }
     }
 }

@@ -19,6 +19,8 @@ public struct Lexicon: Sendable {
     var parent: [Int32] = []
     var label: [UInt8] = []
     var wordLogPrior: [Float] = []
+    /// For each node: the best word prior at or below it, for ranking completions.
+    var bestBelow: [Float] = []
 
     public var nodeCount: Int { parent.count }
 
@@ -37,6 +39,14 @@ public struct Lexicon: Sendable {
 
     public init(contentsOf url: URL) throws {
         self.init(entries: try Self.readEntries(from: url))
+    }
+
+    /// The 40,000-word English dictionary that ships in the package.
+    public static func bundled() throws -> Lexicon {
+        guard let url = Bundle.module.url(forResource: "lexicon", withExtension: "tsv") else {
+            throw CocoaError(.fileNoSuchFile)
+        }
+        return try Lexicon(contentsOf: url)
     }
 
     public init(entries: [Entry]) {
@@ -78,6 +88,17 @@ public struct Lexicon: Sendable {
                 edgeTargets.append(target)
             }
         }
+        // Children are created after their parents, so a reverse pass sees every
+        // child's best before its parent's.
+        bestBelow = [Float](repeating: -.infinity, count: parent.count)
+        for node in stride(from: parent.count - 1, through: 0, by: -1) {
+            var best = wordLogPrior[node].isNaN ? -Float.infinity : wordLogPrior[node]
+            let start = Int(edgeStart[node])
+            for i in start..<(start + Int(edgeCount[node])) {
+                best = max(best, bestBelow[Int(edgeTargets[i])])
+            }
+            bestBelow[node] = best
+        }
     }
 
     /// Spells the word that ends at `node`.
@@ -117,5 +138,47 @@ public struct Lexicon: Sendable {
     public func contains(_ word: String) -> Bool {
         guard let n = node(for: word) else { return false }
         return !wordLogPrior[Int(n)].isNaN
+    }
+
+    /// `log(frequency / max frequency)` of the word ending at `node`, nil if none does.
+    public func logPrior(at node: Int32) -> Float? {
+        let p = wordLogPrior[Int(node)]
+        return p.isNaN ? nil : p
+    }
+
+    public func logPrior(of word: String) -> Float? {
+        node(for: word).flatMap { logPrior(at: $0) }
+    }
+
+    /// Calls `body` for each child of `node` with its letter (1...26) and node.
+    @inline(__always)
+    func forEachChild(of node: Int32, _ body: (Int, Int32) -> Void) {
+        let start = Int(edgeStart[Int(node)])
+        for i in start..<(start + Int(edgeCount[Int(node)])) {
+            body(Int(edgeLabels[i]), edgeTargets[i])
+        }
+    }
+
+    /// The most common words that start with `prefix` and are longer than it, best
+    /// first. Best-first search guided by `bestBelow`, so it touches few nodes.
+    public func completions(of prefix: String, limit: Int) -> [String] {
+        guard limit > 0, let start = node(for: prefix) else { return [] }
+        var frontier: [(node: Int32, best: Float)] = []
+        forEachChild(of: start) { _, child in frontier.append((child, bestBelow[Int(child)])) }
+        var out: [String] = []
+        var visited = 0
+        while out.count < limit, !frontier.isEmpty, visited < 4000 {
+            var bestIndex = 0
+            for i in 1..<frontier.count where frontier[i].best > frontier[bestIndex].best { bestIndex = i }
+            let (node, _) = frontier.remove(at: bestIndex)
+            visited += 1
+            if let prior = logPrior(at: node), prior == bestBelow[Int(node)] {
+                out.append(word(at: node))
+            }
+            forEachChild(of: node) { _, child in
+                if bestBelow[Int(child)] > -.infinity { frontier.append((child, bestBelow[Int(child)])) }
+            }
+        }
+        return out
     }
 }

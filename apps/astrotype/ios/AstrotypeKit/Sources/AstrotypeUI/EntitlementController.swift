@@ -1,3 +1,4 @@
+#if canImport(UIKit)
 import Foundation
 import AstrotypeCore
 
@@ -51,3 +52,4 @@ public final class EntitlementController {
         model.entitlement = Entitlement(status: ProStatus.from(subscribed: subscribed, trial: trial, now: time), now: time)
     }
 }
+#endif

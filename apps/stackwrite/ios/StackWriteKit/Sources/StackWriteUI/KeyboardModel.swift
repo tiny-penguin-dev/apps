@@ -33,6 +33,8 @@ public final class KeyboardModel {
     /// Called after every change to the bar, the open word, shift or the settings.
     public var onChange: (() -> Void)?
     public var onHaptic: ((Composer.Haptic) -> Void)?
+    /// A word went into the field (space, punctuation, autospace or a tapped guess).
+    public var onCommit: ((String) -> Void)?
     /// The person's keyboard settings; saved to `store` on every change.
     public var keyboardSettings: KeyboardSettings {
         didSet {
@@ -142,6 +144,7 @@ public final class KeyboardModel {
             case .commit(let text):
                 target?.mark(text)
                 target?.unmark()
+                onCommit?(text)
             case .clearMark:
                 target?.mark("")
                 target?.unmark()

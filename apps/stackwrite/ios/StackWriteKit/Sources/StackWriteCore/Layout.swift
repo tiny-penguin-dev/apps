@@ -76,6 +76,8 @@ public struct Layout: Sendable, Equatable {
 
     public let width: CGFloat
     public let page: Page
+    /// The halves pulled apart to the screen's edges (wide screens only).
+    public let split: Bool
     /// The keyboard's height, keys and padding included (the bar is not part of it).
     public let height: CGFloat
     public let keyHeight: CGFloat
@@ -85,18 +87,30 @@ public struct Layout: Sendable, Equatable {
     private let top: CGFloat
     private let rowGap: CGFloat
 
+    /// From what width on the screen counts as wide (the iPhone Duo's inner screen).
+    public static let wideWidth: CGFloat = 700
+
     /// The standard layout for a width: 33 pt keys at 390 pt (an iPhone), wider on the
     /// iPhone Duo's screens, capped at 58 pt so a swipe keeps its shape on a wide
-    /// screen (DESIGN.md "Sizes"). Every page has the same height.
-    public static func qwerty(width: CGFloat, page: Page = .letters) -> Layout {
+    /// screen (DESIGN.md "Sizes"). Every page has the same height. `split` pulls the
+    /// two halves apart on a wide screen, each under a thumb, with the space bar in
+    /// both. `maxHeight` shrinks the keys when the system grants less room than the
+    /// layout wants, so the bar and every row stay on screen.
+    public static func qwerty(width: CGFloat, page: Page = .letters, split: Bool = false, maxHeight: CGFloat? = nil) -> Layout {
         let margin: CGFloat = 3
         let gap = min(8, max(4, (6 * width / 390).rounded()))
         let unit = min(58, ((width - 2 * margin - 9 * gap) / 10).rounded(.down))
-        let wide = width >= 700
-        let keyHeight: CGFloat = wide ? 54 : 44
-        let rowGap: CGFloat = wide ? 10 : 9
+        let wide = width >= wideWidth
+        var keyHeight: CGFloat = wide ? 54 : 44
+        var rowGap: CGFloat = wide ? 10 : 9
         let top: CGFloat = 8
         let bottom: CGFloat = 5
+        if let maxHeight, top + 4 * keyHeight + 3 * rowGap + bottom > maxHeight {
+            let available = maxHeight - top - bottom
+            rowGap = max(4, min(rowGap, ((available - 4 * 36) / 3).rounded(.down)))
+            keyHeight = max(28, ((available - 3 * rowGap) / 4).rounded(.down))
+        }
+        let split = split && wide
         let rowWidth = 10 * unit + 9 * gap
         let left = ((width - rowWidth) / 2).rounded()
 
@@ -115,7 +129,57 @@ public struct Layout: Sendable, Equatable {
         }
 
         let wideKey = (1.45 * unit).rounded()
+        let fnKey = (1.33 * unit).rounded()
+        let returnKey = (2.66 * unit).rounded()
         var x: CGFloat
+
+        if split {
+            // Two blocks, five keys wide, at the screen's edges. Rows are laid from the
+            // left edge on the left and end at the right edge on the right; the home row
+            // sits half a key in, as it does whole.
+            let edge: CGFloat = 12
+            let half = 5 * unit + 4 * gap
+            func leftRow(_ items: [(Key, CGFloat)], row: Int, inset: CGFloat = 0) {
+                var x = edge + inset
+                for (key, w) in items {
+                    add(key, row: row, x: x, width: w)
+                    x += w + gap
+                }
+            }
+            func rightRow(_ items: [(Key, CGFloat)], row: Int, inset: CGFloat = 0) {
+                let total = items.reduce(0) { $0 + $1.1 } + CGFloat(items.count - 1) * gap
+                var x = width - edge - inset - total
+                for (key, w) in items {
+                    add(key, row: row, x: x, width: w)
+                    x += w + gap
+                }
+            }
+            func units(_ chars: ArraySlice<Character>, as make: (Character) -> Key) -> [(Key, CGFloat)] {
+                chars.map { (make($0), unit) }
+            }
+            switch page {
+            case .letters:
+                leftRow(units(rows[0][0..<5], as: Key.letter), row: 0)
+                rightRow(units(rows[0][5...], as: Key.letter), row: 0)
+                leftRow(units(rows[1][0..<5], as: Key.letter), row: 1, inset: unit / 2)
+                rightRow(units(rows[1][5...], as: Key.letter), row: 1, inset: unit / 2)
+                leftRow([(.shift, wideKey)] + units(rows[2][0..<4], as: Key.letter), row: 2)
+                rightRow(units(rows[2][4...], as: Key.letter) + [(.backspace, wideKey)], row: 2)
+            case .numbers, .symbols:
+                let table = page == .numbers ? numberRows : symbolRows
+                leftRow(units(table[0][0..<5], as: Key.symbol), row: 0)
+                rightRow(units(table[0][5...], as: Key.symbol), row: 0)
+                leftRow(units(table[1][0..<5], as: Key.symbol), row: 1)
+                rightRow(units(table[1][5...], as: Key.symbol), row: 1)
+                leftRow([(page == .numbers ? .symbols : .numbers, wideKey)] + units(table[2][0..<3], as: Key.symbol), row: 2)
+                rightRow(units(table[2][3...], as: Key.symbol) + [(.backspace, wideKey)], row: 2)
+            }
+            leftRow([(page == .letters ? .numbers : .letters, fnKey), (.globe, fnKey), (.space, half - 2 * fnKey - 2 * gap)], row: 3)
+            rightRow([(.space, half - returnKey - gap), (.returnKey, returnKey)], row: 3)
+            return Layout(width: width, page: page, split: true, height: top + 4 * keyHeight + 3 * rowGap + bottom,
+                          keyHeight: keyHeight, gap: gap, placements: placements, top: top, rowGap: rowGap)
+        }
+
         switch page {
         case .letters:
             _ = keys(rows[0], as: Key.letter, row: 0, from: left)
@@ -136,8 +200,6 @@ public struct Layout: Sendable, Equatable {
             add(.backspace, row: 2, x: x, width: wideKey)
         }
 
-        let fnKey = (1.33 * unit).rounded()
-        let returnKey = (2.66 * unit).rounded()
         let space = rowWidth - 2 * fnKey - returnKey - 3 * gap
         x = left
         add(page == .letters ? .numbers : .letters, row: 3, x: x, width: fnKey); x += fnKey + gap
@@ -145,7 +207,7 @@ public struct Layout: Sendable, Equatable {
         add(.space, row: 3, x: x, width: space); x += space + gap
         add(.returnKey, row: 3, x: x, width: returnKey)
 
-        return Layout(width: width, page: page, height: top + 4 * keyHeight + 3 * rowGap + bottom,
+        return Layout(width: width, page: page, split: false, height: top + 4 * keyHeight + 3 * rowGap + bottom,
                       keyHeight: keyHeight, gap: gap, placements: placements, top: top, rowGap: rowGap)
     }
 
@@ -159,9 +221,13 @@ public struct Layout: Sendable, Equatable {
         return nearest.key
     }
 
+    /// The key's frame; for a key that is placed twice (space on a split keyboard), the first.
     public func frame(of key: Key) -> CGRect? {
         placements.first { $0.key == key }?.frame
     }
+
+    /// Whether this width counts as wide (the iPhone Duo's inner screen).
+    public var isWide: Bool { width >= Self.wideWidth }
 
     /// The thumb a key belongs to, by which half of the keyboard it sits in.
     public func side(of key: Key) -> Side {

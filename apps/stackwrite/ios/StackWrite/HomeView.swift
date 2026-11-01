@@ -1,107 +1,126 @@
 import StackWriteCore
+import StackWriteUI
 import SwiftUI
 
+/// DESIGN.md screen 5: "Both flippers, go." The speed test and trial on the left,
+/// drills, the week and Settings on the right; one column on a phone, two on the wide
+/// size. A sun-yellow banner leads back to setup while the keyboard is off.
 struct HomeView: View {
-    @Environment(RecognitionService.self) private var recognition
-    @Environment(SampleStore.self) private var samples
-    @Environment(SampleUploader.self) private var uploader
-    @State private var exportURL: URL?
-    @State private var exportError: String?
-    @State private var shareUsage = Telemetry.isEnabled
+    var model: AppModel
+    @State private var path: [Route] = []
+
+    enum Route: Hashable {
+        case practice, settings, turnOn, sync
+    }
 
     var body: some View {
-        NavigationStack {
-            List {
-                Section {
-                    NavigationLink {
-                        PracticeView()
-                    } label: {
-                        Label("Try the keyboard", systemImage: "keyboard")
-                    }
-                } header: {
-                    Text("Phase 2")
-                } footer: {
-                    Text("Tap or swipe with one finger. Space, a pause or punctuation writes the word; the bar offers fixes after. In other apps, turn StackWrite on in Settings › General › Keyboard › Keyboards.")
-                }
-
-                Section {
-                    Toggle("Share anonymous usage data", isOn: $shareUsage)
-                        .onChange(of: shareUsage) { Telemetry.isEnabled = shareUsage }
-                } header: {
-                    Text("Settings")
-                } footer: {
-                    Text("Crash reports and counts like how many people turn the keyboard on. Never anything you type.")
-                }
-
-                // The v1 handwriting pad, kept behind a flag (PRODUCT.md "Later").
-                if Flags.handwritingPad {
-                    Section {
-                        NavigationLink {
-                            TryView()
-                        } label: {
-                            Label("Try the keyboard", systemImage: "keyboard")
+        NavigationStack(path: $path) {
+            GeometryReader { proxy in
+                let wide = proxy.size.width >= 700
+                ScrollView {
+                    VStack(alignment: .leading, spacing: Theme.Space.l) {
+                        header(wide: wide)
+                        if !model.isKeyboardOn {
+                            Banner("StackWrite isn't on yet.", action: "Turn on") { path.append(.turnOn) }
                         }
-                        NavigationLink {
-                            TrainView()
-                        } label: {
-                            Label("Write training phrases", systemImage: "pencil.and.scribble")
-                        }
-                    } footer: {
-                        Text("Write each letter on top of the last, lifting your finger whenever you like. Between words, pause for a moment or tap.")
-                    }
-
-                    Section {
-                        LabeledContent("Recordings", value: samples.count.formatted())
-                        Toggle("Upload to help train StackWrite", isOn: Bindable(uploader).isEnabled)
-                        if uploader.isEnabled {
-                            Button {
-                                uploader.upload()
-                            } label: {
-                                LabeledContent("Upload now") {
-                                    if uploader.isUploading {
-                                        ProgressView()
-                                    } else {
-                                        Text("\(samples.pendingCount) waiting")
-                                    }
-                                }
+                        if wide {
+                            HStack(alignment: .top, spacing: Theme.Space.gutter) {
+                                leftColumn.frame(maxWidth: .infinity)
+                                rightColumn.frame(maxWidth: .infinity)
                             }
-                            .disabled(samples.pendingCount == 0 || uploader.isUploading)
+                        } else {
+                            leftColumn
+                            rightColumn
                         }
-                        Button("Export samples…", systemImage: "square.and.arrow.up") {
-                            do {
-                                exportURL = try samples.exportArchive()
-                            } catch {
-                                exportError = error.localizedDescription
-                            }
-                        }
-                        .disabled(samples.count == 0)
-                    } header: {
-                        Text("Training data")
-                    } footer: {
-                        Text((uploader.status.map { $0 + "\n" } ?? "")
-                             + "Uploads go to StackWrite's iCloud database: the strokes you write and the words they spell, with no name or account attached. Nothing you type on the keyboard is sent.")
                     }
-
-                }
-
-                Section {
-                    LabeledContent("Version", value: DeviceInfo.appVersion)
-                    LabeledContent("Model", value: recognition.statusText)
+                    .padding(.horizontal, Theme.Space.gutter)
+                    .padding(.bottom, Theme.Space.xl)
+                    .frame(maxWidth: wide ? 1100 : 560)
+                    .frame(maxWidth: .infinity)
                 }
             }
-            .navigationTitle("StackWrite")
-            .sheet(item: $exportURL) { url in
-                ShareSheet(items: [url])
+            .background(Theme.bg.ignoresSafeArea())
+            .foregroundStyle(Theme.ink)
+            .toolbar(.hidden, for: .navigationBar)
+            .navigationDestination(for: Route.self) { route in
+                switch route {
+                case .practice: PracticeView(model: model)
+                case .settings: SettingsView(model: model, path: $path)
+                case .turnOn: TurnOnView(model: model, inSetup: false)
+                case .sync: SyncView(model: model, inSetup: false)
+                }
             }
-            .alert("Couldn't export", isPresented: .constant(exportError != nil)) {
-                Button("OK") { exportError = nil }
-            } message: {
-                Text(exportError ?? "")
+        }
+        .tint(Theme.accent)
+    }
+
+    private func header(wide: Bool) -> some View {
+        HStack(alignment: .top) {
+            Text(wide ? "Both flippers, go." : "Both\nflippers, go.")
+                .font(wide ? .system(size: 36, weight: .black, design: .rounded) : .sw(.title))
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer()
+            ThumbsArt(animated: false).frame(width: 72, height: 72)
+        }
+        .padding(.top, Theme.Space.l)
+    }
+
+    private var leftColumn: some View {
+        VStack(alignment: .leading, spacing: Theme.Space.m) {
+            Card {
+                VStack(alignment: .leading, spacing: Theme.Space.m) {
+                    HStack {
+                        Text("Speed test").font(.sw(.heading))
+                        Spacer()
+                        Chip("Soon")
+                    }
+                    Text("Measure yourself against Apple's keyboard. Until it arrives, practise with the keyboard here.")
+                        .font(.sw(.small)).foregroundStyle(Theme.muted)
+                    Button("Practice") { path.append(.practice) }
+                        .buttonStyle(.small)
+                }
+            }
+            let days = model.trial.daysLeft(now: model.now)
+            Row("Pro trial", subtitle: days > 0
+                ? "\(days) day\(days == 1 ? "" : "s") left. Two-thumb typing, gestures, layouts."
+                : "Over. Two-thumb typing keeps working until StackWrite Pro arrives.") {
+                ProBadge()
             }
         }
     }
-}
 
-extension URL: @retroactive Identifiable {
-    public var id: String { absoluteString }
+    private var rightColumn: some View {
+        VStack(alignment: .leading, spacing: Theme.Space.m) {
+            SectionLabel("Drills")
+            VStack(spacing: Theme.Space.s) {
+                drill(1, "Two-letter swipes", "th, in, er, on")
+                drill(2, "Switching thumbs", "Start left, finish right")
+                drill(3, "Doubled letters", "A tap inside a swipe")
+            }
+            Text("Drills open with the speed test.")
+                .font(.sw(.small)).foregroundStyle(Theme.muted).padding(.leading, Theme.Space.xs)
+            SectionLabel("This week").padding(.top, Theme.Space.s)
+            WeekDots(days: model.week.days.map { WeekDots.Day(id: $0.key, letter: $0.letter, done: $0.practised, isToday: $0.isToday) })
+            Button { path.append(.settings) } label: {
+                Row("Settings", subtitle: "Autospace, gestures, trails, sync") {
+                    Text("Open ›").font(.system(.subheadline, design: .rounded, weight: .heavy)).foregroundStyle(Theme.muted)
+                }
+            }
+            .buttonStyle(.plain)
+            .padding(.top, Theme.Space.s)
+        }
+    }
+
+    private func drill(_ number: Int, _ title: String, _ subtitle: String) -> some View {
+        Card {
+            HStack(spacing: Theme.Space.m) {
+                NumberBadge(.number(number))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title).font(.system(.body, design: .rounded, weight: .bold))
+                    Text(subtitle).font(.sw(.small)).foregroundStyle(Theme.muted)
+                }
+            }
+        }
+        .opacity(0.6)
+    }
 }

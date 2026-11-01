@@ -21,8 +21,12 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
     public var onHeightChange: ((CGFloat) -> Void)?
 
     public private(set) var page: Layout.Page = .letters {
-        didSet { if page != oldValue { surface.layout = Layout.qwerty(width: model.layout.width, page: page) } }
+        didSet { if page != oldValue { surface.layout = pageLayout(width: model.layout.width, maxHeight: fittedKeysHeight) } }
     }
+
+    /// The keys' height when the view is shorter than the layout wants (the system
+    /// granted less), nil when the natural layout fits.
+    private var fittedKeysHeight: CGFloat?
 
     private var panel: SettingsPanelView?
     private let keyHaptic = UIImpactFeedbackGenerator(style: .light)
@@ -52,34 +56,53 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
 
     public var enableInputClicksWhenVisible: Bool { true }
 
-    public var height: CGFloat { Self.barHeight + model.layout.height }
+    /// The natural height for the current width: the bar plus the keys as they want to be.
+    public var height: CGFloat { Self.barHeight + Layout.qwerty(width: model.layout.width).height }
 
     public override var intrinsicContentSize: CGSize {
         CGSize(width: UIView.noIntrinsicMetric, height: height)
     }
 
+    /// Lays the bar and the keys out for the view's size. When the view is shorter
+    /// than the natural layout (the system granted less height), the keys shrink so
+    /// the bar and every row stay on screen; when it is taller, the keys sit at the
+    /// bottom. `height` stays the natural height, which hosts ask the system for.
     public override func layoutSubviews() {
         super.layoutSubviews()
         let width = bounds.width
         guard width > 0 else { return }
-        if model.layout.width != width {
+        let split = model.keyboardSettings.splitOnWide
+        let natural = Layout.qwerty(width: width, split: split)
+        let room = bounds.height - Self.barHeight
+        let fitted: CGFloat? = room > 0 && room < natural.height ? room : nil
+        if model.layout.width != width || model.layout.split != natural.split || fitted != fittedKeysHeight {
             let was = height
-            model.layout = Layout.qwerty(width: width)
-            surface.layout = Layout.qwerty(width: width, page: page)
+            fittedKeysHeight = fitted
+            model.layout = Layout.qwerty(width: width, split: split, maxHeight: fitted)
+            surface.layout = pageLayout(width: width, maxHeight: fitted)
             if height != was {
                 invalidateIntrinsicContentSize()
                 onHeightChange?(height)
             }
         }
-        bar.frame = CGRect(x: 0, y: 0, width: width, height: Self.barHeight)
-        surface.frame = CGRect(x: 0, y: Self.barHeight, width: width, height: model.layout.height)
+        let total = Self.barHeight + model.layout.height
+        let top = max(0, bounds.height - total)
+        bar.frame = CGRect(x: 0, y: top, width: width, height: Self.barHeight)
+        surface.frame = CGRect(x: 0, y: top + Self.barHeight, width: width, height: model.layout.height)
         panel?.frame = surface.frame
+    }
+
+    private func pageLayout(width: CGFloat, maxHeight: CGFloat?) -> Layout {
+        Layout.qwerty(width: width, page: page, split: model.keyboardSettings.splitOnWide, maxHeight: maxHeight)
     }
 
     private func render() {
         bar.bar = model.state.bar
         surface.shifted = model.state.isShifted
         surface.showsTrails = model.keyboardSettings.trails
+        surface.spaceSlideEnabled = model.keyboardSettings.spaceSlide
+        surface.backspaceSwipeEnabled = model.keyboardSettings.backspaceSwipe
+        if model.layout.split != (model.keyboardSettings.splitOnWide && model.layout.isWide) { setNeedsLayout() }
     }
 
     private func play(_ haptic: Composer.Haptic) {

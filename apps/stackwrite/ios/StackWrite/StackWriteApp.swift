@@ -1,9 +1,10 @@
 import StackWriteCore
+import StackWriteUI
 import SwiftUI
 
 @main
 struct StackWriteApp: App {
-    @AppStorage("onboarding.done") private var onboardingDone = false
+    @State private var model = AppModel(environment: .live())
     @State private var recognition = RecognitionService()
     @State private var samples: SampleStore
     @State private var uploader: SampleUploader
@@ -18,23 +19,49 @@ struct StackWriteApp: App {
 
     var body: some Scene {
         WindowGroup {
-            Group {
-                if onboardingDone {
-                    HomeView()
-                } else {
-                    HelloView { onboardingDone = true }
+            RootView(model: model)
+                .environment(recognition)
+                .environment(samples)
+                .environment(uploader)
+                .task {
+                    // The v1 handwriting model only loads when the pad is on.
+                    if Flags.handwritingPad { await recognition.load() }
                 }
-            }
-            .environment(recognition)
-            .environment(samples)
-            .environment(uploader)
-            .task {
-                // The v1 handwriting model only loads when the pad is on.
-                if Flags.handwritingPad { await recognition.load() }
-            }
         }
         .onChange(of: scenePhase) {
-            if scenePhase != .active { uploader.upload() }
+            if scenePhase == .active {
+                model.refreshKeyboardStatus()
+            } else {
+                uploader.upload()
+            }
         }
+    }
+}
+
+/// Setup (DESIGN.md "First launch"), then Home.
+struct RootView: View {
+    var model: AppModel
+
+    var body: some View {
+        ZStack {
+            switch model.screen {
+            case .hello:
+                HelloView { model.next() }
+                    .transition(.opacity)
+            case .turnOn:
+                TurnOnView(model: model, inSetup: true)
+                    .transition(.asymmetric(insertion: .move(edge: .trailing), removal: .move(edge: .leading)))
+            case .sync:
+                SyncView(model: model, inSetup: true)
+                    .transition(.asymmetric(insertion: .move(edge: .trailing), removal: .move(edge: .leading)))
+            case .tryIt:
+                TryItView(model: model)
+                    .transition(.asymmetric(insertion: .move(edge: .trailing), removal: .opacity))
+            case .home:
+                HomeView(model: model)
+                    .transition(.opacity)
+            }
+        }
+        .animation(Theme.Motion.spring, value: model.screen)
     }
 }

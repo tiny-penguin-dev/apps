@@ -64,10 +64,11 @@ final class KeyboardViewController: UIInputViewController {
             constraint.isActive = true
             heightConstraint = constraint
         }
-        // Pinned to the bottom: if iOS grants less height than asked, the bar gives way
-        // and the keys stay whole (the first build's bottom row was clipped).
+        // The keyboard fills whatever iOS grants: if that is less than asked (the Duo's
+        // inner screen), the keys shrink to fit and the bar stays; if more, the keys
+        // sit at the bottom.
         let granted = view.bounds.height
-        keyboard.frame = CGRect(x: 0, y: granted > 0 ? granted - height : 0, width: width, height: height)
+        keyboard.frame = CGRect(x: 0, y: 0, width: width, height: granted > 0 ? granted : height)
         checks.sized(granted: granted, wanted: height)
     }
 

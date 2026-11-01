@@ -1,6 +1,6 @@
 # StackWrite v2: build plan
 
-Status: Draft
+Status: Approved 2026-11-01
 
 Builds on `PRODUCT.md` (approved 2026-11-01) and `DESIGN.md` (approved 2026-11-01).
 

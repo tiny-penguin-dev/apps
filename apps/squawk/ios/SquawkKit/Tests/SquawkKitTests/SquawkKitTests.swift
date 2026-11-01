@@ -189,7 +189,7 @@ private func onceDates(_ plan: [PlannedRing]) -> [Date] {
         let plan = AlarmPlanner.plan(tagAlarm(), now: sundayNight, calendar: utc)
         // Three mornings ahead: Mon, Tue, Wed. Each: one early ring plus 20 repeats.
         #expect(plan.count == 3 * 21)
-        #expect(plan.allSatisfy(\.needsCheck))
+        #expect(plan.allSatisfy { $0.needsCheck })
         let monday = onceDates(plan).filter { $0 < at(3, 0) }
         #expect(monday.first == at(2, 6, 50))
         #expect(monday[1] == at(2, 7))

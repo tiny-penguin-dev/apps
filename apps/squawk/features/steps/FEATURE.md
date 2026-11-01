@@ -64,8 +64,9 @@ An example morning:
 - Squawk sets up the steps as automations in your Home, named like "Squawk · Wake up ·
   6:30". Your Home hub (an Apple TV or HomePod) runs them, so lights come on even if the
   phone is asleep, silenced or out of battery.
-- **A Home hub is required.** Without one, Squawk explains this and doesn't offer Home
-  steps.
+- **Timed Home steps need a Home hub.** iOS doesn't let an app wake itself up at an exact
+  time, and an alarm app's ring can't silently run code either. So without a hub,
+  Squawk explains why and offers only "When you're up", which runs from the phone.
 - The automations show up in the Home app. Squawk owns them: editing the alarm updates
   them, deleting it removes them. If you change one in the Home app, Squawk puts it back
   next time it syncs.
@@ -103,11 +104,11 @@ An example morning:
 | `home.sync_failed` (`reason`) | Automations Squawk couldn't set up (goal: near zero) |
 | `morning.up_actions` | How often "When you're up" runs |
 
-### Open questions
+### Decisions
 
-1. **Pro or free?** I'd make Home steps Pro, matching "morning actions" in the Pro column.
-   Or one free Home step per alarm as a taste.
-2. **Checks per step or per alarm?** I kept them on the wake-up time (simpler, same as
-   today). A check on any ringing step is possible but harder to explain.
-3. **"When you're up"**: in this version, or later?
-4. **Home hub required:** OK to not offer Home steps at all without one?
+Answered by Gabriel (1 Nov 2026):
+
+1. Home steps and "When you're up" are Pro.
+2. Wake-up checks stay one per alarm, shown in the wake-up step.
+3. "When you're up" is in this version.
+4. Timed Home steps need a Home hub. Without one, only "When you're up" is offered.

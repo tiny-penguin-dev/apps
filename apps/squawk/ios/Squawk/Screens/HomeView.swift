@@ -11,44 +11,37 @@ struct HomeView: View {
     @State private var editing: EditTarget?
     @State private var showGallery = false
     @State private var showSettings = false
+    @Environment(\.horizontalSizeClass) private var sizeClass
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
             ScrollView {
-                VStack(alignment: .leading, spacing: 14) {
-                    HStack(alignment: .firstTextBaseline) {
-                        Text(greeting)
-                            .font(Theme.title(32))
-                        Spacer()
-                        if model.log.streak > 0 {
-                            StreakChip(streak: model.log.streak)
-                        }
-                        Button { showSettings = true } label: {
-                            Image(systemName: "gearshape.fill")
-                                .font(.title3.weight(.bold))
-                                .foregroundStyle(Theme.muted)
-                                .frame(width: 44, height: 44)
-                        }
-                        .buttonStyle(SquishStyle())
-                        .accessibilityLabel("Settings")
-                    }
-                    .padding(.top, 8)
-                    banners
-                    SleepCard(
-                        nextRing: model.nextRing(), anyOn: model.alarms.contains(where: \.isOn),
-                        outfit: Wardrobe.accessory(outfitID: outfitID, access: pro.access, bestStreak: model.log.bestStreak)
-                    )
-                        .onLongPressGesture(minimumDuration: 1.2) { showGallery = true }
-                    if model.alarms.isEmpty {
-                        EmptyAlarms { editing = .new }
-                    } else {
-                        ForEach(model.sortedAlarms) { alarm in
-                            AlarmCard(alarm: alarm) { editing = .existing(alarm) }
+                if wide {
+                    // The iPhone Duo's inner screen and other wide windows: the penguin on
+                    // the left, the alarms on the right (docs/building.md "Every size").
+                    VStack(alignment: .leading, spacing: 14) {
+                        header
+                        banners
+                        HStack(alignment: .top, spacing: 20) {
+                            sleepCard
+                                .frame(maxWidth: 380)
+                            VStack(spacing: 14) { alarmList }
                         }
                     }
+                    .padding(.horizontal, 28)
+                    .padding(.bottom, 100)
+                    .frame(maxWidth: 1000)
+                    .frame(maxWidth: .infinity)
+                } else {
+                    VStack(alignment: .leading, spacing: 14) {
+                        header
+                        banners
+                        sleepCard
+                        alarmList
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 100)
                 }
-                .padding(.horizontal, 20)
-                .padding(.bottom, 100)
             }
             Button { editing = .new } label: {
                 Image(systemName: "plus")
@@ -70,6 +63,47 @@ struct HomeView: View {
         .sheet(isPresented: $showGallery) {
             NavigationStack {
                 PenguinGallery().toolbar { Button("Done") { showGallery = false } }
+            }
+        }
+    }
+
+    /// Wide enough for two columns.
+    private var wide: Bool { sizeClass == .regular }
+
+    private var header: some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(greeting)
+                .titleFont(32)
+            Spacer()
+            if model.log.streak > 0 {
+                StreakChip(streak: model.log.streak)
+            }
+            Button { showSettings = true } label: {
+                Image(systemName: "gearshape.fill")
+                    .font(.title3.weight(.bold))
+                    .foregroundStyle(Theme.muted)
+                    .frame(width: 44, height: 44)
+            }
+            .buttonStyle(SquishStyle())
+            .accessibilityLabel("Settings")
+        }
+        .padding(.top, 8)
+    }
+
+    private var sleepCard: some View {
+        SleepCard(
+            nextRing: model.nextRing(), anyOn: model.alarms.contains(where: \.isOn),
+            outfit: Wardrobe.accessory(outfitID: outfitID, access: pro.access, bestStreak: model.log.bestStreak)
+        )
+        .onLongPressGesture(minimumDuration: 1.2) { showGallery = true }
+    }
+
+    @ViewBuilder private var alarmList: some View {
+        if model.alarms.isEmpty {
+            EmptyAlarms { editing = .new }
+        } else {
+            ForEach(model.sortedAlarms) { alarm in
+                AlarmCard(alarm: alarm) { editing = .existing(alarm) }
             }
         }
     }
@@ -179,16 +213,19 @@ struct AlarmCard: View {
     @Environment(ProModel.self) private var pro
     @State private var changingNext = false
     @State private var paywall: ProFeature?
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
+        // At the largest text sizes the switch goes under the time (DESIGN.md "Accessibility").
+        let stacked = typeSize.isAccessibilitySize
+        let layout = stacked ? AnyLayout(VStackLayout(alignment: .leading, spacing: 10)) : AnyLayout(HStackLayout(alignment: .center))
         Card {
             VStack(alignment: .leading, spacing: 12) {
-                HStack(alignment: .center) {
+                layout {
                     VStack(alignment: .leading, spacing: 4) {
                         HStack(alignment: .firstTextBaseline, spacing: 4) {
                             Text(alarm.time.short)
-                                .font(.system(size: 48, weight: .black, design: .rounded))
-                                .monospacedDigit()
+                                .bigNumberFont(48)
                             Text(alarm.time.period)
                                 .font(.system(.title3, design: .rounded, weight: .heavy))
                         }
@@ -197,8 +234,10 @@ struct AlarmCard: View {
                             .foregroundStyle(Theme.muted)
                     }
                     .opacity(alarm.isOn ? 1 : 0.55)
-                    Spacer()
-                    Toggle("On", isOn: Binding(get: { alarm.isOn }, set: { model.setOn($0, for: alarm) }))
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("\(alarm.time.full), \(subtitle)")
+                    if !stacked { Spacer() }
+                    Toggle(alarm.time.full, isOn: Binding(get: { alarm.isOn }, set: { model.setOn($0, for: alarm) }))
                         .labelsHidden()
                         .tint(Theme.mint)
                         .wobble(on: alarm.isOn)
@@ -224,29 +263,34 @@ struct AlarmCard: View {
     /// "Skip tomorrow · Change", or what's changed with an Undo.
     @ViewBuilder private func nextMorning(_ day: LocalDate) -> some View {
         let name = day.morningName
-        HStack(spacing: 16) {
-            switch alarm.change(on: day) {
-            case .skip:
-                Label("Skipping \(name)", systemImage: "moon.zzz.fill")
-                    .font(.system(.subheadline, design: .rounded, weight: .bold))
-                Spacer()
-                Button("Undo") { model.undoNext(alarm) }
-            case .time(let time):
-                Label("\(name.capitalizedFirst) at \(time.full) only", systemImage: "clock.fill")
-                    .font(.system(.subheadline, design: .rounded, weight: .bold))
-                Spacer()
-                Button("Undo") { model.undoNext(alarm) }
-            case .done, nil:
-                Button("Skip \(name)") { model.skipNext(alarm) }
-                ProLinkButton(
-                    title: "Change \(name) only", locked: !pro.access.allows(.changeNextTime),
-                    action: { changingNext = true }, onLocked: { paywall = .changeNextTime }
-                )
-                Spacer()
-            }
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 16) { nextMorningButtons(day, name: name) }
+            VStack(alignment: .leading, spacing: 10) { nextMorningButtons(day, name: name) }
         }
         .buttonStyle(LinkButtonStyle())
         .sensoryFeedback(.selection, trigger: alarm.changes)
+    }
+
+    @ViewBuilder private func nextMorningButtons(_ day: LocalDate, name: String) -> some View {
+        switch alarm.change(on: day) {
+        case .skip:
+            Label("Skipping \(name)", systemImage: "moon.zzz.fill")
+                .font(.system(.subheadline, design: .rounded, weight: .bold))
+            Spacer()
+            Button("Undo") { model.undoNext(alarm) }
+        case .time(let time):
+            Label("\(name.capitalizedFirst) at \(time.full) only", systemImage: "clock.fill")
+                .font(.system(.subheadline, design: .rounded, weight: .bold))
+            Spacer()
+            Button("Undo") { model.undoNext(alarm) }
+        case .done, nil:
+            Button("Skip \(name)") { model.skipNext(alarm) }
+            ProLinkButton(
+                title: "Change \(name) only", locked: !pro.access.allows(.changeNextTime),
+                action: { changingNext = true }, onLocked: { paywall = .changeNextTime }
+            )
+            Spacer()
+        }
     }
 
     private var subtitle: String {
@@ -315,7 +359,7 @@ struct EmptyAlarms: View {
         Card {
             VStack(spacing: 12) {
                 Text("No alarms yet")
-                    .font(Theme.title(22))
+                    .titleFont(22)
                 Button("Add your first alarm", action: onAdd)
                     .buttonStyle(PillButtonStyle())
             }
@@ -329,4 +373,22 @@ struct EmptyAlarms: View {
         .environment(AlarmsModel.preview())
         .environment(ProModel.preview())
         .background(Theme.background)
+}
+
+#Preview("Dark, largest text") {
+    HomeView()
+        .environment(AlarmsModel.preview())
+        .environment(ProModel.preview())
+        .background(Theme.background)
+        .dynamicTypeSize(.accessibility5)
+        .preferredColorScheme(.dark)
+}
+
+#Preview("Wide (iPhone Duo inner screen)") {
+    HomeView()
+        .environment(AlarmsModel.preview())
+        .environment(ProModel.preview())
+        .background(Theme.background)
+        .environment(\.horizontalSizeClass, .regular)
+        .frame(width: 900, height: 700)
 }

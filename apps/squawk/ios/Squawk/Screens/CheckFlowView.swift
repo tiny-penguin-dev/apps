@@ -65,6 +65,7 @@ struct CheckFlowView: View {
             .padding(.bottom, 8)
         }
         .padding(20)
+        .readableWidth()
     }
 
     private func next() {
@@ -112,7 +113,7 @@ private struct TagCheckView: View {
     var body: some View {
         VStack(spacing: 18) {
             PenguinView(mood: .grumpy).frame(width: 120, height: 120)
-            Text("Go scan your tag").font(Theme.title(30))
+            Text("Go scan your tag").titleFont(30)
             if !check.place.isEmpty {
                 Text("It's on the \(check.place.lowercased()).")
                     .font(Theme.body).foregroundStyle(Theme.muted)
@@ -171,7 +172,7 @@ private struct CodeCheckView: View {
 
     var body: some View {
         VStack(spacing: 14) {
-            Text("Go scan your code").font(Theme.title(30))
+            Text("Go scan your code").titleFont(30)
             if !check.place.isEmpty {
                 Text("It's the \(check.place.lowercased()).")
                     .font(Theme.body).foregroundStyle(Theme.muted)
@@ -211,7 +212,7 @@ private struct GameCheckView: View {
 
     var body: some View {
         VStack(spacing: 16) {
-            Text("How many penguins?").font(Theme.title(30))
+            Text("How many penguins?").titleFont(30)
             Text("Round \(round + 1) of \(rounds)")
                 .font(.system(.subheadline, design: .rounded, weight: .bold))
                 .foregroundStyle(Theme.muted)
@@ -223,13 +224,16 @@ private struct GameCheckView: View {
             }
             .padding(14)
             .background(Theme.ice, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+            // VoiceOver reads the count as a question with choices (DESIGN.md "Accessibility").
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("\(count) penguins. How many penguins? Pick the number below.")
             .id(round)
             .transition(.scale.combined(with: .opacity))
             Spacer(minLength: 0)
             HStack(spacing: 12) {
                 ForEach(choices, id: \.self) { choice in
                     Button("\(choice)") { pick(choice) }
-                        .font(Theme.title(28))
+                        .titleFont(28)
                         .frame(maxWidth: .infinity, minHeight: 64)
                         .background(Theme.card, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
                         .buttonStyle(SquishStyle())
@@ -281,13 +285,11 @@ struct MathWayOut: View {
                 Button("Back", action: onBack).buttonStyle(LinkButtonStyle())
                 Spacer()
             }
-            Text("The way out").font(Theme.title(30))
+            Text("The way out").titleFont(30)
             Text("\(a) × \(b)")
-                .font(.system(size: 56, weight: .black, design: .rounded))
-                .monospacedDigit()
+                .bigNumberFont(56)
             Text(answer.isEmpty ? " " : answer)
-                .font(.system(size: 44, weight: .heavy, design: .rounded))
-                .monospacedDigit()
+                .bigNumberFont(44, weight: .heavy)
                 .frame(maxWidth: .infinity, minHeight: 64)
                 .background(Theme.card, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
                 .modifier(Shake(count: wrong))
@@ -296,7 +298,7 @@ struct MathWayOut: View {
                 ForEach(["1", "2", "3", "4", "5", "6", "7", "8", "9", "⌫", "0", "✓"], id: \.self) { key in
                     Button { tap(key) } label: {
                         Text(key)
-                            .font(Theme.title(28))
+                            .titleFont(28)
                             .frame(maxWidth: .infinity, minHeight: 62)
                             .background(key == "✓" ? Theme.accent : Theme.card, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
                             .foregroundStyle(key == "✓" ? Theme.accentInk : Theme.ink)
@@ -307,6 +309,7 @@ struct MathWayOut: View {
             }
         }
         .padding(20)
+        .readableWidth()
         .sensoryFeedback(.error, trigger: wrong)
     }
 

@@ -16,9 +16,37 @@ enum Theme {
     static let mint = Color(light: 0x2FBF96, dark: 0x45D3AA)
     static let ice = Color(light: 0xDCE7FF, dark: 0x24305A)
 
-    static func title(_ size: CGFloat = 34) -> Font { .system(size: size, weight: .black, design: .rounded) }
     static let body = Font.system(.body, design: .rounded)
     static let label = Font.system(.headline, design: .rounded, weight: .bold)
+}
+
+/// Rounded type at a design size that still grows with Dynamic Type. Sizes relative to
+/// a large text style grow less than body text, so big titles and times stay on screen
+/// at the largest sizes (DESIGN.md "Accessibility").
+private struct ScaledFont: ViewModifier {
+    @ScaledMetric private var size: CGFloat
+    private var weight: Font.Weight
+
+    init(size: CGFloat, weight: Font.Weight, relativeTo style: Font.TextStyle) {
+        _size = ScaledMetric(wrappedValue: size, relativeTo: style)
+        self.weight = weight
+    }
+
+    func body(content: Content) -> some View {
+        content.font(.system(size: size, weight: weight, design: .rounded))
+    }
+}
+
+extension View {
+    /// A black-weight title, like "Squawk Pro". Use instead of a fixed-size font.
+    func titleFont(_ size: CGFloat = 34) -> some View {
+        modifier(ScaledFont(size: size, weight: .black, relativeTo: .title))
+    }
+
+    /// A big number, like the alarm time or the math question, with tabular digits.
+    func bigNumberFont(_ size: CGFloat, weight: Font.Weight = .black) -> some View {
+        modifier(ScaledFont(size: size, weight: weight, relativeTo: .largeTitle)).monospacedDigit()
+    }
 }
 
 extension Color {

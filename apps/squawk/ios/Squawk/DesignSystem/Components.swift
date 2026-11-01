@@ -209,3 +209,22 @@ struct ProLinkButton: View {
     .padding()
     .background(Theme.background)
 }
+
+extension View {
+    /// Keeps a screen's content at a comfortable width and centered on wide screens, like
+    /// the iPhone Duo's inner screen, instead of stretching it edge to edge.
+    func readableWidth(_ maxWidth: CGFloat = 640) -> some View {
+        frame(maxWidth: maxWidth).frame(maxWidth: .infinity)
+    }
+}
+
+extension View {
+    /// Shows the content as is when it fits, and scrolls it when it doesn't, like a
+    /// setup screen at the largest text size or on the iPhone Duo's short outer screen.
+    func scrollsWhenTight() -> some View {
+        ViewThatFits(in: .vertical) {
+            self
+            ScrollView { self }
+        }
+    }
+}

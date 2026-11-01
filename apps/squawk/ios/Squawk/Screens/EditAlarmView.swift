@@ -78,6 +78,7 @@ struct EditAlarmView: View {
                     }
                 }
                 .padding(20)
+                .readableWidth()
             }
             .background(Theme.background)
             .navigationTitle(isNew ? "New alarm" : "Edit alarm")

@@ -21,7 +21,7 @@ struct GoodMorningView: View {
                         .frame(maxWidth: 200)
                         .padding(.top, 24)
                     Text(title)
-                        .font(Theme.title(34))
+                        .titleFont(34)
                         .multilineTextAlignment(.center)
                     Text(line)
                         .font(Theme.body)

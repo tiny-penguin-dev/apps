@@ -55,7 +55,7 @@ private struct ProHeader: View {
         VStack(spacing: 14) {
             PenguinView(mood: .proud)
                 .frame(width: 130, height: 130)
-            Text("Squawk Pro").font(Theme.title(34))
+            Text("Squawk Pro").titleFont(34)
             Text("For mornings that need a bigger plan.")
                 .font(Theme.body)
                 .foregroundStyle(Theme.muted)
@@ -114,7 +114,7 @@ private struct YoureProView: View {
                     PenguinView(mood: .proud, accessory: .partyHat)
                         .frame(width: 170, height: 170)
                         .padding(.top, 40)
-                    Text("You're Pro!").font(Theme.title(34))
+                    Text("You're Pro!").titleFont(34)
                     Text("Every ring, check, sound and outfit is yours. Thanks for helping Squawk.")
                         .font(Theme.body)
                         .foregroundStyle(Theme.muted)

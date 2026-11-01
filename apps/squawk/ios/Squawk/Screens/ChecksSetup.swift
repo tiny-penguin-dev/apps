@@ -133,6 +133,7 @@ private struct AddCheckSheet: View {
                     }
                 }
                 .padding(20)
+                .readableWidth()
             }
             .background(Theme.background)
             .navigationTitle(kind.title)

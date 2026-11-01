@@ -79,7 +79,7 @@ struct SettingsView: View {
                     .frame(width: 64, height: 64)
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(pro.access.isPro ? "You're Pro!" : "Squawk Pro").font(Theme.title(22))
+                    Text(pro.access.isPro ? "You're Pro!" : "Squawk Pro").titleFont(22)
                     Text(pro.access.isPro ? "Thanks for helping Squawk." : "More rings, wake-up checks, every sound and outfit.")
                         .font(.system(.subheadline, design: .rounded, weight: .semibold))
                         .foregroundStyle(Theme.muted)

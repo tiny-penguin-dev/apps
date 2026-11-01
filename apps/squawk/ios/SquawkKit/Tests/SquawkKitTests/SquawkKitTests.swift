@@ -131,8 +131,10 @@ private func onceDates(_ plan: [PlannedRing]) -> [Date] {
     @Test func imUpCancelsTheRestOfThisMorning() {
         var alarm = Alarm(days: Weekday.weekdays, rings: [Ring(), Ring(offsetMinutes: 5)])
         // Before the first ring, nothing is cancelled.
-        #expect(!alarm.markUp(at: at(2, 6, 55), calendar: utc))
-        #expect(alarm.markUp(at: at(2, 7, 2), calendar: utc))
+        let tooEarly = alarm.markUp(at: at(2, 6, 55), calendar: utc)
+        #expect(!tooEarly)
+        let up = alarm.markUp(at: at(2, 7, 2), calendar: utc)
+        #expect(up)
         #expect(alarm.change(on: monday) == .done)
         let plan = AlarmPlanner.plan(alarm, now: at(2, 7, 2), calendar: utc)
         #expect(!onceDates(plan).contains(at(2, 7, 5)))

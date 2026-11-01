@@ -63,6 +63,28 @@ stage is approved when Gabriel merges its PR.
 5. Before the first App Store release, check the App Store privacy answers match the
    app's `PrivacyInfo.xcprivacy` (`docs/telemetry.md`, "App Store privacy").
 
+## Architecture (every app)
+
+Plain Apple, no framework: SwiftUI with `@Observable` models and Swift concurrency.
+No TCA, no reducers, no dependency-injection library. The full policy is rule 4 in
+`docs/building.md`; in short, every file goes in one of four places:
+
+- **Core** (`ios/<Name>Kit`): pure value types and logic, Foundation only, no UI or
+  I/O, unit-tested directly.
+- **Services** (`ios/<Name>Kit`): every side effect (storage, notifications, AlarmKit,
+  StoreKit, the clock, the network) behind a protocol, with a live implementation and
+  a fake for tests.
+- **Model** (app target): one `@Observable` `AppModel` that owns the app's state and
+  calls the services. The only thing views talk to.
+- **UI** (app target): SwiftUI views and the design system (`DesignSystem/`). They
+  read the model and call its methods, never a service or storage directly.
+
+`AppEnvironment.live()` is the only place real services are named; tests build
+`AppEnvironment.test(...)` with the fakes. Nothing in Core or Services imports the
+app. Tests use Swift Testing, and `swift test` on the package runs on CI with no
+simulator. If a rule gets in the way, change it in `docs/building.md`; don't work
+around it.
+
 ## Bigger feature in an existing app
 
 Use this for a new flow or screen, or anything that changes current designs. Small

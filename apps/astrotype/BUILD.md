@@ -325,6 +325,45 @@ extension by whichever route Phase 1 found. Metrics: `trial.started`, `pro.subsc
 types during the trial and shows the nudge after it, subscribing turns two thumbs back
 on in Messages without opening the app, and restoring works after a reinstall.
 
+Notes (1 Nov 2026, the Phase 6 PR): built as planned. Pro is checked in one place:
+`Entitlement` (in `AstrotypeCore/App/Entitlement.swift`), made from a `ProStatus`
+(`free`, `trial(endsOn:)`, `pro`) that `ProStatus.from(subscribed:trial:now:)` derives
+from the App Store's answer and the trial. `ProFeature` lists what Pro gates so far
+(`twoThumbs`, `splitLayout`, `drills`); `ProFeature.free` is where a feature moves when
+it becomes free. The trial is the app's own fourteen days from first launch (`Trial`,
+`AppState.firstLaunch`), not a StoreKit introductory offer, so the products carry none
+and the Pro screen's button subscribes rather than "Start 14 days free"; the screen says
+how many trial days are left instead. The App Store is behind `ProStore`
+(`StoreKitProStore` reads `Transaction.currentEntitlements` and listens to
+`Transaction.updates`; `MemoryProStore` in tests). In the app, `AppModel.startPro()`
+asks once at launch and follows every change; `proStatus`, `entitlement` and
+`trialOverDue` come from that. In the extension, `EntitlementController` applies the
+cached answer (`pro.json` in the extension's container, `ProCache`) at once, then
+StoreKit's, then every change, so a purchase in the app reaches Messages without
+opening the app. The trial start reaches the extension through `trial.json`
+(`TrialStore`): the app writes it to the App Group, the extension reads it with Full
+Access and otherwise counts from its own first run, taking the earlier of the two.
+Free mode lives in `Composer.Settings.twoThumbs`: a second touch while one is on the
+keys returns `.notice(.twoThumbsIsPro)` and nothing else; the bar flashes "Two thumbs
+is in Astrotype Pro" for 1.6 s and its idle note reads "One finger at a time". The
+split layout is gated the same way (`KeyboardModel.splitOnWide`, the in-keyboard
+panel's switch greys out with "· PRO", the app's picker too). Screens: `ProView`
+(`SubscriptionStoreView` under the star tile and four perks; "You're Pro" with Manage
+subscription), `TrialOverView` (once, from Home, `AppState.trialOverShown`), the Pro row
+on Home by status, Settings' Two-thumb typing row, the Pro section (See Pro or Manage,
+Restore purchases). Metrics: `trial.started` when `firstLaunch` is first set,
+`pro.subscribed` with `plan` after a purchase on the Pro screen. Local testing:
+`Config/Astrotype.storekit` (the two plans, no offers) is on the scheme. The App Store
+products come from `store/subscriptions.json` (the group "Astrotype Pro",
+`com.tinypenguin.astrotype.pro.yearly` at $19.99 a year and
+`com.tinypenguin.astrotype.pro.monthly` at $2.99 a month, no introductory offer), which
+the App Store workflow creates in App Store Connect when it lands on main
+(docs/ios-release.md "Subscriptions"). Still by hand: the Paid Apps agreement if it is
+not signed yet, a sandbox tester to buy with, and the App Review screenshot for the
+plans before they are submitted with a version. The bar's Phase 1
+readout (`Flags.extensionReadout`) stays on for now while the wide-screen layout is
+being checked on a phone; it goes off in Phase 8.
+
 ### Phase 7: Speed test and drills
 
 The speed test (three sentences, words per minute, fixes, versus Apple's, best and
@@ -335,6 +374,39 @@ CloudKit loop. Metrics: `speedtest.finished`, `drill.finished`.
 **Done when:** a test gives a believable words per minute, a new best shows the bolt and
 confetti, finishing a drill ticks it on Home, and an uploaded session appears in
 `ml/samples/cloud`.
+
+Notes (1 Nov 2026, the Phase 7 PR): built as planned. `SpeedTest` (Core) is the test as
+it runs: three sentences from a pool of twelve in everyday lowercase words
+(`SpeedTest.pick`, seedable), the clock starting on the first touch, a wrong word
+counted as a miss and the field cleared to try again, a fix from the bar counted
+through `KeyboardModel.onFix`. Words per minute is the usual measure, characters typed
+(letters and the spaces between words) over five, per minute, so a long word counts
+for more than a short one. "Versus Apple's keyboard" is measured, not assumed: the
+result screen offers "Now try Apple's keyboard", which runs the same three sentences
+(same seed) through the system keyboard in a plain text field, and Home's meter shows
+the two numbers once both exist; until then it says so. The best, the last thirty
+tests, Apple's number, when each drill was last finished, the milestones seen and the
+practice-sharing switch are in `AppState`. `Drill` (Core) holds the three drills with
+five words each, every word carrying its strokes like the Try it words, so the hint,
+the key lights (`KeySurfaceView.hints`, the keys of the next word outlined in the
+thumb's colour) and the engine test come from one place; the doubled-letter words mark
+the tap as inside the swipe and the test plays them overlapping. Drills are a Pro
+feature (`ProFeature.drills`): on the free keyboard the rows carry the PRO badge and
+open the Pro screen. `Streak` counts days in a row from `practiceDays` (yesterday's
+streak stands until today is over); `Milestone` has the three from PRODUCT.md §7 (40
+words a minute, seven days practised, a hundred learned words), each shown once from
+Home in `MilestoneView` with confetti (the themes and trail colours they were to unlock
+come with themes). The opt-in upload: `TouchRecorder` collects a session's touches
+through `KeyboardModel.onTouch` (layout units, seconds from the first touch) and the
+words committed; `PracticeRecording` is the JSON, `PracticeStore` the pending folder
+(`Application Support/Astrotype/Practice`, moved to `Uploaded/` once sent) and
+`CloudKitPracticeUploader` sends them as `PracticeSession` records to the public
+database (`cloudkit/schema.ckdb`, imported by the workflow; the production deploy is
+still the console click). Off by default, Settings → Privacy → "Send practice sessions",
+and only the app's own speed tests and drills record; the extension has no recorder.
+Metrics: `speedtest.finished` (gauge, words per minute, with `keyboard`),
+`drill.finished` (`drill`). `ml/download_samples.py` does not read `PracticeSession`
+records yet; that comes with the first tuning pass.
 
 ### Phase 8: Polish and the store
 

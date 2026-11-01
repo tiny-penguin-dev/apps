@@ -39,8 +39,10 @@ on the iPhone Duo's outer and inner screens.
 - **Shapes:** big round corners in the app (18 to 28 pt), pill buttons with a pressable
   bottom edge. Keys are 7 pt radius like Apple's, because the keyboard must feel like a
   keyboard, not like the app.
-- **App icon idea:** a white key tile on glacier blue with a teal and a coral trail
-  crossing it. Plain, readable at 60 pt, no character.
+- **App icon:** a white "A" key with a teal and a coral orbit around it, on a starry
+  navy. Space and typing in one picture, the two thumb colors, no character. Light,
+  dark and tinted appearances; the sources are in `design/icon/` (its README says how
+  they become the PNGs in the asset catalog).
 
 ## Design system
 
@@ -279,6 +281,8 @@ Three sizes, all in the mockup's Size buttons (`docs/building.md` rule 2):
 
 ## Open questions
 
-1. The app icon: a key tile with the two trails (above), or something else?
+1. ~~The app icon: a key tile with the two trails, or something else?~~ Answered
+   (1 Nov 2026): the orbit icon (see Look), picked over the key tile with trails and
+   an A drawn by two thumb trails.
 
 Answered (1 Nov 2026): Pro is $19.99 a year and $2.99 a month, as on the Pro screen.

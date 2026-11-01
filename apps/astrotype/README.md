@@ -13,9 +13,10 @@ folder and may come back as an input mode; the sections below describe it.
 
 ## Status
 
-- **v2, Phases 1 to 5 done (TestFlight):** the two-thumb keyboard with its gestures,
-  the app's setup flow and Home, learned words and iCloud sync. Pro, drills and the
-  App Store polish are next; phases in `BUILD.md`.
+- **v2, Phases 1 to 7 done (TestFlight):** the two-thumb keyboard with its gestures,
+  the app's setup flow and Home, learned words and iCloud sync, Astrotype Pro with its
+  two-week trial, the speed test and drills. The App Store polish (Phase 8) is next;
+  phases in `BUILD.md`.
 - **v1 model prototype: done** (`ml/`), kept for the practice-session loop. Trained on
   synthetic phrases only: 98.7% of 1–4 word phrases come out exactly right.
 - **v1 handwriting pad:** in the code behind `Flags.handwritingPad`, not shown.

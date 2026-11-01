@@ -14,6 +14,10 @@ public enum KeyboardFiles {
     public static let settings = "settings.json"
     /// What the extension last saw, written for the app (`ExtensionStatus`).
     public static let status = "keyboard-status.json"
+    /// When the Pro trial started (`TrialStore`).
+    public static let trial = "trial.json"
+    /// The App Store's last answer about Pro (`ProCache`); the extension's own file only.
+    public static let pro = "pro.json"
 
     /// A file in this process's own Application Support folder.
     public static func own(_ name: String, fileManager: FileManager = .default) -> URL {

@@ -2,15 +2,18 @@ import AstrotypeCore
 import AstrotypeUI
 import SwiftUI
 
-/// DESIGN.md screen 5: "Both flippers, go." The speed test and trial on the left,
-/// drills, the week and Settings on the right; one column on a phone, two on the wide
-/// size. A sun-yellow banner leads back to setup while the keyboard is off.
+/// DESIGN.md screen 5: "Both flippers, go." The speed test and the Pro row on the
+/// left, drills, the week and Settings on the right; one column on a phone, two on the
+/// wide size. A sun-yellow banner leads back to setup while the keyboard is off. The
+/// Trial over sheet comes up here once, on the first launch after the trial ends.
 struct HomeView: View {
     var model: AppModel
     @State private var path: [Route] = []
 
     enum Route: Hashable {
-        case practice, settings, learnedWords, turnOn, sync
+        case practice, settings, learnedWords, turnOn, sync, pro
+        case speedTest(PracticeKeyboard, UInt64?)
+        case drill(Drill.ID)
     }
 
     var body: some View {
@@ -49,10 +52,31 @@ struct HomeView: View {
                 case .learnedWords: LearnedWordsView(model: model)
                 case .turnOn: TurnOnView(model: model, inSetup: false)
                 case .sync: SyncView(model: model, inSetup: false)
+                case .pro: ProView(model: model)
+                case .speedTest(let keyboard, let seed): SpeedTestView(model: model, keyboard: keyboard, seed: seed, path: $path)
+                case .drill(let id): DrillView(model: model, drill: Drill.named(id), path: $path)
                 }
+            }
+            .sheet(isPresented: trialOverShowing) {
+                TrialOverView(model: model) { path.append(.pro) }
+            }
+            .sheet(item: milestoneShowing) { milestone in
+                MilestoneView(milestone: milestone)
             }
         }
         .tint(Theme.accent)
+    }
+
+    /// The next milestone's sheet, while one is due and Home is on top; closing it
+    /// marks it seen.
+    private var milestoneShowing: Binding<Milestone?> {
+        Binding(get: { path.isEmpty && !model.trialOverDue ? model.pendingMilestone : nil },
+                set: { if $0 == nil, let shown = model.pendingMilestone { model.milestoneSeen(shown) } })
+    }
+
+    /// The Trial over sheet is up while it is due; closing it marks it seen.
+    private var trialOverShowing: Binding<Bool> {
+        Binding(get: { model.trialOverDue }, set: { if !$0 { model.trialOverSeen() } })
     }
 
     private func header(wide: Bool) -> some View {
@@ -73,33 +97,66 @@ struct HomeView: View {
                     HStack {
                         Text("Speed test").font(.sw(.heading))
                         Spacer()
-                        Chip("Soon")
+                        if let best = model.bestWordsPerMinute { Chip("Best \(best) wpm") }
                     }
-                    Text("Measure yourself against Apple's keyboard. Until it arrives, practise with the keyboard here.")
-                        .font(.sw(.small)).foregroundStyle(Theme.muted)
-                    Button("Practice") { path.append(.practice) }
-                        .buttonStyle(.small)
+                    if let best = model.bestWordsPerMinute {
+                        let apple = model.appleWordsPerMinute
+                        Meter(leading: apple.map { "Apple \($0)" } ?? "Apple ?", trailing: "You \(best)",
+                              fraction: apple.map { Double(best) / Double(max(best, $0, 1)) } ?? 1)
+                        if apple == nil {
+                            Text("Type the same test on Apple's keyboard once to see how you compare.")
+                                .font(.sw(.small)).foregroundStyle(Theme.muted)
+                        }
+                    } else {
+                        Text("Three sentences, two thumbs. See your words per minute next to Apple's keyboard.")
+                            .font(.sw(.small)).foregroundStyle(Theme.muted)
+                    }
+                    HStack(spacing: Theme.Space.m) {
+                        Button("Take the test") { path.append(.speedTest(.astrotype, nil)) }
+                            .buttonStyle(.small)
+                        Button("Practice") { path.append(.practice) }
+                            .buttonStyle(.ghost)
+                    }
                 }
             }
-            let days = model.trial.daysLeft(now: model.now)
-            Row("Pro trial", subtitle: days > 0
-                ? "\(days) day\(days == 1 ? "" : "s") left. Two-thumb typing, gestures, layouts."
-                : "Over. Two-thumb typing keeps working until Astrotype Pro arrives.") {
-                ProBadge()
+            proRow
+        }
+    }
+
+    /// Where the person stands with Pro; opens the Pro screen.
+    private var proRow: some View {
+        Button { path.append(.pro) } label: {
+            switch model.proStatus {
+            case .trial:
+                let days = model.trial.daysLeft(now: model.now)
+                Row("Pro trial", subtitle: "\(days) day\(days == 1 ? "" : "s") left. Two-thumb typing, gestures, layouts.") {
+                    ProBadge()
+                }
+            case .free:
+                Row("Astrotype Pro", subtitle: "Two-thumb typing is resting. Keep it from $2.99 a month.") {
+                    Text("See Pro ›").font(.system(.subheadline, design: .rounded, weight: .heavy)).foregroundStyle(Theme.muted)
+                }
+            case .pro:
+                Row("Astrotype Pro", subtitle: "You're Pro. Both thumbs, every layout, every drill.") {
+                    Chip("On", tint: Theme.mint)
+                }
             }
         }
+        .buttonStyle(.plain)
     }
 
     private var rightColumn: some View {
         VStack(alignment: .leading, spacing: Theme.Space.m) {
             SectionLabel("Drills")
             VStack(spacing: Theme.Space.s) {
-                drill(1, "Two-letter swipes", "th, in, er, on")
-                drill(2, "Switching thumbs", "Start left, finish right")
-                drill(3, "Doubled letters", "A tap inside a swipe")
+                ForEach(Drill.all) { drill in
+                    drillRow(drill)
+                }
             }
-            Text("Drills open with the speed test.")
-                .font(.sw(.small)).foregroundStyle(Theme.muted).padding(.leading, Theme.Space.xs)
+            if !model.entitlement.allows(.drills) {
+                Text("Drills are in Astrotype Pro.")
+                    .font(.sw(.small)).foregroundStyle(Theme.muted).padding(.leading, Theme.Space.xs)
+            }
             SectionLabel("This week").padding(.top, Theme.Space.s)
             WeekDots(days: model.week.days.map { WeekDots.Day(id: $0.key, letter: $0.letter, done: $0.practised, isToday: $0.isToday) })
             Button { path.append(.settings) } label: {
@@ -112,16 +169,30 @@ struct HomeView: View {
         }
     }
 
-    private func drill(_ number: Int, _ title: String, _ subtitle: String) -> some View {
-        Card {
-            HStack(spacing: Theme.Space.m) {
-                NumberBadge(.number(number))
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title).font(.system(.body, design: .rounded, weight: .bold))
-                    Text(subtitle).font(.sw(.small)).foregroundStyle(Theme.muted)
+    /// A drill: ticked when finished today; opens the drill, or the Pro screen when
+    /// drills are not allowed.
+    private func drillRow(_ drill: Drill) -> some View {
+        let allowed = model.entitlement.allows(.drills)
+        return Button {
+            path.append(allowed ? .drill(drill.id) : .pro)
+        } label: {
+            Card {
+                HStack(spacing: Theme.Space.m) {
+                    NumberBadge(model.isDrillDone(drill.id) ? .done : .number(drill.number))
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(drill.title).font(.system(.body, design: .rounded, weight: .bold))
+                        Text(drill.subtitle).font(.sw(.small)).foregroundStyle(Theme.muted)
+                    }
+                    Spacer()
+                    if allowed {
+                        Text("›").font(.system(.body, design: .rounded, weight: .black)).foregroundStyle(Theme.accent)
+                    } else {
+                        ProBadge()
+                    }
                 }
             }
         }
-        .opacity(0.6)
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(drill.title), \(drill.subtitle)\(model.isDrillDone(drill.id) ? ", done today" : "")")
     }
 }

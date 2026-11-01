@@ -4,21 +4,27 @@ import UIKit
 
 /// The keyboard extension: the shared `KeyboardView` typing into the text document
 /// proxy through the engine. Words and settings live in the extension's own container
-/// and, with Full Access, in the App Group and iCloud too (BUILD.md "Data"). The bar's
-/// idle note still carries the Phase 1 checks (StoreKit, memory, Full Access) while
-/// the phases are measured on a phone.
+/// and, with Full Access, in the App Group and iCloud too (BUILD.md "Data"). Pro is
+/// read from StoreKit right here (`EntitlementController`), with the trial counted
+/// from the app's first launch when the App Group is readable, else from this
+/// extension's own first run. `Flags.extensionReadout` puts the Phase 1 readings in
+/// the bar for measuring on a phone.
 final class KeyboardViewController: UIInputViewController {
     private var keyboard: KeyboardView?
     private var target: ProxyTarget?
     private var sync: SyncController?
+    private var entitlement: EntitlementController?
     private var heightConstraint: NSLayoutConstraint?
     private let checks = ExtensionChecks()
     private var edits = 0
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        inputView?.allowsSelfSizing = true
-        view.backgroundColor = Theme.ui(.kb)
+        // No `allowsSelfSizing`: the height comes from the constraint below, and a
+        // self-sizing input view is laid out inset on a wide screen (Gabriel, 1 Nov
+        // 2026: the split keyboard stopped short of the edges). The system draws the
+        // keyboard's backdrop (glass on iOS 26), so nothing here paints a background.
+        view.backgroundColor = .clear
 
         let fullAccess = hasFullAccess
         let dictionary = (try? Lexicon.bundled()) ?? Lexicon(entries: [])
@@ -30,6 +36,9 @@ final class KeyboardViewController: UIInputViewController {
         self.target = target
 
         let keyboard = KeyboardView(model: model)
+        keyboard.backgroundColor = .clear
+        keyboard.bar.backgroundColor = .clear
+        keyboard.surface.backgroundColor = .clear
         keyboard.onSystemKey = { [weak self] key in
             if key == .globe { self?.advanceToNextInputMode() }
         }
@@ -37,10 +46,28 @@ final class KeyboardViewController: UIInputViewController {
         self.keyboard = keyboard
 
         if fullAccess { startSync(model: model) }
+        startEntitlement(model: model, fullAccess: fullAccess)
 
-        checks.run(hasFullAccess: fullAccess) { [weak keyboard] note in
-            keyboard?.bar.note = note
+        if Flags.extensionReadout {
+            keyboard.usesDefaultNote = false
+            checks.run(hasFullAccess: fullAccess) { [weak keyboard] note in
+                keyboard?.bar.note = note
+            }
         }
+    }
+
+    /// Pro from StoreKit, the trial from the earliest start we can see: the app's (in
+    /// the App Group, with Full Access) or this extension's own first run.
+    private func startEntitlement(model: KeyboardModel, fullAccess: Bool) {
+        let now = Date()
+        let own = TrialStore(url: KeyboardFiles.own(KeyboardFiles.trial))
+        let shared = fullAccess ? KeyboardFiles.shared(KeyboardFiles.trial).flatMap { TrialStore(url: $0).load() } : nil
+        let trial = TrialStore.earliest(shared, own.loadOrStart(now: now)) ?? Trial(start: now)
+        if let shared, shared.start < (own.load()?.start ?? .distantFuture) { own.save(shared) }
+        let controller = EntitlementController(model: model, store: StoreKitProStore(),
+                                               cache: ProCache(url: KeyboardFiles.own(KeyboardFiles.pro)), trial: trial)
+        controller.start()
+        entitlement = controller
     }
 
     /// The extension's own files, which it can always write, mirrored to the App Group's
@@ -120,7 +147,7 @@ final class KeyboardViewController: UIInputViewController {
         // sit at the bottom.
         let granted = view.bounds.height
         keyboard.frame = CGRect(x: 0, y: 0, width: width, height: granted > 0 ? granted : height)
-        checks.sized(granted: granted, wanted: height)
+        checks.sized(granted: granted, wanted: height, width: width, screenWidth: view.window?.windowScene?.screen.bounds.width ?? 0)
     }
 
     override func textDidChange(_ textInput: UITextInput?) {

@@ -22,6 +22,32 @@ import Testing
         }
     }
 
+    @Test func freeModeTakesOneThumbAtATime() {
+        var composer = Synth.composer()
+        composer.settings.twoThumbs = false
+        // The left thumb starts a word; the right thumb comes down while it is still on
+        // the keys: not a piece, just the notice. Nothing in the field changes.
+        let t = Synth.center("t")
+        let h = Synth.center("h")
+        _ = composer.touchDown(id: 1, at: t, time: 0)
+        let second = composer.touchDown(id: 2, at: h, time: 0.05)
+        #expect(second == [.notice(.twoThumbsIsPro)])
+        #expect(composer.touchUp(id: 2, at: h, time: 0.1).isEmpty)
+        _ = composer.touchUp(id: 1, at: t, time: 0.12)
+        #expect(composer.pieces.count == 1)
+        // With the first thumb up, the next touch types as usual, whichever thumb it is.
+        _ = composer.touchDown(id: 2, at: h, time: 0.3)
+        _ = composer.touchUp(id: 2, at: h, time: 0.38)
+        Synth.tap(&composer, "e", id: 1, at: 0.5)
+        #expect(composer.state.openWord == "the")
+
+        // Pro turns the second thumb back on.
+        var pro = Synth.composer()
+        pro.settings.twoThumbs = true
+        _ = pro.touchDown(id: 1, at: t, time: 0)
+        #expect(pro.touchDown(id: 2, at: h, time: 0.05) != [.notice(.twoThumbsIsPro)])
+    }
+
     @Test func anUnknownTappedWordIsLearnedOnCommit() {
         var composer = Synth.composer()
         let lifted = Synth.taps(&composer, "zorblat")

@@ -27,6 +27,23 @@ public final class BarView: UIView {
         didSet { if bar != oldValue { render() } }
     }
 
+    /// A line shown over whatever the bar has, for a moment (DESIGN.md "Free mode":
+    /// "Two thumbs is in Astrotype Pro" for 1.6 s). Nothing shakes, nothing is lost.
+    public func flash(_ text: String, for seconds: TimeInterval = 1.6) {
+        notice = text
+        noticeTask?.cancel()
+        noticeTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(seconds))
+            guard !Task.isCancelled else { return }
+            self?.notice = nil
+        }
+    }
+
+    private var notice: String? {
+        didSet { if notice != oldValue { render() } }
+    }
+    private var noticeTask: Task<Void, Never>?
+
     private let label = UILabel()
     private let fixLabel = UILabel()
     private let stack = UIStackView()
@@ -82,6 +99,14 @@ public final class BarView: UIView {
     private func render() {
         stack.arrangedSubviews.forEach { $0.removeFromSuperview() }
         indices = []
+        if let notice {
+            label.text = notice
+            label.isHidden = false
+            fixLabel.isHidden = true
+            stack.isHidden = true
+            setNeedsLayout()
+            return
+        }
         switch bar {
         case .idle:
             label.text = note

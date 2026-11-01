@@ -50,6 +50,9 @@
                ReferencedContainer = "container:Astrotype.xcodeproj">
             </BuildableReference>
       </BuildableProductRunnable>
+      <StoreKitConfigurationFileReference
+         identifier = "../../Config/Astrotype.storekit">
+      </StoreKitConfigurationFileReference>
    </LaunchAction>
    <ProfileAction
       buildConfiguration = "Release"

@@ -11,6 +11,11 @@ public final class SettingsPanelView: UIView {
     }
     public var onChange: ((KeyboardSettings) -> Void)?
     public var onDone: (() -> Void)?
+    /// Whether the split layout may be turned on (Pro). Off, the row says so and the
+    /// switch stays put; the app's Pro screen is where to go.
+    public var allowsSplit = true {
+        didSet { render() }
+    }
 
     private let title = UILabel()
     private let autospaceLabel = UILabel()
@@ -91,7 +96,10 @@ public final class SettingsPanelView: UIView {
     private func render() {
         autospaceSwitch.isOn = settings.autospace
         trailsSwitch.isOn = settings.trails
-        splitSwitch.isOn = settings.splitOnWide
+        splitSwitch.isOn = settings.splitOnWide && allowsSplit
+        splitSwitch.isEnabled = allowsSplit
+        splitLabel.text = allowsSplit ? "Split on wide screens" : "Split on wide screens · PRO"
+        splitLabel.alpha = allowsSplit ? 1 : 0.5
         delaySlider.value = Float(settings.autospaceDelay)
         delaySlider.isEnabled = settings.autospace
         delayLabel.text = "Delay \(String(format: "%.1f", settings.autospaceDelay)) s"

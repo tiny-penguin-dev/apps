@@ -2,27 +2,32 @@
 
 Status: Draft
 
-Builds on `PRODUCT.md` (approved 2026-11-01).
+Builds on `PRODUCT.md` (approved 2026-11-01). This PR also edits `PRODUCT.md` in two
+small ways: no mascot (Gabriel, 2026-11-01), and a "What we measure" section as
+`docs/telemetry.md` asks for.
 
 ## Mockups
 
 - Clickable mockup: `design/mockups/stackwrite.html` (Artifact link:
   https://claude.ai/artifact/PckLFxQcL1QDv5R3kSDZzc)
-- Screenshots: `design/screens/`
+- Screenshots: `design/screens/` (phone, dark, and the small and wide sizes)
 
 The keyboard in the mockup is real: keys tap, swipes draw trails and are decoded against
 the app's own 1,500 most common words, and on a phone both thumbs work at once. It is a
 sketch of the feel, not the engine: the matcher is a crude subsequence lookup, so it
-guesses wrong more often than the real one will.
+guesses wrong more often than the real one will. The Size buttons show the same screens
+on the iPhone Duo's outer and inner screens.
 
 ## Look
 
 - **Feeling:** ice and speed. A pale glacier background, cool teal for actions, and two
-  thumb colors that show up everywhere typing happens.
+  thumb colors that show up everywhere typing happens. No mascot: the graphics are the
+  keyboard itself with a teal and a coral trail on it, and a few flat shapes in the same
+  colors (a cloud, a bolt, a star).
 - **Colors (light / dark):**
   - Background: glacier `#F3F8FA` / deep water `#111A24`
   - Cards and keys: white `#FFFFFF` / `#1A2634` (keys `#2A3A4A`)
-  - Text: penguin navy `#1E2945` / `#EEF4F8`
+  - Text: navy `#1E2945` / `#EEF4F8`
   - Main color (buttons, links, open word): teal `#139FB5` / `#2FC6DC`
   - Left thumb: the same teal. Right thumb: coral `#FF6F86` / `#FF8A9E`. Every trail,
     key flash and drill hint uses these two, so people learn which thumb did what.
@@ -34,25 +39,69 @@ guesses wrong more often than the real one will.
 - **Shapes:** big round corners in the app (18 to 28 pt), pill buttons with a pressable
   bottom edge. Keys are 7 pt radius like Apple's, because the keyboard must feel like a
   keyboard, not like the app.
-- **App icon idea:** Pip facing you with both flippers up, a teal and a coral trail
-  crossing behind, on glacier white.
+- **App icon idea:** a white key tile on glacier blue with a teal and a coral trail
+  crossing it. Plain, readable at 60 pt, no character.
+
+## Design system
+
+One set of tokens and components, named the same in the mockup's CSS, here and in the
+code (`StackWriteKit/Theme`, `docs/building.md` rule 1). Screens only use these.
+
+**Tokens**
+
+| Token | Light | Dark | Used for |
+|---|---|---|---|
+| `bg` | `#F3F8FA` | `#111A24` | screen background |
+| `card` | `#FFFFFF` | `#1A2634` | cards, rows, the bar's top guess |
+| `ink` | `#1E2945` | `#EEF4F8` | text |
+| `muted` | `#67748F` | `#97A6B8` | secondary text |
+| `line` | `#DCE6EC` | `#2A3B4C` | dividers, toggles off, meter tracks |
+| `accent` | `#139FB5` | `#2FC6DC` | buttons, links, the open word |
+| `accentInk` | `#FFFFFF` | `#06202A` | text on accent |
+| `left` / `right` | `#139FB5` / `#FF6F86` | `#2FC6DC` / `#FF8A9E` | the two thumbs |
+| `sun` | `#FFC24D` | `#FFCD66` | Pro, rewards |
+| `mint` | `#2FBF96` | `#45D3AA` | done, on, correct |
+| `ice` | `#D9EDF3` | `#1D3240` | chips, step numbers |
+| `key` / `keyDark` | `#FFFFFF` / `#C9D6DE` | `#2A3A4A` / `#1C2834` | letter keys / function keys |
+| `kb` | `#DCE6EC` | `#131E29` | keyboard background |
+
+- Type: `title` 30 pt black, `heading` 20 pt heavy, `body` 16 pt, `small` 13 pt, `big`
+  64 pt tabular (the speed number), `key` 21 pt bold. All SF Pro Rounded, all Dynamic
+  Type in the app; the keyboard follows the system keyboard's sizing.
+- Spacing: 4, 8, 12, 16, 22 (screen gutter), 32. Radii: `lg` 28, `md` 18, `sm` 12,
+  `key` 7, pills 999.
+- Motion: `spring` (overshoot, 0.25 to 0.45 s) for buttons, toggles and screens; `trail
+  fade` 1.2 s; `tap ring` 0.6 s; `key hit` 0.15 s; autospace squeeze 0.2 s.
+
+**Components**
+
+- `PrimaryButton` (pill, accent, pressable bottom edge; `.ghost` and `.small` variants),
+  `BackButton`.
+- `Card` and `Row` (card with a leading number or tick, title, subtitle, trailing
+  control), `SectionLabel` (small caps), `Chip`, `ProBadge`.
+- `Toggle`, `Segmented`, `Slider`, `PriceOption`, `Perk`.
+- `Steps` (numbered setup steps), `Meter` (you versus Apple), `WordCards` (drill words),
+  `WeekDots`.
+- `Art` (the generic graphics, see Graphics), `Confetti`.
+- The keyboard: `KeyboardView`, `Key` (letter, wide, function, space, return), `Bar`
+  (idle, open word, fix), `Trails`, `TextPreview` (the open word underlined).
 
 ## Screens
 
 | # | Screen | What it's for | Screenshot |
 |---|---|---|---|
-| 1 | Hello | Pip waddles in, flippers typing. "Type with both thumbs." One button. | [01](design/screens/01-hello.png) |
+| 1 | Hello | A keyboard with two thumb trails drawing themselves. "Type with both thumbs." One button. | [01](design/screens/01-hello.png) |
 | 2 | Turn on the keyboard | The three Settings steps, a status chip that flips to "On" when the keyboard appears, "Open Settings". | [02](design/screens/02-turn-on.png) |
-| 3 | Keep your words everywhere | The Full Access ask, with its one reason (iCloud sync of words and settings) and "Nothing you type is ever sent anywhere". Skippable. | [03](design/screens/03-sync.png) |
-| 4 | Try it | A practice field with the keyboard up. Five words, each with a thumb-by-thumb hint. "Show me" replays the word with trails. | [04](design/screens/04-try.png), [dark](design/screens/04-try-dark.png) |
-| 5 | Home | "Both flippers, go." Speed test card (best, versus Apple's keyboard), trial status, drills, this week, Settings. A yellow banner if the keyboard is not on. | [05](design/screens/05-home.png), [dark](design/screens/05-home-dark.png) |
+| 3 | Keep your words everywhere | The Full Access ask, with its one reason (iCloud sync of words and settings) and "Nothing you type is ever sent anywhere". A cloud linked to a phone and a Mac. Skippable. | [03](design/screens/03-sync.png) |
+| 4 | Try it | A practice field with the keyboard up. Five words, each with a thumb-by-thumb hint. "Show me" replays the word with trails. | [04](design/screens/04-try.png), [dark](design/screens/04-try-dark.png), [small](design/screens/04-try-small.png), [wide](design/screens/04-try-wide.png) |
+| 5 | Home | "Both flippers, go." Speed test card (best, versus Apple's keyboard), trial status, drills, this week, Settings. A yellow banner if the keyboard is not on. | [05](design/screens/05-home.png), [dark](design/screens/05-home-dark.png), [small](design/screens/05-home-small.png), [wide](design/screens/05-home-wide.png) |
 | 6 | Speed test | A sentence to type with the typed part turning mint, a timer, the keyboard. | [06](design/screens/06-speed.png) |
-| 7 | Speed test result | Pip running, the words per minute, fixes, versus Apple's, fish confetti on a new best. | [07](design/screens/07-result.png) |
+| 7 | Speed test result | A bolt in a sun, the words per minute, fixes, versus Apple's, confetti on a new best. | [07](design/screens/07-result.png) |
 | 8 | Drill | One habit per drill. Word cards, the keys of the next word outlined in the thumb's color. | [08](design/screens/08-drill.png) |
 | 9 | Settings | Typing (two-thumb, autospace and its delay, learned words), gestures, layout, look, sync, Pro. | [09](design/screens/09-settings.png) |
-| 10 | StackWrite Pro | Pip proud, four perks, yearly and monthly, "Start 14 days free". Prices are placeholders for Gabriel. | [10](design/screens/10-pro.png) |
-| 11 | Trial over | Pip asleep in a nightcap. What is resting, what still works, the person's own best speed as the reason to keep Pro. | [11](design/screens/11-trial-over.png) |
-| 12 | Typing in Messages | The keyboard in another app. Bar in "Fix" mode after a commit, the open word underlined in the field. | [12](design/screens/12-messages.png), [dark](design/screens/12-messages-dark.png) |
+| 10 | StackWrite Pro | A gold star tile with the two trails, four perks, yearly and monthly, "Start 14 days free". Prices are placeholders for Gabriel. | [10](design/screens/10-pro.png) |
+| 11 | Trial over | The keyboard faded, with z's. What is resting, what still works, the person's own best speed as the reason to keep Pro. | [11](design/screens/11-trial-over.png) |
+| 12 | Typing in Messages | The keyboard in another app. Bar in "Fix" mode after a commit, the open word underlined in the field. | [12](design/screens/12-messages.png), [dark](design/screens/12-messages-dark.png), [small](design/screens/12-messages-small.png), [wide](design/screens/12-messages-wide.png) |
 | 13 | Free keyboard | After the trial: taps and one-finger swipes. A second thumb shows "Two thumbs is in StackWrite Pro" in the bar instead of typing. | [13](design/screens/13-free.png) |
 
 Not drawn yet (simple, same style): the numbers and symbols pages, the in-keyboard
@@ -111,22 +160,24 @@ This is the product, so it gets its own section.
 - **Keyboard not on:** the Home banner, and Settings' sync row, both lead back to the
   setup screens.
 
-## Mascot
+## Graphics
 
-Pip is Tiny Penguin's penguin with both flippers up, typing. The same family as Squawk's
-penguin (navy arch body, white belly, golden beak and feet) so the studio's apps look
-related, drawn with simpler shapes: flippers are rotated ellipses so they can swing.
+No mascot (Gabriel, 2026-11-01). The art is generic, flat, and built from the product's
+own shapes in the design system colors, so it reads as "this is a keyboard app" without a
+character to maintain. If a penguin ever shows up, it is Squawk's, not a new one. The
+penguin connection stays in the studio name and in the copy ("Both flippers, go.").
 
-| Mood | Looks | Where |
+| Art | Looks | Where |
 |---|---|---|
-| Typing | Flippers up, alternating like two thumbs | Hello, Full Access, Home |
-| Awake | Flippers down, breathing | Setup, Settings |
-| Proud | Happy closed eyes, pink cheeks, hopping | Pro, a new best |
-| Running | Flippers up, bouncing fast | Speed test result |
-| Asleep | Closed eyes, coral nightcap, floating z's | Trial over, empty history |
+| Keyboard with trails | A rounded key panel, a teal trail on the left and a coral trail on the right, each ending in a dot. On first show the trails draw themselves and the dots pop. | Hello (large), Home (small, top right) |
+| Cloud | A cloud above a phone and a laptop, a teal and a coral line joining them | Keep your words everywhere |
+| Bolt | A lightning bolt in a sun-yellow disc with slowly turning rays | Speed test result |
+| Star tile | A sun-yellow key tile with a star, a trail curling at each corner | Pro |
+| Resting keyboard | The keyboard faded to half, two z's floating up | Trial over, empty history |
 
-Pip never appears on the keyboard itself. Outfits (Pro and milestone rewards): scarf,
-beanie, headphones, a tiny keyboard necklace.
+All of it is vector, drawn from the same key rectangles the keyboard uses, so it scales
+and recolors with the theme. Milestone rewards are keyboard themes and trail colors, not
+outfits.
 
 ## Motion
 
@@ -136,22 +187,23 @@ beanie, headphones, a tiny keyboard necklace.
 - **Keys** scale up 6% when hit and spring back.
 - **Springs** in the app: screens slide in with a small overshoot, buttons squash, toggles
   wobble.
-- **Pip:** waddles in on Hello, flippers type while idle on Home, hops when proud, bounces
-  on the result screen.
+- **Art:** the trails on the Hello and Home keyboard draw themselves once; the cloud and
+  star tile float gently; the bolt's rays turn slowly.
 - **Speed test:** the typed words turn mint one by one. A wrong word shakes the field.
-- **Success:** fish confetti on a new best and when the keyboard is first turned on.
+- **Success:** confetti in the four colors on a new best and when the keyboard is first
+  turned on.
 - **Haptics:** a light tap on every commit, a softer one on each key hit if Full Access
   allows it (checked in the build), success on a new best, error on a wrong drill word.
 - **Sounds:** none in v1. Key clicks are a later setting.
 - **Reduce Motion:** trails still draw (they are information) but do not fade with
-  motion, just disappear; no key scaling, no waddle, hop or confetti; screens fade.
+  motion, just disappear; no key scaling, no floating or confetti; the art shows finished;
+  screens fade.
 - **Battery saver and Zen mode:** a setting that turns trails and flashes off.
 
 ## Copy
 
 - Hello: "Type with both thumbs." / "Tap with one, swipe with the other, mix them any
-  way you like. Press space when the word looks right. I'm Pip, I'll show you." /
-  **Let's go**
+  way you like. Press space when the word looks right. We'll show you." / **Let's go**
 - Turn on: "Turn on StackWrite" / "iPhone keyboards switch on in Settings. It takes three
   taps, and I'll know when it's done." / **Open Settings**, I'll do it later / chip: "Not
   on yet" → "On" / "StackWrite is on. Hold 🌐 in any app to pick it."
@@ -177,6 +229,33 @@ beanie, headphones, a tiny keyboard necklace.
 - Errors: "I couldn't sync your words. Check that iCloud is on for StackWrite in
   Settings." No puns in errors.
 
+## Sizes
+
+Three sizes, all in the mockup's Size buttons (`docs/building.md` rule 2):
+
+- **Small** (iPhone Duo outer screen, 5.4", shorter and wider): the keyboard keeps
+  Apple's proportions and grows a little wider, so thumbs reach the same keys. Screens
+  with the keyboard up keep the keyboard full height and shrink the content above it
+  (Try it shows the field and one line of hint, Messages shows the last two bubbles).
+  Home scrolls. Hello and the other full-page screens lose their top spacing first.
+  [Home](design/screens/05-home-small.png), [Try it](design/screens/04-try-small.png),
+  [Messages](design/screens/12-messages-small.png).
+- **Phone** (iPhone, the default): as in the screenshots.
+- **Wide** (iPhone Duo inner screen, 7.8", and iPad later): the keyboard stays one
+  keyboard, keys up to 58 pt wide and 54 pt tall with 8 pt gaps, so a swipe is the same
+  shape as on a phone, just bigger. Home becomes two columns (speed test and trial on the
+  left, drills, week and Settings on the right). Titles step up to 36 pt. Everything else
+  keeps its width and centers. [Home](design/screens/05-home-wide.png),
+  [Try it](design/screens/04-try-wide.png),
+  [Messages](design/screens/12-messages-wide.png).
+- **Resizing** (unfolding, or Duo side by side): screens relayout live, no screen pops
+  or loses its place. An open word, a running speed test and a drill in progress survive
+  the change. The keyboard asks the system for the new width and redraws its trails on
+  the new key positions.
+- **Largest text size:** the app's rows wrap to two lines and buttons grow; the keyboard
+  does not change height (its height is what thumbs learned), the bar text scales one
+  step.
+
 ## Accessibility
 
 - **Dynamic Type:** the app scales fully. The keyboard follows the system keyboard's
@@ -184,8 +263,9 @@ beanie, headphones, a tiny keyboard necklace.
   scales one step.
 - **VoiceOver:** the keyboard works like Apple's (touch to hear a key, double-tap or lift
   to type; swipe typing is off under VoiceOver). The bar reads "Suggestions" with each
-  guess, the first as "selected". Pip images read their mood ("Pip the penguin, typing").
-  Trails and flashes carry no information VoiceOver needs: the bar does.
+  guess, the first as "selected". The art has short labels ("A keyboard with two thumb
+  trails") or is decorative. Trails and flashes carry no information VoiceOver needs: the
+  bar does.
 - **Order:** title, main content, the main button.
 - **Contrast:** text and buttons meet WCAG AA in both themes; the teal button uses navy
   text in dark mode. Teal and coral are also different in brightness, so the two thumbs
@@ -198,5 +278,4 @@ beanie, headphones, a tiny keyboard necklace.
 
 1. Pro prices: $19.99 a year and $2.99 a month are placeholders on the Pro screen. Pick
    the real ones.
-2. The mascot's name: Pip is a placeholder.
-3. The app icon: Pip with trails, or a plainer keyboard mark with the two colors?
+2. The app icon: a key tile with the two trails (above), or something else?

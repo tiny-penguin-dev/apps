@@ -46,9 +46,9 @@ on day one.
 - **Learns you, keeps your words.** Typing runs on the phone and nothing you type ever
   leaves it. No account: your learned words and settings follow you to a new phone over
   iCloud.
-- **The penguin twist:** two thumbs are two flippers. The practice mode and speed test
-  are a small penguin who waddles faster as you do, and the swipe trails are its tracks on
-  the ice.
+- **The penguin twist, kept light:** no mascot. The app talks about flippers ("Both
+  flippers, go."), and the graphics are a keyboard with two coloured thumb trails. If a
+  penguin ever appears, it is Squawk's, not a new one.
 
 ## 3. Principles
 
@@ -81,8 +81,8 @@ on day one.
 ## 5. Core flows
 
 ### 5.1 First launch
-1. A penguin slides in and says hi. One screen: "Type with both thumbs. Tap, swipe, mix,
-   and press space when the word looks right."
+1. A short animation of two thumb trails meeting on a keyboard. One screen: "Type with
+   both thumbs. Tap, swipe, mix, and press space when the word looks right."
 2. "Turn on the keyboard": a short, honest walkthrough of Settings > General > Keyboard >
    Keyboards > Add New Keyboard. We cannot do this step for them (iOS rule), so the app
    shows exactly where to tap and checks when it is done.
@@ -112,7 +112,7 @@ Goal: typing in the app within **one minute**, in another app within two.
 
 ### 5.4 Practice and speed test (in the app)
 1. "Speed test": type three sentences, see words per minute and how many words needed a
-   fix. The penguin waddles at your speed.
+   fix, next to Apple's keyboard for comparison.
 2. "Drills": short sets built around one habit at a time (two-letter swipes, switching
    thumbs, doubled letters).
 3. Your best speed and your streak live on the home screen. Optional: send the gestures
@@ -124,7 +124,7 @@ Goal: typing in the app within **one minute**, in another app within two.
 - Shortcuts: hold space and tap a letter to insert a snippet.
 - Autospace delay, tap-versus-swipe sensitivity, trail and flash animations, haptics.
 - Layout: full width, left, right, split, one-handed, keyboard height.
-- Themes, including penguin ones.
+- Themes.
 
 ## 6. Basics vs powerful features
 
@@ -136,7 +136,7 @@ free trial that starts on first launch.
 | Tap typing and one-finger swipe typing, one swipe per word, English | Two-thumb typing: taps and swipes from both thumbs, mixed in one word |
 | Suggestion bar, corrections, autospace | Snippets and hold-space shortcuts |
 | Space-bar cursor, backspace word delete, shift, numbers, symbols | Custom gestures and edge swipes |
-| Learned words, synced over iCloud | Themes, trails and penguin outfits |
+| Learned words, synced over iCloud | Themes and trails |
 | Speed test | Drills, history and the sharing card |
 | Default layout and height | Split, one-handed and custom layouts |
 | | Extra languages as they are added |
@@ -146,15 +146,17 @@ The speed test stays free so people can see what the trial gave them and come ba
 When the trial ends without a subscription, the keyboard drops to the free set, with
 learned words and settings kept.
 
-## 7. The penguin twist (look and feel)
+## 7. Look and feel
 
-- **The penguin** lives in the app, not on the keys. It greets you, runs the practice
-  drills, and waddles across the speed test at your pace. The keyboard itself stays
-  clean, because every pixel there is for typing.
+- **No mascot.** StackWrite is a tool people live in all day, so the app stays clean and
+  the graphics are generic: a keyboard with two thumb trails, in the app's two thumb
+  colours. The penguin connection is the studio's name and the flipper wording, and if a
+  penguin ever shows up it is the same one as Squawk's. The keyboard itself has no
+  decoration, because every pixel there is for typing.
 - **Trails and flashes** on the keys, in the Tiny Penguin palette: soft, round, quick.
   Off in battery saver and Reduce Motion.
 - **Milestones**: first 40 words per minute, first week, a hundred learned words. Small
-  rewards: outfits for the penguin, a keyboard theme.
+  rewards: a keyboard theme, a trail colour.
 - **Copy tone**: short, warm, a bit silly. "Both flippers, go." "Space when it looks right."
 - Shared Tiny Penguin look and voice come from [`docs/brand.md`](../../docs/brand.md).
 
@@ -219,7 +221,7 @@ items easy:
 - The handwriting pad from v1 as an input mode. Its engine and pad stay in the code,
   behind a flag, so they are not lost and not shipped.
 - More languages, starting with Spanish.
-- Themes, penguin outfits, milestones.
+- Themes and milestones.
 - Own emoji page, next-word suggestions while nothing is being typed.
 
 ### Never
@@ -236,6 +238,24 @@ items easy:
 - Setup: most people who open the app get the keyboard turned on, measured on device.
 - The extension is never killed for memory in normal use.
 - Reviews mention "fast" and "like Nintype".
+
+## 10b. What we measure
+
+Anonymous counts only, sent to Sentry from the app, never from the keyboard (see
+`docs/telemetry.md`). Nothing typed, no words, no text. People can turn this off in
+Settings.
+
+| Metric | What it tells us |
+|---|---|
+| `setup.keyboard_on` | How many people get past the Settings step (the big drop-off) |
+| `setup.full_access` (`on` / `skipped`) | How many accept the sync ask |
+| `onboarding.finished` (duration) | How long first setup takes (goal: under two minutes) |
+| `speedtest.finished` (gauge: words per minute) | Whether people get faster over time |
+| `drill.finished` (`drill`) | Which habits people practise |
+| `trial.started`, `pro.subscribed` (`plan`) | Whether the trial converts |
+| `sync.failed` | iCloud sync problems (goal: zero) |
+
+More get added here as phases land.
 
 ## 11. Open questions
 

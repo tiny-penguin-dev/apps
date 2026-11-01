@@ -8,7 +8,6 @@
   --stage:#E6F0F4; --bg:#F3F8FA; --card:#FFFFFF; --ink:#1E2945; --muted:#67748F; --line:#DCE6EC;
   --accent:#139FB5; --accent-ink:#FFFFFF; --left:#139FB5; --right:#FF6F86; --sun:#FFC24D; --mint:#2FBF96; --ice:#D9EDF3;
   --key:#FFFFFF; --key-ink:#1E2945; --key-dark:#C9D6DE; --kb:#DCE6EC; --bar:#E8F0F4;
-  --peng:#172239; --belly:#FFFFFF; --beak:#FFB020; --cheek:#FFB3B8;
   --font:ui-rounded,"SF Pro Rounded","Nunito",system-ui,sans-serif;
   --r-lg:28px; --r-md:18px; --r-sm:12px;
   --spring:cubic-bezier(.34,1.56,.64,1);
@@ -16,11 +15,11 @@
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --stage:#0A1118; --bg:#111A24; --card:#1A2634; --ink:#EEF4F8; --muted:#97A6B8; --line:#2A3B4C;
   --accent:#2FC6DC; --accent-ink:#06202A; --left:#2FC6DC; --right:#FF8A9E; --sun:#FFCD66; --mint:#45D3AA; --ice:#1D3240;
-  --key:#2A3A4A; --key-ink:#EEF4F8; --key-dark:#1C2834; --kb:#131E29; --bar:#1A2634; --peng:#2A3762; --belly:#F3F6FF; --beak:#FFBE3D; --cheek:#FF9BA2; color-scheme:dark}}
+  --key:#2A3A4A; --key-ink:#EEF4F8; --key-dark:#1C2834; --kb:#131E29; --bar:#1A2634;; color-scheme:dark}}
 :root[data-theme="dark"]{
   --stage:#0A1118; --bg:#111A24; --card:#1A2634; --ink:#EEF4F8; --muted:#97A6B8; --line:#2A3B4C;
   --accent:#2FC6DC; --accent-ink:#06202A; --left:#2FC6DC; --right:#FF8A9E; --sun:#FFCD66; --mint:#45D3AA; --ice:#1D3240;
-  --key:#2A3A4A; --key-ink:#EEF4F8; --key-dark:#1C2834; --kb:#131E29; --bar:#1A2634; --peng:#2A3762; --belly:#F3F6FF; --beak:#FFBE3D; --cheek:#FF9BA2; color-scheme:dark}
+  --key:#2A3A4A; --key-ink:#EEF4F8; --key-dark:#1C2834; --kb:#131E29; --bar:#1A2634;; color-scheme:dark}
 html,body{height:100%}
 body{background:var(--stage);color:var(--ink);font-family:var(--font);
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
@@ -92,23 +91,44 @@ body{background:var(--stage);color:var(--ink);font-family:var(--font);
 @keyframes fall{to{transform:translateY(900px) rotate(540deg)}}
 .shake{animation:shake .4s}
 @keyframes shake{25%{transform:translateX(-10px)}75%{transform:translateX(10px)}}
-/* penguin */
-.peng{display:block;margin:0 auto}
-.peng .body{animation:breathe 3.2s ease-in-out infinite;transform-origin:50% 90%}
-@keyframes breathe{50%{transform:scale(1.03,.97)}}
-.peng.type .fl{animation:typeL .5s ease-in-out infinite alternate;transform-origin:48px 100px}
-.peng.type .fr{animation:typeR .5s ease-in-out infinite alternate-reverse;transform-origin:152px 100px}
-@keyframes typeL{from{transform:rotate(0)}to{transform:rotate(18deg)}}
-@keyframes typeR{from{transform:rotate(0)}to{transform:rotate(-18deg)}}
-.peng.hop{animation:hop .7s var(--spring) infinite alternate}
-@keyframes hop{to{transform:translateY(-10px)}}
-.peng.waddle{animation:waddle .9s var(--spring) both}
-@keyframes waddle{0%{transform:translateX(-160px) rotate(-8deg)}40%{transform:translateX(-40px) rotate(8deg)}70%{transform:translateX(10px) rotate(-4deg)}100%{transform:none}}
-.peng.run{animation:run .45s ease-in-out infinite alternate}
-@keyframes run{to{transform:translateY(-5px) rotate(4deg)}}
+/* art: generic graphics, a keyboard with two thumb trails */
+.art{display:block;margin:0 auto;overflow:visible}
+.art .trail{fill:none;stroke-width:10;stroke-linecap:round;stroke-linejoin:round;opacity:.9}
+.art .trail.L{stroke:var(--left)}.art .trail.R{stroke:var(--right)}
+.art .dot.L{fill:var(--left)}.art .dot.R{fill:var(--right)}
+.art.live .trail{stroke-dasharray:420;stroke-dashoffset:420;animation:draw 1.4s var(--spring) forwards}
+.art.live .trail.R{animation-delay:.35s}
+.art.live .dot{transform-origin:center;transform-box:fill-box;animation:pop .5s var(--spring) 1.2s both}
+.art.live .dot.R{animation-delay:1.55s}
+@keyframes draw{to{stroke-dashoffset:0}}
+@keyframes pop{from{transform:scale(0)}to{transform:scale(1)}}
+.art.float{animation:float 3s ease-in-out infinite}
+@keyframes float{50%{transform:translateY(-6px)}}
+.art .ray{stroke:var(--sun);stroke-width:8;stroke-linecap:round}
+.art.live .ray{transform-origin:100px 100px;animation:spin 14s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
 .zz{font-weight:900;fill:var(--muted);animation:zz 2.6s ease-in infinite;opacity:0}
 .zz:nth-of-type(2){animation-delay:1.3s}
 @keyframes zz{0%{opacity:0;transform:translate(0,0)}30%{opacity:1}100%{opacity:0;transform:translate(14px,-30px)}}
+/* sizes: small = iPhone Duo outer screen, phone = iPhone, wide = iPhone Duo inner screen */
+.sizes{display:flex;gap:4px;margin-top:8px}
+.sizes button{padding:5px 10px;font-size:12px;background:var(--line)}
+.sizes button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.phone.small{width:420px;height:700px;border-radius:40px}
+.phone.wide{width:744px;height:1024px;border-radius:40px}
+.phone.wide .screen{padding-left:40px;padding-right:40px}
+.phone.wide .scroll,.phone.wide .kbwrap,.phone.wide .compose{margin-left:-40px;margin-right:-40px}
+.phone.wide .scroll{padding-left:40px;padding-right:40px}
+.phone.wide .h1{font-size:36px}
+.phone.wide .cols{display:grid;grid-template-columns:1fr 1fr;align-content:start}
+.col{display:flex;flex-direction:column;gap:14px}
+.phone.wide .kbwrap{padding-left:16px;padding-right:16px}
+.phone.wide .krow{gap:8px}
+.phone.wide .key{max-width:58px;height:54px;font-size:24px}
+.phone.wide .key.wide{max-width:84px}.phone.wide .key.fn{max-width:76px}.phone.wide .key.ret{max-width:150px}.phone.wide .key.space{max-width:330px}
+.phone.wide .bub{max-width:60%}
+.phone.small .key{max-width:37px}
+.phone.small .key.wide{max-width:54px}.phone.small .key.fn{max-width:50px}.phone.small .key.ret{max-width:100px}.phone.small .key.space{max-width:214px}
 /* text field and conversation */
 .field{background:var(--card);border-radius:var(--r-md);padding:14px 16px;min-height:64px;font-size:18px;line-height:1.4;word-break:break-word}
 .field .open{text-decoration:underline;text-decoration-color:var(--accent);text-decoration-thickness:3px;text-underline-offset:4px}
@@ -131,12 +151,12 @@ body{background:var(--stage);color:var(--ink);font-family:var(--font);
 .bar .fixlabel{font-size:11px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:0 4px;flex:none}
 .rows{display:flex;flex-direction:column;gap:9px;position:relative}
 .krow{display:flex;justify-content:center;gap:6px}
-.key{width:33px;height:44px;border-radius:7px;background:var(--key);color:var(--key-ink);font:inherit;font-weight:700;font-size:21px;border:0;padding:0;display:grid;place-items:center;
+.key{flex:1 1 0;min-width:0;max-width:33px;height:44px;border-radius:7px;background:var(--key);color:var(--key-ink);font:inherit;font-weight:700;font-size:21px;border:0;padding:0;display:grid;place-items:center;
   box-shadow:0 1px 0 rgba(0,0,0,.25);position:relative;transition:background .25s,color .25s,transform .15s var(--spring);touch-action:none}
-.key.wide{width:48px;background:var(--key-dark);font-size:15px}
-.key.space{flex:1;max-width:190px;font-size:13px;font-weight:800;color:var(--muted)}
-.key.fn{width:44px;background:var(--key-dark);font-size:14px}
-.key.ret{width:88px;background:var(--key-dark);font-size:14px}
+.key.wide{flex:1.45 1 0;max-width:48px;background:var(--key-dark);font-size:15px}
+.key.space{flex:5.7 1 0;max-width:190px;font-size:13px;font-weight:800;color:var(--muted)}
+.key.fn{flex:1.33 1 0;max-width:44px;background:var(--key-dark);font-size:14px}
+.key.ret{flex:2.66 1 0;max-width:88px;background:var(--key-dark);font-size:14px}
 .key.hitL{background:var(--left);color:#fff;transform:scale(1.06)}
 .key.hitR{background:var(--right);color:#fff;transform:scale(1.06)}
 .key.hintL{box-shadow:0 0 0 3px var(--left)}
@@ -163,7 +183,7 @@ body{background:var(--stage);color:var(--ink);font-family:var(--font);
 <div class="stage">
   <nav class="picker" aria-label="Screens">
     <h1>StackWrite</h1>
-    <p>Tap a screen. The keyboard works: tap, swipe, and on a phone both thumbs at once. Press space or wait to commit a word.</p>
+    <p>Tap a screen. The keyboard works: tap, swipe, and on a phone both thumbs at once. Press space or wait to commit a word. Size shows the same screens on the iPhone Duo's outer and inner screens.</p>
     <small>Setup</small>
     <button data-go="welcome">1 · Hello</button>
     <button data-go="enable">2 · Turn on the keyboard</button>
@@ -180,6 +200,10 @@ body{background:var(--stage);color:var(--ink);font-family:var(--font);
     <small>In other apps</small>
     <button data-go="messages">12 · Typing in Messages</button>
     <button data-go="free">13 · Free keyboard</button>
+    <small>Size</small>
+    <div class="sizes" role="group" aria-label="Size">
+      <button data-size="small">Small</button><button data-size="">Phone</button><button data-size="wide">Wide</button>
+    </div>
     <small>Theme</small>
     <div class="themes" role="group" aria-label="Theme">
       <button data-theme="">System</button><button data-theme="light">Light</button><button data-theme="dark">Dark</button>
@@ -189,7 +213,7 @@ body{background:var(--stage);color:var(--ink);font-family:var(--font);
 </div>
 
 <script>
-const WORDS_EXTRA="keyboard penguin hello thumbs thumb flippers typing faster fastest swipe swipes tapping stackwrite twenty minutes tonight dinner tomorrow waddle flipper";
+const WORDS_EXTRA="keyboard hello thumbs thumb flippers typing faster fastest swipe swipes tapping stackwrite twenty minutes tonight dinner tomorrow flipper cat bread hat";
 </script>
 <script>
 /* top 1,500 words from ml/export/lexicon.tsv, for the mockup's decoder */
@@ -204,28 +228,23 @@ const DICT=(typeof WORDS==="undefined"?"the to and of a in i is you it that for 
 const WL=[...new Set(DICT.split(" "))];
 const RANK=new Map(WL.map((w,i)=>[w,i]));
 
-/* ---------- penguin: Pip, front-facing, navy arch body, white belly, flippers that type ---------- */
-function penguin(mood="awake",size=170,cls=""){
-  const navy="var(--peng)",belly="var(--belly)",beak="var(--beak)";
-  const eyes=mood==="sleep"?`<path d="M80 84 q8 6 16 0 M104 84 q8 6 16 0" stroke="#0F1B2D" stroke-width="4.5" fill="none" stroke-linecap="round"/>`
-    :mood==="proud"?`<path d="M80 86 q8 -9 16 0 M104 86 q8 -9 16 0" stroke="#0F1B2D" stroke-width="4.5" fill="none" stroke-linecap="round"/>`
-    :`<circle cx="88" cy="84" r="6.5" fill="#0F1B2D"/><circle cx="112" cy="84" r="6.5" fill="#0F1B2D"/><circle cx="90" cy="82" r="2" fill="#fff"/><circle cx="114" cy="82" r="2" fill="#fff"/>`;
-  const cheeks=mood==="proud"?`<circle cx="74" cy="98" r="7" fill="var(--cheek)"/><circle cx="126" cy="98" r="7" fill="var(--cheek)"/>`:"";
-  const cap=mood==="sleep"?`<path d="M70 48 Q100 20 134 44 L128 58 Q100 44 76 60 Z" fill="var(--right)"/><circle cx="136" cy="44" r="7" fill="#fff"/>`:"";
-  const zz=mood==="sleep"?`<text class="zz" x="150" y="50" font-size="22">z</text><text class="zz" x="162" y="36" font-size="16">z</text>`:"";
-  const up=mood==="proud"||cls.includes("type");
-  return `<svg class="peng ${cls}" width="${size}" height="${size}" viewBox="0 0 200 200" role="img" aria-label="Pip the penguin, ${mood}">
-  <ellipse cx="100" cy="190" rx="52" ry="6" fill="rgba(15,27,45,.12)"/>
-  <g class="body">
-    <path d="M44 184 L44 92 Q44 36 100 36 Q156 36 156 92 L156 184 Q156 192 148 192 L52 192 Q44 192 44 184 Z" fill="${navy}"/>
-    <path d="M62 184 L62 104 Q62 70 100 70 Q138 70 138 104 L138 184 Q138 192 130 192 L70 192 Q62 192 62 184 Z" fill="${belly}"/>
-    <g class="fl"><ellipse cx="46" cy="130" rx="11" ry="34" fill="${navy}" transform="rotate(${up?115:12} 48 100)"/></g>
-    <g class="fr"><ellipse cx="154" cy="130" rx="11" ry="34" fill="${navy}" transform="rotate(${up?-115:-12} 152 100)"/></g>
-    ${eyes}${cheeks}
-    <path d="M90 98 L110 98 L100 110 Z" fill="${beak}"/>
-    <path d="M64 192 L84 192 L74 198 Z M116 192 L136 192 L126 198 Z" fill="${beak}"/>
-    ${cap}
-  </g>${zz}</svg>`;
+/* ---------- art: generic graphics built from the keyboard itself. No mascot. ---------- */
+function art(kind="thumbs",size=170,cls="",label=""){
+  const keys=(y,n,w=16,g=5,x0)=>{const start=x0??(100-(n*w+(n-1)*g)/2);let o="";for(let i=0;i<n;i++)o+=`<rect x="${start+i*(w+g)}" y="${y}" width="${w}" height="${w}" rx="4" fill="var(--key)"/>`;return o};
+  const board=(y=78)=>`<rect x="18" y="${y-12}" width="164" height="100" rx="16" fill="var(--kb)"/>${keys(y,8)}${keys(y+22,7)}${keys(y+44,6)}<rect x="52" y="${y+66}" width="96" height="16" rx="5" fill="var(--key)"/>`;
+  const trails=`<path class="trail L" d="M44 83 Q58 128 74 105"/><circle class="dot L" cx="74" cy="105" r="8"/><path class="trail R" d="M160 83 Q128 90 132 128 Q150 134 118 150"/><circle class="dot R" cx="118" cy="150" r="8"/>`;
+  let body="";
+  if(kind==="thumbs")body=`${board()}${trails}`;
+  else if(kind==="rest")body=`<g opacity=".55">${board()}</g><text class="zz" x="140" y="60" font-size="24">z</text><text class="zz" x="156" y="44" font-size="18">z</text>`;
+  else if(kind==="cloud")body=`<path d="M58 118 a26 26 0 0 1 8 -50 a34 34 0 0 1 66 -6 a26 26 0 0 1 10 50 Z" fill="var(--card)" stroke="var(--line)" stroke-width="4"/>
+    <rect x="36" y="140" width="34" height="48" rx="7" fill="var(--kb)"/><rect x="42" y="148" width="22" height="30" rx="3" fill="var(--key)"/>
+    <rect x="118" y="150" width="60" height="38" rx="6" fill="var(--kb)"/><rect x="124" y="156" width="48" height="24" rx="3" fill="var(--key)"/>
+    <path class="trail L" d="M62 118 L54 140" stroke-width="7"/><path class="trail R" d="M138 118 L148 150" stroke-width="7"/>`;
+  else if(kind==="bolt")body=`<g class="ray"><line x1="100" y1="12" x2="100" y2="26"/><line x1="100" y1="174" x2="100" y2="188"/><line x1="12" y1="100" x2="26" y2="100"/><line x1="174" y1="100" x2="188" y2="100"/><line x1="38" y1="38" x2="48" y2="48"/><line x1="152" y1="152" x2="162" y2="162"/><line x1="162" y1="38" x2="152" y2="48"/><line x1="48" y1="152" x2="38" y2="162"/></g>
+    <circle cx="100" cy="100" r="58" fill="var(--sun)"/><path d="M108 58 L76 108 L100 108 L92 142 L124 92 L100 92 Z" fill="#3A2600"/>`;
+  else if(kind==="pro")body=`<rect x="40" y="40" width="120" height="120" rx="26" fill="var(--sun)"/><path d="M100 64 L111 90 L139 92 L117 110 L124 137 L100 122 L76 137 L83 110 L61 92 L89 90 Z" fill="#3A2600"/>
+    <path class="trail L" d="M14 156 Q30 100 62 128 Q74 140 60 156" stroke-width="8"/><circle class="dot L" cx="60" cy="156" r="7"/><path class="trail R" d="M186 44 Q170 100 138 72 Q126 60 140 44" stroke-width="8"/><circle class="dot R" cx="140" cy="44" r="7"/>`;
+  return `<svg class="art ${cls}" width="${size}" height="${size}" viewBox="0 0 200 200" role="img" aria-label="${label||"A keyboard with two thumb trails"}">${body}</svg>`;
 }
 const status=(dark=false)=>`<div class="status" style="${dark?"color:#fff":""}"><span>9:41</span><span>●●● ⌁ ▮</span></div>`;
 
@@ -352,9 +371,9 @@ const DEMO_SOMETHING=[{at:200,keys:["s"]},{at:420,keys:["o","m"]},{at:700,keys:[
 let kb=null;
 const screens={
 welcome:()=>`${status()}<div class="screen" style="text-align:center">
-  <div class="spacer"></div>${penguin("awake",220,"waddle type")}
+  <div class="spacer"></div>${art("thumbs",220,"live")}
   <h1 class="h1">Type with both thumbs.</h1>
-  <p class="sub">Tap with one, swipe with the other, mix them any way you like. Press space when the word looks right. I'm Pip, I'll show you.</p>
+  <p class="sub">Tap with one, swipe with the other, mix them any way you like. Press space when the word looks right. We'll show you.</p>
   <div class="spacer"></div><button class="btn" data-go="enable">Let's go</button></div>`,
 
 enable:()=>`${status()}<div class="screen">
@@ -371,7 +390,7 @@ enable:()=>`${status()}<div class="screen">
   <button class="btn ghost" data-go="sync">${S.on?"Next":"I'll do it later"}</button></div>`,
 
 sync:()=>`${status()}<div class="screen">
-  <div style="text-align:center">${penguin("awake",130,"type")}</div>
+  <div style="text-align:center">${art("cloud",130,"float","Words syncing through iCloud to a phone and a Mac")}</div>
   <h1 class="h1">Keep your words everywhere</h1>
   <p class="sub">StackWrite learns your words. With <b>Full Access</b> they sync over iCloud to your other devices, along with your settings. That is the only thing it is used for. Nothing you type is ever sent anywhere.</p>
   <div class="steps">
@@ -391,15 +410,18 @@ try:()=>`${status()}<div class="screen haskb">
   ${kbHTML("kbTry")}</div>`,
 
 home:()=>`${status()}<div class="screen">
-  <div class="row"><h1 class="h1">Both flippers, go.</h1><span class="spacer"></span>${penguin("awake",72,"type")}</div>
+  <div class="row"><h1 class="h1">Both flippers, go.</h1><span class="spacer"></span>${art("thumbs",72,"live")}</div>
   ${S.on?"":`<div class="card row" style="background:var(--sun);color:#3A2600"><b style="flex:1">StackWrite isn't on yet.</b><button class="btn small" data-go="enable" style="background:#3A2600;color:#fff;box-shadow:none">Turn on</button></div>`}
-  <div class="scroll">
+  <div class="scroll cols">
+    <div class="col">
     <div class="card" style="display:flex;flex-direction:column;gap:10px">
       <div class="row"><b style="font-size:17px">Speed test</b><span class="spacer"></span><span class="chip">Best 47 wpm</span></div>
       <div class="meter"><span class="sub" style="font-size:13px">Apple 31</span><div class="track"><i></i></div><span class="sub" style="font-size:13px">You 47</span></div>
       <button class="btn small" data-go="speed" style="align-self:flex-start">Take the test</button>
     </div>
     <div class="card row"><div style="flex:1"><b>Pro trial</b><div class="sub" style="font-size:13px">11 days left. Two-thumb typing, gestures, layouts.</div></div><span class="pro">PRO</span></div>
+    </div>
+    <div class="col">
     <div class="sec">Drills</div>
     <div class="list">
       <div class="card row"><i style="width:28px;height:28px;border-radius:50%;background:var(--mint);color:#fff;display:grid;place-items:center;font-style:normal">✓</i><div style="flex:1"><b>Two-letter swipes</b><div class="sub" style="font-size:13px">th, in, er, on</div></div></div>
@@ -409,18 +431,19 @@ home:()=>`${status()}<div class="screen">
     <div class="sec">This week</div>
     <div class="card week">${["M","T","W","T","F","S","S"].map((d,i)=>`<div><i class="${i<4?"y":""}">${i<4?"✓":""}</i>${d}</div>`).join("")}</div>
     <div class="card row"><div style="flex:1"><b>Settings</b><div class="sub" style="font-size:13px">Autospace, gestures, layout, sync</div></div><button class="btn ghost" data-go="prefs">Open ›</button></div>
+    </div>
   </div></div>`,
 
 speed:()=>`${status()}<div class="screen haskb">
   <div class="row"><button class="back" data-go="home">‹ Home</button><span class="spacer"></span><span class="chip">0:14</span></div>
   <h2 class="h2">Type this</h2>
-  <p class="sub" style="font-size:19px;line-height:1.5"><span id="speedDone" style="color:var(--mint);font-weight:800"></span><span id="speedLeft">the penguin went to the store for some fish and came back with a hat</span></p>
+  <p class="sub" style="font-size:19px;line-height:1.5"><span id="speedDone" style="color:var(--mint);font-weight:800"></span><span id="speedLeft">the cat went to the store for some bread and came back with a hat</span></p>
   <div class="field" id="speedField"></div>
   ${kbHTML("kbSpeed")}</div>`,
 
 result:()=>`${status()}<div class="screen" style="text-align:center">
   <div class="row"><button class="back" data-go="home">‹ Home</button></div>
-  <div class="spacer"></div>${penguin("proud",170,"run")}
+  <div class="spacer"></div>${art("bolt",170,"live","A lightning bolt")}
   <div class="big">52</div><div class="sub" style="font-weight:800">words per minute</div>
   <p class="sub">3 words needed a fix. That's 21 faster than Apple's keyboard and a new best.</p>
   <div class="card row"><span class="chip">Best 52</span><span class="chip">5 days in a row</span><span class="spacer"></span><span style="font-weight:800;color:var(--muted)">Share</span></div>
@@ -467,14 +490,14 @@ prefs:()=>`${status()}<div class="screen">
 
 pro:()=>`${status()}<div class="screen" style="text-align:center">
   <div class="row"><button class="back" data-go="home">‹ Back</button></div>
-  ${penguin("proud",140,"hop")}
+  ${art("pro",140,"live float","A gold star")}
   <h1 class="h1">StackWrite Pro</h1>
   <p class="sub">The fast keyboard, all of it.</p>
   <div class="card" style="display:flex;flex-direction:column;gap:10px;text-align:left">
     <div class="perk"><i>✓</i>Two-thumb typing: taps and swipes from both thumbs</div>
     <div class="perk"><i>✓</i>Snippets, shortcuts and edge swipes</div>
     <div class="perk"><i>✓</i>Split and one-handed layouts</div>
-    <div class="perk"><i>✓</i>Drills, history, themes and Pip's outfits</div>
+    <div class="perk"><i>✓</i>Drills, history and themes</div>
   </div>
   <div class="list">
     <button class="card price" aria-pressed="${S.plan==="year"}" data-plan="year"><div><b>Yearly</b><span>2 months free</span></div><span class="amt">$19.99</span></button>
@@ -485,7 +508,7 @@ pro:()=>`${status()}<div class="screen" style="text-align:center">
   <p class="sub" style="font-size:12px">Then ${S.plan==="year"?"$19.99 a year":"$2.99 a month"}. Renews automatically, cancel anytime. Prices are placeholders.</p></div>`,
 
 trialover:()=>`${status()}<div class="screen" style="text-align:center">
-  <div class="spacer"></div>${penguin("sleep",170)}
+  <div class="spacer"></div>${art("rest",170,"","A keyboard resting")}
   <h1 class="h1">Your trial ended</h1>
   <p class="sub">Two-thumb typing, gestures and layouts are resting. The keyboard still works with taps and one-finger swipes, and your learned words are safe.</p>
   <div class="card" style="text-align:left"><div class="perk"><i>✓</i>You typed 52 words per minute on the test, 21 faster than Apple's.</div></div>
@@ -522,7 +545,7 @@ const after={
   enable(){document.getElementById("openSettings").onclick=()=>{S.on=true;go("enable",false);confetti()}},
   try(){kb=mountKB("kbTry",{field:"#tryField",autoCap:false,note:"Tap or swipe. Space writes the word.",onCommit:(w)=>{if(w==="something"){confetti();setTimeout(()=>go("home"),1400)}}});
     document.getElementById("showMe").onclick=()=>kb.replay(DEMO_SOMETHING);setTimeout(()=>kb&&kb.replay(DEMO_SOMETHING),900)},
-  speed(){const target="the penguin went to the store for some fish and came back with a hat".split(" ");let i=0;
+  speed(){const target="the cat went to the store for some bread and came back with a hat".split(" ");let i=0;
     kb=mountKB("kbSpeed",{field:"#speedField",note:"Go!",onCommit:(w)=>{if(w===target[i]){i++;document.getElementById("speedDone").textContent=target.slice(0,i).join(" ")+" ";document.getElementById("speedLeft").textContent=target.slice(i).join(" ");if(i===target.length)go("result")}
       else document.getElementById("speedField").classList.add("shake"),setTimeout(()=>document.getElementById("speedField").classList.remove("shake"),400)}})},
   drill(){kb=mountKB("kbDrill",{field:"#drillField",note:"Left w→e, right n→t",onCommit:(w)=>{if(w==="went")confetti()}});kb.hint("w","L");kb.hint("e","L");kb.hint("n","R");kb.hint("t","R")},
@@ -532,10 +555,12 @@ const after={
   prefs(){phone.querySelectorAll(".toggle[data-set]").forEach(t=>t.onclick=()=>{S[t.dataset.set]=!S[t.dataset.set];t.setAttribute("aria-pressed",S[t.dataset.set])})},
   result(){confetti()}
 };
-function confetti(){for(let i=0;i<18;i++){const f=document.createElement("div");f.className="fish";f.style.left=Math.random()*360+"px";f.style.background=["var(--left)","var(--right)","var(--sun)","var(--mint)"][i%4];f.style.borderRadius="50% 0 50% 0";f.style.animationDelay=Math.random()*.6+"s";phone.appendChild(f);setTimeout(()=>f.remove(),3000)}}
+function confetti(){for(let i=0;i<18;i++){const f=document.createElement("div");f.className="fish";f.style.left=Math.random()*(phone.clientWidth-30)+"px";f.style.background=["var(--left)","var(--right)","var(--sun)","var(--mint)"][i%4];f.style.borderRadius="50% 0 50% 0";f.style.animationDelay=Math.random()*.6+"s";phone.appendChild(f);setTimeout(()=>f.remove(),3000)}}
 document.addEventListener("click",e=>{const b=e.target.closest("[data-go]");if(b){go(b.dataset.go)}});
 document.querySelectorAll(".themes button").forEach(b=>b.onclick=()=>{const t=b.dataset.theme;if(t)document.documentElement.setAttribute("data-theme",t);else document.documentElement.removeAttribute("data-theme");document.querySelectorAll(".themes button").forEach(x=>x.setAttribute("aria-pressed",x===b))});
 document.querySelector('.themes button[data-theme=""]').setAttribute("aria-pressed","true");
+document.querySelectorAll(".sizes button").forEach(b=>b.onclick=()=>{phone.className="phone "+b.dataset.size;document.querySelectorAll(".sizes button").forEach(x=>x.setAttribute("aria-pressed",x===b));go(location.hash.slice(1)||"welcome",false)});
+document.querySelector('.sizes button[data-size=""]').setAttribute("aria-pressed","true");
 window.addEventListener("hashchange",()=>go(location.hash.slice(1),false));
 go((location.hash||"#welcome").slice(1),false);
 </script>

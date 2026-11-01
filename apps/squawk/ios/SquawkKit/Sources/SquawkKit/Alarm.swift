@@ -19,6 +19,8 @@ public struct Alarm: Codable, Identifiable, Hashable, Sendable {
     public var label: String
     public var isOn: Bool
     public var checks: [WakeUpCheck]
+    /// One-morning changes: skip, a different time, or "already up".
+    public var changes: [MorningChange]
 
     public init(
         id: UUID = UUID(),
@@ -29,7 +31,8 @@ public struct Alarm: Codable, Identifiable, Hashable, Sendable {
         rings: [Ring] = [Ring()],
         label: String = "",
         isOn: Bool = true,
-        checks: [WakeUpCheck] = []
+        checks: [WakeUpCheck] = [],
+        changes: [MorningChange] = []
     ) {
         self.id = id
         self.time = time
@@ -40,6 +43,7 @@ public struct Alarm: Codable, Identifiable, Hashable, Sendable {
         self.label = label
         self.isOn = isOn
         self.checks = checks
+        self.changes = changes
     }
 
     public var isOneTime: Bool { date != nil }
@@ -48,7 +52,10 @@ public struct Alarm: Codable, Identifiable, Hashable, Sendable {
     public func time(on day: Weekday) -> TimeOfDay { dayTimes[day] ?? time }
 
     /// Repeat days grouped by their wake-up time, earliest day first.
-    public var timeGroups: [(time: TimeOfDay, days: [Weekday])] {
+    public var timeGroups: [(time: TimeOfDay, days: [Weekday])] { timeGroups(for: days) }
+
+    /// Some of the repeat days grouped by their wake-up time, earliest day first.
+    func timeGroups(for days: Set<Weekday>) -> [(time: TimeOfDay, days: [Weekday])] {
         var groups: [TimeOfDay: [Weekday]] = [:]
         for day in days.sorted() {
             groups[time(on: day), default: []].append(day)
@@ -72,30 +79,21 @@ public struct Alarm: Codable, Identifiable, Hashable, Sendable {
     /// The title iOS shows on the ringing screen.
     public var title: String { label.isEmpty ? "Wake up" : label }
 
-    /// When the earliest ring of the next occurrence goes off, or nil if never.
+    /// When the next ring goes off, counting one-morning changes, or nil if never.
     public func nextRing(after now: Date, calendar: Calendar = .current) -> Date? {
         guard isOn else { return nil }
-        let firstOffset = rings.map(\.offsetMinutes).min() ?? 0
-        if let date {
-            guard let fire = date.date(at: time, calendar: calendar)?.addingTimeInterval(Double(firstOffset) * 60),
-                  fire > now else { return nil }
-            return fire
-        }
-        let startOfToday = calendar.startOfDay(for: now)
+        let today = LocalDate(now, calendar: calendar)
         for offset in -1...8 {
-            guard let day = calendar.date(byAdding: .day, value: offset, to: startOfToday) else { continue }
-            let weekday = Weekday(of: day, calendar: calendar)
-            guard days.contains(weekday),
-                  let wake = LocalDate(day, calendar: calendar).date(at: time(on: weekday), calendar: calendar)
-            else { continue }
-            let fire = wake.addingTimeInterval(Double(firstOffset) * 60)
-            if fire > now { return fire }
+            let day = today.adding(days: offset, calendar: calendar)
+            if let fire = ringTimes(on: day, calendar: calendar).map(\.fire).first(where: { $0 > now }) {
+                return fire
+            }
         }
         return nil
     }
 
     enum CodingKeys: String, CodingKey {
-        case id, time, days, date, dayTimes, rings, label, isOn, checks
+        case id, time, days, date, dayTimes, rings, label, isOn, checks, changes
     }
 
     /// Decodes leniently so alarms saved by older versions still load.
@@ -110,7 +108,8 @@ public struct Alarm: Codable, Identifiable, Hashable, Sendable {
             rings: try c.decodeIfPresent([Ring].self, forKey: .rings) ?? [Ring()],
             label: try c.decodeIfPresent(String.self, forKey: .label) ?? "",
             isOn: try c.decodeIfPresent(Bool.self, forKey: .isOn) ?? true,
-            checks: (try? c.decodeIfPresent([WakeUpCheck].self, forKey: .checks)) ?? []
+            checks: (try? c.decodeIfPresent([WakeUpCheck].self, forKey: .checks)) ?? [],
+            changes: (try? c.decodeIfPresent([MorningChange].self, forKey: .changes)) ?? []
         )
     }
 }
@@ -189,5 +188,32 @@ public struct LocalDate: Codable, Hashable, Sendable {
         f.locale = Locale(identifier: "en_US_POSIX")
         f.dateFormat = "EEE, MMM d"
         return f.string(from: d)
+    }
+
+    /// The day this many days later (or earlier, when negative).
+    public func adding(days: Int, calendar: Calendar = .current) -> LocalDate {
+        guard let start = calendar.date(from: DateComponents(year: year, month: month, day: day, hour: 12)),
+              let moved = calendar.date(byAdding: .day, value: days, to: start) else { return self }
+        return LocalDate(moved, calendar: calendar)
+    }
+
+    public func weekday(calendar: Calendar = .current) -> Weekday {
+        let noon = calendar.date(from: DateComponents(year: year, month: month, day: day, hour: 12)) ?? Date()
+        return Weekday(of: noon, calendar: calendar)
+    }
+}
+
+extension LocalDate: Comparable {
+    public static func < (a: LocalDate, b: LocalDate) -> Bool {
+        (a.year, a.month, a.day) < (b.year, b.month, b.day)
+    }
+}
+
+extension LocalDate: CustomStringConvertible {
+    /// "2026-11-02".
+    public var description: String {
+        let m = month < 10 ? "0\(month)" : "\(month)"
+        let d = day < 10 ? "0\(day)" : "\(day)"
+        return "\(year)-\(m)-\(d)"
     }
 }

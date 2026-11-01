@@ -79,7 +79,7 @@ final class AlarmKitScheduler: RingScheduler {
             schedule: Self.schedule(for: ring.schedule),
             attributes: attributes,
             stopIntent: intent,
-            secondaryIntent: SquawkStopIntent(alarmID: ring.alarmID.uuidString),
+            secondaryIntent: SquawkUpIntent(alarmID: ring.alarmID.uuidString),
             sound: .named(ring.sound.fileName)
         )
         do {
@@ -118,8 +118,8 @@ private extension Weekday {
     }
 }
 
-/// Runs when a ring's Stop or "I'm up" is tapped. AlarmKit stops the ring itself;
-/// the mornings log and wake-up checks hook in here in later phases.
+/// Runs when a ring's Stop is tapped. AlarmKit stops the ring itself, and the next
+/// ring still comes. The mornings log and wake-up checks hook in here later.
 struct SquawkStopIntent: LiveActivityIntent {
     static let title: LocalizedStringResource = "Stop Squawk alarm"
     static let description = IntentDescription("Stops a ringing Squawk alarm.")
@@ -135,5 +135,25 @@ struct SquawkStopIntent: LiveActivityIntent {
 
     func perform() async throws -> some IntentResult {
         .result()
+    }
+}
+
+/// Runs when "I'm up" is tapped: stops this ring and cancels the rest of the morning.
+struct SquawkUpIntent: LiveActivityIntent {
+    static let title: LocalizedStringResource = "I'm up"
+    static let description = IntentDescription("Stops a Squawk alarm and cancels the rest of this morning's rings.")
+
+    @Parameter(title: "Alarm ID")
+    var alarmID: String
+
+    init() {}
+
+    init(alarmID: String) {
+        self.alarmID = alarmID
+    }
+
+    func perform() async throws -> some IntentResult {
+        await AlarmsModel.shared.imUp(alarmID: alarmID)
+        return .result()
     }
 }

@@ -245,6 +245,9 @@ anything typed. People can turn this off in Settings.
 | `alarm.deleted` | Alarms people give up on |
 | `alarm.schedule_failed` | AlarmKit refused a ring (goal: zero) |
 | `alarms.total` (gauge) | How many alarms people keep |
+| `alarm.ring_added` (`kind`: soft / loud / custom) | Whether people use extra rings, and which |
+| `morning.changed` (`kind`: skip / time) | How often people skip or move just the next morning |
+| `morning.up` (`from`: app / button) | How mornings end early: opening the app or tapping "I'm up" |
 
 More get added here as phases land (rings, checks, mornings, Pro).
 

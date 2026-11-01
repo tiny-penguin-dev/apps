@@ -25,6 +25,10 @@ final class AlarmsModel {
         }
     }
 
+    /// The app's one model. Shared with the "I'm up" button, which can run while the
+    /// app is in the background.
+    static let shared = AlarmsModel.live()
+
     /// The real thing: alarms on disk, rung by AlarmKit.
     static func live() -> AlarmsModel {
         let store: any AlarmStore = (try? FileAlarmStore.standard()) ?? MemoryAlarmStore()
@@ -62,6 +66,47 @@ final class AlarmsModel {
         commit()
     }
 
+    // MARK: One morning only
+
+    /// Skips the next morning (the one "Skip tomorrow" names).
+    func skipNext(_ alarm: Alarm) {
+        changeNext(alarm, to: .skip)
+    }
+
+    /// Rings at a different time on the next morning only.
+    func changeNext(_ alarm: Alarm, time: TimeOfDay) {
+        changeNext(alarm, to: .time(time))
+    }
+
+    /// Puts the next morning back to normal.
+    func undoNext(_ alarm: Alarm) {
+        guard let index = alarms.firstIndex(where: { $0.id == alarm.id }),
+              let day = alarms[index].upcomingMorning(after: Date()) else { return }
+        alarms[index].setChange(nil, on: day)
+        commit()
+    }
+
+    private func changeNext(_ alarm: Alarm, to kind: MorningChange.Kind) {
+        guard let index = alarms.firstIndex(where: { $0.id == alarm.id }),
+              let day = alarms[index].upcomingMorning(after: Date()) else { return }
+        alarms[index].setChange(kind, on: day)
+        if case .time = kind {
+            Telemetry.count("morning.changed", ["kind": "time"])
+        } else {
+            Telemetry.count("morning.changed", ["kind": "skip"])
+        }
+        commit()
+    }
+
+    /// "I'm up" on the ringing screen: cancels the rest of that alarm's rings this morning.
+    func imUp(alarmID: String) async {
+        guard let index = alarms.firstIndex(where: { $0.id.uuidString == alarmID }),
+              alarms[index].markUp(at: Date()) else { return }
+        Telemetry.count("morning.up", ["from": "button"])
+        save()
+        await reschedule()
+    }
+
     // MARK: Access
 
     func requestAccess() async {
@@ -72,8 +117,19 @@ final class AlarmsModel {
 
     /// Call when the app comes back to the front: access may have changed in Settings,
     /// and one-time alarms may have passed.
+    /// Opening the app during a morning counts as being up, so the rest of that
+    /// morning's rings are cancelled (PRODUCT.md 5.3).
     func refresh() async {
         access = scheduler.access
+        let now = Date()
+        var anyUp = false
+        for index in alarms.indices {
+            if alarms[index].markUp(at: now) { anyUp = true }
+        }
+        if anyUp {
+            Telemetry.count("morning.up", ["from": "app"])
+            save()
+        }
         await reschedule()
     }
 
@@ -95,13 +151,21 @@ final class AlarmsModel {
     // MARK: Private
 
     private func commit() {
+        save()
+        Task { await reschedule() }
+    }
+
+    private func save() {
+        let now = Date()
+        for index in alarms.indices {
+            alarms[index].dropOldChanges(now: now)
+        }
         do {
             try store.save(alarms)
         } catch {
             Telemetry.report(error)
             errorMessage = Self.failureMessage
         }
-        Task { await reschedule() }
     }
 
     private func reschedule() async {

@@ -204,8 +204,10 @@ public struct Composer: Sendable {
                 shift = shift == .off ? .on : .off
             }
             lastShiftPress = time
-        case .numbers, .globe:
-            return [] // The host handles these.
+        case .symbol(let c):
+            return press(character: c, time: time)
+        case .numbers, .symbols, .letters, .globe:
+            return [] // The host handles these: the pages and the next keyboard.
         }
         refreshState()
         return effects

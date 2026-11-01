@@ -64,7 +64,7 @@ struct WelcomeView: View {
                 .offset(x: arrived || reduceMotion ? 0 : -260)
                 .rotationEffect(.degrees(arrived || reduceMotion ? 0 : -8))
             Text("Hi, I'm Squawk!")
-                .font(Theme.title(30))
+                .titleFont(30)
             Text("I'll get you out of bed. Gently first, and louder only if I need to.")
                 .font(Theme.body)
                 .foregroundStyle(Theme.muted)
@@ -75,6 +75,8 @@ struct WelcomeView: View {
                 .buttonStyle(PillButtonStyle())
         }
         .padding(22)
+        .readableWidth()
+        .scrollsWhenTight()
         .onAppear {
             withAnimation(.spring(duration: 0.9, bounce: 0.45).delay(0.2)) { arrived = true }
         }
@@ -92,7 +94,7 @@ struct PermissionView: View {
             PenguinView(mood: .squawk)
                 .frame(width: 180, height: 180)
             Text("Can I ring like a real alarm?")
-                .font(Theme.title(28))
+                .titleFont(28)
                 .multilineTextAlignment(.center)
             Text("Squawk rings on your lock screen, even on silent or in Focus. Your iPhone will ask you to allow alarms.")
                 .font(Theme.body)
@@ -107,6 +109,8 @@ struct PermissionView: View {
                 .padding(.vertical, 6)
         }
         .padding(22)
+        .readableWidth()
+        .scrollsWhenTight()
     }
 }
 
@@ -120,7 +124,7 @@ struct WakeUpTimeView: View {
     var body: some View {
         VStack(spacing: 18) {
             Text("When do you want to wake up?")
-                .font(Theme.title(28))
+                .titleFont(28)
                 .multilineTextAlignment(.center)
                 .padding(.top, 40)
             DatePicker("Wake-up time", selection: $time.asDate, displayedComponents: .hourAndMinute)
@@ -134,6 +138,8 @@ struct WakeUpTimeView: View {
                 .opacity(days.isEmpty ? 0.5 : 1)
         }
         .padding(22)
+        .readableWidth()
+        .scrollsWhenTight()
     }
 }
 

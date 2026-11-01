@@ -121,6 +121,7 @@ struct MoreOptionsView: View {
                 ChecksCard(alarm: $alarm)
             }
             .padding(20)
+            .readableWidth()
         }
         .background(Theme.background)
         .navigationTitle("More options")
@@ -217,6 +218,7 @@ struct RingDetail: View {
                 }
             }
             .padding(20)
+            .readableWidth()
         }
         .background(Theme.background)
         .navigationTitle("Ring")

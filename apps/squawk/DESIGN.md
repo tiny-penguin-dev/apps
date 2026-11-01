@@ -26,8 +26,11 @@ different times on some days, Pro pricing).
   labels. Times use tabular numbers so they don't jump.
 - **Shapes:** big round corners (18 to 28 pt), pill buttons with a soft "pressable"
   bottom edge, round day buttons.
-- **App icon idea:** Squawk facing you, beak open in its pointy squawk grin, on a sunrise-orange
-  background with a tiny nightcap falling off.
+- **App icon:** Squawk facing you with big sparkly eyes, pink cheeks and its pointy squawk grin,
+  flippers up, standing on snow under a soft blue sky with clouds. Pro icons use the same pose:
+  Night (white penguin asleep under the moon), Mint (happy eyes) and Ice (pale sky). Sources and
+  the script that draws them are in [design/icon](design/icon), preview in
+  [all-icons.png](design/icon/all-icons.png).
 
 ## Screens
 

@@ -30,7 +30,9 @@ Tiny Penguin apps have no accounts and keep data on the device. Telemetry follow
 
 New apps get this from the `new-app` template (`scripts/new-app/template/`):
 
-- The `sentry-cocoa` Swift package (product `Sentry`), already added to the project.
+- The `sentry-cocoa` Swift package (product `Sentry-Dynamic`), already added to the project.
+  Use the dynamic product: Xcode embeds the static `Sentry` product too but keeps
+  Sentry's own signature, and App Store Connect rejects the upload ("Invalid Signature").
 - `Telemetry.swift`: a small wrapper so app code never imports Sentry directly.
   `Telemetry.start()` runs in the App's `init`.
 - `PrivacyInfo.xcprivacy`: the app's privacy manifest (see below). Sentry ships its

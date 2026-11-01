@@ -40,14 +40,14 @@ struct PracticeField: UIViewRepresentable {
     @MainActor
     final class Coordinator: NSObject, UITextViewDelegate {
         let model: KeyboardModel
-        let keyboard: KeyboardView
+        let keyboard: StackWriteUI.KeyboardView
         let target = TextViewTarget()
 
         override init() {
             let dictionary = (try? Lexicon.bundled()) ?? Lexicon(entries: [])
             model = KeyboardModel(composer: Composer(dictionary: dictionary, layout: Layout.qwerty(width: 390)))
             model.target = target
-            keyboard = KeyboardView(model: model)
+            keyboard = StackWriteUI.KeyboardView(model: model)
             keyboard.autoresizingMask = [.flexibleWidth]
             super.init()
             keyboard.onHeightChange = { [weak self] height in

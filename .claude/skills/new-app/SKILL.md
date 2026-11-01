@@ -36,7 +36,7 @@ app's `PRODUCT.md` and `DESIGN.md` should already be approved. If they aren't, u
 3. Add the app to the table in the root `README.md`.
 4. If the app needs capabilities (iCloud, push, AlarmKit and so on), add
    `Config/<Name>.entitlements` and `CODE_SIGN_ENTITLEMENTS` (and `INFOPLIST_FILE` if
-   it needs Info.plist keys the xcconfig can't set), like StackWrite does.
+   it needs Info.plist keys the xcconfig can't set), like Astrotype does.
 5. Add the "Share anonymous usage data" switch to the app's Settings screen when it
    exists, bound to `Telemetry.isEnabled`.
 6. Open a PR. Its CI builds the app for the simulator, which is the only way to check

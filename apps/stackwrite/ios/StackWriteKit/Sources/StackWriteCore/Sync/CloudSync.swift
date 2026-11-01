@@ -116,19 +116,27 @@ public final class FakeCloudSync: CloudSync, @unchecked Sendable {
     }
 
     public func fetch() async throws -> SyncSnapshot? {
-        lock.lock()
-        if let failure { lock.unlock(); throw failure }
-        fetches += 1
-        fetchedGeneration = generation
-        let out = stored
-        let hook = afterFetch
-        afterFetch = nil
-        lock.unlock()
+        let (out, hook) = try fetchNow()
         hook?()
         return out
     }
 
     public func save(_ snapshot: SyncSnapshot) async throws {
+        try saveNow(snapshot)
+    }
+
+    // The lock is taken in synchronous helpers: NSLock may not be held across an await.
+    private func fetchNow() throws -> (SyncSnapshot?, (@Sendable () -> Void)?) {
+        lock.lock(); defer { lock.unlock() }
+        if let failure { throw failure }
+        fetches += 1
+        fetchedGeneration = generation
+        let hook = afterFetch
+        afterFetch = nil
+        return (stored, hook)
+    }
+
+    private func saveNow(_ snapshot: SyncSnapshot) throws {
         lock.lock(); defer { lock.unlock() }
         if let failure { throw failure }
         saves += 1

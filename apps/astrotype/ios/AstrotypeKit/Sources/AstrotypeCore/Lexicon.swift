@@ -130,6 +130,12 @@ public struct Lexicon: Sendable {
 
     /// The node one letter (1...26) below `node`, if any.
     @inline(__always)
+    /// A node's children: each letter (1...26) with the node it leads to.
+    func children(of node: Int32) -> [(label: Int, node: Int32)] {
+        let start = Int(edgeStart[Int(node)])
+        return (start..<(start + Int(edgeCount[Int(node)]))).map { (Int(edgeLabels[$0]), edgeTargets[$0]) }
+    }
+
     func child(of node: Int32, label k: Int) -> Int32? {
         let start = Int(edgeStart[Int(node)])
         for i in start..<(start + Int(edgeCount[Int(node)])) where Int(edgeLabels[i]) == k {

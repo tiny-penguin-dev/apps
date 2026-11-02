@@ -268,7 +268,7 @@ import Testing
 /// not need every letter to be a key it crossed cleanly, or short words win by default.
 @Suite struct LongWordTests {
     /// Sloppy swipes (aims off by 0.35 key widths) of common long words: most come out
-    /// right (18 of these 20; 10 when every letter had to be a key the swipe crossed).
+    /// right (14 of these 20; 7 when every letter had to be a key the swipe crossed).
     @Test func sloppyLongSwipesMostlyComeOutRight() throws {
         let words = ["everything", "understand", "department", "themselves", "production",
                      "management", "difference", "population", "completely", "individual",

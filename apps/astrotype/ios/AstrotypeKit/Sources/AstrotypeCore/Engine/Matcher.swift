@@ -550,6 +550,26 @@ public struct Matcher: Sendable {
         // The fewest stand-ins each state was reached with: a state reached again with
         // fewer is searched again, so a word is not scored by its worst spelling.
         var fewestStandIns: [SearchState: Int] = [:]
+        // Per segment and crossed key, the trie labels it may give: its own, then its
+        // neighbours (`near`), worked out once rather than at every state.
+        let options: [[[Int]]] = segments.map { segment in
+            segment.keys.indices.map { j in
+                ([segment.keys[j]] + (segment.near.indices.contains(j) ? segment.near[j] : [])).map(Self.index(of:))
+            }
+        }
+        // The same turned around: per segment and trie label, the crossed keys that may
+        // give it, in order, and whether as a stand-in. The search walks a node's
+        // children (a few) rather than every later key and its neighbours (dozens).
+        let keysFor: [[[(key: Int, standIn: Bool)]]] = options.map { segment in
+            var out = Array(repeating: [(key: Int, standIn: Bool)](), count: 27)
+            for (j, labels) in segment.enumerated() {
+                for (n, label) in labels.enumerated() { out[label].append((j, n > 0)) }
+            }
+            return out
+        }
+        // A word's path score depends only on the word and how many letters each
+        // segment gave it, and many spellings reach the same word: score it once.
+        var scored: [String: [([Int], Double)]] = [:]
         // Each queue entry carries how many letters each segment has contributed so far.
         // And how many of its letters were stand-ins for a crossed key.
         var queue: [(SearchState, [Int], Int)] = [(SearchState(segment: 0, lastKey: -1, node: 0, doubled: false, letter: 0), [0], 0)]
@@ -567,13 +587,9 @@ public struct Matcher: Sendable {
             // letter ("hello", "coffee"), or the key and a neighbour it passed, when the
             // swipe brushed two keys at one corner ("po" on a quick turn at "o").
             if state.lastKey >= 0, !state.doubled, !segment.isTap {
-                let own = Self.index(of: keys[state.lastKey])
-                var labels = [state.letter]
-                for letter in [keys[state.lastKey]] + (segment.near.indices.contains(state.lastKey) ? segment.near[state.lastKey] : []) {
-                    let label = Self.index(of: letter)
-                    if !labels.contains(label) { labels.append(label) }
-                }
-                for label in labels {
+                let here = options[state.segment][state.lastKey]
+                let own = here[0]
+                for label in [state.letter] + here.filter({ $0 != state.letter }) {
                     guard let child = lexicon.child(of: state.node, label: label) else { continue }
                     var next = counts
                     next[next.count - 1] += 1
@@ -590,7 +606,14 @@ public struct Matcher: Sendable {
                     if let own = lexicon.logPrior(at: state.node) {
                         let word = lexicon.word(at: state.node)
                         let prior = fixedPrior?(word) ?? own
-                        let value = score(word: word, prior: prior, counts: counts, segments: segments) - nearPenalty * Double(standIns)
+                        let path: Double
+                        if let known = scored[word]?.first(where: { $0.0 == counts })?.1 {
+                            path = known
+                        } else {
+                            path = score(word: word, prior: prior, counts: counts, segments: segments)
+                            scored[word, default: []].append((counts, path))
+                        }
+                        let value = path - nearPenalty * Double(standIns)
                         best[word] = max(best[word] ?? -.infinity, value)
                     }
                 } else {
@@ -602,14 +625,12 @@ public struct Matcher: Sendable {
             let range: Range<Int> = state.lastKey < 0
                 ? (segment.anchoredStart ? 0..<min(1, keys.count) : 0..<keys.count)
                 : (state.lastKey + 1)..<keys.count
-            for j in range {
-                for (n, letter) in ([keys[j]] + (segment.near.indices.contains(j) ? segment.near[j] : [])).enumerated() {
-                    let label = Self.index(of: letter)
-                    guard let child = lexicon.child(of: state.node, label: label) else { continue }
+            for (label, child) in lexicon.children(of: state.node) {
+                for option in keysFor[state.segment][label] where range.contains(option.key) {
                     var next = counts
                     next[next.count - 1] += 1
-                    queue.append((SearchState(segment: state.segment, lastKey: j, node: child, doubled: false, letter: label), next,
-                                   standIns + (n > 0 ? 1 : 0)))
+                    queue.append((SearchState(segment: state.segment, lastKey: option.key, node: child, doubled: false, letter: label), next,
+                                   standIns + (option.standIn ? 1 : 0)))
                 }
             }
         }

@@ -185,8 +185,6 @@ public final class SettingsPanelView: UIView {
     private func buildGroups() {
         delayRow = sliderRow(delayLabel, delaySlider, delayValue)
         let strictRow = sliderRow(strictLabel, strictSlider, strictValue)
-        // The two sliders start at the same place.
-        delayLabel.widthAnchor.constraint(equalTo: strictLabel.widthAnchor).isActive = true
 
         groups.axis = .vertical
         groups.spacing = Theme.Space.m
@@ -194,6 +192,9 @@ public final class SettingsPanelView: UIView {
         groups.addArrangedSubview(group([switchRow(autospaceLabel, autospaceSwitch), delayRow, strictRow]))
         groups.addArrangedSubview(group([switchRow(trailsLabel, trailsSwitch), switchRow(barLabel, barSwitch), switchRow(splitLabel, splitSwitch)]))
         groups.addArrangedSubview(group([switchRow(learnLabel, learnSwitch), row([forget])]))
+        // The two sliders start at the same place. Only once both rows sit in the same
+        // card: a constraint between views with no common ancestor throws.
+        delayLabel.widthAnchor.constraint(equalTo: strictLabel.widthAnchor).isActive = true
 
         scroll.showsHorizontalScrollIndicator = false
         scroll.alwaysBounceVertical = true

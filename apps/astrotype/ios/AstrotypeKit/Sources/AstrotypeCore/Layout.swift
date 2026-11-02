@@ -95,12 +95,21 @@ public struct Layout: Sendable, Equatable {
     public static let wideWidth: CGFloat = 700
     /// The least room a split keyboard leaves between its halves, for the guesses.
     public static let splitMiddle: CGFloat = 120
+    /// The space between keys, across and down: a thin line, so the keys get nearly
+    /// all the room and taps rarely land in a gap (Gabriel, 2 Nov 2026).
+    public static let keyGap: CGFloat = 2
+    /// The widest a letter key gets, so a swipe keeps its shape on a wide screen.
+    public static let maxKeyWidth: CGFloat = 64
+    /// The tallest a key gets when the keyboard has more room than it needs.
+    public static let maxKeyHeight: CGFloat = 64
 
-    /// The standard layout for a width: 33 pt keys at 390 pt (an iPhone), wider on the
-    /// iPhone Duo's screens, capped at 58 pt so a swipe keeps its shape on a wide
-    /// screen (DESIGN.md "Sizes"). Every page has the same height, and no page has any
-    /// padding: the keys run to the edges and iOS adds its own margins around the
-    /// keyboard, so ours lines up with Apple's (Gabriel, 2 Nov 2026).
+    /// The standard layout for a width: 37 pt keys at 390 pt (an iPhone), wider on the
+    /// iPhone Duo's screens, capped at 64 pt so a swipe keeps its shape on a wide
+    /// screen (DESIGN.md "Sizes"). Keys are `keyGap` apart, across and down, and the
+    /// keyboard is as tall as Apple's, so the keys are bigger than Apple's in both
+    /// directions. Every page has the same height, and no page has any padding: the
+    /// keys run to the edges and iOS adds its own margins around the keyboard
+    /// (Gabriel, 2 Nov 2026).
     ///
     /// `split` pulls the two halves apart on a wide screen, each under a thumb, with the
     /// space bar in both and, like Apple's, G and V on both halves. `extraLetters`
@@ -109,11 +118,11 @@ public struct Layout: Sendable, Equatable {
     /// and past the limit they sit at the bottom.
     public static func qwerty(width: CGFloat, page: Page = .letters, split: Bool = false, extraLetters: Bool = false,
                               height fill: CGFloat? = nil) -> Layout {
-        let gap = min(8, max(4, (6 * width / 390).rounded()))
+        let gap = keyGap
         let wide = width >= wideWidth
         let split = split && wide
         let extra = split && extraLetters
-        var unit = min(58, ((width - 9 * gap) / 10).rounded(.down))
+        var unit = min(maxKeyWidth, ((width - 9 * gap) / 10).rounded(.down))
         if split {
             // Two halves of 5.5 keys (6.5 with the extra letters), the middle left over.
             unit = extraLetters
@@ -121,19 +130,15 @@ public struct Layout: Sendable, Equatable {
                 : min(unit, ((width - splitMiddle - 9 * gap) / 11).rounded(.down))
         }
 
-        // Apple's rows: 42 pt keys 14 pt apart on a wide screen, 44 and 11 on a phone.
-        let naturalKey: CGFloat = wide ? 42 : 44
-        let naturalGap: CGFloat = wide ? 14 : 11
-        let natural = 4 * naturalKey + 3 * naturalGap
-        var keyHeight = naturalKey
-        var rowGap = naturalGap
+        // As tall as Apple's keyboard (42 pt keys 14 pt apart on a wide screen, 44 and
+        // 11 on a phone), with the rows only `keyGap` apart, so the keys take the rest.
+        let natural: CGFloat = wide ? 4 * 42 + 3 * 14 : 4 * 44 + 3 * 11
+        let rowGap = gap
+        var keyHeight = (natural - 3 * rowGap) / 4
         var top: CGFloat = 0
         var height = natural
         if let fill, fill > 0, fill != natural {
-            let scale = fill / natural
-            let guessGap = min(18, max(4, naturalGap * scale))
-            keyHeight = min(64, max(28, ((fill - 3 * guessGap) / 4).rounded(.down)))
-            rowGap = min(18, max(4, (fill - 4 * keyHeight) / 3))
+            keyHeight = min(maxKeyHeight, max(28, (fill - 3 * rowGap) / 4))
             let used = 4 * keyHeight + 3 * rowGap
             top = max(0, fill - used)
             height = max(fill, used)

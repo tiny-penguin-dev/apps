@@ -130,6 +130,17 @@ public struct Lexicon: Sendable {
 
     /// The node one letter (1...26) below `node`, if any.
     @inline(__always)
+    /// A node's edges, as indices for `edgeLabel` and `edgeTarget`: a range, so walking
+    /// a node's children makes nothing.
+    func edges(of node: Int32) -> Range<Int> {
+        let start = Int(edgeStart[Int(node)])
+        return start..<(start + Int(edgeCount[Int(node)]))
+    }
+
+    /// The letter (1...26) an edge from `edges(of:)` is for, and the node it leads to.
+    func edgeLabel(_ edge: Int) -> Int { Int(edgeLabels[edge]) }
+    func edgeTarget(_ edge: Int) -> Int32 { edgeTargets[edge] }
+
     func child(of node: Int32, label k: Int) -> Int32? {
         let start = Int(edgeStart[Int(node)])
         for i in start..<(start + Int(edgeCount[Int(node)])) where Int(edgeLabels[i]) == k {

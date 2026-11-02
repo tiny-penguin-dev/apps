@@ -16,8 +16,9 @@ public struct Candidate: Sendable, Equatable {
 /// Pieces are read in touch-down order; two that landed within the swap window are
 /// tried both ways. A word must start on each piece's first key and end on its last;
 /// between them the word's letters are a subsequence of the keys a swipe crossed (a
-/// crossed key may stand for a doubled letter), where each crossed key may also be read
-/// as a neighbour the path passed close to (`nearRadius`), so a swipe that cut a corner
+/// crossed key may stand for a doubled letter, or for itself and a neighbour it brushed),
+/// where each crossed key may also be read as a neighbour the path passed close to
+/// (`nearRadius`, `mayStandIn`), so a swipe that cut a corner
 /// or landed on the next key still finds the word. A tap that lands while a swipe is
 /// still moving is also tried at the point the swipe had reached, so the other thumb
 /// can drop a letter into a swipe ("hel|l|o"). Each match is scored by dynamic time
@@ -493,7 +494,7 @@ public struct Matcher: Sendable {
             for letter in Self.alphabet where letter != key {
                 guard let frame = layout.frame(of: .letter(letter), on: piece.side),
                       Geometry.distance(CGPoint(x: frame.midX, y: frame.midY), CGPoint(x: home.midX, y: home.midY)) < unit.width * 1.5,
-                      !piece.keys.contains(letter) || piece.isTap else { continue }
+                      piece.isTap || mayStandIn(letter, at: index, of: piece.keys) else { continue }
                 let grown = frame.insetBy(dx: -margin, dy: -margin * frame.height / frame.width)
                 if points.contains(where: { grown.contains($0) }) { out[index].append(letter) }
             }
@@ -502,6 +503,19 @@ public struct Matcher: Sendable {
     }
 
     static let alphabet = Array("abcdefghijklmnopqrstuvwxyz")
+
+    /// Whether a neighbouring `letter` may stand in for the swipe's key at `index`. A
+    /// letter the swipe never crossed always may. One it crossed somewhere else may too,
+    /// unless it is the key just before or after (the search takes that one as itself),
+    /// and at the swipe's first and last key always: the word must start and end there,
+    /// so a long swipe that ends on "h" beside a "g" it crossed earlier can still be
+    /// "everything". Long words have the most letters and the longest paths, so ruling
+    /// out every letter crossed anywhere made them the words most often unreachable.
+    func mayStandIn(_ letter: Character, at index: Int, of keys: [Character]) -> Bool {
+        guard keys.contains(letter) else { return true }
+        if index == 0 || index == keys.count - 1 { return true }
+        return keys[index - 1] != letter && keys[index + 1] != letter
+    }
 
     /// The index in the swipe's keys of the key the finger had reached by `pointIndex`,
     /// no earlier than `from`. The points are walked in order against the crossed keys,
@@ -533,25 +547,65 @@ public struct Matcher: Sendable {
     private func search(_ segments: [Segment], in lexicon: Lexicon, prior fixedPrior: ((String) -> Float)?) -> [String: Double] {
         // The best score per word: two paths through the keys can spell the same word.
         var best: [String: Double] = [:]
-        var seen = Set<SearchState>()
-        // Each queue entry carries how many letters each segment has contributed so far.
-        // And how many of its letters were stand-ins for a crossed key.
-        var queue: [(SearchState, [Int], Int)] = [(SearchState(segment: 0, lastKey: -1, node: 0, doubled: false, letter: 0), [0], 0)]
+        // The fewest stand-ins each state was reached with: a state reached again with
+        // fewer is searched again, so a word is not scored by its worst spelling.
+        var fewestStandIns: [SearchState: Int] = [:]
+        // Per segment and crossed key, the trie labels it may give: its own, then its
+        // neighbours (`near`), worked out once rather than at every state.
+        let options: [[[Int]]] = segments.map { segment in
+            segment.keys.indices.map { j in
+                ([segment.keys[j]] + (segment.near.indices.contains(j) ? segment.near[j] : [])).map(Self.index(of:))
+            }
+        }
+        // The same turned around: per segment and trie label, the crossed keys that may
+        // give it, in order, and whether as a stand-in. The search walks a node's
+        // children (a few) rather than every later key and its neighbours (dozens).
+        let keysFor: [[[(key: Int, standIn: Bool)]]] = options.map { segment in
+            var out = Array(repeating: [(key: Int, standIn: Bool)](), count: 27)
+            for (j, labels) in segment.enumerated() {
+                for (n, label) in labels.enumerated() { out[label].append((j, n > 0)) }
+            }
+            return out
+        }
+        // A word's path score depends only on the word and how many letters each
+        // segment gave it, and many spellings reach the same word: score it once.
+        var scored: [String: [([Int], Double)]] = [:]
+        // Each queue entry carries how many letters the segments before this one gave
+        // (`done`, shared, copied only when a segment ends), how many this one has given
+        // so far, and how many of its letters were stand-ins for a crossed key. Nothing
+        // is copied per letter: the search makes many entries and this is its hot loop.
+        struct Entry {
+            var state: SearchState
+            var done: [Int]
+            var letters: Int
+            var standIns: Int
+        }
+        var queue = [Entry(state: SearchState(segment: 0, lastKey: -1, node: 0, doubled: false, letter: 0), done: [], letters: 0, standIns: 0)]
+        queue.reserveCapacity(4096)
         var expanded = 0
         var index = 0
         while index < queue.count, expanded < budget {
-            let (state, counts, standIns) = queue[index]
+            let entry = queue[index]
+            let state = entry.state
             index += 1
-            if !seen.insert(state).inserted { continue }
+            if let fewest = fewestStandIns[state], fewest <= entry.standIns { continue }
+            fewestStandIns[state] = entry.standIns
             expanded += 1
             let segment = segments[state.segment]
             let keys = segment.keys
-            // The same crossed key again, for a doubled letter in a swipe ("hello", "coffee").
-            if state.lastKey >= 0, !state.doubled, !segment.isTap,
-               let child = lexicon.child(of: state.node, label: state.letter) {
-                var next = counts
-                next[next.count - 1] += 1
-                queue.append((SearchState(segment: state.segment, lastKey: state.lastKey, node: child, doubled: true, letter: state.letter), next, standIns))
+            // A second letter from the same crossed key: the same one, for a doubled
+            // letter ("hello", "coffee"), or the key and a neighbour it passed, when the
+            // swipe brushed two keys at one corner ("po" on a quick turn at "o").
+            if state.lastKey >= 0, !state.doubled, !segment.isTap {
+                let here = options[state.segment][state.lastKey]
+                let own = here[0]
+                for n in -1..<here.count {
+                    let label = n < 0 ? state.letter : here[n]
+                    guard n < 0 || label != state.letter, let child = lexicon.child(of: state.node, label: label) else { continue }
+                    let extra = (label == state.letter || label == own) ? 0 : 1
+                    queue.append(Entry(state: SearchState(segment: state.segment, lastKey: state.lastKey, node: child, doubled: true, letter: label),
+                                       done: entry.done, letters: entry.letters + 1, standIns: entry.standIns + extra))
+                }
             }
             // Done with this segment: finish the word or go on to the next segment.
             let canLeave = state.lastKey >= 0
@@ -562,26 +616,37 @@ public struct Matcher: Sendable {
                     if let own = lexicon.logPrior(at: state.node) {
                         let word = lexicon.word(at: state.node)
                         let prior = fixedPrior?(word) ?? own
-                        let value = score(word: word, prior: prior, counts: counts, segments: segments) - nearPenalty * Double(standIns)
+                        let counts = entry.done + [entry.letters]
+                        let path: Double
+                        if let known = scored[word]?.first(where: { $0.0 == counts })?.1 {
+                            path = known
+                        } else {
+                            path = score(word: word, prior: prior, counts: counts, segments: segments)
+                            scored[word, default: []].append((counts, path))
+                        }
+                        let value = path - nearPenalty * Double(entry.standIns)
                         best[word] = max(best[word] ?? -.infinity, value)
                     }
                 } else {
-                    queue.append((SearchState(segment: state.segment + 1, lastKey: -1, node: state.node, doubled: false, letter: 0), counts + [0], standIns))
+                    queue.append(Entry(state: SearchState(segment: state.segment + 1, lastKey: -1, node: state.node, doubled: false, letter: 0),
+                                       done: entry.done + [entry.letters], letters: 0, standIns: entry.standIns))
                 }
             }
             // Next letter: the segment's first key to begin (any key, for a segment that
             // continues a swipe after a tap), then any later crossed key.
-            let range: Range<Int> = state.lastKey < 0
-                ? (segment.anchoredStart ? 0..<min(1, keys.count) : 0..<keys.count)
-                : (state.lastKey + 1)..<keys.count
-            for j in range {
-                for (n, letter) in ([keys[j]] + (segment.near.indices.contains(j) ? segment.near[j] : [])).enumerated() {
-                    let label = Self.index(of: letter)
-                    guard let child = lexicon.child(of: state.node, label: label) else { continue }
-                    var next = counts
-                    next[next.count - 1] += 1
-                    queue.append((SearchState(segment: state.segment, lastKey: j, node: child, doubled: false, letter: label), next,
-                                   standIns + (n > 0 ? 1 : 0)))
+            let first = state.lastKey < 0 ? 0 : state.lastKey + 1
+            let end = state.lastKey < 0 && segment.anchoredStart ? min(1, keys.count) : keys.count
+            guard first < end else { continue }
+            let table = keysFor[state.segment]
+            let edges = lexicon.edges(of: state.node)
+            for edge in edges {
+                let label = lexicon.edgeLabel(edge)
+                let ways = table[label]
+                guard !ways.isEmpty else { continue }
+                let child = lexicon.edgeTarget(edge)
+                for way in ways where way.key >= first && way.key < end {
+                    queue.append(Entry(state: SearchState(segment: state.segment, lastKey: way.key, node: child, doubled: false, letter: label),
+                                       done: entry.done, letters: entry.letters + 1, standIns: entry.standIns + (way.standIn ? 1 : 0)))
                 }
             }
         }

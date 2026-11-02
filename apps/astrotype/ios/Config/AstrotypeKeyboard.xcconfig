@@ -13,3 +13,8 @@ TARGETED_DEVICE_FAMILY = 1
 SKIP_INSTALL = YES
 SWIFT_EMIT_LOC_STRINGS = YES
 LD_RUNPATH_SEARCH_PATHS = $(inherited) @executable_path/Frameworks @executable_path/../../Frameworks
+
+// Sentry, for the keyboard's crash reports only (KeyboardTelemetry.swift). Empty means
+// off; CI passes the app's DSN when it archives. See Astrotype.xcconfig for local builds.
+SENTRY_DSN =
+#include? "Secrets.xcconfig"

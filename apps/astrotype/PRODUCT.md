@@ -62,6 +62,8 @@ on day one.
    behind long-presses, never on the main keys.
 5. **Private by default.** Nothing typed goes anywhere. Full Access is asked for one
    reason, iCloud sync of your words and settings, and the keyboard types without it.
+   With it on, and anonymous usage data on, the keyboard also sends crash reports,
+   which hold where it crashed and never any text (section 10b).
    Typing data for tuning leaves the phone only from the practice screen in the app, and
    only if you turn it on.
 6. **Clean-room.** We match how Nintype feels by using and measuring it, never by copying
@@ -225,7 +227,7 @@ items easy:
 - Own emoji page, next-word suggestions while nothing is being typed.
 
 ### Never
-- Needing Full Access to type. It is only ever for sync.
+- Needing Full Access to type. It is only ever asked for sync.
 - Sending what you type anywhere. No cloud prediction, no AI rewriting of your text.
 - Ads.
 - Android.
@@ -241,9 +243,15 @@ items easy:
 
 ## 10b. What we measure
 
-Anonymous counts only, sent to Sentry from the app, never from the keyboard (see
-`docs/telemetry.md`). Nothing typed, no words, no text. People can turn this off in
-Settings.
+Anonymous counts only, sent to Sentry from the app (see `docs/telemetry.md`). Nothing
+typed, no words, no text. People can turn this off in Settings.
+
+The keyboard sends one thing itself: crash reports, with Full Access and the switch
+on. A report says where the code crashed (stack traces), on which device, OS and
+version, and how much memory was in use. It never carries text: no breadcrumbs, logs,
+screenshots, session replay, traces, messages or user ID, and Astrotype strips any
+crash reason that could quote a string. The keyboard's memory readings go to the app
+through the App Group, and the app sends them (the `keyboard.*` rows below).
 
 | Metric | What it tells us |
 |---|---|
@@ -256,6 +264,9 @@ Settings.
 | `sync.failed` | iCloud sync problems (goal: zero) |
 | `practice.shared` (`kind`) | How many words people share, practice or corrections (features/smart-matching) |
 | `personal.reset` | How often people wipe what the keyboard learned (features/smart-matching) |
+| `keyboard.memory_peak` (MB, per time the keyboard is shown) | Memory regressions before they hit the extension's limit (budget: 40 MB) |
+| `keyboard.memory_headroom` (MB, the least left) | How close the keyboard gets to iOS ending it |
+| `keyboard.ended_while_showing` | Keyboards ended while on screen: crashes, and the memory kills no crash report sees |
 
 More get added here as phases land.
 

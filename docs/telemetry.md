@@ -53,6 +53,17 @@ Metric names are lowercase and dotted: `<thing>.<what happened>`. List every met
 the app's `PRODUCT.md` under "What we measure" (or a feature's `FEATURE.md`), so they're
 agreed before they're built.
 
+## In an app extension (like a keyboard)
+
+An extension that handles what people type sends **crash reports only**, and only when
+the person allowed it (for a keyboard: Full Access, and the app's sharing switch, which
+the app writes to the App Group). Astrotype's `ios/AstrotypeKeyboard/KeyboardTelemetry.swift`
+is the pattern: no breadcrumbs, logs, screenshots, view hierarchy, session replay,
+traces, sessions, metrics or user ID, and a `beforeSend` that strips messages and
+exception text. Numbers the extension measures (like its memory) go to the app through
+the App Group, and the app sends them as metrics. Link `Sentry-Dynamic` to the
+extension too; give it the `SentryDSN` Info.plist key and its own `PrivacyInfo.xcprivacy`.
+
 ## The DSN (no secrets in the repo)
 
 The DSN tells the app where to send events. It's baked into the app at build time and

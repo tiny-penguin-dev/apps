@@ -1,3 +1,4 @@
+import AstrotypeCore
 import Foundation
 @preconcurrency import Sentry
 
@@ -7,14 +8,21 @@ import Foundation
 /// someone typed. Metric names are lowercase and dotted, like `setup.keyboard_on`.
 enum Telemetry {
     /// People can turn sharing off in Settings. Takes effect on the next launch.
+    /// The keyboard reads it from the App Group (`UsageSharing`) the next time it opens.
     static var isEnabled: Bool {
         get { UserDefaults.standard.object(forKey: enabledKey) as? Bool ?? true }
-        set { UserDefaults.standard.set(newValue, forKey: enabledKey) }
+        set {
+            UserDefaults.standard.set(newValue, forKey: enabledKey)
+            UsageSharing.save(newValue, to: KeyboardFiles.shared(KeyboardFiles.usage))
+        }
     }
 
     /// Starts Sentry. Call once, first thing in the App's `init`. Does nothing when the
     /// build has no DSN (local and simulator builds) or the person turned sharing off.
     static func start() {
+        // Tell the keyboard every launch, so it follows the switch even from before it
+        // read the App Group.
+        UsageSharing.save(isEnabled, to: KeyboardFiles.shared(KeyboardFiles.usage))
         guard isEnabled,
               let dsn = Bundle.main.object(forInfoDictionaryKey: "SentryDSN") as? String,
               dsn.hasPrefix("https://") else { return }
@@ -45,6 +53,11 @@ enum Telemetry {
     /// Records a current value, like a speed test's words per minute.
     static func gauge(_ name: String, value: Double, _ attributes: [String: String] = [:]) {
         SentrySDK.metrics.gauge(name, value: value, options: options(attributes))
+    }
+
+    /// Records an amount of memory, like the keyboard's peak.
+    static func size(_ name: String, megabytes: Double, _ attributes: [String: String] = [:]) {
+        SentrySDK.metrics.distribution(name, value: megabytes, options: options(attributes, unit: .megabyte))
     }
 
     /// Reports an error that was handled but shouldn't have happened.

@@ -12,6 +12,7 @@
 		5A0000000000000000000090 /* Sentry-Dynamic in Frameworks */ = {isa = PBXBuildFile; productRef = 5A0000000000000000000092 /* Sentry-Dynamic */; };
 		5A0000000000000000000102 /* AstrotypeCore in Frameworks */ = {isa = PBXBuildFile; productRef = 5A0000000000000000000101 /* AstrotypeCore */; };
 		5A0000000000000000000104 /* AstrotypeUI in Frameworks */ = {isa = PBXBuildFile; productRef = 5A0000000000000000000103 /* AstrotypeUI */; };
+		5A0000000000000000000106 /* Sentry-Dynamic in Frameworks */ = {isa = PBXBuildFile; productRef = 5A0000000000000000000105 /* Sentry-Dynamic */; };
 		5A0000000000000000000134 /* AstrotypeKeyboard.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 5A0000000000000000000110 /* AstrotypeKeyboard.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
@@ -49,6 +50,7 @@
 			files = (
 				5A0000000000000000000102 /* AstrotypeCore in Frameworks */,
 				5A0000000000000000000104 /* AstrotypeUI in Frameworks */,
+				5A0000000000000000000106 /* Sentry-Dynamic in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -169,6 +171,7 @@
 			packageProductDependencies = (
 				5A0000000000000000000101 /* AstrotypeCore */,
 				5A0000000000000000000103 /* AstrotypeUI */,
+				5A0000000000000000000105 /* Sentry-Dynamic */,
 			);
 			productName = AstrotypeKeyboard;
 			productReference = 5A0000000000000000000110 /* AstrotypeKeyboard.appex */;
@@ -364,6 +367,11 @@
 		5A0000000000000000000103 /* AstrotypeUI */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = AstrotypeUI;
+		};
+		5A0000000000000000000105 /* Sentry-Dynamic */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 5A0000000000000000000091 /* XCRemoteSwiftPackageReference "sentry-cocoa" */;
+			productName = "Sentry-Dynamic";
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

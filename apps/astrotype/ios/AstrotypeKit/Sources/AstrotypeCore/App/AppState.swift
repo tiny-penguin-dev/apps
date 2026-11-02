@@ -32,6 +32,8 @@ public struct AppState: Codable, Sendable, Equatable {
     public var milestonesSeen: [String] = []
     /// Send the touches of speed tests and drills to tune the keyboard. Off by default.
     public var sharePractice = false
+    /// The newest keyboard session whose memory readings were sent (`KeyboardHealth`).
+    public var keyboardHealthSent: Date?
 
     public init() {}
 
@@ -51,6 +53,7 @@ public struct AppState: Codable, Sendable, Equatable {
         drillsDone = try c.decodeIfPresent([String: Date].self, forKey: .drillsDone) ?? [:]
         milestonesSeen = try c.decodeIfPresent([String].self, forKey: .milestonesSeen) ?? []
         sharePractice = try c.decodeIfPresent(Bool.self, forKey: .sharePractice) ?? false
+        keyboardHealthSent = try c.decodeIfPresent(Date.self, forKey: .keyboardHealthSent)
     }
 
     /// Keeps the last 30 speed tests and the best on the Astrotype keyboard. Returns

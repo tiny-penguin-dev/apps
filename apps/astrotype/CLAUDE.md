@@ -36,7 +36,9 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
     `ProxyTarget` (the text document proxy), picks the stores (own files, mirrored to
     the App Group with Full Access), starts an `EntitlementController` (Pro from
     StoreKit, the trial from the App Group or its own first run) and, with Full
-    Access, writes `ExtensionStatus` and runs a `SyncController`. `ExtensionChecks`
+    Access, writes `ExtensionStatus` and runs a `SyncController`. `KeyboardTelemetry` starts Sentry for crash
+    reports only, and `KeyboardHealthRecorder` writes the memory per session for the
+    app. `ExtensionChecks`
     writes the StoreKit, memory and size readings into the bar's idle note while
     `Flags.extensionReadout` is on.
   - `AstrotypeKit/`: the local package, three targets:
@@ -154,8 +156,12 @@ xcodebuild build -project Astrotype.xcodeproj -scheme Astrotype \
   size of their own. `Layout.qwerty(width:)` is the one source of key geometry.
 - Every phase's done-when is checked at the small size (iPhone Duo outer), the largest
   text size and the wide size (Duo inner).
-- The keyboard must type without Full Access, and the extension never sends telemetry.
-  Keep the extension under 40 MB; the bar's memory readout (Phase 1) says what is left.
+- The keyboard must type without Full Access. The extension sends only crash reports
+  (`KeyboardTelemetry`: Full Access and usage sharing on, no breadcrumbs, logs, replay,
+  traces, messages or IDs, crash reasons stripped) and never metrics; its memory
+  readings go to the app (`KeyboardHealthRecorder` → `keyboard-health.json` →
+  `AppModel.sendKeyboardHealth`). Keep the extension under 40 MB; the bar's memory
+  readout (Phase 1) and `keyboard.memory_peak` in Sentry say where it stands.
 - Nothing typed ever leaves the phone. Practice sessions upload only from the app, only
   when the person turns it on.
 - Never write "Nintype" into the product, and never copy its code, data or art.

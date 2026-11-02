@@ -42,8 +42,10 @@ Builds on `PRODUCT.md` (approved 2026-11-01) and `DESIGN.md` (approved 2026-11-0
   dictionary is a trie over 40,000 words (about 2 MB), the matcher works on resampled
   paths, there is no Core ML model in the extension.
 - **Crash reports and metrics** use Sentry through `Telemetry` (`docs/telemetry.md`),
-  added to this older app as that doc describes. Only the app sends; the extension
-  never does.
+  added to this older app as that doc describes. The app sends metrics; the extension
+  sends only its own crash reports (`KeyboardTelemetry`, with Full Access and usage
+  sharing on, nothing that can hold text) and leaves its memory readings for the app
+  (`KeyboardHealth`).
 - **The ML loop from v1** (`ml/`, CloudKit sample upload) is kept for the practice
   sessions people opt into, and is otherwise untouched.
 
@@ -138,6 +140,7 @@ words.merged(with: otherDevice)              // last change wins per word
 | `drill.finished` (`drill`) | 7 |
 | `personal.reset` | smart-matching B |
 | `practice.shared` (`kind`) | smart-matching C |
+| `keyboard.memory_peak`, `keyboard.memory_headroom` (MB), `keyboard.ended_while_showing` | keyboard crash reports (2 Nov 2026) |
 
 ## Phases
 
@@ -316,7 +319,7 @@ database (`CloudKitSync`, `cloudkit/schema.ckdb`), written with "if server recor
 unchanged" so two devices writing at once merge rather than overwrite (`Syncer`, three
 tries). The extension syncs when it comes up and two seconds after a change
 (`SyncController`); the app on every foreground and after a change of its own, and it
-counts `sync.failed` once per run of failures (the extension never sends telemetry; its
+counts `sync.failed` once per run of failures (the extension sends no metrics; its
 last error goes into `keyboard-status.json` in the App Group, which also tells the app
 that Full Access is on, since the app cannot ask iOS). `RequestsOpenAccess` is now true,
 which is what makes the Allow Full Access switch appear. A new app version first copies

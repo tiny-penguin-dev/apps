@@ -46,7 +46,7 @@ keyboard that guesses badly sells nothing.
 **Never.** Nothing typed in another app leaves the phone unless the person turned on the
 corrections share, and then only word pairs with no text around them. No model trained on
 shared data ever contains a sentence anyone wrote. The extension never talks to the
-network (it still sends no telemetry); uploads happen in the app.
+network with anything typed (its crash reports hold no text); uploads happen in the app.
 
 **Languages.** English now. A language is a `Language` value: its lexicon, its word-pair
 model, its alphabet (which letters the trie knows) and its sentence rules. Adding one is

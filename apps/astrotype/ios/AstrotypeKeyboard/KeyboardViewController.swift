@@ -8,7 +8,9 @@ import UIKit
 /// read from StoreKit right here (`EntitlementController`), with the trial counted
 /// from the app's first launch when the App Group is readable, else from this
 /// extension's own first run. `Flags.extensionReadout` puts the Phase 1 readings in
-/// the bar for measuring on a phone.
+/// the bar for measuring on a phone. With Full Access and the app's "Share anonymous
+/// usage data" on, crashes go to Sentry (`KeyboardTelemetry`) and memory readings go
+/// to the app (`KeyboardHealthRecorder`); nothing typed goes anywhere.
 final class KeyboardViewController: UIInputViewController {
     private var keyboard: KeyboardView?
     private var target: ProxyTarget?
@@ -16,6 +18,7 @@ final class KeyboardViewController: UIInputViewController {
     private var entitlement: EntitlementController?
     private var heightConstraint: NSLayoutConstraint?
     private let checks = ExtensionChecks()
+    private var health: KeyboardHealthRecorder?
     private var edits = 0
 
     override func viewDidLoad() {
@@ -27,6 +30,9 @@ final class KeyboardViewController: UIInputViewController {
         view.backgroundColor = .clear
 
         let fullAccess = hasFullAccess
+        // First, so a crash while loading is caught.
+        KeyboardTelemetry.start(fullAccess: fullAccess)
+        health = KeyboardHealthRecorder(fullAccess: fullAccess)
         // English, with its word pairs when they shipped (features/smart-matching).
         let language = (try? Language.bundled()) ?? Language(code: "en", lexicon: Lexicon(entries: []))
         let (settingsStore, wordStore, personalStore) = Self.stores(fullAccess: fullAccess)
@@ -138,6 +144,7 @@ final class KeyboardViewController: UIInputViewController {
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
+        health?.appeared()
         followKeyboardAppearance()
         keyboard?.model.learningAllowed = fieldAllowsLearning
         keyboard?.model.contextChanged()
@@ -146,6 +153,12 @@ final class KeyboardViewController: UIInputViewController {
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         keyboard?.model.savePersonalNow()
+        health?.disappeared()
+    }
+
+    override func didReceiveMemoryWarning() {
+        super.didReceiveMemoryWarning()
+        health?.sample()
     }
 
     /// Whether this field may teach the keyboard (features/smart-matching): never a
@@ -201,7 +214,10 @@ final class KeyboardViewController: UIInputViewController {
         keyboard?.model.learningAllowed = fieldAllowsLearning
         keyboard?.model.contextChanged()
         edits += 1
-        if edits % 5 == 0 { checks.refresh() }
+        if edits % 5 == 0 {
+            checks.refresh()
+            health?.sample()
+        }
     }
 }
 

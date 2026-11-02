@@ -2,8 +2,12 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<!-- Sentry DSN for the keyboard's crash reports, filled in at build time (the same
+	     one as the app's). See docs/telemetry.md and KeyboardTelemetry.swift. -->
+	<key>SentryDSN</key>
+	<string>$(SENTRY_DSN)</string>
 	<!-- The keyboard extension. It asks for Full Access (RequestsOpenAccess), which the
-	     app explains and only iCloud sync uses; the keyboard types without it
+	     app explains and iCloud sync, haptics and crash reports use; the keyboard types without it
 	     (PRODUCT.md §8). -->
 	<key>NSExtension</key>
 	<dict>

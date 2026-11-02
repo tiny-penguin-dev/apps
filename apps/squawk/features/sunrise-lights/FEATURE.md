@@ -5,7 +5,7 @@ with the length, brightness and color all up to you.
 
 ## Product
 
-Status: Draft
+Status: Approved 2026-11-02 (Gabriel, decision card)
 
 ### The problem
 
@@ -90,7 +90,7 @@ What that means for people:
 
 ## Design
 
-Status: Draft
+Status: Approved 2026-11-02 (Gabriel, decision card)
 
 Builds on the approved steps design (`../steps/FEATURE.md`). Same cards, sliders and
 icons; one new icon and one new small component.
@@ -152,7 +152,7 @@ Screenshots: [sunrise](design/screens/sunrise.png), [small](design/screens/sunri
 
 ## Build
 
-Status: Draft
+Status: Approved 2026-11-02 (Gabriel, decision card)
 
 ### Approach
 

@@ -10,6 +10,7 @@ struct GoodMorningView: View {
     var log: MorningsLog
     var onClose: () -> Void
     @Environment(ProModel.self) private var pro
+    @Environment(AlarmsModel.self) private var model
     @AppStorage(Wardrobe.key) private var outfitID = ""
 
     var body: some View {
@@ -27,6 +28,9 @@ struct GoodMorningView: View {
                         .font(Theme.body)
                         .foregroundStyle(Theme.muted)
                         .multilineTextAlignment(.center)
+                    if !upActions.isEmpty {
+                        UpChips(actions: upActions)
+                    }
                     if let newOutfit {
                         NewOutfitCard(outfit: newOutfit, wearing: outfitID == newOutfit.rawValue) {
                             outfitID = newOutfit.rawValue
@@ -62,6 +66,12 @@ struct GoodMorningView: View {
                 .frame(maxWidth: 560)
         }
         .sensoryFeedback(.success, trigger: record?.id)
+    }
+
+    /// What "When you're up" just did, shown as chips.
+    private var upActions: [HomeAction] {
+        guard let record else { return [] }
+        return model.alarms.first { $0.id == record.alarmID }?.upActions ?? []
     }
 
     /// What Squawk wears today (see Settings).
@@ -148,6 +158,7 @@ private struct NewOutfitCard: View {
         onClose: {}
     )
     .environment(ProModel.preview())
+    .environment(AlarmsModel.preview())
 }
 
 #Preview("Last ring, large text") {
@@ -157,5 +168,81 @@ private struct NewOutfitCard: View {
         onClose: {}
     )
     .environment(ProModel.preview())
+    .environment(AlarmsModel.preview())
     .dynamicTypeSize(.accessibility3)
+}
+
+/// "Blinds opening", "Coffee maker on": what "When you're up" just did.
+private struct UpChips: View {
+    var actions: [HomeAction]
+    @State private var shown = false
+
+    var body: some View {
+        FlowChips {
+            ForEach(Array(actions.enumerated()), id: \.element.id) { index, action in
+                HStack(spacing: 6) {
+                    ThingIcon(kind: .home(action.kind), size: 20)
+                    Text(action.summary)
+                        .font(.system(.subheadline, design: .rounded, weight: .bold))
+                }
+                .padding(.horizontal, 10).padding(.vertical, 6)
+                .background(Theme.ice, in: Capsule())
+                .scaleEffect(shown ? 1 : 0.4)
+                .opacity(shown ? 1 : 0)
+                .animation(.spring(duration: 0.5, bounce: 0.45).delay(0.3 + Double(index) * 0.08), value: shown)
+            }
+        }
+        .onAppear { shown = true }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("When you're up: " + actions.map(\.summary).joined(separator: ", "))
+    }
+}
+
+/// Lays chips out in rows, wrapping when they don't fit.
+private struct FlowChips: Layout {
+    var spacing: CGFloat = 8
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let rows = rows(width: proposal.width ?? .infinity, subviews: subviews)
+        let width = rows.map(\.width).max() ?? 0
+        let height = rows.map(\.height).reduce(0, +) + spacing * CGFloat(max(rows.count - 1, 0))
+        return CGSize(width: width, height: height)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        var y = bounds.minY
+        for row in rows(width: bounds.width, subviews: subviews) {
+            var x = bounds.minX + (bounds.width - row.width) / 2
+            for index in row.indices {
+                let size = subviews[index].sizeThatFits(.unspecified)
+                subviews[index].place(at: CGPoint(x: x, y: y), proposal: ProposedViewSize(size))
+                x += size.width + spacing
+            }
+            y += row.height + spacing
+        }
+    }
+
+    private struct Row {
+        var indices: [Int] = []
+        var width: CGFloat = 0
+        var height: CGFloat = 0
+    }
+
+    private func rows(width: CGFloat, subviews: Subviews) -> [Row] {
+        var rows: [Row] = []
+        var current = Row()
+        for index in subviews.indices {
+            let size = subviews[index].sizeThatFits(.unspecified)
+            let needed = current.indices.isEmpty ? size.width : current.width + spacing + size.width
+            if needed > width, !current.indices.isEmpty {
+                rows.append(current)
+                current = Row()
+            }
+            current.width = current.indices.isEmpty ? size.width : current.width + spacing + size.width
+            current.height = max(current.height, size.height)
+            current.indices.append(index)
+        }
+        if !current.indices.isEmpty { rows.append(current) }
+        return rows
+    }
 }

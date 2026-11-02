@@ -227,7 +227,7 @@ struct NewAlarmFlow: View {
                     }
                 }
             }
-            ChoiceCard(title: "+ Add something", subtitle: "Open the blinds, start the coffee, or run a scene.", selected: false) {
+            ChoiceCard(title: "+ Add an action", subtitle: "Open the blinds, start the coffee, or run a scene.", selected: false) {
                 addingUp = true
             }
         }

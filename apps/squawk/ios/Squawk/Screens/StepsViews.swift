@@ -7,7 +7,7 @@ struct ThingIcon: View {
     enum Kind {
         case ring, check
         case home(HomeAction.Kind)
-        /// "Home control": lights, plugs, switches and blinds together.
+        /// "Home control": lights, plugs and blinds together.
         case devices
     }
 
@@ -62,15 +62,21 @@ struct ThingRow: View {
     var name: String
     var detail: String = ""
 
+    // The detail sits under the name, so long ones like "30 min · 5% → 100%" fit.
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
+        HStack(alignment: .center, spacing: 8) {
             ThingIcon(kind: kind)
-                .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 5 }
-            Text("\(Text(name).bold())\(Text(detail.isEmpty ? "" : " · \(detail)").foregroundStyle(Theme.muted))")
-                .font(.system(.subheadline, design: .rounded))
-                .fixedSize(horizontal: false, vertical: true)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(name).bold()
+                if !detail.isEmpty {
+                    Text(detail).foregroundStyle(Theme.muted)
+                }
+            }
+            .font(.system(.subheadline, design: .rounded))
+            .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 0)
         }
+        .accessibilityElement(children: .combine)
     }
 }
 

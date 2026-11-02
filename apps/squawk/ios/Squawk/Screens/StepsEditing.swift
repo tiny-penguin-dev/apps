@@ -226,7 +226,7 @@ struct StepDetailView: View {
                 }
 
                 Button { adding = true } label: {
-                    Text("+ Add something")
+                    Text("+ Add an action")
                         .font(Theme.label)
                         .foregroundStyle(Theme.accent)
                         .frame(maxWidth: .infinity, minHeight: 50)
@@ -339,7 +339,7 @@ struct AddThingSheet: View {
                 row(.home(.sunrise), HomeAction.Kind.sunrise.title, locked: locked)
             }
             row(.home(.scene), HomeAction.Kind.scene.title, locked: locked)
-            row(.devices, "Home control", subtitle: "Lights, plugs, switches and blinds", locked: locked)
+            row(.devices, "Home control", subtitle: "Lights, plugs and blinds", locked: locked)
         }
         .padding(22)
         .presentationDetents([.medium])
@@ -411,7 +411,7 @@ struct UpActionsView: View {
                     }
                 }
                 Button { adding = true } label: {
-                    Text("+ Add something")
+                    Text("+ Add an action")
                         .font(Theme.label)
                         .foregroundStyle(Theme.accent)
                         .frame(maxWidth: .infinity, minHeight: 50)

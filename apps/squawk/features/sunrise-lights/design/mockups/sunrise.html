@@ -239,7 +239,7 @@ body{background:var(--stage);color:var(--ink);font-family:var(--font);
     <button data-go="edit">Steps with Sunrise lights</button>
     <button data-go="sunrise">Sunrise lights</button>
     <button data-go="stepdetail">A step</button>
-    <button data-go="addthing">Add something</button>
+    <button data-go="addthing">Add an action</button>
     <small>Guided new alarm</small>
     <button data-go="g3">3 · Lights</button>
     <small>Home screen</small>
@@ -274,7 +274,7 @@ const ICON={
   check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>'};
 const ic=k=>`<span class="ic ${k}" aria-hidden="true">${ICON[k]}</span>`;
 function srDetail(sr){return `${sr.len} min · ${sr.b0}% → ${sr.b1}%`}
-function thing(t){return `<div class="thing">${ic(t.k)}<div style="min-width:0">${t.name}${t.v?` <span>· ${t.v}</span>`:""}</div></div>`}
+function thing(t){return `<div class="thing">${ic(t.k)}<div style="min-width:0">${t.name}${t.v?`<span style="display:block;font-size:13px">${t.v}</span>`:""}</div></div>`}
 function steps(){const st=[{off:0,wake:true,things:[{k:"ring",name:"Morning squawk",v:"until you scan the tag"}]},{off:-10,things:[{k:"ring",name:"Little peep",v:"soft"}]}];
   if(S.sr.on){const ex=st.find(x=>x.off===S.sr.off);const t={k:"sunrise",name:"Bedroom lamp",v:srDetail(S.sr),sr:true};ex?ex.things.unshift(t):st.push({off:S.sr.off,things:[t]})}
   return st.sort((a,b)=>a.off-b.off)}
@@ -373,13 +373,13 @@ stepdetail:()=>{const st=steps().find(s=>s.off===sel)||steps()[0];return `${stat
   <div class="card stepper">${st.wake?`<div class="val" style="flex:1"><b>${at(0)}</b><span class="sub">Wake-up time</span></div>`:`<button data-act="off-" aria-label="Five minutes earlier">−</button><div class="val"><b>${at(st.off)}</b><span class="sub">${offLabel(st.off)}</span></div><button data-act="off+" aria-label="Five minutes later">+</button>`}</div>
   <div class="sec">What happens</div>
   <div class="card list">${st.things.map(t=>`<div class="row">${thing(t)}<span class="spacer"></span>${t.sr?`<button class="back" style="font-size:15px" data-act="change">Change</button>`:""}</div>${t.sr?rampBars(S.sr)+`<div class="rampcap"><span>starts ${at(S.sr.off)}</span><span>bright by ${at(S.sr.off+S.sr.len)}</span></div>`:""}`).join("")}</div>
-  <button class="add" data-go="addthing">+ Add something</button>
+  <button class="add" data-go="addthing">+ Add an action</button>
   ${st.things.some(t=>t.sr)?`<p class="note2">Sunrise lights start at this step's time. Moving the step moves the whole sunrise.</p>`:""}
   </div></div>`},
 
 addthing:()=>`${screens.stepdetail()}<div class="scrim" data-go="stepdetail"></div><div class="sheet" style="text-align:left;gap:0" role="dialog" aria-label="Add to this step">
   <b class="h2" style="margin-bottom:6px">Add to this step</b>
-  ${[["ring","Ring"],["sunrise","Sunrise lights"],["scene","Home scene"],["house","Home control","Lights, plugs, switches and blinds"]].map(([k,n,sub])=>`<button class="opt" ${k==="sunrise"?'data-act="addsr"':""}>${ic(k)}<b>${n}${sub?`<span class="sub" style="display:block;font-size:13px;font-weight:700">${sub}</span>`:""}</b>${k==="ring"?"":`<span class="pro">PRO</span>`}<span>›</span></button>`).join("")}</div>`,
+  ${[["ring","Ring"],["sunrise","Sunrise lights"],["scene","Home scene"],["house","Home control","Lights, plugs and blinds"]].map(([k,n,sub])=>`<button class="opt" ${k==="sunrise"?'data-act="addsr"':""}>${ic(k)}<b>${n}${sub?`<span class="sub" style="display:block;font-size:13px;font-weight:700">${sub}</span>`:""}</b>${k==="ring"?"":`<span class="pro">PRO</span>`}<span>›</span></button>`).join("")}</div>`,
 
 g3:()=>`${status()}<div class="screen">
   <div class="gtop"><button class="back">‹ Back</button><div class="gdots"><i class="done"></i><i class="done"></i><i class="on"></i><i></i><i></i></div><button class="skipall">All options</button></div>

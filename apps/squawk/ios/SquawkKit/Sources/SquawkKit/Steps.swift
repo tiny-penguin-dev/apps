@@ -17,7 +17,7 @@ public struct HomeAction: Codable, Identifiable, Hashable, Sendable {
         /// The kind of device it controls: sunrise lights use lights.
         public var deviceKind: Kind { self == .sunrise ? .light : self }
 
-        /// "Lights", as in the Add something sheet.
+        /// "Lights", as in the Add an action sheet.
         public var title: String {
             switch self {
             case .light: "Lights"

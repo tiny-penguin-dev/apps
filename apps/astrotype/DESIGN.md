@@ -142,8 +142,10 @@ This is the product, so it gets its own section.
   second after lift. Which thumb: left half of the keyboard is teal, right half coral.
   (The real engine will tell thumbs apart by touch identity and position, not only by
   side.)
-- **The open word** shows in the text field underlined in teal, so the person sees what
-  space will write without looking at the bar.
+- **The open word** shows in the text field (underlined in teal in the app's own fields;
+  in other apps as plain text replaced as the guesses change, because marked text
+  through the keyboard's proxy put spaces before words in some apps, 2 Nov 2026), so
+  the person sees what space will write without looking at the bar.
 - **Commit:** space, punctuation, or autospace after 0.9 s with no finger down (the
   delay is a setting, 0.1 to 1.5 s), for swiped and pecked words alike (Gabriel, 2 Nov
   2026: swipe-only broke one-word pecks and "I" or "a"). One space between words: a

@@ -201,10 +201,15 @@ final class KeyboardViewController: UIInputViewController {
     }
 }
 
-/// The engine's text target on the extension's document proxy.
+/// The engine's text target on the extension's document proxy. The open word is
+/// written as ordinary text and replaced as the guesses change, not as marked text:
+/// marked text through the proxy is unreliable across apps, and the space after a word
+/// sometimes landed before it (Gabriel, 2 Nov 2026).
 @MainActor
 final class ProxyTarget: TextTarget {
     private unowned let controller: UIInputViewController
+    /// The open word as it stands in the field, right before the cursor.
+    private var open = ""
 
     init(controller: UIInputViewController) {
         self.controller = controller
@@ -212,12 +217,26 @@ final class ProxyTarget: TextTarget {
 
     private var proxy: UITextDocumentProxy { controller.textDocumentProxy }
 
-    var textBeforeCursor: String? { proxy.documentContextBeforeInput }
+    /// The text before the cursor without the open word, as if it were still marked.
+    var textBeforeCursor: String? {
+        guard let before = proxy.documentContextBeforeInput else { return nil }
+        return !open.isEmpty && before.hasSuffix(open) ? String(before.dropLast(open.count)) : before
+    }
+
     func insert(_ text: String) { proxy.insertText(text) }
     func deleteBackward() { proxy.deleteBackward() }
+
     func mark(_ text: String) {
-        proxy.setMarkedText(text, selectedRange: NSRange(location: text.utf16.count, length: 0))
+        guard text != open else { return }
+        // Take the old reading out, unless the cursor moved away from it (then it stays
+        // as typed). A field that hides its text (nil) is trusted to be where we left it.
+        if !open.isEmpty, proxy.documentContextBeforeInput.map({ $0.hasSuffix(open) }) ?? true {
+            for _ in 0..<open.count { proxy.deleteBackward() }
+        }
+        if !text.isEmpty { proxy.insertText(text) }
+        open = text
     }
-    func unmark() { proxy.unmarkText() }
+
+    func unmark() { open = "" }
     func moveCursor(by offset: Int) { proxy.adjustTextPosition(byCharacterOffset: offset) }
 }

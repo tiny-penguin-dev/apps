@@ -200,15 +200,17 @@ private func onceDates(_ plan: [PlannedRing]) -> [Date] {
 
     @Test func snoozeTopsUpTheRepeats() {
         // Snoozed at 7:01:10: the next 2 minutes of repeats, then the backups.
+        let alarm = tagAlarm()
         let now = at(2, 7, 1).addingTimeInterval(10)
-        let monday = onceDates(AlarmPlanner.plan(tagAlarm(), now: now, calendar: utc)).filter { $0 < at(3, 0) }
+        let monday = onceDates(AlarmPlanner.plan(alarm, now: now, calendar: utc)).filter { $0 < at(3, 0) }
         #expect(monday == [
             at(2, 7, 1).addingTimeInterval(30), at(2, 7, 2), at(2, 7, 2).addingTimeInterval(30),
             at(2, 7, 3), at(2, 7, 4), at(2, 7, 6), at(2, 7, 8),
         ])
         // Re-planning keeps the same ids, so rings already scheduled stay as they are.
-        let before = Set(AlarmPlanner.plan(tagAlarm(), now: sundayNight, calendar: utc).map(\.id))
-        let after = AlarmPlanner.plan(tagAlarm(), now: now, calendar: utc).filter { $0.nextFire(after: now, calendar: utc)! < at(2, 7, 2) }
+        let before = Set(AlarmPlanner.plan(alarm, now: sundayNight, calendar: utc).map(\.id))
+        let after = AlarmPlanner.plan(alarm, now: now, calendar: utc).filter { $0.nextFire(after: now, calendar: utc)! < at(2, 7, 2) }
+        #expect(!after.isEmpty)
         #expect(after.allSatisfy { before.contains($0.id) })
     }
 

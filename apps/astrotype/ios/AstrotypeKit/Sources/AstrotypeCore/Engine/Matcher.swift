@@ -213,8 +213,7 @@ public struct Matcher: Sendable {
                 }
             }
         }
-        let out = best.map { Candidate(word: $0.key, score: $0.value) }
-            .sorted { $0.score > $1.score || ($0.score == $1.score && $0.word < $1.word) }
+        let out = Self.ranked(best)
         if out.isEmpty {
             // Nothing fits the keys as crossed: the nearest real words to the keys the
             // swipes started and ended on, and those keys themselves only when no word
@@ -227,6 +226,15 @@ public struct Matcher: Sendable {
     /// The log prior of a word of the person's own, from how often they wrote it.
     func ownPrior(_ word: String) -> Float {
         learned.logPrior(of: word, base: learnedPrior)
+    }
+
+    /// Words and scores as guesses, best first (ties alphabetical, so runs repeat).
+    static func ranked(_ scores: [String: Double]) -> [Candidate] {
+        let candidates: [Candidate] = scores.map { (word: String, score: Double) in Candidate(word: word, score: score) }
+        return candidates.sorted { (a: Candidate, b: Candidate) -> Bool in
+            if a.score != b.score { return a.score > b.score }
+            return a.word < b.word
+        }
     }
 
     /// In the dictionary or the person's own words.
@@ -261,7 +269,8 @@ public struct Matcher: Sendable {
         guard strictness < 1 else { return near }
         guard let best = near.first else { return [literal] }
         let sure = !pecked || (strictness > 0 && confidence(of: best, over: literal) >= 1 - strictness)
-        let ordered = sure ? [best, literal] + near.dropFirst() : [literal] + near
+        var ordered: [Candidate] = sure ? [best, literal] : [literal, best]
+        ordered.append(contentsOf: near.dropFirst())
         return Array(ordered.prefix(limit))
     }
 
@@ -321,9 +330,7 @@ public struct Matcher: Sendable {
         }
         collect(dictionary, prior: nil)
         if learnedLexicon.nodeCount > 1 { collect(learnedLexicon, prior: ownPrior) }
-        let ranked: [Candidate] = best.map { Candidate(word: $0.key, score: $0.value) }
-            .sorted { $0.score > $1.score || ($0.score == $1.score && $0.word < $1.word) }
-        return Array(ranked.prefix(limit))
+        return Array(Self.ranked(best).prefix(limit))
     }
 
     /// Weighted edit distance from `typed` to every word in the trie, walking it depth

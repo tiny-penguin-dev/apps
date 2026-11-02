@@ -98,7 +98,7 @@ private struct SharedPathsView: View {
 
     var body: some View {
         Canvas { context, size in
-            let layout = Layout.qwerty(width: word.layoutWidth, split: word.split, maxHeight: word.layoutHeight)
+            let layout = Layout.qwerty(width: word.layoutWidth, split: word.split, height: word.layoutHeight)
             let scale = min(size.width / max(1, layout.width), size.height / max(1, layout.height))
             for placement in layout.placements where placement.key.character != nil {
                 let frame = placement.frame.applying(CGAffineTransform(scaleX: scale, y: scale)).insetBy(dx: 1, dy: 1)

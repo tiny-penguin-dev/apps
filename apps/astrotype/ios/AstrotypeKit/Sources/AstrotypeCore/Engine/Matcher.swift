@@ -336,11 +336,11 @@ public struct Matcher: Sendable {
         let margin = nearRadius * unit.width
         var out = Array(repeating: [Character](), count: piece.keys.count)
         for (index, key) in piece.keys.enumerated() {
-            guard let home = layout.frame(of: .letter(key)) else { continue }
+            guard let home = layout.frame(of: .letter(key), on: piece.side) else { continue }
             let stretch = walked.indices.filter { owner[$0] == index }.map { walked[$0] }
             let points = stretch.isEmpty ? [walked[index == 0 ? 0 : walked.count - 1]] : stretch
             for letter in Self.alphabet where letter != key {
-                guard let frame = layout.frame(of: .letter(letter)),
+                guard let frame = layout.frame(of: .letter(letter), on: piece.side),
                       Geometry.distance(CGPoint(x: frame.midX, y: frame.midY), CGPoint(x: home.midX, y: home.midY)) < unit.width * 1.5,
                       !piece.keys.contains(letter) || piece.isTap else { continue }
                 let grown = frame.insetBy(dx: -margin, dy: -margin * frame.height / frame.width)
@@ -459,7 +459,9 @@ public struct Matcher: Sendable {
         var weight = 0
         for swipe in swipes where swipe.letters.count > 1 && swipe.points.count > 1 {
             let count = swipe.letters.count
-            let centers = swipe.letters.compactMap { layout.frame(of: .letter($0)).map { CGPoint(x: $0.midX, y: $0.midY) } }
+            // On a split keyboard a middle letter is on both halves: the swipe's own.
+            let side = layout.side(at: swipe.points[0])
+            let centers = swipe.letters.compactMap { layout.frame(of: .letter($0), on: side).map { CGPoint(x: $0.midX, y: $0.midY) } }
             let ideal = Geometry.resample(centers, count: 32)
             let actual = Geometry.resample(swipe.points, count: 32)
             let lengths = abs(Geometry.length(centers) - Geometry.length(swipe.points))

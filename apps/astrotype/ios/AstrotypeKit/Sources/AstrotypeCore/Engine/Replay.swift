@@ -45,7 +45,7 @@ public enum Replay {
                            weights: Matcher.Weights? = nil) throws(Skip) -> Outcome {
         guard !recording.commits.isEmpty else { throw .noCommits }
         guard !recording.touches.isEmpty else { throw .noTouches }
-        let layout = Layout.qwerty(width: recording.layoutWidth, split: recording.split, maxHeight: recording.layoutHeight)
+        let layout = Layout.qwerty(width: recording.layoutWidth, split: recording.split, height: recording.layoutHeight)
         var composer = Composer(language: language, layout: layout, settings: settings)
         if let weights { composer.matcher.weights = weights }
         let expected = recording.expected.split(separator: " ").map(String.init)

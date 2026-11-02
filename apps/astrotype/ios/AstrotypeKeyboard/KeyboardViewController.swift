@@ -47,6 +47,8 @@ final class KeyboardViewController: UIInputViewController {
         keyboard.onSystemKey = { [weak self] key in
             if key == .globe { self?.advanceToNextInputMode() }
         }
+        // The guesses bar going on or off, or the split, changes the height to ask for.
+        keyboard.onHeightChange = { [weak self] _ in self?.view.setNeedsLayout() }
         view.addSubview(keyboard)
         self.keyboard = keyboard
 
@@ -173,7 +175,7 @@ final class KeyboardViewController: UIInputViewController {
         super.viewWillLayoutSubviews()
         let width = view.bounds.width
         guard width > 0, let keyboard else { return }
-        let height = KeyboardView.height(forWidth: width)
+        let height = keyboard.height(forWidth: width)
         if let heightConstraint {
             if heightConstraint.constant != height { heightConstraint.constant = height }
         } else {
@@ -182,9 +184,8 @@ final class KeyboardViewController: UIInputViewController {
             constraint.isActive = true
             heightConstraint = constraint
         }
-        // The keyboard fills whatever iOS grants: if that is less than asked (the Duo's
-        // inner screen), the keys shrink to fit and the bar stays; if more, the keys
-        // sit at the bottom.
+        // The keyboard fills whatever iOS grants, edge to edge (iOS adds the margins
+        // around it): the keys shrink or grow to the height, and the guesses stay.
         let granted = view.bounds.height
         keyboard.frame = CGRect(x: 0, y: 0, width: width, height: granted > 0 ? granted : height)
         checks.sized(granted: granted, wanted: height, width: width, screenWidth: view.window?.windowScene?.screen.bounds.width ?? 0)

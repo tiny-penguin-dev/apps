@@ -321,7 +321,7 @@ public final class KeySurfaceView: UIView {
     /// other, in the thumb's colour. Under Reduce Motion the trails just show and go.
     public func replay(_ strokes: [(side: Side, letters: String)], completion: (@MainActor () -> Void)? = nil) {
         let steps: [(side: Side, points: [CGPoint])] = strokes.map { stroke in
-            (stroke.side, stroke.letters.compactMap { layout.frame(of: .letter($0)).map { CGPoint(x: $0.midX, y: $0.midY) } })
+            (stroke.side, stroke.letters.compactMap { layout.frame(of: .letter($0), on: stroke.side).map { CGPoint(x: $0.midX, y: $0.midY) } })
         }
         play(steps[...], completion: completion)
     }
@@ -403,7 +403,10 @@ public final class KeySurfaceView: UIView {
     }
 
     private func flash(_ key: Key, side: Side) {
-        keyViews[key]?.forEach { showsFlashes ? $0.flash(side: side) : $0.press() }
+        // A middle letter on a split keyboard is on both halves: light the thumb's own.
+        let views = keyViews[key] ?? []
+        let mine = views.count > 1 ? views.filter { layout.side(at: CGPoint(x: $0.frame.midX, y: 0)) == side } : views
+        (mine.isEmpty ? views : mine).forEach { showsFlashes ? $0.flash(side: side) : $0.press() }
     }
 
     private func unflash(_ key: Key) {

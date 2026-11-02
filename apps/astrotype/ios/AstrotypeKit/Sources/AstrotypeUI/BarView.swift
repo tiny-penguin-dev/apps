@@ -2,10 +2,12 @@
 import AstrotypeCore
 import UIKit
 
-/// The bar above the keys, in its three states (DESIGN.md "The bar"): an idle note,
-/// the guesses for the open word with the chosen one in a pill, or FIX with the other
-/// readings of the word just written. Holding a guess and sliding up boosts it, down
-/// forgets it (DESIGN.md "Learning").
+/// The guesses, in their three states (DESIGN.md "The bar"): an idle note, the guesses
+/// for the open word with the chosen one in a pill, or FIX with the other readings of
+/// the word just written. Holding a guess and sliding up boosts it, down forgets it
+/// (DESIGN.md "Learning"). A bar above the keys (`axis` horizontal) or a column beside
+/// them (vertical: the middle of a split keyboard, the side of a wide one); in a column,
+/// touches between the guesses fall through to the keys under it.
 ///
 ///     bar.bar = model.state.bar
 ///     bar.onChoose = { index in model.choose(guess: index) }
@@ -21,6 +23,18 @@ public final class BarView: UIView {
     /// What the bar says when idle.
     public var note = "Both thumbs, one word" {
         didSet { if case .idle = bar { render() } }
+    }
+
+    /// Horizontal: a bar above the keys. Vertical: a column beside them.
+    public var axis: NSLayoutConstraint.Axis = .horizontal {
+        didSet {
+            guard axis != oldValue else { return }
+            stack.axis = axis
+            stack.distribution = axis == .vertical ? .fill : .equalCentering
+            stack.spacing = axis == .vertical ? Theme.Space.xs : Theme.Space.s
+            label.numberOfLines = axis == .vertical ? 0 : 1
+            setNeedsLayout()
+        }
     }
 
     public var bar: Composer.Bar = .idle {
@@ -56,7 +70,8 @@ public final class BarView: UIView {
 
     public override init(frame: CGRect) {
         super.init(frame: frame)
-        backgroundColor = Theme.ui(.kb)
+        // Clear: in a column it lies over the keys' open middle, where trails pass.
+        backgroundColor = .clear
 
         // The bar's text scales one step with the person's text size (DESIGN.md
         // "Accessibility"); the keys do not.
@@ -93,8 +108,19 @@ public final class BarView: UIView {
 
     public required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 
+    /// Empty parts of the bar take no touches: in a column over the keys they belong
+    /// to the keys.
+    public override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
+        let hit = super.hitTest(point, with: event)
+        return hit === self || hit === stack ? nil : hit
+    }
+
     public override func layoutSubviews() {
         super.layoutSubviews()
+        if axis == .vertical {
+            layoutColumn()
+            return
+        }
         let inset = bounds.insetBy(dx: Theme.Space.s, dy: 0)
         label.frame = inset
         if case .fix = bar {
@@ -105,6 +131,22 @@ public final class BarView: UIView {
         } else {
             stack.frame = inset
         }
+    }
+
+    /// A column: FIX on top when fixing, the guesses stacked and centred under it.
+    private func layoutColumn() {
+        var area = bounds.insetBy(dx: Theme.Space.xs, dy: Theme.Space.s)
+        label.frame = area
+        if case .fix = bar {
+            fixLabel.sizeToFit()
+            fixLabel.frame = CGRect(x: area.midX - fixLabel.bounds.width / 2, y: area.minY,
+                                    width: fixLabel.bounds.width, height: fixLabel.bounds.height)
+            area = area.divided(atDistance: fixLabel.bounds.height + Theme.Space.xs, from: .minYEdge).remainder
+        }
+        let fit = stack.systemLayoutSizeFitting(CGSize(width: area.width, height: UIView.layoutFittingCompressedSize.height),
+                                                withHorizontalFittingPriority: .required, verticalFittingPriority: .fittingSizeLevel)
+        let height = min(area.height, fit.height)
+        stack.frame = CGRect(x: area.minX, y: area.midY - height / 2, width: area.width, height: height)
     }
 
     private func render() {
@@ -146,6 +188,7 @@ public final class BarView: UIView {
         var config = UIButton.Configuration.plain()
         config.contentInsets = NSDirectionalEdgeInsets(top: 6, leading: Theme.Space.m, bottom: 6, trailing: Theme.Space.m)
         config.background.cornerRadius = 16
+        config.titleLineBreakMode = .byTruncatingTail
         config.background.backgroundColor = chosen ? Theme.ui(.card) : .clear
         config.attributedTitle = AttributedString(word, attributes: AttributeContainer([
             .font: guessFont(chosen: chosen),

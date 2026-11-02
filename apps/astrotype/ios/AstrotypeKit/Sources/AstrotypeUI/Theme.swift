@@ -68,8 +68,9 @@ public enum Theme {
     /// A background you can't see that still takes touches. In a keyboard extension
     /// iOS drops touches on fully clear pixels, so a see-through key surface (the
     /// system's backdrop showing through) would ignore taps in the gaps between keys.
-    /// 1% black is invisible on the backdrop and enough to be hit.
-    public static let seeThrough = UIColor(white: 0, alpha: 0.01)
+    /// The keyboard's own grey (`kb`: light grey in light mode, dark grey in dark mode)
+    /// at 1%: invisible on the backdrop and enough to be hit.
+    public static let seeThrough = UIColor { ui(.kb).resolvedColor(with: $0).withAlphaComponent(0.01) }
 
     /// Type: SF Pro Rounded everywhere. The app's styles follow Dynamic Type (the big
     /// number and the wide title through `bigNumberFont()` and `displayTitleFont()`,

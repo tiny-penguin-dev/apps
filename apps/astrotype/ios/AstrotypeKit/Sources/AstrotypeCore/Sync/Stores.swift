@@ -106,6 +106,85 @@ public struct MirroredWordStore: WordStore {
     }
 }
 
+// MARK: Personal model
+
+/// Where the personal model is kept (features/smart-matching Phase B).
+public protocol PersonalStore: Sendable {
+    func load() -> PersonalModel?
+    func save(_ model: PersonalModel)
+}
+
+/// The personal model as a JSON file: the extension's own container, or the App Group's.
+public struct FilePersonalStore: PersonalStore {
+    private let file: JSONFile<PersonalModel>
+
+    public init(url: URL) {
+        file = JSONFile(url)
+    }
+
+    public func load() -> PersonalModel? { file.read() }
+    public func save(_ model: PersonalModel) { file.write(model) }
+}
+
+/// A personal model kept in memory, for tests and previews.
+public final class MemoryPersonalStore: PersonalStore, @unchecked Sendable {
+    private var model: PersonalModel?
+    private let lock = NSLock()
+
+    public init(_ model: PersonalModel? = nil) {
+        self.model = model
+    }
+
+    public func load() -> PersonalModel? {
+        lock.lock(); defer { lock.unlock() }
+        return model
+    }
+
+    public func save(_ model: PersonalModel) {
+        lock.lock(); defer { lock.unlock() }
+        self.model = model
+    }
+}
+
+/// Two copies of the personal model kept in step, like `MirroredWordStore`: loading
+/// merges them, saving writes both.
+public struct MirroredPersonalStore: PersonalStore {
+    public let own: PersonalStore
+    public let shared: PersonalStore
+
+    public init(own: PersonalStore, shared: PersonalStore) {
+        self.own = own
+        self.shared = shared
+    }
+
+    public func load() -> PersonalModel? {
+        switch (own.load(), shared.load()) {
+        case (let mine?, let theirs?): mine.merged(with: theirs)
+        case (let mine?, nil): mine
+        case (nil, let theirs?): theirs
+        case (nil, nil): nil
+        }
+    }
+
+    public func save(_ model: PersonalModel) {
+        own.save(model)
+        shared.save(model)
+    }
+}
+
+/// A random ID for this install of the keyboard, made the first time it is asked for
+/// and kept in a file: the personal model's shard for this device. Never sent anywhere
+/// but the person's own iCloud.
+public enum InstallID {
+    public static func load(from url: URL) -> String {
+        let file = JSONFile<String>(url)
+        if let id = file.read(), !id.isEmpty { return id }
+        let id = UUID().uuidString
+        file.write(id)
+        return id
+    }
+}
+
 // MARK: Settings
 
 /// Settings as a JSON file with the time they changed, so two copies can be compared.

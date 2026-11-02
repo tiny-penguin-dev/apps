@@ -44,11 +44,16 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
       only so far), `Flags`, and `Engine/`: `Composer` (touches in, effects out, pure,
       time passed in), `Matcher` (pieces to ranked candidates: trie search plus DTW,
       two-thumb orderings and split swipes, the words before the open one from
-      `WordContext`), `NgramModel` (the word-pair binary, read and built), `Replay`
+      `WordContext` and the person's `PersonalIndex`), `PersonalModel` (what the keyboard
+      learns from the person: word and pair counts that fade, thumb offsets per key, one
+      shard per install, merged and forgotten across devices; `SettledWord`, which the
+      composer emits when a word is final, and `PersonalLearner`, the model as a
+      keyboard holds it), `NgramModel` (the word-pair binary, read and built), `Replay`
       (the harness: a practice recording through the engine, first-guess accuracy),
       `Piece`, `Geometry`, `LearnedWords`, `KeyboardSettings` (the in-keyboard settings
       and their `SettingsStore`). `Sync/` holds the data layer: `Stores` (`JSONFile`,
-      `WordStore` and file, memory and mirrored stores for words and settings),
+      `WordStore` and file, memory and mirrored stores for words, settings and the
+      personal model, `InstallID`),
       `KeyboardFiles` (where the files are: own container and App Group), `CloudSync`
       (`SyncSnapshot`, the protocol, `Syncer`'s fetch-merge-write round, the fake),
       `CloudKitSync` (the live one), `ExtensionStatus`, `Backup`. `App/` holds the
@@ -72,13 +77,13 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
       trails, rings, and the gestures: space slide, backspace swipe and hold, "123"
       hold), `SettingsPanelView`, `KeyboardModel` (applies the composer's effects to a
       `TextTarget`, runs the autospace timer, keeps the settings and the learned words,
-      learns, boosts and forgets; `TextViewTarget` for a `UITextView`),
+      learns, boosts and forgets, and feeds each settled word to the personal model; `TextViewTarget` for a `UITextView`),
       `SyncController` (a model's words and settings in step with a `CloudSync`),
       `EntitlementController` (a model's entitlement in step with a `ProStore` and
       the trial, for the extension).
       UIKit and SwiftUI, guarded
       with `#if canImport(UIKit)` so `swift test` still builds the package on macOS.
-    - `AstrotypeKitTests`: Swift Testing. `ComposerTests`, `MatcherTests` (the 50-word
+    - `AstrotypeKitTests`: Swift Testing. `ComposerTests`, `PersonalModelTests`, `MatcherTests` (the 50-word
       fixture in `Fixtures/swipes.json`, through `Synth`'s straight-line swipes, and
       `ContextMatcherTests`), `WordContextTests`, `NgramModelTests`, `ReplayTests`
       (recordings made from `Synth` strokes replay to the live result),

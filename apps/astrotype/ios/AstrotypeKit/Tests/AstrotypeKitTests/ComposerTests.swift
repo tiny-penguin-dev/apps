@@ -220,7 +220,10 @@ import Testing
         let effects = composer.press(character: ",", time: t)
         #expect(effects.contains(.commit("the")))
         #expect(effects.contains(.insert(",")))
-        #expect(composer.press(character: "!", time: t + 1) == [.haptic(.key), .insert("!")])
+        // The comma left "the" alone, so it settles as the "!" goes in.
+        let next = composer.press(character: "!", time: t + 1)
+        #expect(Array(next.prefix(2)) == [.haptic(.key), .insert("!")])
+        #expect(next.dropFirst(2).allSatisfy { if case .settled = $0 { true } else { false } })
     }
 
     @Test func returnCommitsWithANewline() {

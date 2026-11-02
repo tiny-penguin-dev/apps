@@ -72,6 +72,9 @@ public struct Composer: Sendable {
         case learn(String)
         /// Something to say in the bar for a moment; nothing changed in the field.
         case notice(Notice)
+        /// A word written earlier is final: the person went on without changing it (or
+        /// fixed it from the bar first). The host learns from it (`PersonalModel`).
+        case settled(SettledWord)
     }
 
     public struct State: Sendable, Equatable {
@@ -90,6 +93,10 @@ public struct Composer: Sendable {
         var pieces: [Piece]
         var guesses: [String]
         var casing: Casing
+        /// The word before it, as the matcher saw it.
+        var previous: String?
+        /// The guess first written, when the bar swapped it for another.
+        var fixedFrom: String?
     }
 
     enum Casing: Sendable, Equatable {
@@ -100,6 +107,7 @@ public struct Composer: Sendable {
     private struct Open: Sendable {
         var side: Side
         var start: TimeInterval
+        /// Where the finger was, as the screen reported it (before `personal`'s offsets).
         var points: [CGPoint]
         var times: [TimeInterval]
         var startKey: Character
@@ -141,6 +149,14 @@ public struct Composer: Sendable {
 
     public var hasOpenWord: Bool { !pieces.isEmpty }
 
+    /// What the keyboard learned from the person (features/smart-matching Phase B): the
+    /// matcher ranks with their words and pairs, and each touch is read through where
+    /// that thumb really lands on the key. The host sets it from its store.
+    public var personal: PersonalIndex {
+        get { matcher.personal }
+        set { matcher.personal = newValue }
+    }
+
     /// What the person taught the keyboard. The host sets it from its store and after
     /// a sync; the matcher reads it.
     public var learned: LearnedWords {
@@ -157,7 +173,8 @@ public struct Composer: Sendable {
     /// A finger landed. Only letter keys start a piece; the host sends the other keys
     /// through `press` when the finger lifts.
     public mutating func touchDown(id: Int, at point: CGPoint, time: TimeInterval) -> [Effect] {
-        guard let letter = layout.key(at: point)?.character else { return [] }
+        let side = layout.side(at: point)
+        guard let letter = layout.key(at: Self.corrected(point, side: side, layout: layout, personal: personal))?.character else { return [] }
         // Free mode: one active thumb at a time. The second touch is not a piece and
         // does not disturb the first; the bar says why (DESIGN.md "Free mode").
         if !settings.twoThumbs, !open.isEmpty { return [.notice(.twoThumbsIsPro)] }
@@ -167,11 +184,11 @@ public struct Composer: Sendable {
             casing = effectiveShift == .locked ? .upper : effectiveShift == .on ? .capital : .lower
             if shift == .on { shift = .off }
             if committed != nil {
-                committed = nil
+                effects += settle()
                 state.bar = .idle
             }
         }
-        open[id] = Open(side: layout.side(at: point), start: time, points: [point], times: [time], startKey: letter)
+        open[id] = Open(side: side, start: time, points: [point], times: [time], startKey: letter)
         autospaceDue = nil
         effects.append(.haptic(.key))
         refreshState()
@@ -188,7 +205,7 @@ public struct Composer: Sendable {
         guard var touch = open.removeValue(forKey: id) else { return [] }
         touch.points.append(point)
         touch.times.append(time)
-        let piece = Self.piece(from: touch, id: id, end: time, layout: layout, tapThreshold: settings.tapThreshold)
+        let piece = Self.piece(from: touch, id: id, end: time, layout: layout, tapThreshold: settings.tapThreshold, personal: personal)
         guard !piece.keys.isEmpty else { return [] }
         pieces.append(piece)
         pieces.sort { $0.start < $1.start }
@@ -279,7 +296,9 @@ public struct Composer: Sendable {
                 .insert(word + last.trailing),
                 .haptic(.key),
             ]
+            let original = last.fixedFrom ?? last.word
             last.word = word
+            last.fixedFrom = word == original ? nil : original
             committed = last
             state.bar = .fix(words, chosen: index)
             return effects
@@ -313,14 +332,16 @@ public struct Composer: Sendable {
 
     /// Forget the open word and the last commit without touching the field, for when
     /// the field changed under us (the cursor moved, the app cleared the text).
-    public mutating func reset() {
+    @discardableResult
+    public mutating func reset() -> [Effect] {
+        let effects = settle()
         pieces = []
         open = [:]
         candidates = []
-        committed = nil
         autospaceDue = nil
         state.bar = .idle
         refreshState()
+        return effects
     }
 
     /// Swipe left on backspace: drop the open word, or delete back through the last word
@@ -347,14 +368,14 @@ public struct Composer: Sendable {
     /// it stands, with nothing after it, and the fix bar closes.
     public mutating func cursorWillMove() -> [Effect] {
         guard hasOpenWord else {
-            committed = nil
+            let effects = settle()
             state.bar = .idle
             refreshState()
-            return []
+            return effects
         }
         var effects = commit(trailing: "", time: 0)
         effects.removeAll { $0 == .insert("") }
-        committed = nil
+        effects += settle()
         state.bar = .idle
         refreshState()
         return effects
@@ -387,7 +408,8 @@ public struct Composer: Sendable {
         }
         let word = words[chosen]
         let learn = wordToLearn(word)
-        committed = Committed(word: word, trailing: trailing, pieces: pieces, guesses: words, casing: casing)
+        committed = Committed(word: word, trailing: trailing, pieces: pieces, guesses: words, casing: casing,
+                              previous: matcher.context.last)
         pieces = []
         candidates = []
         autospaceDue = nil
@@ -441,9 +463,43 @@ public struct Composer: Sendable {
     }
 
     private mutating func leaveFix() -> [Effect] {
-        committed = nil
+        let effects = settle()
         state.bar = .idle
-        return []
+        return effects
+    }
+
+    /// The last word is final: what to learn from it, if anything.
+    private mutating func settle() -> [Effect] {
+        guard let last = committed else { return [] }
+        committed = nil
+        return Self.settled(last, layout: layout).map { [.settled($0)] } ?? []
+    }
+
+    /// A settled word with where the thumbs landed for its letters, when the touches
+    /// line up with them: one tap per letter, or the start of a lone swipe on the
+    /// first letter. A touch more than a key away from its letter is left out.
+    static func settled(_ last: Committed, layout: Layout) -> SettledWord? {
+        let word = last.word.lowercased()
+        guard PersonalModel.isLearnable(word) else { return nil }
+        let letters = Array(word)
+        let source: SettledWord.Source = last.fixedFrom != nil ? .fixed : last.pieces.allSatisfy(\.isTap) ? .tapped : .swiped
+        var touches: [SettledWord.Touch] = []
+        func touch(_ letter: Character, _ piece: Piece, weight: Float) {
+            guard let frame = layout.frame(of: .letter(letter)), frame.width > 0, frame.height > 0 else { return }
+            let landed = piece.landing ?? piece.points.first ?? CGPoint(x: frame.midX, y: frame.midY)
+            let dx = (landed.x - frame.midX) / frame.width
+            let dy = (landed.y - frame.midY) / frame.height
+            guard abs(dx) <= 1, abs(dy) <= 1 else { return }
+            touches.append(SettledWord.Touch(letter: letter, side: piece.side, dx: dx, dy: dy, weight: weight))
+        }
+        let pieces = last.pieces.sorted { $0.start < $1.start }
+        if pieces.allSatisfy(\.isTap), pieces.count == letters.count {
+            for (letter, piece) in zip(letters, pieces) { touch(letter, piece, weight: 1) }
+        } else if pieces.count == 1, let swipe = pieces.first, !swipe.isTap, letters.count >= 2 {
+            touch(letters[0], swipe, weight: 0.3)
+        }
+        return SettledWord(word: word, previous: last.previous, source: source,
+                           fixedFrom: last.fixedFrom?.lowercased(), touches: touches)
     }
 
     private func cased(_ word: String) -> String {
@@ -481,18 +537,34 @@ public struct Composer: Sendable {
 
     /// Closes a touch into a piece: a tap on the key it landed on, or a swipe with the
     /// letter keys its path crossed, in order.
-    private static func piece(from touch: Open, id: Int, end: TimeInterval, layout: Layout, tapThreshold: CGFloat) -> Piece {
-        let origin = touch.points[0]
-        let travel = touch.points.map { Geometry.distance($0, origin) }.max() ?? 0
+    private static func piece(from touch: Open, id: Int, end: TimeInterval, layout: Layout, tapThreshold: CGFloat,
+                              personal: PersonalIndex) -> Piece {
+        let raw = touch.points
+        let origin = raw[0]
+        let travel = raw.map { Geometry.distance($0, origin) }.max() ?? 0
+        // Read through where this thumb lands: each point moves by its key's offset.
+        let points = raw.map { corrected($0, side: touch.side, layout: layout, personal: personal) }
         var keys: [Character] = []
         if travel >= tapThreshold {
-            for point in Geometry.walk(touch.points, step: 4) {
+            for point in Geometry.walk(points, step: 4) {
                 guard let letter = layout.key(at: point)?.character else { continue }
                 if keys.last != letter { keys.append(letter) }
             }
         }
         let isTap = travel < tapThreshold || keys.count <= 1
         if isTap { keys = [touch.startKey] }
-        return Piece(id: id, side: touch.side, start: touch.start, end: end, points: touch.points, times: touch.times, keys: keys, isTap: isTap)
+        return Piece(id: id, side: touch.side, start: touch.start, end: end, points: points, times: touch.times, keys: keys,
+                     isTap: isTap, landing: origin)
+    }
+
+    /// `point` moved by the person's offset for the key under it, for this thumb: if
+    /// their left thumb lands a third of a key low on "e", a touch there reads as the
+    /// key's centre. Unchanged while nothing is learned.
+    static func corrected(_ point: CGPoint, side: Side, layout: Layout, personal: PersonalIndex) -> CGPoint {
+        guard !personal.isEmpty, let letter = layout.key(at: point)?.character,
+              let frame = layout.frame(of: .letter(letter)) else { return point }
+        let offset = personal.offset(for: letter, side: side)
+        guard offset != .zero else { return point }
+        return CGPoint(x: point.x - offset.dx * frame.width, y: point.y - offset.dy * frame.height)
     }
 }

@@ -99,11 +99,19 @@ All in `AstrotypeCore`, pure and tested, per `docs/building.md`:
   `ml/ngrams/count_pairs.py` counts a corpus.
 - `Matcher` gets `language` and `context: [String]`; the score gains
   `contextWeight × contextBonus`. `Composer.setContext` fills the context.
-- `PersonalModel` (Phase B): the person's word counts and word-pair counts with decay,
-  and per-key, per-thumb landing offsets (`TouchModel`), in one versioned, mergeable value
-  like `LearnedWords`, stored by a `PersonalStore` beside the words and synced the same
-  way. The matcher adds `personalWeight × log(1 + pairCount)` and reads taps and swipes
-  through the thumb's offset.
+- `PersonalModel` (Phase B): the person's word counts and word-pair counts, fading with
+  a 90-day half-life, and per-key, per-thumb landing offsets, in one versioned value.
+  Each install writes only its own shard (a random `InstallID`), so merging copies is
+  "the newer shard per device" and nothing is counted twice; a forget drops every shard
+  that began before it. Stored by a `PersonalStore` (`personal.json`, mirrored to the
+  App Group like the words) and synced inside the same `SyncSnapshot`. The composer
+  emits `.settled(SettledWord)` when a word is final (the next word starts, space or
+  punctuation after the fix bar, the cursor moves), with the word before it and where
+  the thumbs landed; `PersonalLearner` learns from it and builds the `PersonalIndex`
+  the engine reads. The matcher adds a word term (how much more the person uses a word
+  than the dictionary expects, never negative) and a pair term (`log(1 + pairCount)`),
+  capped together at 0.8; the composer reads every touch through the thumb's offset
+  for the key under it, capped at 0.4 of a key.
 - `Replay` (the harness): plays a `PracticeRecording` through a `Composer` with the same
   language and layout, commits where the person did, and reports first-guess accuracy,
   top-three accuracy and the misses. `astrotype-tools replay <folder>` prints it;
@@ -158,3 +166,22 @@ recording to the exact guesses the live keyboard made (`ReplayTests`); real sess
 need recording v2, which ships with this phase, so the first numbers on real data
 come with Phase D. The `astrotype-tools` executable builds on Linux too (the App
 Group lookup is Darwin-only), so the model and the harness run in CI's toolchain.
+
+**Phase B (2026-11-02).** Learning is live in the keyboard, with no training step to
+run in the app: counting is cheap enough to do as each word settles, and the file is
+written three seconds after the last word (and when the keyboard goes away). A word
+counts 1 when tapped out, 0.6 when it was a kept swipe guess (so the keyboard's own
+guesses do not teach it much) and 1.5 when fixed from the bar. Thumbs learn from taps
+that line up one per letter and, lightly (0.3), from where a lone swipe started; a
+touch more than a key from its letter is ignored. A key's offset leans on the thumb's
+overall habit until it has eight touches of its own. Nothing is learned in password,
+email, URL, number or one-time-code fields, or where the app turned autocorrection off.
+Shards are capped at 2,000 words and 4,000 pairs (about 150 KB each), and four devices'
+shards at most go into the iCloud record. The switch and "Forget everything" live in
+the keyboard settings, so they reach the keyboard through the App Group and iCloud
+like any setting; the in-keyboard panel (under a held 123) has both too, for people
+without Full Access (forget asks twice). The app's practice fields type with the model
+and never add to it. Tests: `PersonalModelTests` (counting, fading, caps, merging and
+forgetting across devices, offsets with shrinkage and caps, a learned thumb turning a
+low tap back into the key it meant, settling, "my pit" winning a p→o→t swipe once the
+person writes it, the switch, stores and snapshots).

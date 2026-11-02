@@ -254,6 +254,7 @@ Settings.
 | `drill.finished` (`drill`) | Which habits people practise |
 | `trial.started`, `pro.subscribed` (`plan`) | Whether the trial converts |
 | `sync.failed` | iCloud sync problems (goal: zero) |
+| `personal.reset` | How often people wipe what the keyboard learned (features/smart-matching) |
 
 More get added here as phases land.
 

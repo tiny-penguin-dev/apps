@@ -22,11 +22,13 @@ final class KeyboardSession: NSObject, UITextViewDelegate {
     /// The session's touches, while recording (`startRecording`).
     private var recorder: TouchRecorder?
 
-    init(settingsStore: SettingsStore, learned: LearnedWords = LearnedWords()) {
+    /// `personal` is what the keyboard learned in other apps: the session types with it
+    /// and never adds to it.
+    init(settingsStore: SettingsStore, learned: LearnedWords = LearnedWords(), personal: PersonalModel? = nil) {
         // English, with its word pairs when they shipped (features/smart-matching).
         let language = (try? Language.bundled()) ?? Language(code: "en", lexicon: Lexicon(entries: []))
         model = KeyboardModel(composer: Composer(language: language, layout: Layout.qwerty(width: 390)),
-                              store: settingsStore, wordStore: MemoryWordStore(learned))
+                              store: settingsStore, wordStore: MemoryWordStore(learned), personal: personal)
         model.target = target
         keyboard = AstrotypeUI.KeyboardView(model: model)
         keyboard.autoresizingMask = [.flexibleWidth]

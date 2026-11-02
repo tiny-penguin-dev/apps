@@ -1,8 +1,9 @@
 import Foundation
 
-/// Everything that syncs, as one value: the learned words and the keyboard settings,
-/// with when the settings last changed. Two copies merge word by word (the later
-/// change wins) and settings as a whole (the later copy wins).
+/// Everything that syncs, as one value: the learned words, the keyboard settings with
+/// when they last changed, and the personal model. Two copies merge word by word (the
+/// later change wins), settings as a whole (the later copy wins) and the personal model
+/// device by device (`PersonalModel.merged`).
 public struct SyncSnapshot: Codable, Sendable, Equatable {
     public static let version = 1
 
@@ -10,11 +11,14 @@ public struct SyncSnapshot: Codable, Sendable, Equatable {
     public var words: LearnedWords
     public var settings: KeyboardSettings
     public var settingsChanged: Date
+    /// Nil from a copy written before Phase B, or by a host that keeps none.
+    public var personal: PersonalModel?
 
-    public init(words: LearnedWords, settings: KeyboardSettings, settingsChanged: Date) {
+    public init(words: LearnedWords, settings: KeyboardSettings, settingsChanged: Date, personal: PersonalModel? = nil) {
         self.words = words
         self.settings = settings
         self.settingsChanged = settingsChanged
+        self.personal = personal
     }
 
     public init(from decoder: Decoder) throws {
@@ -23,6 +27,7 @@ public struct SyncSnapshot: Codable, Sendable, Equatable {
         words = try c.decodeIfPresent(LearnedWords.self, forKey: .words) ?? LearnedWords()
         settings = try c.decodeIfPresent(KeyboardSettings.self, forKey: .settings) ?? KeyboardSettings()
         settingsChanged = try c.decodeIfPresent(Date.self, forKey: .settingsChanged) ?? .distantPast
+        personal = try? c.decodeIfPresent(PersonalModel.self, forKey: .personal)
     }
 
     public func merged(with other: SyncSnapshot) -> SyncSnapshot {
@@ -31,6 +36,11 @@ public struct SyncSnapshot: Codable, Sendable, Equatable {
         if other.settingsChanged > settingsChanged {
             out.settings = other.settings
             out.settingsChanged = other.settingsChanged
+        }
+        switch (personal, other.personal) {
+        case (let mine?, let theirs?): out.personal = mine.merged(with: theirs)
+        case (nil, let theirs?): out.personal = theirs
+        default: break
         }
         return out
     }

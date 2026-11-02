@@ -13,6 +13,7 @@ struct SettingsView: View {
     @State private var managing = false
     @State private var restoring = false
     @State private var restoreNote: String?
+    @State private var confirmingForget = false
 
     var body: some View {
         ScrollView {
@@ -47,6 +48,21 @@ struct SettingsView: View {
                 .disabled(!model.keyboardSettings.autospace)
                 Row("Learned words", subtitle: learnedWordsSubtitle) {
                     Button("Open") { path.append(.learnedWords) }.buttonStyle(.small)
+                }
+                Row("Learns from you", subtitle: "Your word pairs and where your thumbs land, kept on this phone.") {
+                    Toggle("Learns from you", isOn: $model.learnsFromYou).labelsHidden().tint(Theme.mint)
+                }
+                HStack(spacing: Theme.Space.m) {
+                    Text(personalSubtitle).font(.sw(.small)).foregroundStyle(Theme.muted)
+                    Spacer()
+                    Button("Forget everything") { confirmingForget = true }
+                        .buttonStyle(.ghost)
+                }
+                .padding(.horizontal, Theme.Space.xs)
+                .confirmationDialog("Forget what the keyboard learned from you?", isPresented: $confirmingForget, titleVisibility: .visible) {
+                    Button("Forget everything", role: .destructive) { model.forgetPersonal() }
+                } message: {
+                    Text("Your word pairs and thumb positions go, on this phone and your other devices. Your learned words stay.")
                 }
 
                 SectionLabel("Gestures").padding(.top, Theme.Space.s)
@@ -195,6 +211,19 @@ struct SettingsView: View {
         case 1: return "1 word the keyboard learned from you."
         default: return "\(count) words the keyboard learned from you."
         }
+    }
+
+    private var personalSubtitle: String {
+        guard model.learnsFromYou else { return "Off. The keyboard learns nothing and uses nothing it learned." }
+        let summary = model.personalSummary
+        guard summary.words > 0 || summary.mappedKeys > 0 else {
+            return model.isFullAccessOn
+                ? "Nothing yet. It learns as you type in other apps."
+                : "It learns as you type in other apps. With Full Access you can see what it knows here."
+        }
+        var parts = ["\(summary.pairs.formatted()) word pair\(summary.pairs == 1 ? "" : "s")"]
+        parts.append(summary.thumbsMapped ? "thumbs mapped" : "learning your thumbs")
+        return parts.joined(separator: ", ") + "."
     }
 
     private var syncSubtitle: String {

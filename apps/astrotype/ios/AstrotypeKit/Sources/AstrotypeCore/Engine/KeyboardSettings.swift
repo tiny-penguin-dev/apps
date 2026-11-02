@@ -27,6 +27,12 @@ public struct KeyboardSettings: Codable, Sendable, Equatable {
     public var backspaceSwipe = true
     /// On a wide screen (the iPhone Duo open), pull the two halves apart to the edges.
     public var splitOnWide = false
+    /// Learn the person's words, word pairs and where their thumbs land, on the device
+    /// (features/smart-matching Phase B, "Learns from you").
+    public var learnsFromYou = true
+    /// The last "Forget everything": a keyboard whose personal model is older forgets
+    /// it when these settings reach it (here, through the App Group or iCloud).
+    public var forgetPersonalAt: Date?
 
     public init() {}
 
@@ -41,6 +47,8 @@ public struct KeyboardSettings: Codable, Sendable, Equatable {
         spaceSlide = try c.decodeIfPresent(Bool.self, forKey: .spaceSlide) ?? true
         backspaceSwipe = try c.decodeIfPresent(Bool.self, forKey: .backspaceSwipe) ?? true
         splitOnWide = try c.decodeIfPresent(Bool.self, forKey: .splitOnWide) ?? false
+        learnsFromYou = try c.decodeIfPresent(Bool.self, forKey: .learnsFromYou) ?? true
+        forgetPersonalAt = try c.decodeIfPresent(Date.self, forKey: .forgetPersonalAt)
     }
 
     /// `base` with these settings applied; the rest of the engine's settings stay.

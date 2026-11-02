@@ -107,7 +107,7 @@ struct SpeedTestView: View {
 
     private func startSession() {
         guard keyboard == .astrotype, session == nil else { return }
-        let session = KeyboardSession(settingsStore: MemorySettingsStore(model.keyboardSettings), learned: model.learnedWords)
+        let session = KeyboardSession(settingsStore: MemorySettingsStore(model.keyboardSettings), learned: model.learnedWords, personal: model.personal)
         session.apply(entitlement: model.entitlement)
         session.onWordsChange = { words in model.learnedWordsChanged(words) }
         session.onFirstTouch = { test.start(at: Self.uptime) }

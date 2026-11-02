@@ -3,7 +3,8 @@ import AstrotypeCore
 import UIKit
 
 /// The in-keyboard settings (DESIGN.md: under the "123" hold), for when Full Access is
-/// off and the app's Settings cannot reach the keyboard: autospace, its delay, trails.
+/// off and the app's Settings cannot reach the keyboard: autospace, its delay, trails,
+/// the split, and learning from the person (with a forget that asks twice).
 /// Shown over the keys; Done puts the keys back.
 public final class SettingsPanelView: UIView {
     public var settings: KeyboardSettings {
@@ -26,6 +27,11 @@ public final class SettingsPanelView: UIView {
     private let trailsSwitch = UISwitch()
     private let splitLabel = UILabel()
     private let splitSwitch = UISwitch()
+    private let learnLabel = UILabel()
+    private let learnSwitch = UISwitch()
+    private let forget = UIButton(configuration: .plain())
+    /// The first tap on Forget arms it; the second forgets.
+    private var forgetArmed = false
     private let done = UIButton(configuration: .filled())
 
     public init(settings: KeyboardSettings) {
@@ -38,7 +44,7 @@ public final class SettingsPanelView: UIView {
         title.textColor = Theme.ui(.ink)
         addSubview(title)
 
-        for (label, text) in [(autospaceLabel, "Autospace"), (delayLabel, "Delay"), (trailsLabel, "Trails"), (splitLabel, "Split on wide screens")] {
+        for (label, text) in [(autospaceLabel, "Autospace"), (delayLabel, "Delay"), (trailsLabel, "Trails"), (splitLabel, "Split on wide screens"), (learnLabel, "Learn from my typing")] {
             label.text = text
             label.font = Theme.uiFont(size: 15, weight: .semibold)
             label.textColor = Theme.ui(.ink)
@@ -48,6 +54,8 @@ public final class SettingsPanelView: UIView {
         addSubview(autospaceSwitch)
         addSubview(trailsSwitch)
         addSubview(splitSwitch)
+        addSubview(learnSwitch)
+        learnLabel.accessibilityHint = "Your words, word pairs and where your thumbs land, kept on this phone"
 
         delaySlider.minimumValue = Float(KeyboardSettings.delayRange.lowerBound)
         delaySlider.maximumValue = Float(KeyboardSettings.delayRange.upperBound)
@@ -55,7 +63,7 @@ public final class SettingsPanelView: UIView {
         delaySlider.accessibilityLabel = "Autospace delay"
         addSubview(delaySlider)
 
-        for control in [autospaceSwitch, trailsSwitch, splitSwitch] {
+        for control in [autospaceSwitch, trailsSwitch, splitSwitch, learnSwitch] {
             control.onTintColor = Theme.ui(.accent)
         }
 
@@ -74,6 +82,26 @@ public final class SettingsPanelView: UIView {
             self.settings.splitOnWide = self.splitSwitch.isOn
             self.onChange?(self.settings)
         }, for: .valueChanged)
+        learnSwitch.addAction(UIAction { [weak self] _ in
+            guard let self else { return }
+            self.settings.learnsFromYou = self.learnSwitch.isOn
+            self.onChange?(self.settings)
+        }, for: .valueChanged)
+        forget.configuration?.baseForegroundColor = Theme.ui(.muted)
+        forget.addAction(UIAction { [weak self] _ in
+            guard let self else { return }
+            if self.forgetArmed {
+                self.forgetArmed = false
+                self.settings.forgetPersonalAt = Date()
+                self.onChange?(self.settings)
+                self.forget.configuration?.title = "Forgotten"
+                self.forget.isEnabled = false
+            } else {
+                self.forgetArmed = true
+                self.render()
+            }
+        }, for: .touchUpInside)
+        addSubview(forget)
         delaySlider.addAction(UIAction { [weak self] _ in
             guard let self else { return }
             self.settings.autospaceDelay = (Double(self.delaySlider.value) * 10).rounded() / 10
@@ -104,12 +132,16 @@ public final class SettingsPanelView: UIView {
         delaySlider.isEnabled = settings.autospace
         delayLabel.text = "Delay \(String(format: "%.1f", settings.autospaceDelay)) s"
         delayLabel.alpha = settings.autospace ? 1 : 0.5
+        learnSwitch.isOn = settings.learnsFromYou
+        if forget.isEnabled {
+            forget.configuration?.title = forgetArmed ? "Tap again to forget" : "Forget what it learned"
+        }
     }
 
     public override func layoutSubviews() {
         super.layoutSubviews()
         let inset = bounds.insetBy(dx: Theme.Space.l, dy: Theme.Space.s)
-        let rowHeight = max(34, (inset.height - 8) / 6)
+        let rowHeight = max(30, (inset.height - 8) / 7)
         var y = inset.minY
         func row(_ label: UILabel, _ control: UIView) {
             label.frame = CGRect(x: inset.minX, y: y, width: inset.width * 0.5, height: rowHeight)
@@ -125,6 +157,9 @@ public final class SettingsPanelView: UIView {
         y += rowHeight
         row(trailsLabel, trailsSwitch)
         row(splitLabel, splitSwitch)
+        row(learnLabel, learnSwitch)
+        forget.sizeToFit()
+        forget.frame = CGRect(x: inset.minX - 8, y: y + (rowHeight - 36) / 2, width: forget.bounds.width, height: 36)
         done.sizeToFit()
         done.frame = CGRect(x: inset.maxX - max(96, done.bounds.width), y: y + (rowHeight - 36) / 2, width: max(96, done.bounds.width), height: 36)
     }

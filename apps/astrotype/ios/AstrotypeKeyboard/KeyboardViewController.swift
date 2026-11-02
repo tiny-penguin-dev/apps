@@ -29,9 +29,10 @@ final class KeyboardViewController: UIInputViewController {
         let fullAccess = hasFullAccess
         // English, with its word pairs when they shipped (features/smart-matching).
         let language = (try? Language.bundled()) ?? Language(code: "en", lexicon: Lexicon(entries: []))
-        let (settingsStore, wordStore) = Self.stores(fullAccess: fullAccess)
+        let (settingsStore, wordStore, personalStore) = Self.stores(fullAccess: fullAccess)
         let model = KeyboardModel(composer: Composer(language: language, layout: Layout.qwerty(width: 390)),
-                                  store: settingsStore, wordStore: wordStore)
+                                  store: settingsStore, wordStore: wordStore, personalStore: personalStore,
+                                  installID: InstallID.load(from: KeyboardFiles.own(KeyboardFiles.install)))
         let target = ProxyTarget(controller: self)
         model.target = target
         self.target = target
@@ -76,20 +77,23 @@ final class KeyboardViewController: UIInputViewController {
 
     /// The extension's own files, which it can always write, mirrored to the App Group's
     /// when Full Access allows. The Phase 3 settings in `UserDefaults` move over once.
-    private static func stores(fullAccess: Bool) -> (SettingsStore, WordStore) {
+    private static func stores(fullAccess: Bool) -> (SettingsStore, WordStore, PersonalStore) {
         let own = FileSettingsStore(url: KeyboardFiles.own(KeyboardFiles.settings))
         let legacy = UserDefaultsSettingsStore()
         if own.load() == nil, let old = legacy.load() {
             own.save(old, changed: legacy.lastChanged() ?? .distantPast)
         }
         let ownWords = FileWordStore(url: KeyboardFiles.own(KeyboardFiles.words))
+        let ownPersonal = FilePersonalStore(url: KeyboardFiles.own(KeyboardFiles.personal))
         guard fullAccess,
               let sharedSettings = KeyboardFiles.shared(KeyboardFiles.settings),
-              let sharedWords = KeyboardFiles.shared(KeyboardFiles.words) else {
-            return (own, ownWords)
+              let sharedWords = KeyboardFiles.shared(KeyboardFiles.words),
+              let sharedPersonal = KeyboardFiles.shared(KeyboardFiles.personal) else {
+            return (own, ownWords, ownPersonal)
         }
         return (MirroredSettingsStore(own: own, shared: FileSettingsStore(url: sharedSettings)),
-                MirroredWordStore(own: ownWords, shared: FileWordStore(url: sharedWords)))
+                MirroredWordStore(own: ownWords, shared: FileWordStore(url: sharedWords)),
+                MirroredPersonalStore(own: ownPersonal, shared: FilePersonalStore(url: sharedPersonal)))
     }
 
     /// With Full Access: tell the app we have it, and keep words and settings in step
@@ -121,7 +125,31 @@ final class KeyboardViewController: UIInputViewController {
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         followKeyboardAppearance()
+        keyboard?.model.learningAllowed = fieldAllowsLearning
         keyboard?.model.contextChanged()
+    }
+
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        keyboard?.model.savePersonalNow()
+    }
+
+    /// Whether this field may teach the keyboard (features/smart-matching): never a
+    /// password, an address, a code or a number, nor a field that turned
+    /// autocorrection off.
+    private var fieldAllowsLearning: Bool {
+        let proxy = textDocumentProxy
+        if proxy.isSecureTextEntry == true || proxy.autocorrectionType == .no { return false }
+        switch proxy.keyboardType ?? .default {
+        case .URL, .emailAddress, .numberPad, .phonePad, .namePhonePad, .decimalPad, .asciiCapableNumberPad, .numbersAndPunctuation:
+            return false
+        default:
+            break
+        }
+        let quiet: Set<UITextContentType> = [.username, .password, .newPassword, .oneTimeCode, .emailAddress, .URL,
+                                             .creditCardNumber, .telephoneNumber, .postalCode]
+        if let type = proxy.textContentType.flatMap({ $0 }), quiet.contains(type) { return false }
+        return true
     }
 
     /// Light or dark as the app asked for its keyboard, like Apple's keyboard does.
@@ -157,6 +185,7 @@ final class KeyboardViewController: UIInputViewController {
     override func textDidChange(_ textInput: UITextInput?) {
         super.textDidChange(textInput)
         followKeyboardAppearance()
+        keyboard?.model.learningAllowed = fieldAllowsLearning
         keyboard?.model.contextChanged()
         edits += 1
         if edits % 5 == 0 { checks.refresh() }

@@ -107,6 +107,12 @@ struct SettingsView: View {
                         }
                         .pickerStyle(.segmented)
                         .disabled(!model.entitlement.allows(.splitLayout))
+                        if model.keyboardSettings.splitOnWide && model.entitlement.allows(.splitLayout) {
+                            Toggle("Extra letters on split", isOn: $model.keyboardSettings.splitExtraLetters)
+                                .tint(Theme.mint)
+                            Text("One more letter past the middle on each half (Y H B on the left, T F C on the right), for swiping across. Off is Apple's split.")
+                                .font(.sw(.small)).foregroundStyle(Theme.muted)
+                        }
                         if model.entitlement.allows(.splitLayout) {
                             Text("On the iPhone Duo's inner screen: one keyboard across, or a half under each thumb.")
                                 .font(.sw(.small)).foregroundStyle(Theme.muted)

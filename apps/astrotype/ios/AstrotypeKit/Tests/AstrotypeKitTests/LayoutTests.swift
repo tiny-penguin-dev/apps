@@ -179,6 +179,25 @@ import Testing
         #expect(columns[0].lowerBound > width * 0.3 && columns[0].upperBound < width * 0.7)
     }
 
+    @Test(arguments: [744.0, 951.0, 1000.0] as [CGFloat])
+    func extraLettersAddOneMorePastTheMiddle(width: CGFloat) {
+        let layout = Layout.qwerty(width: width, split: true, extraLetters: true)
+        #expect(layout.extraLetters)
+        func half(_ row: Int, _ side: Side) -> String {
+            String(layout.placements.filter { $0.row == row && layout.side(at: CGPoint(x: $0.frame.midX, y: 0)) == side }
+                .sorted { $0.frame.minX < $1.frame.minX }.compactMap(\.key.character))
+        }
+        #expect(half(0, .left) == "qwerty" && half(0, .right) == "tyuiop")
+        #expect(half(1, .left) == "asdfgh" && half(1, .right) == "fghjkl")
+        #expect(half(2, .left) == "zxcvb" && half(2, .right) == "cvbnm")
+        for placement in layout.placements {
+            #expect(placement.frame.minX >= 0 && placement.frame.maxX <= width)
+        }
+        #expect(layout.openColumns(atLeast: Layout.splitMiddle).count == 1)
+        // Only with the split.
+        #expect(!Layout.qwerty(width: width, extraLetters: true).extraLetters)
+    }
+
     @Test func aWideKeyboardLeavesItsSidesOpen() {
         let full = Layout.qwerty(width: 1000)
         let sides = full.openColumns(atLeast: 96)

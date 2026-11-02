@@ -129,6 +129,28 @@ import Testing
         #expect(composer.state.openWord?.lowercased() == "high")
     }
 
+    /// With the extra letters, "went" is the left thumb's w-e and the right thumb's
+    /// n-t through the right half's own T.
+    @Test func extraLettersLetAThumbSwipeAcrossTheMiddle() {
+        let layout = Layout.qwerty(width: 951, split: true, extraLetters: true)
+        var composer = Composer(dictionary: Synth.lexicon, layout: layout)
+        func swipe(_ letters: String, _ side: Side, id: Int, from start: TimeInterval) {
+            let points = Geometry.walk(letters.map { c in
+                let frame = layout.frame(of: .letter(c), on: side)!
+                return CGPoint(x: frame.midX, y: frame.midY)
+            }, step: 6)
+            #expect(points.allSatisfy { layout.side(at: $0) == side })
+            _ = composer.touchDown(id: id, at: points[0], time: start)
+            for (i, point) in points.enumerated().dropFirst() {
+                _ = composer.touchMoved(id: id, to: point, time: start + 0.3 * Double(i) / Double(points.count))
+            }
+            _ = composer.touchUp(id: id, at: points[points.count - 1], time: start + 0.3)
+        }
+        swipe("we", .left, id: 1, from: 0)
+        swipe("nt", .right, id: 2, from: 0.35)
+        #expect(composer.state.openWord?.lowercased() == "went")
+    }
+
     /// A tap that lands while the other thumb's swipe is over a key doubles that letter.
     @Test func aTapInsideASwipeDoublesTheLetter() {
         var composer = Synth.composer()

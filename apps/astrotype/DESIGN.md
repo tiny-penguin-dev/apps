@@ -111,7 +111,9 @@ settings panel (gear under the `123` hold menu, for when Full Access is off), le
 words list, snippets editor, one-handed layouts, the milestone sheet. The split layout
 (an option on wide screens, Gabriel, 1 Nov 2026) is exactly Apple's: Q to T, A to G
 and Z to V on the left, Y to P, G to L and V to M on the right (G and V on both halves,
-nothing repeated on the top row; Gabriel, 2 Nov 2026, after trying more overlap), space on
+nothing repeated on the top row; Gabriel, 2 Nov 2026, after trying more overlap). Settings
+"Extra letters on split" adds one more past the middle to each half (Y H B left, T F C
+right) for swiping across. Space on
 both sides, the guesses in the open middle (Gabriel, 2 Nov 2026).
 
 ## The keyboard

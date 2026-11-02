@@ -87,7 +87,7 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
     /// The height to ask the host for at a width: the keys at Apple's size, plus the
     /// bar when it sits on top.
     public func height(forWidth width: CGFloat) -> CGFloat {
-        let keys = Layout.qwerty(width: width, split: model.splitOnWide)
+        let keys = Layout.qwerty(width: width, split: model.splitOnWide, extraLetters: extraLetters)
         return barPlace(for: keys) == .top ? Self.barHeight + keys.height : keys.height
     }
 
@@ -115,15 +115,16 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         let width = bounds.width
         guard width > 0 else { return }
         let split = model.splitOnWide
-        let natural = Layout.qwerty(width: width, split: split)
+        let natural = Layout.qwerty(width: width, split: split, extraLetters: extraLetters)
         let place = barPlace(for: natural)
         let barOnTop = place == .top
         let room = bounds.height - (barOnTop ? Self.barHeight : 0)
         let fill: CGFloat? = room > 0 ? room : nil
-        if model.layout.width != width || model.layout.split != natural.split || fill != keysHeight || place != self.place {
+        if model.layout.width != width || model.layout.split != natural.split || model.layout.extraLetters != natural.extraLetters
+            || fill != keysHeight || place != self.place {
             keysHeight = fill
             self.place = place
-            model.layout = Layout.qwerty(width: width, split: split, height: fill)
+            model.layout = Layout.qwerty(width: width, split: split, extraLetters: extraLetters, height: fill)
             surface.layout = pageLayout(width: width, height: fill)
         }
         let wanted = height
@@ -158,7 +159,11 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
     }
 
     private func pageLayout(width: CGFloat, height: CGFloat?) -> Layout {
-        Layout.qwerty(width: width, page: page, split: model.splitOnWide, height: height)
+        Layout.qwerty(width: width, page: page, split: model.splitOnWide, extraLetters: extraLetters, height: height)
+    }
+
+    /// The split's extra letters, as set.
+    private var extraLetters: Bool { model.keyboardSettings.splitExtraLetters
     }
 
     /// What the bar says when idle, unless the host set its own note.
@@ -175,7 +180,8 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         surface.spaceSlideEnabled = model.keyboardSettings.spaceSlide
         surface.backspaceSwipeEnabled = model.keyboardSettings.backspaceSwipe
         panel?.allowsSplit = model.entitlement.allows(.splitLayout)
-        if model.layout.split != (model.splitOnWide && model.layout.isWide) || barPlace(for: model.layout) != place { setNeedsLayout() }
+        if model.layout.split != (model.splitOnWide && model.layout.isWide)
+            || model.layout.extraLetters != (model.layout.split && extraLetters) || barPlace(for: model.layout) != place { setNeedsLayout() }
     }
 
     private func play(_ haptic: Composer.Haptic) {

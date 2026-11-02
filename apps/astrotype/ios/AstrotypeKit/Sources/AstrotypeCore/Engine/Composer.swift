@@ -30,6 +30,9 @@ public struct Composer: Sendable {
         /// Both thumbs may type at once (Pro, PRODUCT.md §6). Off, a second finger down
         /// while one is still on the keys does nothing but a `.notice`.
         public var twoThumbs = true
+        /// How sure the keyboard must be of a real word to write it in place of pecked
+        /// letters that spell none (`Matcher.strictness`).
+        public var strictness = 0.8
         public init() {}
     }
 
@@ -113,7 +116,9 @@ public struct Composer: Sendable {
         var startKey: Character
     }
 
-    public var settings: Settings
+    public var settings: Settings {
+        didSet { matcher.strictness = settings.strictness }
+    }
     public var layout: Layout {
         didSet { matcher.layout = layout }
     }
@@ -136,6 +141,7 @@ public struct Composer: Sendable {
         self.layout = layout
         self.settings = settings
         self.matcher = Matcher(dictionary: dictionary, layout: layout, learned: learned)
+        matcher.strictness = settings.strictness
         refreshState()
     }
 
@@ -144,6 +150,7 @@ public struct Composer: Sendable {
         self.layout = layout
         self.settings = settings
         self.matcher = Matcher(language: language, layout: layout, learned: learned)
+        matcher.strictness = settings.strictness
         refreshState()
     }
 
@@ -287,7 +294,7 @@ public struct Composer: Sendable {
         case .guesses(let words, _):
             guard words.indices.contains(index) else { return [] }
             state.bar = .guesses(words, chosen: index)
-            return commit(trailing: " ", time: time)
+            return commit(trailing: " ", time: time, byHand: true)
         case .fix(let words, let chosen):
             guard words.indices.contains(index), index != chosen, var last = committed else { return [] }
             let word = words[index]
@@ -384,7 +391,7 @@ public struct Composer: Sendable {
     // MARK: Words
 
     private mutating func reguess(time: TimeInterval) -> [Effect] {
-        candidates = matcher.candidates(for: pieces, limit: settings.guessCount)
+        candidates = matcher.candidates(for: pieces, limit: settings.guessCount, final: false)
         committed = nil
         autospaceDue = open.isEmpty && autospaceApplies ? settings.autospaceDelay.map { time + $0 } : nil
         guard let first = candidates.first else {
@@ -397,7 +404,8 @@ public struct Composer: Sendable {
         return [.mark(cased(first.word))]
     }
 
-    private mutating func commit(trailing: String, time: TimeInterval) -> [Effect] {
+    private mutating func commit(trailing: String, time: TimeInterval, byHand: Bool = false) -> [Effect] {
+        if !byHand { settleGuesses() }
         guard case .guesses(let words, let chosen) = state.bar, words.indices.contains(chosen) else {
             pieces = []
             candidates = []
@@ -418,6 +426,16 @@ public struct Composer: Sendable {
         var effects: [Effect] = [.commit(word), .insert(trailing), .haptic(.commit)]
         if let learn { effects.append(.learn(learn)) }
         return effects
+    }
+
+    /// The word is going in as it stands: pecked letters left as they were because a
+    /// word could still follow them ("bri" for "bring") must now make a word, as
+    /// strictness says, so the guesses are made again as final.
+    private mutating func settleGuesses() {
+        guard case .guesses(let words, 0) = state.bar, let first = words.first,
+              !matcher.isKnown(first.lowercased()), pieces.allSatisfy(\.isTap) else { return }
+        candidates = matcher.candidates(for: pieces, limit: settings.guessCount, final: true)
+        state.bar = candidates.isEmpty ? .idle : .guesses(candidates.map { cased($0.word) }, chosen: 0)
     }
 
     /// A word pecked out tap by tap that neither the dictionary nor the person's words
@@ -448,7 +466,7 @@ public struct Composer: Sendable {
             committed = nil
             pieces = last.pieces
             casing = last.casing
-            candidates = matcher.candidates(for: pieces, limit: settings.guessCount)
+            candidates = matcher.candidates(for: pieces, limit: settings.guessCount, final: false)
             let words = candidates.map { cased($0.word) }
             let chosen = words.firstIndex(of: last.word) ?? 0
             let shown = words.isEmpty ? [last.word] : words

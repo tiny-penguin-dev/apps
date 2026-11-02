@@ -240,3 +240,16 @@ and never add to it. Tests: `PersonalModelTests` (counting, fading, caps, mergin
 forgetting across devices, offsets with shrinkage and caps, a learned thumb turning a
 low tap back into the key it meant, settling, "my pit" winning a p→o→t swipe once the
 person writes it, the switch, stores and snapshots).
+
+Real words (2 Nov 2026, after Gabriel saw "Bhrg" for "bring"): pecked letters that
+spell no word went in as tapped, and a swipe that fit no word typed the keys its pieces
+started and ended on. Now `Matcher.nearestWords` finds the real words (dictionary and
+learned) within a weighted edit distance of the letters: a tap on a nearby key costs
+by how far it landed from that key's centre, a missed or extra tap and two swapped
+letters cost a fixed amount, all on the prior's scale. For pecked letters the nearest
+word goes in when the keyboard is at least `1 - strictness` sure of it, its score gap
+over the letters (scored at `unknownPrior`, -13) read as log odds at
+`confidenceScale` 0.12; the letters stay second on the bar. Letters that begin a word
+stay while typing goes on and are decided on space. A swipe that fits nothing always
+becomes the nearest word. At strictness 1 letters that are not a word never go in.
+The setting is "Real words" in Settings and the keyboard's panel, 0–100%, default 80%.

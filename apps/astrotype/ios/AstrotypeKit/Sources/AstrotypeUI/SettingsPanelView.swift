@@ -3,7 +3,8 @@ import AstrotypeCore
 import UIKit
 
 /// The in-keyboard settings (DESIGN.md: under the "123" hold), for when Full Access is
-/// off and the app's Settings cannot reach the keyboard: autospace, its delay, trails,
+/// off and the app's Settings cannot reach the keyboard: autospace, its delay, how
+/// strictly it keeps to real words, trails,
 /// the split, and learning from the person (with a forget that asks twice).
 /// Shown over the keys; Done puts the keys back.
 public final class SettingsPanelView: UIView {
@@ -23,6 +24,8 @@ public final class SettingsPanelView: UIView {
     private let autospaceSwitch = UISwitch()
     private let delayLabel = UILabel()
     private let delaySlider = UISlider()
+    private let strictLabel = UILabel()
+    private let strictSlider = UISlider()
     private let trailsLabel = UILabel()
     private let trailsSwitch = UISwitch()
     private let splitLabel = UILabel()
@@ -44,7 +47,7 @@ public final class SettingsPanelView: UIView {
         title.textColor = Theme.ui(.ink)
         addSubview(title)
 
-        for (label, text) in [(autospaceLabel, "Autospace"), (delayLabel, "Delay"), (trailsLabel, "Trails"), (splitLabel, "Split on wide screens"), (learnLabel, "Learn from my typing")] {
+        for (label, text) in [(autospaceLabel, "Autospace"), (delayLabel, "Delay"), (strictLabel, "Real words"), (trailsLabel, "Trails"), (splitLabel, "Split on wide screens"), (learnLabel, "Learn from my typing")] {
             label.text = text
             label.font = Theme.uiFont(size: 15, weight: .semibold)
             label.textColor = Theme.ui(.ink)
@@ -62,6 +65,17 @@ public final class SettingsPanelView: UIView {
         delaySlider.minimumTrackTintColor = Theme.ui(.accent)
         delaySlider.accessibilityLabel = "Autospace delay"
         addSubview(delaySlider)
+        strictSlider.minimumValue = 0
+        strictSlider.maximumValue = 1
+        strictSlider.minimumTrackTintColor = Theme.ui(.accent)
+        strictSlider.accessibilityLabel = "Real words"
+        strictSlider.accessibilityHint = "How sure the keyboard must be of a real word before it puts one in for letters you tapped"
+        addSubview(strictSlider)
+        strictSlider.addAction(UIAction { [weak self] _ in
+            guard let self else { return }
+            self.settings.wordStrictness = (Double(self.strictSlider.value) * 10).rounded() / 10
+            self.onChange?(self.settings)
+        }, for: .valueChanged)
 
         for control in [autospaceSwitch, trailsSwitch, splitSwitch, learnSwitch] {
             control.onTintColor = Theme.ui(.accent)
@@ -133,6 +147,8 @@ public final class SettingsPanelView: UIView {
         delayLabel.text = "Delay \(String(format: "%.1f", settings.autospaceDelay)) s"
         delayLabel.alpha = settings.autospace ? 1 : 0.5
         learnSwitch.isOn = settings.learnsFromYou
+        strictSlider.value = Float(settings.wordStrictness)
+        strictLabel.text = "Real words \(Int((settings.wordStrictness * 100).rounded()))%"
         if forget.isEnabled {
             forget.configuration?.title = forgetArmed ? "Tap again to forget" : "Forget what it learned"
         }
@@ -141,7 +157,7 @@ public final class SettingsPanelView: UIView {
     public override func layoutSubviews() {
         super.layoutSubviews()
         let inset = bounds.insetBy(dx: Theme.Space.l, dy: Theme.Space.s)
-        let rowHeight = max(30, (inset.height - 8) / 7)
+        let rowHeight = max(30, (inset.height - 8) / 8)
         var y = inset.minY
         func row(_ label: UILabel, _ control: UIView) {
             label.frame = CGRect(x: inset.minX, y: y, width: inset.width * 0.5, height: rowHeight)
@@ -154,6 +170,9 @@ public final class SettingsPanelView: UIView {
         row(autospaceLabel, autospaceSwitch)
         delayLabel.frame = CGRect(x: inset.minX, y: y, width: inset.width * 0.35, height: rowHeight)
         delaySlider.frame = CGRect(x: inset.minX + inset.width * 0.38, y: y, width: inset.width * 0.62, height: rowHeight)
+        y += rowHeight
+        strictLabel.frame = CGRect(x: inset.minX, y: y, width: inset.width * 0.35, height: rowHeight)
+        strictSlider.frame = CGRect(x: inset.minX + inset.width * 0.38, y: y, width: inset.width * 0.62, height: rowHeight)
         y += rowHeight
         row(trailsLabel, trailsSwitch)
         row(splitLabel, splitSwitch)

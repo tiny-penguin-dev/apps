@@ -156,6 +156,7 @@ import Testing
 
     @Test func backspaceRemovesTheLastPieceThenReopensTheLastWord() {
         var composer = Synth.composer()
+        composer.settings.strictness = 0
         var t = Synth.taps(&composer, "thex")
         #expect(composer.state.openWord == "thex")
         #expect(composer.press(.backspace, time: t) == [.haptic(.key), .mark("the")])

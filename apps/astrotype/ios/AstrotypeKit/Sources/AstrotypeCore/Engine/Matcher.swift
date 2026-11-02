@@ -117,6 +117,21 @@ public struct Matcher: Sendable {
     /// Score per stand-in letter, on top of what the path distance says, so a word the
     /// keys actually crossed wins a close call.
     public var nearPenalty = 0.2
+    /// How sure the keyboard must be of a real word before it writes it in place of
+    /// pecked letters that spell none ("bting" for "bring"), 0 to 1: at 0.5 it switches
+    /// when it is at least 50% sure; at 1 it never writes letters that are not a word
+    /// (the dictionary's or the person's); at 0 it writes what was tapped. A swipe that
+    /// fits no word comes out as the nearest real word at any strictness.
+    public var strictness = 0.8
+    /// The log prior that letters spelling no word count as: below the dictionary's
+    /// rarest word (about -11.6), so a real word close by wins a close call.
+    public var unknownPrior: Float = -13
+    /// Score per natural log of odds, for turning a score gap into how sure the
+    /// keyboard is: the prior's scale, where a word e times as common scores 0.12 more.
+    public var confidenceScale = 0.12
+    /// The most a real word may differ from the letters (`EditCosts`) to be offered
+    /// for them: about three slips.
+    public var maxEditCost = 1.4
     /// Two pieces that landed this close together are tried in both orders.
     public var swapWindow: TimeInterval = 0.12
     /// How many trie states a search may expand before it stops.
@@ -165,30 +180,24 @@ public struct Matcher: Sendable {
         Lexicon(entries: learned.entries.filter { $0.value.weight > 0 }.map { Lexicon.Entry(word: $0.key, frequency: 1) })
     }
 
-    public func candidates(for pieces: [Piece], limit: Int = 3) -> [Candidate] {
+    /// The guesses, best first. `final` is false while the word is still being typed:
+    /// pecked letters that begin a word ("bri" on the way to "bring") then stay as they
+    /// are; when it is true (on space) they too must make a word, as `strictness` says.
+    public func candidates(for pieces: [Piece], limit: Int = 3, final: Bool = true) -> [Candidate] {
         let ordered = pieces.sorted { $0.start < $1.start }.filter { !$0.keys.isEmpty }
         guard !ordered.isEmpty, limit > 0 else { return [] }
         let orderings = Self.orderings(of: ordered, swapWindow: swapWindow)
 
-        var out: [Candidate] = []
         if ordered.allSatisfy(\.isTap) {
-            // Exact typing wins: what the person tapped (in the order that spells a word,
-            // if two taps landed almost together), then common words that continue it.
+            // Exact typing wins when it spells a word (in the order that spells one, if
+            // two taps landed almost together), or begins one while typing goes on.
             let strings = orderings.map { String($0.flatMap(\.keys)) }
-            let typed = strings.first { dictionary.contains($0) || learned.contains($0) } ?? strings[0]
-            let prior = dictionary.logPrior(of: typed).map { priorWeight * Double($0) } ?? -1
-            out.append(Candidate(word: typed, score: prior + learned.weight(of: typed)))
-            // Completions in the dictionary's order, the context deciding among them.
-            let completions = dictionary.completions(of: typed, limit: limit + 2)
-                .filter { word in !out.contains { $0.word == word } }
-                .map { word in
-                    let own = dictionary.logPrior(of: word) ?? -20
-                    return Candidate(word: word, score: priorWeight * Double(own) + contextWeight * contextBonus(for: word, prior: own)
-                                     + personalBonus(for: word, prior: own) - 1)
-                }
-                .sorted { $0.score > $1.score }
-            out += completions.prefix(limit - 1)
-            return Array(out.prefix(limit))
+            let index = strings.firstIndex(where: isKnown) ?? 0
+            let typed = strings[index]
+            if isKnown(typed) || typed.count < 2 || (!final && !dictionary.completions(of: typed, limit: 1).isEmpty) {
+                return exactly(typed, limit: limit)
+            }
+            return resolve(typed, points: orderings[index].map { $0.points.first }, limit: limit, pecked: true)
         }
 
         var best: [String: Double] = [:]
@@ -203,16 +212,145 @@ public struct Matcher: Sendable {
                 }
             }
         }
-        out = best.map { Candidate(word: $0.key, score: $0.value) }
+        let out = best.map { Candidate(word: $0.key, score: $0.value) }
             .sorted { $0.score > $1.score || ($0.score == $1.score && $0.word < $1.word) }
         if out.isEmpty {
-            // Nothing fits: type the keys the swipe started and ended on, so a
-            // word still comes out and can be fixed.
-            out.append(Candidate(word: Self.fallback(ordered), score: -10))
+            // Nothing fits the keys as crossed: the nearest real words to the keys the
+            // swipes started and ended on, and those keys themselves only when no word
+            // is near (and strictness allows letters at all).
+            return resolve(Self.fallback(ordered), points: [], limit: limit, pecked: false)
         }
         return Array(out.prefix(limit))
     }
 
+    /// In the dictionary or the person's own words.
+    func isKnown(_ word: String) -> Bool {
+        dictionary.contains(word) || learned.contains(word)
+    }
+
+    /// What was tapped, then common words that continue it, the context deciding among them.
+    private func exactly(_ typed: String, limit: Int) -> [Candidate] {
+        let prior = dictionary.logPrior(of: typed).map { priorWeight * Double($0) } ?? -1
+        var out = [Candidate(word: typed, score: prior + learned.weight(of: typed))]
+        let completions = dictionary.completions(of: typed, limit: limit + 2)
+            .filter { $0 != typed }
+            .map { word in
+                let own = dictionary.logPrior(of: word) ?? -20
+                return Candidate(word: word, score: priorWeight * Double(own) + contextWeight * contextBonus(for: word, prior: own)
+                                 + personalBonus(for: word, prior: own) - 1)
+            }
+            .sorted { $0.score > $1.score }
+        out += completions.prefix(limit - 1)
+        return Array(out.prefix(limit))
+    }
+
+    /// Letters that spell no word, against the real words nearest them: the nearest
+    /// goes first when the keyboard is sure enough of it (`strictness`), the letters
+    /// stay in the bar behind it (unless strictness is 1), so they can still be chosen.
+    /// Letters a swipe fell back to (`pecked` false) were never spelled on purpose, so
+    /// any near word beats them.
+    private func resolve(_ letters: String, points: [CGPoint?], limit: Int, pecked: Bool) -> [Candidate] {
+        let near = nearestWords(to: letters, points: points, limit: limit)
+        let literal = Candidate(word: letters, score: priorWeight * Double(unknownPrior))
+        guard strictness < 1 else { return near }
+        guard let best = near.first else { return [literal] }
+        let sure = !pecked || (strictness > 0 && confidence(of: best, over: literal) >= 1 - strictness)
+        let ordered = sure ? [best, literal] + near.dropFirst() : [literal] + near
+        return Array(ordered.prefix(limit))
+    }
+
+    /// How sure the keyboard is of `word` rather than `other`, 0 to 1, from their scores.
+    func confidence(of word: Candidate, over other: Candidate) -> Double {
+        1 / (1 + exp(-(word.score - other.score) / confidenceScale))
+    }
+
+    // MARK: Nearest words
+
+    /// What a slip costs, in score units (the prior's scale: 0.12 is a word e times as
+    /// common). A tap on the key next door costs `substitution` plus `distance` per
+    /// squared key width between where it landed and the meant key's centre, so a tap
+    /// on the edge between two keys costs little and one two keys away a lot.
+    public struct EditCosts: Sendable, Equatable {
+        public var substitution = 0.2
+        public var distance = 0.25
+        /// A letter of the word with no tap for it, and a tap for no letter.
+        public var missing = 0.45
+        public var extra = 0.45
+        /// Two letters in the wrong order, which two thumbs make easily.
+        public var swapped = 0.3
+        public init() {}
+    }
+
+    public var editCosts = EditCosts()
+
+    /// The real words (the dictionary's and the person's) within `maxEditCost` of
+    /// `letters`, scored like any guess less what their slips cost, best first.
+    /// `points` are where each letter was tapped, when known.
+    func nearestWords(to letters: String, points: [CGPoint?], limit: Int) -> [Candidate] {
+        let typed = letters.utf8.map { Int($0) - 96 }
+        guard !typed.isEmpty, typed.allSatisfy({ (1...26).contains($0) }), limit > 0 else { return [] }
+        let unit = Double(layout.frame(of: .letter("q"))?.width ?? 33)
+        // What putting each letter of the alphabet in for each tap costs.
+        var substitute = [[Double]](repeating: [Double](repeating: 0, count: 27), count: typed.count)
+        for (i, label) in typed.enumerated() {
+            let key = Self.alphabet[label - 1]
+            let from = (points.indices.contains(i) ? points[i] : nil) ?? layout.frame(of: .letter(key)).map { CGPoint(x: $0.midX, y: $0.midY) }
+            for (l, letter) in Self.alphabet.enumerated() where letter != key {
+                guard let from, let frame = layout.frame(of: .letter(letter)) else { substitute[i][l + 1] = .infinity; continue }
+                let d = Double(Geometry.distance(from, CGPoint(x: frame.midX, y: frame.midY))) / unit
+                substitute[i][l + 1] = editCosts.substitution + editCosts.distance * d * d
+            }
+        }
+        var best: [String: Double] = [:]
+        func collect(_ lexicon: Lexicon, prior fixed: Float?) {
+            for (node, cost) in nearest(typed, in: lexicon, substitute: substitute) {
+                guard let own = lexicon.logPrior(at: node) else { continue }
+                let word = lexicon.word(at: node)
+                guard word != letters else { continue }
+                let prior = fixed ?? own
+                let ranking: Double = priorWeight * Double(prior) + contextWeight * contextBonus(for: word, prior: prior)
+                let value: Double = ranking + personalBonus(for: word, prior: prior) + learned.weight(of: word) - cost
+                best[word] = max(best[word] ?? -.infinity, value)
+            }
+        }
+        collect(dictionary, prior: nil)
+        if learnedLexicon.nodeCount > 1 { collect(learnedLexicon, prior: learnedPrior) }
+        let ranked: [Candidate] = best.map { Candidate(word: $0.key, score: $0.value) }
+            .sorted { $0.score > $1.score || ($0.score == $1.score && $0.word < $1.word) }
+        return Array(ranked.prefix(limit))
+    }
+
+    /// Weighted edit distance from `typed` to every word in the trie, walking it depth
+    /// first with one row of costs per node and dropping a branch once every cost in
+    /// its row is over `maxEditCost`. Returns the word nodes within it.
+    private func nearest(_ typed: [Int], in lexicon: Lexicon, substitute: [[Double]]) -> [(Int32, Double)] {
+        let n = typed.count
+        let costs = editCosts
+        let root = (0...n).map { Double($0) * costs.extra }
+        var out: [(Int32, Double)] = []
+        // Each node with its letter, its parent's row and letter, and the row above that.
+        var stack: [(node: Int32, label: Int, above: [Double], aboveLabel: Int, twoAbove: [Double])] = []
+        lexicon.forEachChild(of: 0) { label, child in stack.append((child, label, root, 0, [])) }
+        var visited = 0
+        while let (node, label, above, aboveLabel, twoAbove) = stack.popLast(), visited < 200_000 {
+            visited += 1
+            var row = [Double](repeating: 0, count: n + 1)
+            row[0] = above[0] + costs.missing
+            for j in 1...n {
+                let take = typed[j - 1] == label ? 0 : substitute[j - 1][label]
+                var value = min(above[j] + costs.missing, row[j - 1] + costs.extra, above[j - 1] + take)
+                // "ab" tapped for "ba": this letter and the one before it, swapped.
+                if j >= 2, !twoAbove.isEmpty, label != aboveLabel, typed[j - 1] == aboveLabel, typed[j - 2] == label {
+                    value = min(value, twoAbove[j - 2] + costs.swapped)
+                }
+                row[j] = value
+            }
+            guard let low = row.min(), low <= maxEditCost else { continue }
+            if row[n] <= maxEditCost, lexicon.logPrior(at: node) != nil { out.append((node, row[n])) }
+            lexicon.forEachChild(of: node) { childLabel, child in stack.append((child, childLabel, row, label, above)) }
+        }
+        return out
+    }
     // MARK: Orderings and segments
 
     /// The touch-down order, plus each way of swapping two pieces that landed within

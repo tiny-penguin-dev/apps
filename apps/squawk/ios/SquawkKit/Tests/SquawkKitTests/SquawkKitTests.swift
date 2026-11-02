@@ -185,16 +185,46 @@ private func onceDates(_ plan: [PlannedRing]) -> [Date] {
         Alarm(days: Weekday.weekdays, rings: rings, checks: [WakeUpCheck(kind: .tag, secret: "04A1B2", place: "Bathroom")])
     }
 
-    @Test func lastRingComesBackEvery30SecondsFor10Minutes() {
+    @Test func lastRingComesBackEvery30SecondsWithBackups() {
         let plan = AlarmPlanner.plan(tagAlarm(), now: sundayNight, calendar: utc)
-        // Three mornings ahead: Mon, Tue, Wed. Each: one early ring plus 20 repeats.
-        #expect(plan.count == 3 * 21)
+        // Five mornings ahead: Mon to Fri. Each: one early ring, the first 2 minutes of
+        // repeats (5), then a backup every 2 minutes (7:04, 7:06, 7:08).
+        #expect(plan.count == 5 * 9)
         #expect(plan.allSatisfy { $0.needsCheck })
         let monday = onceDates(plan).filter { $0 < at(3, 0) }
-        #expect(monday.first == at(2, 6, 50))
-        #expect(monday[1] == at(2, 7))
-        #expect(monday[2] == at(2, 7, 0).addingTimeInterval(30))
-        #expect(monday.last == at(2, 7, 9).addingTimeInterval(30))
+        #expect(monday == [
+            at(2, 6, 50), at(2, 7), at(2, 7).addingTimeInterval(30), at(2, 7, 1),
+            at(2, 7, 1).addingTimeInterval(30), at(2, 7, 2), at(2, 7, 4), at(2, 7, 6), at(2, 7, 8),
+        ])
+    }
+
+    @Test func snoozeTopsUpTheRepeats() {
+        // Snoozed at 7:01:10: the next 2 minutes of repeats, then the backups.
+        let now = at(2, 7, 1).addingTimeInterval(10)
+        let monday = onceDates(AlarmPlanner.plan(tagAlarm(), now: now, calendar: utc)).filter { $0 < at(3, 0) }
+        #expect(monday == [
+            at(2, 7, 1).addingTimeInterval(30), at(2, 7, 2), at(2, 7, 2).addingTimeInterval(30),
+            at(2, 7, 3), at(2, 7, 4), at(2, 7, 6), at(2, 7, 8),
+        ])
+        // Re-planning keeps the same ids, so rings already scheduled stay as they are.
+        let before = Set(AlarmPlanner.plan(tagAlarm(), now: sundayNight, calendar: utc).map(\.id))
+        let after = AlarmPlanner.plan(tagAlarm(), now: now, calendar: utc).filter { $0.nextFire(after: now, calendar: utc)! < at(2, 7, 2) }
+        #expect(after.allSatisfy { before.contains($0.id) })
+    }
+
+    @Test func nextFire() {
+        let weekly = PlannedRing(
+            id: UUID(), alarmID: UUID(), ringID: UUID(),
+            schedule: .weekly(TimeOfDay(hour: 7, minute: 0), [.wednesday, .tuesday]),
+            title: "", sound: AlarmSound.all[0], color: RingColor.allCases[0], isLastRing: true
+        )
+        #expect(weekly.nextFire(after: sundayNight, calendar: utc) == at(3, 7))
+        let once = PlannedRing(
+            id: UUID(), alarmID: UUID(), ringID: UUID(), schedule: .once(at(2, 7)),
+            title: "", sound: AlarmSound.all[0], color: RingColor.allCases[0], isLastRing: true
+        )
+        #expect(once.nextFire(after: sundayNight, calendar: utc) == at(2, 7))
+        #expect(once.nextFire(after: at(2, 8), calendar: utc) == nil)
     }
 
     @Test func doingTheCheckCancelsTheRepeats() {

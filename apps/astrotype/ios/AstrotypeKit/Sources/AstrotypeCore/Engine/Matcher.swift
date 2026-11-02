@@ -305,7 +305,7 @@ public struct Matcher: Sendable {
     func nearestWords(to letters: String, points: [CGPoint?], limit: Int) -> [Candidate] {
         let typed = letters.utf8.map { Int($0) - 96 }
         guard !typed.isEmpty, typed.allSatisfy({ (1...26).contains($0) }), limit > 0 else { return [] }
-        let unit = Double(layout.frame(of: .letter("q"))?.width ?? 33)
+        let unit = Double(layout.distanceUnit)
         // What putting each letter of the alphabet in for each tap costs.
         var substitute = [[Double]](repeating: [Double](repeating: 0, count: 27), count: typed.count)
         for (i, label) in typed.enumerated() {
@@ -618,7 +618,7 @@ public struct Matcher: Sendable {
 
     private func score(word: String, prior: Float, counts: [Int], segments: [Segment]) -> Double {
         let letters = Array(word)
-        let unit = Double(layout.frame(of: .letter("q"))?.width ?? 33)
+        let unit = Double(layout.distanceUnit)
         // The letters each swipe contributed, across all of its segments.
         var swipes: [(points: [CGPoint], letters: [Character])] = []
         var sources: [Int: Int] = [:]

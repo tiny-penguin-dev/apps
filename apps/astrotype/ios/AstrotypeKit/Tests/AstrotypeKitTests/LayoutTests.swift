@@ -6,9 +6,9 @@ import Testing
     @Test func phoneHasApplesProportions() {
         let layout = Layout.qwerty(width: 390)
         let q = layout.frame(of: .letter("q"))!
-        #expect(q.width == 33)
-        #expect(q.height == 44)
-        #expect(layout.gap == 6)
+        #expect(q.width == 37)
+        #expect(q.height == 50.75)
+        #expect(layout.gap == 2)
         #expect(layout.height == 209)
         // No padding of our own: the keys reach the top and the bottom.
         #expect(q.minY == 0)
@@ -28,14 +28,14 @@ import Testing
             #expect(placement.frame.maxY <= layout.height)
         }
         let unit = layout.frame(of: .letter("q"))!.width
-        #expect(unit <= 58)
+        #expect(unit <= Layout.maxKeyWidth)
         #expect(layout.frame(of: .space)!.width > 3 * unit)
     }
 
     @Test func wideKeysAreCapped() {
         let layout = Layout.qwerty(width: 744)
-        #expect(layout.frame(of: .letter("q"))!.width == 58)
-        #expect(layout.keyHeight == 42)
+        #expect(layout.frame(of: .letter("q"))!.width == 64)
+        #expect(layout.keyHeight == 51)
         #expect(layout.height == 210)
     }
 
@@ -44,11 +44,11 @@ import Testing
         let h = layout.frame(of: .letter("h"))!
         #expect(layout.key(at: CGPoint(x: h.midX, y: h.midY)) == .letter("h"))
         // In the gap just right of h, still h.
-        #expect(layout.key(at: CGPoint(x: h.maxX + 2, y: h.midY)) == .letter("h"))
+        #expect(layout.key(at: CGPoint(x: h.maxX + 0.5, y: h.midY)) == .letter("h"))
         // Off the left edge of a row, the first key.
         #expect(layout.key(at: CGPoint(x: 1, y: h.midY)) == .letter("a"))
         // Between two rows, the nearer one.
-        #expect(layout.key(at: CGPoint(x: h.midX, y: h.minY - 3)) == .letter("h"))
+        #expect(layout.key(at: CGPoint(x: h.midX, y: h.minY - 0.5)) == .letter("h"))
         #expect(layout.key(at: CGPoint(x: 100, y: -1)) == nil)
         #expect(layout.key(at: CGPoint(x: 100, y: layout.height + 1)) == nil)
         #expect(layout.key(at: CGPoint(x: 195, y: layout.height - 20)) == .space)
@@ -222,7 +222,7 @@ import Testing
         #expect(shorter.frame(of: .letter("q"))!.width == natural.frame(of: .letter("q"))!.width)
         let taller = Layout.qwerty(width: 390, height: 240)
         #expect(taller.height == 240)
-        #expect(taller.keyHeight > 44)
+        #expect(taller.keyHeight > Layout.qwerty(width: 390).keyHeight)
         #expect(taller.frame(of: .letter("q"))!.minY == 0)
         #expect(abs(taller.frame(of: .space)!.maxY - 240) < 0.001)
         // Far more room than keys want: they stop growing and sit at the bottom.

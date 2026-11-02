@@ -132,7 +132,7 @@ public struct Layout: Sendable, Equatable {
 
         // As tall as Apple's keyboard (42 pt keys 14 pt apart on a wide screen, 44 and
         // 11 on a phone), with the rows only `keyGap` apart, so the keys take the rest.
-        let natural: CGFloat = wide ? 4 * 42 + 3 * 14 : 4 * 44 + 3 * 11
+        let natural: CGFloat = wide ? 210 : 209
         let rowGap = gap
         var keyHeight = (natural - 3 * rowGap) / 4
         var top: CGFloat = 0
@@ -287,6 +287,16 @@ public struct Layout: Sendable, Equatable {
         }
         if width - x >= minWidth { out.append(x...width) }
         return out
+    }
+
+    /// The length the matcher measures distances in. Its weights were tuned on
+    /// Apple's phone keys (33 pt wide, 6 pt apart, so 39 pt from centre to centre), so
+    /// this is that key width scaled to this layout's key spacing: 33 pt on a phone
+    /// whatever the gap. Measuring in the key's own width instead made the keys look
+    /// closer together once they grew into the gaps, and "helo" came out "help".
+    public var distanceUnit: CGFloat {
+        guard let q = frame(of: .letter("q")) else { return 33 }
+        return (q.width + gap) * 33 / 39
     }
 
     /// Whether this width counts as wide (the iPhone Duo's inner screen).

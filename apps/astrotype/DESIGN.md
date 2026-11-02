@@ -107,7 +107,9 @@ code (`AstrotypeKit/Theme`, `docs/building.md` rule 1). Screens only use these.
 | 13 | Free keyboard | After the trial: taps and one-finger swipes. A second thumb shows "Two thumbs is in Astrotype Pro" in the bar instead of typing. | [13](design/screens/13-free.png) |
 
 Not drawn yet (simple, same style): the numbers and symbols pages, the in-keyboard
-settings panel (gear under the `123` hold menu, for when Full Access is off), learned
+settings panel (gear under the `123` hold menu, for when Full Access is off; the title
+and Done stay at the top and the rows scroll below in three rounded groups, typing,
+look and learning, so every row fits on every phone; Gabriel, 2 Nov 2026), learned
 words list, snippets editor, one-handed layouts, the milestone sheet. The split layout
 (an option on wide screens, Gabriel, 1 Nov 2026) is exactly Apple's: Q to T, A to G
 and Z to V on the left, Y to P, G to L and V to M on the right (G and V on both halves,

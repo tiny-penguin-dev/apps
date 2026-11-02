@@ -53,7 +53,7 @@ struct SettingsView: View {
                 Card {
                     HStack(spacing: Theme.Space.m) {
                         Text("As tapped").font(.sw(.small)).foregroundStyle(Theme.muted)
-                        Slider(value: $model.keyboardSettings.wordStrictness, in: 0...1, step: 0.1)
+                        Slider(value: $model.keyboardSettings.wordStrictness, in: 0...1, step: 0.01)
                             .tint(Theme.accent)
                             .accessibilityLabel("Real words")
                             .accessibilityValue("\(Int((model.keyboardSettings.wordStrictness * 100).rounded())) percent")

@@ -77,7 +77,7 @@ public final class SettingsPanelView: UIView {
         addSubview(strictSlider)
         strictSlider.addAction(UIAction { [weak self] _ in
             guard let self else { return }
-            self.settings.wordStrictness = (Double(self.strictSlider.value) * 10).rounded() / 10
+            self.settings.wordStrictness = (Double(self.strictSlider.value) * 100).rounded() / 100
             self.onChange?(self.settings)
         }, for: .valueChanged)
 

@@ -252,4 +252,4 @@ over the letters (scored at `unknownPrior`, -13) read as log odds at
 `confidenceScale` 0.12; the letters stay second on the bar. Letters that begin a word
 stay while typing goes on and are decided on space. A swipe that fits nothing always
 becomes the nearest word. At strictness 1 letters that are not a word never go in.
-The setting is "Real words" in Settings and the keyboard's panel, 0–100%, default 80%.
+The setting is "Real words" in Settings and the keyboard's panel, 0–100% in 1% steps, default 80%.

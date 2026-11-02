@@ -24,9 +24,13 @@ struct AppEnvironment {
     /// Where the trial's start is written for the keyboard extension to read (the App
     /// Group); nil in tests.
     var trialStore: TrialStore?
-    /// Practice recordings waiting to be sent, and what sends them; nil in tests.
+    /// Whole practice recordings from before Phase C, waiting to be sent: they go as
+    /// their words now. Nil in tests.
     var practiceStore: PracticeStore?
-    var practiceUploader: PracticeUploader?
+    /// Shared words waiting to be sent (practice words and the keyboard's corrections,
+    /// features/smart-matching Phase C), and what sends them; nil in tests.
+    var sharedWords: SharedWordStore?
+    var sharedUploader: SharedWordUploader?
     /// What a recording says about where it was made (no name or account).
     var device: PracticeRecording.Device
     var metrics: Metrics
@@ -49,7 +53,8 @@ struct AppEnvironment {
             proStore: StoreKitProStore(),
             trialStore: TrialStore(url: dataFile(KeyboardFiles.trial)),
             practiceStore: PracticeStore(folder: KeyboardFiles.own("Practice")),
-            practiceUploader: CloudKitPracticeUploader(),
+            sharedWords: SharedWordStore(folder: dataFile(KeyboardFiles.sharing)),
+            sharedUploader: CloudKitPracticeUploader(),
             device: PracticeRecording.Device(model: DeviceInfo.model, system: DeviceInfo.system,
                                              app: DeviceInfo.appVersion, writer: DeviceInfo.writerID),
             metrics: LiveMetrics(),
@@ -92,7 +97,8 @@ struct AppEnvironment {
         proStore: ProStore = MemoryProStore(),
         trialStore: TrialStore? = nil,
         practiceStore: PracticeStore? = nil,
-        practiceUploader: PracticeUploader? = nil,
+        sharedWords: SharedWordStore? = nil,
+        sharedUploader: SharedWordUploader? = nil,
         device: PracticeRecording.Device = PracticeRecording.Device(model: "iPhone", system: "iOS 26", app: "0.2.0", writer: "test"),
         metrics: Metrics = RecordingMetrics(),
         now: @escaping () -> Date = { Date(timeIntervalSince1970: 1_793_491_200) },
@@ -103,7 +109,8 @@ struct AppEnvironment {
         AppEnvironment(appStateStore: appStateStore, settingsStore: settingsStore, wordStore: wordStore,
                        personalStore: personalStore, cloudSync: cloudSync,
                        keyboardStatus: keyboardStatus, extensionStatus: extensionStatus, proStore: proStore,
-                       trialStore: trialStore, practiceStore: practiceStore, practiceUploader: practiceUploader,
+                       trialStore: trialStore, practiceStore: practiceStore,
+                       sharedWords: sharedWords, sharedUploader: sharedUploader,
                        device: device, metrics: metrics, now: now,
                        appVersion: appVersion, backup: backup, openSettings: openSettings)
     }

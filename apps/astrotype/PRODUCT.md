@@ -254,6 +254,7 @@ Settings.
 | `drill.finished` (`drill`) | Which habits people practise |
 | `trial.started`, `pro.subscribed` (`plan`) | Whether the trial converts |
 | `sync.failed` | iCloud sync problems (goal: zero) |
+| `practice.shared` (`kind`) | How many words people share, practice or corrections (features/smart-matching) |
 | `personal.reset` | How often people wipe what the keyboard learned (features/smart-matching) |
 
 More get added here as phases land.

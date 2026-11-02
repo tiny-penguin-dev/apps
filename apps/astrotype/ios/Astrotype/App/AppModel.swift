@@ -271,42 +271,96 @@ final class AppModel {
         state.milestonesSeen.append(milestone.rawValue)
     }
 
-    // MARK: Practice recordings
+    // MARK: Sharing (features/smart-matching Phase C)
 
-    /// Send the touches of speed tests and drills to tune the keyboard (off by default,
-    /// Settings → Privacy). Nothing from other apps, ever.
+    /// Send practice words to tune the keyboard (off by default, Settings → Privacy):
+    /// the words of speed tests and drills, one at a time with their touches, and the
+    /// keyboard's corrections when `shareCorrections` is on too. Turning it off drops
+    /// whatever was waiting and stops the corrections.
     var sharePractice: Bool {
         get { state.sharePractice }
         set {
             guard state.sharePractice != newValue else { return }
             state.sharePractice = newValue
-            if newValue { uploadPractice() }
+            if newValue {
+                uploadPractice()
+            } else {
+                keyboardSettings.shareCorrections = false
+                environment.sharedWords?.remove(pendingShared.map(\.id))
+                reloadShared()
+            }
         }
     }
+
+    /// "Include corrections from other apps": the keyboard keeps each fix made from the
+    /// bar (the word and its first guess, nothing around them) for the app to send.
+    /// Needs sharing on, and Full Access for the keyboard to hand them over.
+    var shareCorrections: Bool {
+        get { keyboardSettings.shareCorrections }
+        set { keyboardSettings.shareCorrections = newValue && state.sharePractice }
+    }
+
+    /// What will go up next, exactly as it will be sent but for the device line the
+    /// upload adds ("What gets shared").
+    private(set) var pendingShared: [SharedWord] = []
+    private(set) var uploadingPractice = false
 
     /// Where a recording says it was made.
     var device: PracticeRecording.Device { environment.device }
 
-    /// A session's recording: kept and sent when sharing is on, dropped otherwise.
+    /// A session's recording: its words kept to send when sharing is on, dropped
+    /// otherwise.
     func savePractice(_ recording: PracticeRecording) {
-        guard state.sharePractice, let store = environment.practiceStore else { return }
-        try? store.save(recording)
+        guard state.sharePractice, let store = environment.sharedWords else { return }
+        store.save(SharedWord.words(of: recording))
         uploadPractice()
     }
 
-    private var uploadingPractice = false
+    /// Re-reads what is waiting (the keyboard may have added corrections).
+    func reloadShared() {
+        pendingShared = environment.sharedWords?.pending() ?? []
+    }
 
-    /// Sends what is waiting, in the background. Safe to call often.
+    /// Taken off the list on "What gets shared": it never goes.
+    func removeShared(_ id: UUID) {
+        environment.sharedWords?.remove([id])
+        reloadShared()
+    }
+
+    /// Sends what is waiting, in the background. Safe to call often. Counts
+    /// `practice.shared` per kind of word sent.
     func uploadPractice() {
-        guard state.sharePractice, !uploadingPractice,
-              let store = environment.practiceStore, let uploader = environment.practiceUploader else { return }
-        let pending = store.pending()
+        guard let store = environment.sharedWords else { return }
+        migrateRecordings(into: store)
+        reloadShared()
+        guard state.sharePractice, !uploadingPractice, let uploader = environment.sharedUploader else { return }
+        // Corrections only while their switch is on; any left from before wait no more.
+        let stale = pendingShared.filter { $0.isCorrection && !keyboardSettings.shareCorrections }
+        if !stale.isEmpty { store.remove(stale.map(\.id)); reloadShared() }
+        let pending = Array(pendingShared.prefix(100)).map { $0.stamped(with: environment.device) }
         guard !pending.isEmpty else { return }
         uploadingPractice = true
         Task { @MainActor in
-            if let sent = try? await uploader.upload(pending) { store.markUploaded(sent) }
+            if let sent = try? await uploader.upload(pending) {
+                store.markUploaded(sent)
+                var kinds: [String: Int] = [:]
+                for word in pending where sent.contains(word.id) { kinds[word.kind, default: 0] += 1 }
+                for (kind, count) in kinds.sorted(by: { $0.key < $1.key }) {
+                    for _ in 0..<count { environment.metrics.count("practice.shared", ["kind": kind]) }
+                }
+            }
             uploadingPractice = false
+            reloadShared()
         }
+    }
+
+    /// Whole recordings saved before Phase C go as their words, like new ones.
+    private func migrateRecordings(into store: SharedWordStore) {
+        guard let recordings = environment.practiceStore, state.sharePractice else { return }
+        let old = recordings.pending(limit: .max)
+        guard !old.isEmpty else { return }
+        store.save(old.flatMap { SharedWord.words(of: $0) })
+        recordings.markUploaded(old.map(\.id))
     }
 
     // MARK: Learned words

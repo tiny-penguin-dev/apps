@@ -152,8 +152,15 @@ struct SettingsView: View {
                     Toggle("Share anonymous usage data", isOn: $shareUsage).labelsHidden().tint(Theme.mint)
                         .onChange(of: shareUsage) { Telemetry.isEnabled = shareUsage }
                 }
-                Row("Send practice sessions", subtitle: "The touches from speed tests and drills here in the app, with the words they typed, to tune the keyboard. Never from other apps, no name attached.") {
+                Row("Send practice sessions", subtitle: "The words from speed tests and drills here in the app, one at a time with the paths of your thumbs, to tune the keyboard. No sentences, no name attached.") {
                     Toggle("Send practice sessions", isOn: $model.sharePractice).labelsHidden().tint(Theme.mint)
+                }
+                Row("Include corrections from other apps", subtitle: correctionsSubtitle) {
+                    Toggle("Include corrections from other apps", isOn: $model.shareCorrections).labelsHidden().tint(Theme.mint)
+                        .disabled(!model.sharePractice || !model.isFullAccessOn)
+                }
+                Row("What gets shared", subtitle: sharedSubtitle) {
+                    Button("See") { path.append(.sharing) }.buttonStyle(.small)
                 }
 
                 if Flags.handwritingPad {
@@ -177,6 +184,7 @@ struct SettingsView: View {
         .onAppear {
             model.refreshKeyboardStatus()
             model.reloadWords()
+            model.reloadShared()
         }
     }
 
@@ -210,6 +218,21 @@ struct SettingsView: View {
         case 0: return "Words you peck out that the keyboard doesn't know end up here."
         case 1: return "1 word the keyboard learned from you."
         default: return "\(count) words the keyboard learned from you."
+        }
+    }
+
+    private var correctionsSubtitle: String {
+        if !model.isFullAccessOn { return "The word you wrote and the word you meant, never the text around them. Needs Full Access." }
+        if !model.sharePractice { return "The word you wrote and the word you meant, never the text around them. Turn on Send practice sessions first." }
+        return "The word you wrote and the word you meant. Never the text around them."
+    }
+
+    private var sharedSubtitle: String {
+        let count = model.pendingShared.count
+        switch count {
+        case 0: return "Every field of what we'd send, before it goes."
+        case 1: return "1 word waiting. See it before it goes."
+        default: return "\(count) words waiting. See them before they go."
         }
     }
 

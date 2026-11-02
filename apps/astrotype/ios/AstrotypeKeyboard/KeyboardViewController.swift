@@ -50,7 +50,15 @@ final class KeyboardViewController: UIInputViewController {
         view.addSubview(keyboard)
         self.keyboard = keyboard
 
-        if fullAccess { startSync(model: model) }
+        if fullAccess {
+            startSync(model: model)
+            // Fixes go where the app can send them, only if the person said so (the
+            // model checks the setting); without Full Access there is nowhere to put them.
+            if let folder = KeyboardFiles.shared(KeyboardFiles.sharing) {
+                let store = SharedWordStore(folder: folder)
+                model.onCorrection = { word in store.save([word]) }
+            }
+        }
         startEntitlement(model: model, fullAccess: fullAccess)
 
         if Flags.extensionReadout {

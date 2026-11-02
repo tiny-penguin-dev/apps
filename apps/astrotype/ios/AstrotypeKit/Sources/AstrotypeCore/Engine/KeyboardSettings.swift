@@ -33,6 +33,10 @@ public struct KeyboardSettings: Codable, Sendable, Equatable {
     /// The last "Forget everything": a keyboard whose personal model is older forgets
     /// it when these settings reach it (here, through the App Group or iCloud).
     public var forgetPersonalAt: Date?
+    /// Keep the fixes made from the bar in other apps (the word and the guess, nothing
+    /// around them) for the app to share with "Send practice sessions"
+    /// (features/smart-matching Phase C). Off by default; needs Full Access.
+    public var shareCorrections = false
 
     public init() {}
 
@@ -49,6 +53,7 @@ public struct KeyboardSettings: Codable, Sendable, Equatable {
         splitOnWide = try c.decodeIfPresent(Bool.self, forKey: .splitOnWide) ?? false
         learnsFromYou = try c.decodeIfPresent(Bool.self, forKey: .learnsFromYou) ?? true
         forgetPersonalAt = try c.decodeIfPresent(Date.self, forKey: .forgetPersonalAt)
+        shareCorrections = try c.decodeIfPresent(Bool.self, forKey: .shareCorrections) ?? false
     }
 
     /// `base` with these settings applied; the rest of the engine's settings stay.

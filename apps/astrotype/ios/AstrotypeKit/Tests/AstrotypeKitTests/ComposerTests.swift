@@ -142,8 +142,36 @@ import Testing
         #expect(auto.contains(.insert(" ")))
         let pressed = composer.press(.space, time: lifted + 5.2)
         #expect(!pressed.contains(.insert(" ")))
-        // A second press is the person's own: it types.
-        #expect(composer.press(.space, time: lifted + 5.4).contains(.insert(" ")))
+        // A second press later is the person's own: it types.
+        #expect(composer.press(.space, time: lifted + 6).contains(.insert(" ")))
+    }
+
+    /// Double tap on space: a period, after autospace or not (Gabriel, 2 Nov 2026).
+    @Test func aDoubleTapOnSpaceTypesAPeriod() {
+        var composer = Synth.composer()
+        Synth.swipe(&composer, "there", at: 0)
+        #expect(composer.press(.space, time: 0.5).contains(.insert(" ")))
+        let second = composer.press(.space, time: 0.7)
+        #expect(second.contains(.deleteBackward(1)))
+        #expect(second.contains(.insert(". ")))
+        // After autospace: the first tap adds nothing, the second makes the period.
+        composer = Synth.composer()
+        Synth.swipe(&composer, "there", at: 0)
+        _ = composer.tick(time: 2)
+        let first = composer.press(.space, time: 2.1)
+        #expect(!first.contains(.insert(" ")) && !first.contains(.insert(". ")))
+        let again = composer.press(.space, time: 2.3)
+        #expect(again.contains(.deleteBackward(1)))
+        #expect(again.contains(.insert(". ")))
+    }
+
+    @Test func slowSpacesAreNotADoubleTap() {
+        var composer = Synth.composer()
+        Synth.swipe(&composer, "there", at: 0)
+        _ = composer.press(.space, time: 0.5)
+        let later = composer.press(.space, time: 1.5)
+        #expect(later.contains(.insert(" ")))
+        #expect(!later.contains(.insert(". ")))
     }
 
     @Test func aSpaceAfterAChosenGuessIsNotASecondSpace() {
@@ -174,7 +202,7 @@ import Testing
         // A word committed by its own space, then space again: the person's two spaces.
         Synth.swipe(&composer, "there", at: 3)
         #expect(composer.press(.space, time: 3.5).contains(.insert(" ")))
-        #expect(composer.press(.space, time: 3.6).contains(.insert(" ")))
+        #expect(composer.press(.space, time: 4.5).contains(.insert(" ")))
     }
 
     @Test func returnAfterAutospaceLeavesNoTrailingSpace() {

@@ -38,10 +38,14 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
     writes the StoreKit, memory and size readings into the bar's idle note while
     `Flags.extensionReadout` is on.
   - `AstrotypeKit/`: the local package, three targets:
-    - `AstrotypeCore`: Core and Services. `Layout` (key geometry), `Lexicon` (the
-      trie, built from `Resources/lexicon.tsv`), `Flags`, and `Engine/`: `Composer`
-      (touches in, effects out, pure, time passed in), `Matcher` (pieces to ranked
-      candidates: trie search plus DTW, two-thumb orderings and split swipes),
+    - `AstrotypeCore`: Core and Services. `Layout` (key geometry), `Language` (one
+      language's files from `Resources/<code>/`: `Lexicon`, the trie from
+      `lexicon.tsv`, and `NgramModel`, the word pairs from `bigrams.bin`; English
+      only so far), `Flags`, and `Engine/`: `Composer` (touches in, effects out, pure,
+      time passed in), `Matcher` (pieces to ranked candidates: trie search plus DTW,
+      two-thumb orderings and split swipes, the words before the open one from
+      `WordContext`), `NgramModel` (the word-pair binary, read and built), `Replay`
+      (the harness: a practice recording through the engine, first-guess accuracy),
       `Piece`, `Geometry`, `LearnedWords`, `KeyboardSettings` (the in-keyboard settings
       and their `SettingsStore`). `Sync/` holds the data layer: `Stores` (`JSONFile`,
       `WordStore` and file, memory and mirrored stores for words and settings),
@@ -60,6 +64,8 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
       `PracticeUploader` protocol with its fake; the live one is
       `Sync/CloudKitPracticeUploader`). `Handwriting/` holds the v1 engine (`Features`, `PhraseDecoder`, `Recognizer`,
       `Recording`, `StrokeSample`). Foundation only; tests run on Linux.
+    - `AstrotypeTools`: the `astrotype-tools` command line (`build-ngrams`, `replay`,
+      `next`), argument parsing over `AstrotypeCore` and nothing else.
     - `AstrotypeUI`: the design system (`Theme` tokens, `Components`, `Art`) and the
       keyboard's views: `KeyboardView` (bar plus keys, the pages, the settings panel;
       owns a `KeyboardModel`), `BarView`, `KeySurfaceView` (touch stream, flashes,
@@ -73,7 +79,9 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
       UIKit and SwiftUI, guarded
       with `#if canImport(UIKit)` so `swift test` still builds the package on macOS.
     - `AstrotypeKitTests`: Swift Testing. `ComposerTests`, `MatcherTests` (the 50-word
-      fixture in `Fixtures/swipes.json`, through `Synth`'s straight-line swipes),
+      fixture in `Fixtures/swipes.json`, through `Synth`'s straight-line swipes, and
+      `ContextMatcherTests`), `WordContextTests`, `NgramModelTests`, `ReplayTests`
+      (recordings made from `Synth` strokes replay to the live result),
       `GeometryTests`, `LayoutTests`, `KeyboardSettingsTests`, `AppCoreTests` (the
       `App/` pieces), `ProTests` (`Entitlement`, the trial and Pro files, the memory
       store), `PracticeTests` (the speed test, streak and milestones, the drills on the
@@ -92,7 +100,13 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
   screenshots) and `privacy.md` (the App Privacy answers, matching
   `PrivacyInfo.xcprivacy`; a change to one changes the other).
 - `ml/`: the v1 Python training loop (see `ml/README.md`); the opt-in practice-session
-  uploads (`PracticeSession` records) land in the same container for it to read.
+  uploads (`PracticeSession` records) land in the same container, and
+  `download_samples.py --type PracticeSession` fetches them for `astrotype-tools
+  replay`. `ml/ngrams/` counts a corpus's word pairs for `build-ngrams` (its README
+  has the commands and the data source).
+- `features/`: the bigger features after the v2 build, one folder each with a
+  `FEATURE.md` (product, design, build and its phases, notes as they ship):
+  `smart-matching` (context, personal learning, consented sharing, the harness).
 - `design/`: the mockup (`mockups/astrotype.html`, the keyboard in it works), the
   screen captures the design doc links, the icon's SVGs (`icon/`) and
   `appstore/make-screenshots.mjs`, which renders the store screenshots from the mockup

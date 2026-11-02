@@ -20,12 +20,18 @@ public struct Candidate: Sendable, Equatable {
 /// still moving is also tried at the point the swipe had reached, so the other thumb
 /// can drop a letter into a swipe ("hel|l|o"). Each match is scored by dynamic time
 /// warping between the swipe and the path through the word's keys, the swipe's length,
-/// the word's frequency, and what the person taught the keyboard.
+/// the word's frequency, how well it follows the words before it (`context`, the
+/// language's word pairs), and what the person taught the keyboard.
 ///
-///     let matcher = Matcher(dictionary: try Lexicon.bundled(), layout: layout)
+///     let matcher = Matcher(language: try Language.bundled(), layout: layout)
+///     matcher.context = WordContext.words(before: "going to the ")
 ///     matcher.candidates(for: pieces, limit: 3)
 public struct Matcher: Sendable {
     public var dictionary: Lexicon
+    /// The language's word pairs, nil to rank by frequency alone.
+    public var ngrams: NgramModel?
+    /// The words before the open word, oldest first (`WordContext.words`), empty for none.
+    public var context: [String] = []
     public var layout: Layout
     /// What the person taught the keyboard: a weight on dictionary words, and words of
     /// their own, which a swipe can land on like any other (`learnedPrior`).
@@ -41,6 +47,10 @@ public struct Matcher: Sendable {
     public var pathWeight = 1.0
     /// Score per unit of log frequency (0 for the most common word, about -9 for rare).
     public var priorWeight = 0.12
+    /// Score per unit of context bonus (`NgramModel.contextBonus`): how much the words
+    /// before count against the swipe's shape. The same scale as `priorWeight`, so a
+    /// pair ten times likelier than the word alone is worth a word ten times as common.
+    public var contextWeight = 0.12
     /// Score per key width of difference between the swipe's length and the word's path
     /// length, so "the" does not win a swipe that went on to "there".
     public var lengthWeight = 0.15
@@ -49,11 +59,25 @@ public struct Matcher: Sendable {
     /// How many trie states a search may expand before it stops.
     public var budget = 40_000
 
-    public init(dictionary: Lexicon, layout: Layout, learned: LearnedWords = LearnedWords()) {
+    public init(dictionary: Lexicon, ngrams: NgramModel? = nil, layout: Layout, learned: LearnedWords = LearnedWords()) {
         self.dictionary = dictionary
+        self.ngrams = ngrams
         self.layout = layout
         self.learned = learned
         self.learnedLexicon = Self.lexicon(of: learned)
+    }
+
+    public init(language: Language, layout: Layout, learned: LearnedWords = LearnedWords()) {
+        self.init(dictionary: language.lexicon, ngrams: language.ngrams, layout: layout, learned: learned)
+    }
+
+    /// The word right before the open one, for the pair model; nil without context.
+    var previousWord: String? { context.last }
+
+    /// The context's say on `word`, given the word's log prior from the dictionary.
+    func contextBonus(for word: String, prior: Float) -> Double {
+        guard let ngrams, let previous = previousWord else { return 0 }
+        return Double(ngrams.contextBonus(for: word, after: previous, unigramLogProbability: prior + dictionary.logProbabilityOffset))
     }
 
     static func lexicon(of learned: LearnedWords) -> Lexicon {
@@ -73,9 +97,15 @@ public struct Matcher: Sendable {
             let typed = strings.first { dictionary.contains($0) || learned.contains($0) } ?? strings[0]
             let prior = dictionary.logPrior(of: typed).map { priorWeight * Double($0) } ?? -1
             out.append(Candidate(word: typed, score: prior + learned.weight(of: typed)))
-            for word in dictionary.completions(of: typed, limit: limit - 1) where !out.contains(where: { $0.word == word }) {
-                out.append(Candidate(word: word, score: priorWeight * Double(dictionary.logPrior(of: word) ?? -20) - 1))
-            }
+            // Completions in the dictionary's order, the context deciding among them.
+            let completions = dictionary.completions(of: typed, limit: limit + 2)
+                .filter { word in !out.contains { $0.word == word } }
+                .map { word in
+                    let own = dictionary.logPrior(of: word) ?? -20
+                    return Candidate(word: word, score: priorWeight * Double(own) + contextWeight * contextBonus(for: word, prior: own) - 1)
+                }
+                .sorted { $0.score > $1.score }
+            out += completions.prefix(limit - 1)
             return Array(out.prefix(limit))
         }
 
@@ -304,7 +334,7 @@ public struct Matcher: Sendable {
             weight += count
         }
         let path = weight > 0 ? distance / Double(weight) : 0
-        return -pathWeight * path + priorWeight * Double(prior) + learned.weight(of: word)
+        return -pathWeight * path + priorWeight * Double(prior) + contextWeight * contextBonus(for: word, prior: prior) + learned.weight(of: word)
     }
 
     static func fallback(_ pieces: [Piece]) -> String {

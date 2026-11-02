@@ -153,3 +153,72 @@ import Testing
         #expect(Matcher.orderings(of: [piece("t", at: 0), piece("h", at: 0.05), piece("e", at: 0.1)], swapWindow: 0.12).count == 4)
     }
 }
+
+/// features/smart-matching Phase A: the words before the open one rank the guesses.
+@Suite struct ContextMatcherTests {
+    static let english: Language = {
+        do { return try Language.bundled("en") } catch { fatalError("English is missing from the package: \(error)") }
+    }()
+
+    static func composer() -> Composer {
+        Composer(language: english, layout: Synth.layout, settings: Replay.settings)
+    }
+
+    /// One straight swipe p→o→t fits "put", "pot" and "pit" alike: the sentence before
+    /// it (set by the host before the touch, as the field is) decides.
+    @Test func theSentenceDecidesAnAmbiguousSwipe() {
+        var composer = Self.composer()
+        Synth.swipe(&composer, "pot")
+        #expect(composer.state.openWord == "put")
+        composer = Self.composer()
+        composer.setContext(before: "I left it on the ")
+        Synth.swipe(&composer, "pot")
+        #expect(composer.state.openWord == "pot")
+        composer = Self.composer()
+        composer.setContext(before: "Where do I ")
+        Synth.swipe(&composer, "pot")
+        #expect(composer.state.openWord == "put")
+    }
+
+    @Test func aStrongPairOutranksTheDictionaryOrder() {
+        var composer = Self.composer()
+        Synth.swipe(&composer, "our")
+        #expect(composer.state.openWord == "or")
+        composer = Self.composer()
+        composer.setContext(before: "Thanks to ")
+        Synth.swipe(&composer, "our")
+        #expect(composer.state.openWord == "our")
+    }
+
+    @Test func contextRanksTapCompletions() {
+        var composer = Self.composer()
+        composer.setContext(before: "thank ")
+        Synth.taps(&composer, "yo")
+        guard case .guesses(let words, let chosen) = composer.state.bar else { Issue.record("no guesses"); return }
+        #expect(words[chosen] == "yo", "taps type exactly")
+        #expect(words.contains("you"))
+    }
+
+    @Test func noContextOrNoModelChangesNothing() {
+        var plain = Synth.composer()
+        Synth.swipe(&plain, "pot")
+        var english = Self.composer()
+        Synth.swipe(&english, "pot")
+        #expect(plain.state.bar == english.state.bar)
+        english.setContext(before: "yes, ")
+        #expect(plain.state.bar == english.state.bar)
+        plain.setContext(before: "on the ")
+        #expect(plain.state.openWord == "put", "no model, no change")
+    }
+
+    @Test func aBonusIsBoundedSoShapeStillWins() {
+        var builder = NgramModel.Builder()
+        builder.add(previous: "very", word: "were", count: 1000)
+        let model = try! NgramModel(data: builder.build())
+        let language = Language(code: "test", lexicon: Synth.lexicon, ngrams: model)
+        var composer = Composer(language: language, layout: Synth.layout, settings: Replay.settings)
+        composer.setContext(before: "very ")
+        Synth.swipe(&composer, "store")
+        #expect(composer.state.openWord == "store")
+    }
+}

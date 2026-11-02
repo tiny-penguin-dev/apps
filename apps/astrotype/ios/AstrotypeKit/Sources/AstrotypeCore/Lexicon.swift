@@ -21,6 +21,9 @@ public struct Lexicon: Sendable {
     var wordLogPrior: [Float] = []
     /// For each node: the best word prior at or below it, for ranking completions.
     var bestBelow: [Float] = []
+    /// Added to a word's log prior gives `log P(word)` over the whole dictionary:
+    /// `log(maxFreq / sum of frequencies)`.
+    public private(set) var logProbabilityOffset: Float = 0
 
     public var nodeCount: Int { parent.count }
 
@@ -41,16 +44,16 @@ public struct Lexicon: Sendable {
         self.init(entries: try Self.readEntries(from: url))
     }
 
-    /// The 40,000-word English dictionary that ships in the package.
+    /// The 40,000-word English dictionary that ships in the package
+    /// (`Language.bundled("en").lexicon`).
     public static func bundled() throws -> Lexicon {
-        guard let url = Bundle.module.url(forResource: "lexicon", withExtension: "tsv") else {
-            throw CocoaError(.fileNoSuchFile)
-        }
-        return try Lexicon(contentsOf: url)
+        try Lexicon(contentsOf: Language.resource("lexicon", "tsv", language: "en"))
     }
 
     public init(entries: [Entry]) {
         let maxFreq = entries.map(\.frequency).max() ?? 1
+        let sum = entries.reduce(0) { $0 + $1.frequency }
+        logProbabilityOffset = sum > 0 ? Float(log(maxFreq / sum)) : 0
         // Build with per-node child lists first, then flatten.
         var children: [[(UInt8, Int32)]] = [[]]
         parent = [-1]

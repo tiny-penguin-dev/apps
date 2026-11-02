@@ -6,7 +6,20 @@ import Foundation
 /// units (x over the keyboard's width, y over its height), `t` in seconds since the
 /// first touch. The record on CloudKit is `PracticeSession` (cloudkit/schema.ckdb).
 public struct PracticeRecording: Codable, Sendable, Equatable, Identifiable {
-    public static let currentVersion = 1
+    /// 2 (features/smart-matching): `commits` say when each word went in, so a
+    /// session replays exactly (`Replay`). Version 1 recordings have none.
+    public static let currentVersion = 2
+
+    /// A word written, at `t` seconds since the first touch.
+    public struct Commit: Codable, Sendable, Equatable {
+        public var word: String
+        public var t: Double
+
+        public init(word: String, t: Double) {
+            self.word = word
+            self.t = t
+        }
+    }
 
     public struct Touch: Codable, Sendable, Equatable {
         public var id: Int
@@ -42,6 +55,8 @@ public struct PracticeRecording: Codable, Sendable, Equatable, Identifiable {
     public var layoutHeight: Double
     public var split: Bool
     public var touches: [Touch]
+    /// The words as they went in, in order, with when (version 2).
+    public var commits: [Commit] = []
     public var wordsPerMinute: Int?
     public var fixes: Int?
     public var writer: String
@@ -49,13 +64,56 @@ public struct PracticeRecording: Codable, Sendable, Equatable, Identifiable {
     public var system: String
     public var app: String
     public var createdAt: Date
+
+    init(id: UUID, kind: String, label: String, expected: String, layoutWidth: Double, layoutHeight: Double, split: Bool,
+         touches: [Touch], commits: [Commit], wordsPerMinute: Int?, fixes: Int?, writer: String, device: String,
+         system: String, app: String, createdAt: Date) {
+        self.id = id
+        self.kind = kind
+        self.label = label
+        self.expected = expected
+        self.layoutWidth = layoutWidth
+        self.layoutHeight = layoutHeight
+        self.split = split
+        self.touches = touches
+        self.commits = commits
+        self.wordsPerMinute = wordsPerMinute
+        self.fixes = fixes
+        self.writer = writer
+        self.device = device
+        self.system = system
+        self.app = app
+        self.createdAt = createdAt
+    }
+
+    /// Reads any version: fields added since version 1 are optional on the way in.
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        version = try c.decodeIfPresent(Int.self, forKey: .version) ?? 1
+        id = try c.decode(UUID.self, forKey: .id)
+        kind = try c.decode(String.self, forKey: .kind)
+        label = try c.decode(String.self, forKey: .label)
+        expected = try c.decode(String.self, forKey: .expected)
+        layoutWidth = try c.decode(Double.self, forKey: .layoutWidth)
+        layoutHeight = try c.decode(Double.self, forKey: .layoutHeight)
+        split = try c.decode(Bool.self, forKey: .split)
+        touches = try c.decode([Touch].self, forKey: .touches)
+        commits = try c.decodeIfPresent([Commit].self, forKey: .commits) ?? []
+        wordsPerMinute = try c.decodeIfPresent(Int.self, forKey: .wordsPerMinute)
+        fixes = try c.decodeIfPresent(Int.self, forKey: .fixes)
+        writer = try c.decode(String.self, forKey: .writer)
+        device = try c.decode(String.self, forKey: .device)
+        system = try c.decode(String.self, forKey: .system)
+        app = try c.decode(String.self, forKey: .app)
+        createdAt = try c.decode(Date.self, forKey: .createdAt)
+    }
 }
 
 /// Collects a session's touches as the keyboard sees them, then makes the recording.
 ///
 ///     var recorder = TouchRecorder(kind: "speedtest", layoutWidth: w, layoutHeight: h, split: false)
 ///     recorder.touch(.began, id: 1, x: 40, y: 12, time: t)
-///     recorder.committed("hello")
+///     recorder.committed("hello", time: t + 0.4)
 ///     let recording = recorder.recording(expected: "hello", device: device, now: Date())
 public struct TouchRecorder: Sendable, Equatable {
     public enum Phase: Sendable { case began, moved, ended, cancelled }
@@ -67,7 +125,7 @@ public struct TouchRecorder: Sendable, Equatable {
     private var touches: [PracticeRecording.Touch] = []
     private var open: [Int: Int] = [:]
     private var first: TimeInterval?
-    private var words: [String] = []
+    private var commits: [PracticeRecording.Commit] = []
 
     public init(kind: String, layoutWidth: Double, layoutHeight: Double, split: Bool) {
         self.kind = kind
@@ -77,7 +135,7 @@ public struct TouchRecorder: Sendable, Equatable {
     }
 
     public var touchCount: Int { touches.count }
-    public var wordCount: Int { words.count }
+    public var wordCount: Int { commits.count }
 
     public mutating func touch(_ phase: Phase, id: Int, x: Double, y: Double, time: TimeInterval) {
         guard layoutWidth > 0, layoutHeight > 0 else { return }
@@ -96,16 +154,20 @@ public struct TouchRecorder: Sendable, Equatable {
         }
     }
 
-    public mutating func committed(_ word: String) {
+    /// A word went into the field at `time` (the touches' clock), so a replay can press
+    /// space where the person did.
+    public mutating func committed(_ word: String, time: TimeInterval) {
         let clean = SpeedTest.normalize(word)
-        if !clean.isEmpty { words.append(clean) }
+        guard !clean.isEmpty else { return }
+        if first == nil { first = time }
+        commits.append(PracticeRecording.Commit(word: clean, t: round4(time - (first ?? time))))
     }
 
     public func recording(expected: String, device: PracticeRecording.Device, now: Date,
                           wordsPerMinute: Int? = nil, fixes: Int? = nil, id: UUID = UUID()) -> PracticeRecording {
-        PracticeRecording(id: id, kind: kind, label: words.joined(separator: " "), expected: expected,
+        PracticeRecording(id: id, kind: kind, label: commits.map(\.word).joined(separator: " "), expected: expected,
                           layoutWidth: layoutWidth, layoutHeight: layoutHeight, split: split, touches: touches,
-                          wordsPerMinute: wordsPerMinute, fixes: fixes, writer: device.writer, device: device.model,
+                          commits: commits, wordsPerMinute: wordsPerMinute, fixes: fixes, writer: device.writer, device: device.model,
                           system: device.system, app: device.app, createdAt: now)
     }
 

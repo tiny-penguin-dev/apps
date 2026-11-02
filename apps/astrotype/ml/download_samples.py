@@ -2,6 +2,8 @@
 
     python3 download_samples.py                 # → samples/cloud/<id>.json, only new ones
     python3 finetune.py samples/cloud           # then train on them
+    python3 download_samples.py --type PracticeSession   # → samples/practice/<id>.json
+    swift run -c release astrotype-tools replay ../../ml/samples/practice   # (in ios/AstrotypeKit)
 
 Uses a CloudKit server-to-server key (see ../cloudkit/README.md): the private key
 at ~/.config/astrotype/cloudkit-key.pem and its Key ID in
@@ -38,7 +40,8 @@ def signed_post(subpath, body, key_id, key_path):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--out", default=str(Path(__file__).parent / "samples/cloud"))
+    ap.add_argument("--type", default="Sample", help="the record type: Sample (v1 handwriting) or PracticeSession (v2 keyboard)")
+    ap.add_argument("--out", help="default samples/cloud for Sample, samples/practice for PracticeSession")
     ap.add_argument("--key", default=os.environ.get("CLOUDKIT_KEY_PATH", str(CONFIG / "cloudkit-key.pem")))
     ap.add_argument("--key-id", default=os.environ.get("CLOUDKIT_KEY_ID"))
     ap.add_argument("--development", action="store_true", help="read the development environment (builds run from Xcode)")
@@ -47,13 +50,13 @@ def main():
     key_id = a.key_id or (CONFIG / "cloudkit-key-id").read_text().strip()
     env = "development" if a.development else "production"
     subpath = f"/database/1/{CONTAINER}/{env}/public/records/query"
-    out = Path(a.out)
+    out = Path(a.out) if a.out else Path(__file__).parent / ("samples/cloud" if a.type == "Sample" else "samples/practice")
     out.mkdir(parents=True, exist_ok=True)
 
     marker, new, seen = None, 0, 0
     while True:
         body = {"zoneID": {"zoneName": "_defaultZone"}, "resultsLimit": 200, "desiredKeys": ["json"],
-                "query": {"recordType": "Sample",
+                "query": {"recordType": a.type,
                           "sortBy": [{"systemFieldName": "createdTimestamp", "ascending": True}]}}
         if marker:
             body["continuationMarker"] = marker
@@ -71,7 +74,7 @@ def main():
         marker = page.get("continuationMarker")
         if not marker:
             break
-    print(f"{seen} samples in CloudKit ({env}), {new} new, saved in {out}")
+    print(f"{seen} {a.type} records in CloudKit ({env}), {new} new, saved in {out}")
 
 
 if __name__ == "__main__":

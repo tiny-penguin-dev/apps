@@ -23,8 +23,9 @@ final class KeyboardSession: NSObject, UITextViewDelegate {
     private var recorder: TouchRecorder?
 
     init(settingsStore: SettingsStore, learned: LearnedWords = LearnedWords()) {
-        let dictionary = (try? Lexicon.bundled()) ?? Lexicon(entries: [])
-        model = KeyboardModel(composer: Composer(dictionary: dictionary, layout: Layout.qwerty(width: 390)),
+        // English, with its word pairs when they shipped (features/smart-matching).
+        let language = (try? Language.bundled()) ?? Language(code: "en", lexicon: Lexicon(entries: []))
+        model = KeyboardModel(composer: Composer(language: language, layout: Layout.qwerty(width: 390)),
                               store: settingsStore, wordStore: MemoryWordStore(learned))
         model.target = target
         keyboard = AstrotypeUI.KeyboardView(model: model)
@@ -36,7 +37,8 @@ final class KeyboardSession: NSObject, UITextViewDelegate {
             self.target.textView?.reloadInputViews()
         }
         model.onCommit = { [weak self] word in
-            self?.recorder?.committed(word)
+            // The same clock as the touches (UITouch.timestamp is system uptime).
+            self?.recorder?.committed(word, time: ProcessInfo.processInfo.systemUptime)
             self?.onCommit?(word)
         }
         model.onWordsChange = { [weak self] words in self?.onWordsChange?(words) }

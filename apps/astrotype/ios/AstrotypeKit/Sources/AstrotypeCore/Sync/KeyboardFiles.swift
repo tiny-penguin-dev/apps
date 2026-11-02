@@ -28,7 +28,11 @@ public enum KeyboardFiles {
 
     /// A file in the App Group's container, nil when this process has none.
     public static func shared(_ name: String, fileManager: FileManager = .default) -> URL? {
+        #if canImport(Darwin)
         guard let base = fileManager.containerURL(forSecurityApplicationGroupIdentifier: appGroup) else { return nil }
         return base.appendingPathComponent(folder, isDirectory: true).appendingPathComponent(name)
+        #else
+        return nil // No App Groups on Linux, where only the tools and tests run.
+        #endif
     }
 }

@@ -6,16 +6,21 @@ import PackageDescription
 //   and the stores. Foundation only, so `swift test` runs on Linux in CI.
 //   The v1 handwriting pieces live in Handwriting/ behind `Flags.handwritingPad`.
 // - AstrotypeUI: the design system and the keyboard's views (UIKit and SwiftUI).
+// - astrotype-tools: a command line for the data loop (features/smart-matching):
+//   builds the word-pair model and replays practice sessions through the engine.
 let package = Package(
     name: "AstrotypeKit",
     platforms: [.iOS(.v18), .macOS(.v15)],
     products: [
         .library(name: "AstrotypeCore", targets: ["AstrotypeCore"]),
         .library(name: "AstrotypeUI", targets: ["AstrotypeUI"]),
+        .executable(name: "astrotype-tools", targets: ["AstrotypeTools"]),
     ],
     targets: [
-        .target(name: "AstrotypeCore", resources: [.copy("Resources/lexicon.tsv")]),
+        // One folder per language under Resources/ (lexicon.tsv, bigrams.bin).
+        .target(name: "AstrotypeCore", resources: [.copy("Resources/en")]),
         .target(name: "AstrotypeUI", dependencies: ["AstrotypeCore"]),
+        .executableTarget(name: "AstrotypeTools", dependencies: ["AstrotypeCore"]),
         .testTarget(name: "AstrotypeKitTests", dependencies: ["AstrotypeCore"], exclude: ["Fixtures"]),
     ]
 )

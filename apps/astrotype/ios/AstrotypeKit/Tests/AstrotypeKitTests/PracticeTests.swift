@@ -160,8 +160,8 @@ import Testing
         recorder.touch(.ended, id: 1, x: 120, y: 20, time: 100.2)
         recorder.touch(.ended, id: 2, x: 300, y: 100, time: 100.3)
         recorder.touch(.moved, id: 9, x: 0, y: 0, time: 101) // never began: ignored
-        recorder.committed("Hello")
-        recorder.committed("")
+        recorder.committed("Hello", time: 100.4)
+        recorder.committed("", time: 100.5)
         let recording = recorder.recording(expected: "hello", device: device, now: Date(timeIntervalSince1970: 0), wordsPerMinute: 40, fixes: 1)
         #expect(recording.touches.count == 2)
         #expect(recording.touches[0].points == [[0.1, 0.1, 0], [0.2, 0.1, 0.1], [0.3, 0.1, 0.2]])
@@ -172,7 +172,21 @@ import Testing
         #expect(recording.wordsPerMinute == 40)
         #expect(recording.writer == "w")
         #expect(recording.kind == "speedtest")
+        #expect(recording.commits == [PracticeRecording.Commit(word: "hello", t: 0.4)])
+        #expect(recording.version == 2)
+    }
+
+    /// Sessions recorded before commits were kept still decode, with none.
+    @Test func decodesAVersionOneRecording() throws {
+        let json = """
+        {"version":1,"id":"6B9A2C1E-0000-4000-8000-000000000001","kind":"speedtest","label":"hi","expected":"hi",
+         "layoutWidth":390,"layoutHeight":216,"split":false,"touches":[{"id":1,"points":[[0.1,0.2,0]]}],
+         "writer":"w","device":"iPhone","system":"iOS 26","app":"0.2.0","createdAt":0}
+        """
+        let recording = try JSONDecoder().decode(PracticeRecording.self, from: Data(json.utf8))
         #expect(recording.version == 1)
+        #expect(recording.commits.isEmpty)
+        #expect(recording.touches.count == 1)
     }
 
     @Test func storeKeepsPendingUntilUploaded() async throws {

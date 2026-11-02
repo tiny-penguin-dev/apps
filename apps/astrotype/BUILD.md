@@ -92,11 +92,14 @@ enum Effect { case insert(String), deleteBackward(Int), replaceLastWord(with: St
 **`Matcher`** (`AstrotypeCore`): the pieces of one open word to ranked candidates.
 Dynamic time warping over resampled swipe paths against the trie, taps as exact
 letters, pieces merged by touch-down time with a 120 ms swap window, then frequency,
-word-pair and personal weight. Under 5 ms a call on an iPhone 12.
+the words before it (`context`, from the `Language`'s word-pair model) and personal
+weight. Under 5 ms a call on an iPhone 12. `features/smart-matching/FEATURE.md` has
+the context model, the personal models and the `Replay` harness that measures them.
 
 ```swift
-let matcher = Matcher(dictionary: lexicon, learned: words, layout: layout)
-matcher.candidates(for: pieces, limit: 3)    // [Candidate(word:"something", score:0.91), ...]
+let matcher = Matcher(language: english, learned: words, layout: layout)
+matcher.context = WordContext.words(before: "going to the ")
+matcher.candidates(for: pieces, limit: 3)    // [Candidate(word:"store", score:0.91), ...]
 ```
 
 **`Entitlement`** (`AstrotypeCore`): what the person may use, from one status.

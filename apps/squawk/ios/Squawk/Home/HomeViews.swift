@@ -487,16 +487,13 @@ struct SunrisePreview: View {
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var progress = 1.0
+    @State private var playing: Task<Void, Never>?
 
     var body: some View {
         SunriseSky(sunrise: sunrise, start: start, progress: progress)
             .frame(height: 180)
             .overlay(alignment: .bottomTrailing) {
-                Button {
-                    guard !reduceMotion else { progress = 1; return }
-                    progress = 0
-                    withAnimation(.linear(duration: 4)) { progress = 1 }
-                } label: {
+                Button(action: play) {
                     Label("Preview", systemImage: "play.fill")
                         .font(.system(.subheadline, design: .rounded, weight: .heavy))
                         .padding(.horizontal, 14)
@@ -508,20 +505,28 @@ struct SunrisePreview: View {
                 .padding(12)
                 .accessibilityLabel("Preview the sunrise")
             }
+            .onDisappear { playing?.cancel() }
+    }
+
+    /// Plays the sunrise in 4 seconds, a frame every 50 ms.
+    private func play() {
+        playing?.cancel()
+        guard !reduceMotion else { progress = 1; return }
+        playing = Task {
+            for frame in 0...80 {
+                progress = Double(frame) / 80
+                try? await Task.sleep(for: .milliseconds(50))
+                if Task.isCancelled { return }
+            }
+        }
     }
 }
 
-/// The sky and lamp at one moment of the sunrise. Animatable, so the clock and glow
-/// follow the preview frame by frame.
-private struct SunriseSky: View, Animatable {
+/// The sky and lamp at one moment of the sunrise.
+private struct SunriseSky: View {
     var sunrise: Sunrise
     var start: TimeOfDay?
     var progress: Double
-
-    nonisolated var animatableData: Double {
-        get { progress }
-        set { progress = newValue }
-    }
 
     var body: some View {
         let setting = sunrise.setting(at: progress)

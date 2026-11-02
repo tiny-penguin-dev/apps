@@ -43,6 +43,10 @@ public final class KeyboardModel {
     public var onNotice: ((Composer.Notice) -> Void)?
     /// A word already written was swapped for another from the bar (a fix).
     public var onFix: (() -> Void)?
+    /// A fix made from the bar, as a word to share, when the person turned "Include
+    /// corrections from other apps" on and the field allows it. The host keeps it for
+    /// the app (it needs Full Access to reach it).
+    public var onCorrection: ((SharedWord) -> Void)?
     /// What the keyboard learned from the person changed here (a word settled, a
     /// forget), for the host's sync. Saving is the model's own job.
     public var onPersonalChange: ((PersonalModel) -> Void)?
@@ -156,6 +160,10 @@ public final class KeyboardModel {
     }
 
     private func learn(from word: SettledWord) {
+        if keyboardSettings.shareCorrections, learningAllowed, let onCorrection,
+           let correction = SharedWord.correction(word, layout: composer.layout, now: Date()) {
+            onCorrection(correction)
+        }
         guard personalStore != nil, personal.learn(word, allowed: learningAllowed, now: Date()) else { return }
         composer.personal = personal.index
         savePersonalSoon()

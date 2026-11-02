@@ -15,7 +15,7 @@ usage:
   astrotype-tools build-ngrams <pairs.tsv> <out.bin> [--max-pairs N] [--lambda L]
       the word-pair binary from `previous<TAB>next<TAB>count` lines (ml/ngrams/count_pairs.py)
   astrotype-tools replay <folder-or-file.json> [--language en] [--misses N]
-      plays practice recordings through the engine and reports first-guess accuracy
+      plays practice recordings and shared words through the engine and reports first-guess accuracy
   astrotype-tools next <word> [--language en] [--limit N]
       the words the model expects after `word` (`<s>` for a sentence start)
 """
@@ -63,7 +63,13 @@ func buildNgrams(_ plain: [String], _ options: [String: String]) {
     print("after <s>: " + model.likelyWords(after: NgramModel.sentenceStart, limit: 8).joined(separator: " "))
 }
 
-func recordings(at path: String) -> [PracticeRecording] {
+/// A file is a session recording (versions 1 and 2) or one shared word (version 3).
+enum Item {
+    case recording(PracticeRecording)
+    case word(SharedWord)
+}
+
+func items(at path: String) -> [Item] {
     let url = URL(fileURLWithPath: path)
     var files: [URL] = []
     var isDirectory: ObjCBool = false
@@ -79,8 +85,9 @@ func recordings(at path: String) -> [PracticeRecording] {
     let decoder = JSONDecoder()
     return files.sorted { $0.path < $1.path }.compactMap { file in
         guard let data = try? Data(contentsOf: file) else { return nil }
-        if let recording = try? decoder.decode(PracticeRecording.self, from: data) { return recording }
-        FileHandle.standardError.write(Data("skipping \(file.lastPathComponent): not a practice recording\n".utf8))
+        if let word = try? decoder.decode(SharedWord.self, from: data) { return .word(word) }
+        if let recording = try? decoder.decode(PracticeRecording.self, from: data) { return .recording(recording) }
+        FileHandle.standardError.write(Data("skipping \(file.lastPathComponent): not a practice recording or shared word\n".utf8))
         return nil
     }
 }
@@ -90,9 +97,12 @@ func replay(_ plain: [String], _ options: [String: String]) {
     let language = language(options)
     var outcomes: [Replay.Outcome] = []
     var skipped = 0
-    for recording in recordings(at: plain[0]) {
+    for item in items(at: plain[0]) {
         do {
-            outcomes.append(try Replay.run(recording, language: language))
+            switch item {
+            case .recording(let recording): outcomes.append(try Replay.run(recording, language: language))
+            case .word(let word): outcomes.append(try Replay.run(word, language: language))
+            }
         } catch {
             skipped += 1
         }

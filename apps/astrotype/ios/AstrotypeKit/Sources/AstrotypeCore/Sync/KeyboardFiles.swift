@@ -22,6 +22,9 @@ public enum KeyboardFiles {
     public static let personal = "personal.json"
     /// This install's random ID, the personal model's shard (`InstallID`); own file only.
     public static let install = "install.json"
+    /// Shared words waiting for the app to send (`SharedWordStore`): practice words and,
+    /// with Full Access, the keyboard's corrections.
+    public static let sharing = "Sharing"
 
     /// A file in this process's own Application Support folder.
     public static func own(_ name: String, fileManager: FileManager = .default) -> URL {

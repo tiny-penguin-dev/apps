@@ -498,8 +498,9 @@ public struct Composer: Sendable {
         } else if pieces.count == 1, let swipe = pieces.first, !swipe.isTap, letters.count >= 2 {
             touch(letters[0], swipe, weight: 0.3)
         }
+        let strokes = pieces.map { SettledWord.Stroke(side: $0.side, points: $0.raw ?? $0.points, times: $0.times) }
         return SettledWord(word: word, previous: last.previous, source: source,
-                           fixedFrom: last.fixedFrom?.lowercased(), touches: touches)
+                           fixedFrom: last.fixedFrom?.lowercased(), touches: touches, strokes: strokes)
     }
 
     private func cased(_ word: String) -> String {
@@ -554,7 +555,7 @@ public struct Composer: Sendable {
         let isTap = travel < tapThreshold || keys.count <= 1
         if isTap { keys = [touch.startKey] }
         return Piece(id: id, side: touch.side, start: touch.start, end: end, points: points, times: touch.times, keys: keys,
-                     isTap: isTap, landing: origin)
+                     isTap: isTap, raw: raw)
     }
 
     /// `point` moved by the person's offset for the key under it, for this thumb: if

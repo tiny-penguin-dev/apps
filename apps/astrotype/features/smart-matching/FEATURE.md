@@ -116,8 +116,16 @@ All in `AstrotypeCore`, pure and tested, per `docs/building.md`:
   language and layout, commits where the person did, and reports first-guess accuracy,
   top-three accuracy and the misses. `astrotype-tools replay <folder>` prints it;
   fixtures from the drill and Try it words keep it at 100% in `swift test`.
-- `PracticeRecording` v2 adds `commits` (word and time) so a session replays exactly;
-  Phase C makes sessions per word and adds the correction records.
+- `PracticeRecording` v2 adds `commits` (word and time) so a session replays exactly.
+- `SharedWord` (Phase C, version 3): what is shared, one word at a time: the word
+  meant, what went in when it was a miss, the word asked for before it (practice only),
+  the touches with times from the word's own first touch, the day (no time), and the
+  device line the app stamps on at upload. `SharedWord.words(of:)` splits a recording
+  (shuffled, so the order is gone); `SharedWord.correction` makes one from a settled
+  word that was fixed from the bar. They wait in a `SharedWordStore` in the App Group
+  (the keyboard writes corrections there with Full Access) and go up as
+  `PracticeSession` records (no schema change); `Replay.run(_: SharedWord)` replays one
+  with its previous word as the context.
 
 ### Phases
 
@@ -166,6 +174,18 @@ recording to the exact guesses the live keyboard made (`ReplayTests`); real sess
 need recording v2, which ships with this phase, so the first numbers on real data
 come with Phase D. The `astrotype-tools` executable builds on Linux too (the App
 Group lookup is Darwin-only), so the model and the harness run in CI's toolchain.
+
+**Phase C (2026-11-02).** Built as planned, as a page in Settings rather than a sheet
+("What gets shared", from Settings → Privacy), so the list has room: the words waiting
+with Remove on each, the selected one drawn on the keys with each thumb's path in its
+colour, its fields in plain words (including the device line the upload adds), and
+"Send N now". Whole recordings no longer go up: a session is split into its words when
+it is saved, and recordings still waiting from before are split on the next upload.
+"Include corrections from other apps" is a keyboard setting (it has to reach the
+extension), only on while "Send practice sessions" is; turning sharing off drops what
+was waiting and the corrections switch with it. Corrections carry no previous word and
+are never kept from fields the keyboard does not learn from. `practice.shared` counts
+each word sent, by kind.
 
 **Phase B (2026-11-02).** Learning is live in the keyboard, with no training step to
 run in the app: counting is cheap enough to do as each word settles, and the file is

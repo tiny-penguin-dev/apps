@@ -263,6 +263,21 @@ public struct SettledWord: Sendable, Equatable {
         }
     }
 
+    /// One thumb's whole touch, as the screen reported it, for a correction the person
+    /// chose to share (`SharedWord.correction`).
+    public struct Stroke: Sendable, Equatable {
+        public var side: Side
+        public var points: [CGPoint]
+        /// When each point was reached, in the composer's clock (empty when unknown).
+        public var times: [TimeInterval]
+
+        public init(side: Side, points: [CGPoint], times: [TimeInterval]) {
+            self.side = side
+            self.points = points
+            self.times = times
+        }
+    }
+
     /// As written, lowercase.
     public var word: String
     /// The word before it in the sentence (`NgramModel.sentenceStart` at a sentence's
@@ -273,13 +288,17 @@ public struct SettledWord: Sendable, Equatable {
     /// corrections read this).
     public var fixedFrom: String?
     public var touches: [Touch]
+    /// The word's touches in touch-down order.
+    public var strokes: [Stroke]
 
-    public init(word: String, previous: String?, source: Source, fixedFrom: String? = nil, touches: [Touch] = []) {
+    public init(word: String, previous: String?, source: Source, fixedFrom: String? = nil, touches: [Touch] = [],
+                strokes: [Stroke] = []) {
         self.word = word
         self.previous = previous
         self.source = source
         self.fixedFrom = fixedFrom
         self.touches = touches
+        self.strokes = strokes
     }
 }
 

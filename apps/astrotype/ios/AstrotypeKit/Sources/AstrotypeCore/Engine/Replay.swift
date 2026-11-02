@@ -41,7 +41,7 @@ public enum Replay {
     /// and height, and the touches scaled onto it; the context before each word is what
     /// the replay itself has written so far.
     public static func run(_ recording: PracticeRecording, language: Language,
-                           settings: Composer.Settings = Replay.settings) throws(Skip) -> Outcome {
+                           settings: Composer.Settings = Replay.settings, before: String = "") throws(Skip) -> Outcome {
         guard !recording.commits.isEmpty else { throw .noCommits }
         guard !recording.touches.isEmpty else { throw .noTouches }
         let layout = Layout.qwerty(width: recording.layoutWidth, split: recording.split, maxHeight: recording.layoutHeight)
@@ -51,7 +51,7 @@ public enum Replay {
         events.sort { $0.time == $1.time ? $0.order < $1.order : $0.time < $1.time }
 
         var words: [Word] = []
-        var text = ""
+        var text = before
         var pointer = 0
         composer.setContext(before: text)
         for event in events {
@@ -79,6 +79,12 @@ public enum Replay {
             }
         }
         return Outcome(id: recording.id, kind: recording.kind, words: words)
+    }
+
+    /// One shared word (Phase C): its touches with the word before it as the context.
+    public static func run(_ word: SharedWord, language: Language) throws(Skip) -> Outcome {
+        let before = word.previous.map { $0 == NgramModel.sentenceStart ? "" : $0 + " " } ?? ""
+        return try run(word.recording, language: language, before: before)
     }
 
     /// The composer as the keyboard runs it in practice: two thumbs, no capitals (the

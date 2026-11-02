@@ -226,7 +226,7 @@ struct StepDetailView: View {
                 }
 
                 Button { adding = true } label: {
-                    Text("+ Add something")
+                    Text("+ Add an action")
                         .font(Theme.label)
                         .foregroundStyle(Theme.accent)
                         .frame(maxWidth: .infinity, minHeight: 50)
@@ -268,12 +268,14 @@ struct StepDetailView: View {
                     Telemetry.count("step.added", ["kind": "ring"])
                 case .home(let kind):
                     editing = HomeEditTarget(kind: kind, existing: nil)
+                case .devices:
+                    editing = HomeEditTarget(kind: .light, existing: nil, anyDevice: true)
                 }
             }
         }
         .navigationDestination(item: $editing) { target in
             HomeGate(needsHub: true) {
-                HomeThingEditor(kind: target.kind, existing: target.existing, offsetMinutes: offset, wake: alarm.time) { action in
+                HomeThingEditor(kind: target.kind, existing: target.existing, offsetMinutes: offset, wake: alarm.time, anyDevice: target.anyDevice) { action in
                     if let index = alarm.homeActions.firstIndex(where: { $0.id == action.id }) {
                         alarm.homeActions[index] = action
                     } else {
@@ -308,12 +310,15 @@ struct StepDetailView: View {
 struct HomeEditTarget: Identifiable, Hashable {
     var kind: HomeAction.Kind
     var existing: HomeAction?
-    var id: String { "\(kind.rawValue)|\(existing?.id.uuidString ?? "new")" }
+    /// "Home control": pick any light, plug, switch or blind, and the editor follows it.
+    var anyDevice = false
+    var id: String { "\(kind.rawValue)|\(existing?.id.uuidString ?? "new")|\(anyDevice)" }
 }
 
-/// "Add to this step": a ring or a Home thing. Home things need Pro.
+/// "Add to this step": a ring, Sunrise lights, a scene, or Home control (lights, plugs,
+/// switches and blinds in one row, so the sheet stays short). Home things need Pro.
 struct AddThingSheet: View {
-    enum Choice { case ring, home(HomeAction.Kind) }
+    enum Choice { case ring, home(HomeAction.Kind), devices }
 
     /// False for "When you're up", which has no rings.
     var timed: Bool
@@ -327,13 +332,14 @@ struct AddThingSheet: View {
             Text(timed ? "Add to this step" : "Add to \"When you're up\"")
                 .font(.system(.title3, design: .rounded, weight: .black))
                 .padding(.bottom, 8)
+            let locked = !pro.access.allows(.home)
             if timed {
                 row(.ring, "Ring", locked: false)
+                // Sunrise lights take time, so they only fit a timed step.
+                row(.home(.sunrise), HomeAction.Kind.sunrise.title, locked: locked)
             }
-            // Sunrise lights take time, so they only fit a timed step.
-            ForEach(HomeAction.Kind.allCases.filter { timed || $0 != .sunrise }) { kind in
-                row(.home(kind), kind.title, locked: !pro.access.allows(.home))
-            }
+            row(.home(.scene), HomeAction.Kind.scene.title, locked: locked)
+            row(.devices, "Home control", subtitle: "Lights, plugs and blinds", locked: locked)
         }
         .padding(22)
         .presentationDetents([.medium])
@@ -341,7 +347,7 @@ struct AddThingSheet: View {
         .proSheet($paywall)
     }
 
-    private func row(_ choice: Choice, _ title: String, locked: Bool) -> some View {
+    private func row(_ choice: Choice, _ title: String, subtitle: String? = nil, locked: Bool) -> some View {
         Button {
             if locked { paywall = .home } else { onPick(choice) }
         } label: {
@@ -349,8 +355,16 @@ struct AddThingSheet: View {
                 switch choice {
                 case .ring: ThingIcon(kind: .ring)
                 case .home(let kind): ThingIcon(kind: .home(kind))
+                case .devices: ThingIcon(kind: .devices)
                 }
-                Text(title).font(Theme.label)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title).font(Theme.label)
+                    if let subtitle {
+                        Text(subtitle)
+                            .font(.system(.footnote, design: .rounded, weight: .semibold))
+                            .foregroundStyle(Theme.muted)
+                    }
+                }
                 Spacer()
                 if locked { ProBadge() }
                 Image(systemName: "chevron.right").font(.footnote.weight(.bold)).foregroundStyle(Theme.muted)
@@ -397,7 +411,7 @@ struct UpActionsView: View {
                     }
                 }
                 Button { adding = true } label: {
-                    Text("+ Add something")
+                    Text("+ Add an action")
                         .font(Theme.label)
                         .foregroundStyle(Theme.accent)
                         .frame(maxWidth: .infinity, minHeight: 50)
@@ -422,12 +436,16 @@ struct UpActionsView: View {
         .sheet(isPresented: $adding) {
             AddThingSheet(timed: false) { choice in
                 adding = false
-                if case .home(let kind) = choice { editing = HomeEditTarget(kind: kind, existing: nil) }
+                switch choice {
+                case .ring: break
+                case .home(let kind): editing = HomeEditTarget(kind: kind, existing: nil)
+                case .devices: editing = HomeEditTarget(kind: .light, existing: nil, anyDevice: true)
+                }
             }
         }
         .navigationDestination(item: $editing) { target in
             HomeGate(needsHub: false) {
-                HomeThingEditor(kind: target.kind, existing: target.existing) { action in
+                HomeThingEditor(kind: target.kind, existing: target.existing, anyDevice: target.anyDevice) { action in
                     if let index = alarm.upActions.firstIndex(where: { $0.id == action.id }) {
                         alarm.upActions[index] = action
                     } else {

@@ -7,6 +7,8 @@ struct ThingIcon: View {
     enum Kind {
         case ring, check
         case home(HomeAction.Kind)
+        /// "Home control": lights, plugs and blinds together.
+        case devices
     }
 
     var kind: Kind
@@ -25,6 +27,7 @@ struct ThingIcon: View {
         switch kind {
         case .ring: "bell.fill"
         case .check: "checkmark"
+        case .devices: "house.fill"
         case .home(let kind): kind.symbol
         }
     }
@@ -36,7 +39,7 @@ struct ThingIcon: View {
         case .home(.light): Theme.sun
         case .home(.sunrise): Theme.accent
         case .home(.scene): Color(light: 0x5B7BD6, dark: 0x9DB4FF)
-        case .home: Theme.ink
+        case .home, .devices: Theme.ink
         }
     }
 }
@@ -45,7 +48,7 @@ extension HomeAction.Kind {
     var symbol: String {
         switch self {
         case .light: "lightbulb.fill"
-        case .scene: "sparkles"
+        case .scene: "play.rectangle.fill"
         case .plug: "powerplug.fill"
         case .blinds: "blinds.horizontal.open"
         case .sunrise: "sunrise.fill"
@@ -59,15 +62,21 @@ struct ThingRow: View {
     var name: String
     var detail: String = ""
 
+    // The detail sits under the name, so long ones like "30 min · 5% → 100%" fit.
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
+        HStack(alignment: .center, spacing: 8) {
             ThingIcon(kind: kind)
-                .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 5 }
-            Text("\(Text(name).bold())\(Text(detail.isEmpty ? "" : " · \(detail)").foregroundStyle(Theme.muted))")
-                .font(.system(.subheadline, design: .rounded))
-                .fixedSize(horizontal: false, vertical: true)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(name).bold()
+                if !detail.isEmpty {
+                    Text(detail).foregroundStyle(Theme.muted)
+                }
+            }
+            .font(.system(.subheadline, design: .rounded))
+            .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 0)
         }
+        .accessibilityElement(children: .combine)
     }
 }
 

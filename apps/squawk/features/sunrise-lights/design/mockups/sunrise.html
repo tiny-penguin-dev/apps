@@ -226,7 +226,6 @@ body{background:var(--stage);color:var(--ink);font-family:var(--font);
 .lenrow .val{text-align:center;flex:1}
 .lenrow .val b{display:block;font-size:30px;font-weight:900;font-variant-numeric:tabular-nums}
 .lenrow .val span{font-size:13px;color:var(--muted);font-weight:700}
-.new{font-size:10px;font-weight:900;letter-spacing:.08em;background:var(--mint);color:#06281D;padding:3px 7px;border-radius:6px}
 .shimmer{animation:shim 1.2s ease-out}
 @keyframes shim{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--sun) 80%,transparent)}100%{box-shadow:0 0 0 18px transparent}}
 </style>
@@ -240,7 +239,7 @@ body{background:var(--stage);color:var(--ink);font-family:var(--font);
     <button data-go="edit">Steps with Sunrise lights</button>
     <button data-go="sunrise">Sunrise lights</button>
     <button data-go="stepdetail">A step</button>
-    <button data-go="addthing">Add something</button>
+    <button data-go="addthing">Add an action</button>
     <small>Guided new alarm</small>
     <button data-go="g3">3 · Lights</button>
     <small>Home screen</small>
@@ -268,13 +267,14 @@ const ICON={
   ring:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a1.5 1.5 0 0 1 1.5 1.5v.6A6.5 6.5 0 0 1 18.5 10.5v4.3l1.8 2.6a.9.9 0 0 1-.8 1.4H4.5a.9.9 0 0 1-.8-1.4l1.8-2.6v-4.3a6.5 6.5 0 0 1 5-6.4v-.6A1.5 1.5 0 0 1 12 2Zm-2.5 18h5a2.5 2.5 0 0 1-5 0Z"/></svg>',
   light:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a7 7 0 0 1 4.2 12.6c-.7.5-1.2 1.3-1.2 2.2v.2H9v-.2c0-.9-.5-1.7-1.2-2.2A7 7 0 0 1 12 2Zm-3 17h6v1a2 2 0 0 1-2 2h-2a2 2 0 0 1-2-2v-1Z"/></svg>',
   sunrise:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 9a6 6 0 0 1 6 6H6a6 6 0 0 1 6-6Zm-1-6h2v3h-2V3ZM4.2 6.6l1.4-1.4 2.1 2.1-1.4 1.4-2.1-2.1Zm12.1.7 2.1-2.1 1.4 1.4-2.1 2.1-1.4-1.4ZM2 17h20v2H2v-2Z"/></svg>',
-  scene:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.2 6.2L20 10l-5.8 1.8L12 18l-2.2-6.2L4 10l5.8-1.8L12 2Z"/></svg>',
+  scene:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 4h14a3 3 0 0 1 3 3v10a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3Zm5 4.5v7l6-3.5-6-3.5Z"/></svg>',
   plug:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 2a1 1 0 0 1 1 1v4h6V3a1 1 0 1 1 2 0v4h1a1 1 0 0 1 1 1v3a7 7 0 0 1-6 6.9V21a1 1 0 1 1-2 0v-3.1A7 7 0 0 1 5 11V8a1 1 0 0 1 1-1h1V3a1 1 0 0 1 1-1Z"/></svg>',
   blinds:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 3h18v2H3V3Zm1 4h16v2H4V7Zm0 4h16v2H4v-2Zm7 4h2v4.2a2 2 0 1 1-2 0V15Z"/></svg>',
+  house:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3 2 11.5h3V21h5v-6h4v6h5v-9.5h3L12 3Z"/></svg>',
   check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>'};
 const ic=k=>`<span class="ic ${k}" aria-hidden="true">${ICON[k]}</span>`;
 function srDetail(sr){return `${sr.len} min · ${sr.b0}% → ${sr.b1}%`}
-function thing(t){return `<div class="thing">${ic(t.k)}<div style="min-width:0">${t.name}${t.v?` <span>· ${t.v}</span>`:""}</div></div>`}
+function thing(t){return `<div class="thing">${ic(t.k)}<div style="min-width:0">${t.name}${t.v?`<span style="display:block;font-size:13px">${t.v}</span>`:""}</div></div>`}
 function steps(){const st=[{off:0,wake:true,things:[{k:"ring",name:"Morning squawk",v:"until you scan the tag"}]},{off:-10,things:[{k:"ring",name:"Little peep",v:"soft"}]}];
   if(S.sr.on){const ex=st.find(x=>x.off===S.sr.off);const t={k:"sunrise",name:"Bedroom lamp",v:srDetail(S.sr),sr:true};ex?ex.things.unshift(t):st.push({off:S.sr.off,things:[t]})}
   return st.sort((a,b)=>a.off-b.off)}
@@ -373,13 +373,13 @@ stepdetail:()=>{const st=steps().find(s=>s.off===sel)||steps()[0];return `${stat
   <div class="card stepper">${st.wake?`<div class="val" style="flex:1"><b>${at(0)}</b><span class="sub">Wake-up time</span></div>`:`<button data-act="off-" aria-label="Five minutes earlier">−</button><div class="val"><b>${at(st.off)}</b><span class="sub">${offLabel(st.off)}</span></div><button data-act="off+" aria-label="Five minutes later">+</button>`}</div>
   <div class="sec">What happens</div>
   <div class="card list">${st.things.map(t=>`<div class="row">${thing(t)}<span class="spacer"></span>${t.sr?`<button class="back" style="font-size:15px" data-act="change">Change</button>`:""}</div>${t.sr?rampBars(S.sr)+`<div class="rampcap"><span>starts ${at(S.sr.off)}</span><span>bright by ${at(S.sr.off+S.sr.len)}</span></div>`:""}`).join("")}</div>
-  <button class="add" data-go="addthing">+ Add something</button>
+  <button class="add" data-go="addthing">+ Add an action</button>
   ${st.things.some(t=>t.sr)?`<p class="note2">Sunrise lights start at this step's time. Moving the step moves the whole sunrise.</p>`:""}
   </div></div>`},
 
 addthing:()=>`${screens.stepdetail()}<div class="scrim" data-go="stepdetail"></div><div class="sheet" style="text-align:left;gap:0" role="dialog" aria-label="Add to this step">
   <b class="h2" style="margin-bottom:6px">Add to this step</b>
-  ${[["ring","Ring"],["light","Lights"],["sunrise","Sunrise lights"],["scene","Scene"],["plug","Plug or switch"],["blinds","Blinds"]].map(([k,n])=>`<button class="opt" ${k==="sunrise"?'data-act="addsr"':""}>${ic(k)}<b>${n}</b>${k==="sunrise"?`<span class="new">NEW</span>`:""}${k==="ring"?"":`<span class="pro">PRO</span>`}<span>›</span></button>`).join("")}</div>`,
+  ${[["ring","Ring"],["sunrise","Sunrise lights"],["scene","Home scene"],["house","Home control","Lights, plugs and blinds"]].map(([k,n,sub])=>`<button class="opt" ${k==="sunrise"?'data-act="addsr"':""}>${ic(k)}<b>${n}${sub?`<span class="sub" style="display:block;font-size:13px;font-weight:700">${sub}</span>`:""}</b>${k==="ring"?"":`<span class="pro">PRO</span>`}<span>›</span></button>`).join("")}</div>`,
 
 g3:()=>`${status()}<div class="screen">
   <div class="gtop"><button class="back">‹ Back</button><div class="gdots"><i class="done"></i><i class="done"></i><i class="on"></i><i></i><i></i></div><button class="skipall">All options</button></div>

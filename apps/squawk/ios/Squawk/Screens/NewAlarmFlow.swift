@@ -81,13 +81,17 @@ struct NewAlarmFlow: View {
             .sheet(isPresented: $addingUp) {
                 AddThingSheet(timed: false) { choice in
                     addingUp = false
-                    if case .home(let kind) = choice { editingUp = HomeEditTarget(kind: kind, existing: nil) }
+                    switch choice {
+                    case .ring: break
+                    case .home(let kind): editingUp = HomeEditTarget(kind: kind, existing: nil)
+                    case .devices: editingUp = HomeEditTarget(kind: .light, existing: nil, anyDevice: true)
+                    }
                 }
             }
             .sheet(item: $editingUp) { target in
                 NavigationStack {
                     HomeGate(needsHub: false) {
-                        HomeThingEditor(kind: target.kind, existing: target.existing) { action in
+                        HomeThingEditor(kind: target.kind, existing: target.existing, anyDevice: target.anyDevice) { action in
                             guide.upActions.removeAll { $0.id == action.id }
                             guide.upActions.append(action)
                         }
@@ -223,7 +227,7 @@ struct NewAlarmFlow: View {
                     }
                 }
             }
-            ChoiceCard(title: "+ Add something", subtitle: "Open the blinds, start the coffee, or run a scene.", selected: false) {
+            ChoiceCard(title: "+ Add an action", subtitle: "Open the blinds, start the coffee, or run a scene.", selected: false) {
                 addingUp = true
             }
         }

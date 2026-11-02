@@ -128,6 +128,9 @@ struct HomeThingEditor: View {
     /// "+ Sunrise lights": the sunrise ends at the wake-up time, so its start moves with
     /// its length.
     var endsAtWakeUp = false
+    /// "Home control": every light, plug, switch and blind is listed together, and the
+    /// settings follow the kind of the first one picked.
+    var anyDevice = false
     var onSave: (HomeAction) -> Void
 
     @Environment(HomeAccess.self) private var home
@@ -137,18 +140,27 @@ struct HomeThingEditor: View {
     @State private var setting = HomeSetting(isOn: true, brightness: 50, warmth: 30, position: 100)
     @State private var sunrise = Sunrise.standard
     @State private var started = false
+    /// In "Home control", the kind of what's picked so far.
+    @State private var picked: HomeAction.Kind?
+
+    /// What's being set up: the editor's kind, or in "Home control" the picked one's.
+    private var current: HomeAction.Kind { picked ?? kind }
+    /// "Home control" before anything is picked: no settings yet.
+    private var choosing: Bool { anyDevice && existing == nil && selected.isEmpty }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
-                switch kind {
-                case .light: lightSettings
-                case .sunrise: sunriseSettings
-                case .plug: plugSettings
-                case .blinds: blindsSettings
-                case .scene: EmptyView()
+                if !choosing {
+                    switch current {
+                    case .light: lightSettings
+                    case .sunrise: sunriseSettings
+                    case .plug: plugSettings
+                    case .blinds: blindsSettings
+                    case .scene: EmptyView()
+                    }
                 }
-                if kind == .scene {
+                if current == .scene {
                     scenes
                 } else {
                     devices
@@ -158,7 +170,7 @@ struct HomeThingEditor: View {
             .readableWidth()
         }
         .background(Theme.background)
-        .navigationTitle(kind.title)
+        .navigationTitle(anyDevice && existing == nil ? "Home control" : current.title)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
@@ -352,12 +364,15 @@ struct HomeThingEditor: View {
 
     // MARK: Picking
 
-    private var available: [HomeDevice] { home.home?.devices(kind) ?? [] }
+    private var available: [HomeDevice] {
+        guard let home = home.home else { return [] }
+        return anyDevice && existing == nil ? home.devices : home.devices(kind)
+    }
     private var selectedDevices: [HomeDevice] { available.filter { d in selected.contains { $0.id == d.id } } }
 
     @ViewBuilder private var devices: some View {
         if available.isEmpty {
-            Text("No \(kind.title.lowercased()) in your Home app yet. Add them there, then come back.")
+            Text("No \(anyDevice ? "lights, plugs or blinds" : kind.title.lowercased()) in your Home app yet. Add them there, then come back.")
                 .font(Theme.body)
                 .foregroundStyle(Theme.muted)
         }
@@ -369,11 +384,13 @@ struct HomeThingEditor: View {
                 .foregroundStyle(Theme.muted)
                 .padding(.leading, 4)
             ForEach(rooms[room] ?? []) { device in
-                pickRow(device.target, detail: device.abilities, multiple: true)
+                pickRow(device.target, detail: device.abilities, multiple: true, deviceKind: device.kind)
             }
         }
-        if kind.deviceKind == .light {
-            Text("Lights come from your Home app. Pick several to set them together.")
+        if anyDevice || kind.deviceKind == .light {
+            Text(anyDevice
+                 ? "These come from your Home app. Pick several of the same kind to set them together."
+                 : "Lights come from your Home app. Pick several to set them together.")
                 .font(.system(.footnote, design: .rounded, weight: .semibold))
                 .foregroundStyle(Theme.muted)
         }
@@ -391,17 +408,25 @@ struct HomeThingEditor: View {
         }
     }
 
-    private func pickRow(_ target: HomeTarget, detail: String, multiple: Bool) -> some View {
+    private func pickRow(_ target: HomeTarget, detail: String, multiple: Bool, deviceKind: HomeAction.Kind? = nil) -> some View {
         let isOn = selected.contains { $0.id == target.id }
+        let iconKind = deviceKind ?? kind.deviceKind
         return Button {
-            if multiple {
+            if anyDevice, existing == nil, let deviceKind, deviceKind != current || selected.isEmpty {
+                // A different kind of device starts over with its own settings.
+                withAnimation(.spring(duration: 0.35)) {
+                    picked = deviceKind
+                    selected = [target]
+                    if deviceKind == .plug { setting = HomeSetting(isOn: true) }
+                }
+            } else if multiple {
                 if isOn { selected.removeAll { $0.id == target.id } } else { selected.append(target) }
             } else {
                 selected = [target]
             }
         } label: {
             HStack(spacing: 12) {
-                ThingIcon(kind: .home(kind.deviceKind))
+                ThingIcon(kind: .home(iconKind))
                 Text(target.name).font(Theme.label)
                 Spacer()
                 Text(detail)
@@ -429,7 +454,7 @@ struct HomeThingEditor: View {
             selected = existing.targets
             setting = existing.setting
             sunrise = existing.sunrise ?? .standard
-        } else if let first = LightPicks.remembered(kind.deviceKind, in: available) {
+        } else if !anyDevice, let first = LightPicks.remembered(kind.deviceKind, in: available) {
             selected = first
         }
         if kind == .plug, existing == nil { setting = HomeSetting(isOn: true) }
@@ -437,7 +462,7 @@ struct HomeThingEditor: View {
 
     private func save() {
         var final = setting
-        switch kind {
+        switch current {
         case .light:
             if !selectedDevices.contains(where: \.dimmable) { final.brightness = nil }
             if !selectedDevices.contains(where: \.hasColor) { final.warmth = nil }
@@ -449,14 +474,14 @@ struct HomeThingEditor: View {
         case .blinds:
             final = HomeSetting(isOn: true, position: setting.position ?? 100)
         }
-        var action = existing ?? HomeAction(offsetMinutes: offsetMinutes, kind: kind, targets: [])
+        var action = existing ?? HomeAction(offsetMinutes: offsetMinutes, kind: current, targets: [])
         action.targets = selected
         action.setting = final
-        action.sunrise = kind == .sunrise ? sunrise : nil
-        if kind == .sunrise, endsAtWakeUp, existing == nil { action.offsetMinutes = -sunrise.minutes }
-        LightPicks.remember(kind.deviceKind, selected)
+        action.sunrise = current == .sunrise ? sunrise : nil
+        if current == .sunrise, endsAtWakeUp, existing == nil { action.offsetMinutes = -sunrise.minutes }
+        LightPicks.remember(current.deviceKind, selected)
         onSave(action)
-        if existing == nil { Telemetry.count("step.added", ["kind": kind.rawValue]) }
+        if existing == nil { Telemetry.count("step.added", ["kind": current.rawValue]) }
         dismiss()
     }
 }

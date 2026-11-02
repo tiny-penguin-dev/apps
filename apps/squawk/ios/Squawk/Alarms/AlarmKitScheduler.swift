@@ -41,17 +41,57 @@ final class AlarmKitScheduler: RingScheduler {
         }
     }
 
+    /// Only touches what changed: alarms no longer planned (or planned differently) are
+    /// cancelled, and new ones are scheduled soonest first. Everything else stays as it
+    /// is, so a re-plan never leaves a gap with nothing scheduled, and a ring that's
+    /// going off isn't cancelled just because something else changed.
     func replaceAll(with plan: [PlannedRing]) async -> Int {
         guard manager.authorizationState == .authorized else { return 0 }
-        for alarm in (try? manager.alarms) ?? [] {
-            try? manager.cancel(id: alarm.id)
+        let wanted = Dictionary(plan.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+        let existing = Set(((try? manager.alarms) ?? []).map(\.id))
+        var made = loadScheduled().filter { existing.contains($0.key) }
+
+        for id in existing {
+            if let ring = wanted[id], made[id] == Self.fingerprint(ring) { continue }
+            try? manager.cancel(id: id)
+            made[id] = nil
         }
+
+        let now = Date()
+        let missing = wanted.values
+            .filter { made[$0.id] == nil }
+            .sorted { ($0.nextFire(after: now) ?? .distantFuture) < ($1.nextFire(after: now) ?? .distantFuture) }
         var failures = 0
-        for ring in plan {
-            let scheduled = await schedule(ring)
-            if !scheduled { failures += 1 }
+        for ring in missing {
+            if await schedule(ring) {
+                made[ring.id] = Self.fingerprint(ring)
+            } else {
+                failures += 1
+            }
         }
+        saveScheduled(made)
         return failures
+    }
+
+    // MARK: What's scheduled
+
+    /// What each scheduled AlarmKit alarm was made from, so a re-plan can tell what
+    /// changed. Kept on disk because snoozes re-plan from a fresh background launch.
+    private static let scheduledKey = "alarmkit.scheduled"
+
+    private static func fingerprint(_ ring: PlannedRing) -> String {
+        "\(ring.schedule)|\(ring.title)|\(ring.sound.fileName)|\(ring.color.hex)|\(ring.alarmID)|\(ring.isLastRing)|\(ring.needsCheck)"
+    }
+
+    private func loadScheduled() -> [UUID: String] {
+        let stored = UserDefaults.standard.dictionary(forKey: Self.scheduledKey) as? [String: String] ?? [:]
+        return Dictionary(stored.compactMap { key, value in UUID(uuidString: key).map { ($0, value) } },
+                          uniquingKeysWith: { a, _ in a })
+    }
+
+    private func saveScheduled(_ made: [UUID: String]) {
+        UserDefaults.standard.set(Dictionary(uniqueKeysWithValues: made.map { ($0.key.uuidString, $0.value) }),
+                                  forKey: Self.scheduledKey)
     }
 
     /// Builds the AlarmKit configuration off the main actor, so the non-Sendable
@@ -132,8 +172,8 @@ private extension Weekday {
     }
 }
 
-/// Runs when a ring's Stop is tapped. AlarmKit stops the ring itself, and the next
-/// ring still comes. The mornings log and wake-up checks hook in here later.
+/// Runs when a ring's Stop (or, with a wake-up check, Snooze) is tapped. AlarmKit stops
+/// the ring itself, and the next ring still comes.
 struct SquawkStopIntent: LiveActivityIntent {
     static let title: LocalizedStringResource = "Stop Squawk alarm"
     static let description = IntentDescription("Stops a ringing Squawk alarm.")
@@ -148,7 +188,9 @@ struct SquawkStopIntent: LiveActivityIntent {
     }
 
     func perform() async throws -> some IntentResult {
-        .result()
+        // With a wake-up check this was a Snooze: re-plan so the next repeats are there.
+        await AlarmsModel.shared.ringStopped(alarmID: alarmID)
+        return .result()
     }
 }
 

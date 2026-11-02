@@ -125,6 +125,14 @@ final class AlarmsModel {
         await reschedule()
     }
 
+    /// Stop on the ringing screen, which is labeled Snooze when the alarm has a wake-up
+    /// check. Only the next couple of minutes of repeats are scheduled ahead, so a
+    /// Snooze re-plans to schedule the next ones.
+    func ringStopped(alarmID: String) async {
+        guard alarms.contains(where: { $0.id.uuidString == alarmID && $0.hasChecks }) else { return }
+        await reschedule()
+    }
+
     // MARK: Wake-up checks
 
     var activeCheckAlarm: Alarm? {
@@ -266,7 +274,22 @@ final class AlarmsModel {
         }
     }
 
+    /// One re-plan at a time: changes that come in while one runs are planned right
+    /// after it, so two never hand AlarmKit the same alarms at once.
     private func reschedule() async {
+        if rescheduling { rescheduleAgain = true; return }
+        rescheduling = true
+        defer { rescheduling = false }
+        repeat {
+            rescheduleAgain = false
+            await rescheduleOnce()
+        } while rescheduleAgain
+    }
+
+    @ObservationIgnored private var rescheduling = false
+    @ObservationIgnored private var rescheduleAgain = false
+
+    private func rescheduleOnce() async {
         let plan = AlarmPlanner.plan(alarms, now: Date())
         let failures = await scheduler.replaceAll(with: plan)
         if failures > 0 {

@@ -27,13 +27,17 @@ Squawk is in the **Build** stage. Read `PRODUCT.md`, `DESIGN.md` and `BUILD.md` 
   `FileAlarmStore` (JSON in Application Support) and the sound list. No UI, no AlarmKit.
 - `ios/Squawk/Alarms/`: `AlarmsModel` (the app's alarms; every change saves and
   re-plans; opening the app mid-morning cancels the rest of it) and `AlarmKitScheduler`,
-  the only code that talks to AlarmKit. "I'm up" on the ringing screen runs
+  the only code that talks to AlarmKit. Re-plans run one at a time, and the scheduler
+  only cancels or adds the AlarmKit alarms that changed (it remembers what it made in
+  UserDefaults). "I'm up" on the ringing screen runs
   `SquawkUpIntent`.
 - Wake-up checks: `ios/Squawk/Checks/` (`TagReader` reads an NFC sticker's id with
   CoreNFC, `CodeScanner` wraps VisionKit's barcode scanner), `Screens/CheckFlowView.swift`
   (tag, code, penguin game, math way out) and `Screens/ChecksSetup.swift`. An alarm with
-  a check is planned as one-off rings a few mornings ahead, and its last ring repeats
-  every 30 s for 10 minutes; doing the check marks the morning done. NFC needs the
+  a check is planned as one-off rings 5 mornings ahead, and its last ring repeats
+  every 30 s for 10 minutes; doing the check marks the morning done. To stay under
+  AlarmKit's per-app limit, only the next 2 minutes of repeats are scheduled, plus a
+  backup every 2 minutes; Snooze (`SquawkStopIntent`) re-plans to schedule the next ones. NFC needs the
   entitlement in `Config/Squawk.entitlements`; CI turns the capability on.
 - Squawk Pro: `ProAccess` in `SquawkKit/Pro.swift` is the one place that says what's
   free (2 rings, the 3 quick-add sounds, skip next morning, outfits earned with a

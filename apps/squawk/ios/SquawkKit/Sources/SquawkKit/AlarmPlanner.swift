@@ -24,6 +24,24 @@ public struct PlannedRing: Hashable, Sendable {
     public var needsCheck: Bool = false
 }
 
+extension PlannedRing {
+    /// When this ring next goes off after `now`. Nil for a one-off ring that has passed.
+    public func nextFire(after now: Date, calendar: Calendar = .current) -> Date? {
+        switch schedule {
+        case .once(let date):
+            return date > now ? date : nil
+        case .weekly(let time, let days):
+            return days.compactMap { day in
+                calendar.nextDate(
+                    after: now,
+                    matching: DateComponents(hour: time.hour, minute: time.minute, weekday: day.calendarWeekday),
+                    matchingPolicy: .nextTime
+                )
+            }.min()
+        }
+    }
+}
+
 /// Turns saved alarms into the AlarmKit alarms to schedule. This is the one place that
 /// decides what rings when (PRODUCT.md 8b), so every feature uses the same path.
 public enum AlarmPlanner {
@@ -38,8 +56,18 @@ public enum AlarmPlanner {
     static let weeksAhead = 4
 
     /// Mornings planned ahead for an alarm with a wake-up check. Re-planned whenever the
-    /// app opens or a morning ends.
-    static let checkMorningsAhead = 3
+    /// app opens, a ring is snoozed or a morning ends, so this only runs down when nobody
+    /// touches the phone for that many alarm mornings in a row.
+    static let checkMorningsAhead = 5
+
+    /// The last ring's repeats are scheduled for this long ahead of now (or of when it
+    /// first goes off). Each Snooze re-plans, which schedules the next ones.
+    static let checkDenseSeconds: TimeInterval = 120
+
+    /// Past that, only every this-many-seconds repeat is scheduled, as a backup in case
+    /// a Snooze doesn't get to re-plan. Keeps an alarm with a check to a few AlarmKit
+    /// alarms a morning instead of one every 30 s.
+    static let checkBackupSeconds: TimeInterval = 120
 
     public static func plan(_ alarm: Alarm, now: Date, calendar: Calendar = .current) -> [PlannedRing] {
         if alarm.hasChecks {
@@ -93,8 +121,10 @@ public enum AlarmPlanner {
     }
 
     /// With a wake-up check, every ring is a one-off alarm, and the last one comes back
-    /// every 30 seconds for 10 minutes. Doing the check marks the morning done, and the
-    /// re-plan cancels the rest.
+    /// every 30 seconds for 10 minutes. Only the next couple of minutes of repeats are
+    /// scheduled, plus a backup every 2 minutes after that: each Snooze re-plans from
+    /// its own time, which tops the repeats back up. Doing the check marks the morning
+    /// done, and the re-plan cancels the rest.
     static func planWithChecks(_ alarm: Alarm, now: Date, calendar: Calendar) -> [PlannedRing] {
         var days: [LocalDate] = []
         if let date = alarm.date {
@@ -120,9 +150,11 @@ public enum AlarmPlanner {
                     isLastRing: false, needsCheck: true
                 ))
             }
+            let denseUntil = max(now, last.fire).addingTimeInterval(checkDenseSeconds)
+            let backupEvery = max(1, Int(checkBackupSeconds / Alarm.checkRepeatSeconds))
             for k in 0..<repeats {
                 let fire = last.fire.addingTimeInterval(Double(k) * Alarm.checkRepeatSeconds)
-                guard fire > now else { continue }
+                guard fire > now, fire <= denseUntil || k % backupEvery == 0 else { continue }
                 result.append(PlannedRing(
                     id: StableID.make("\(alarm.id)|\(last.ring.id)|\(day)|\(k)"),
                     alarmID: alarm.id, ringID: last.ring.id, schedule: .once(fire),

@@ -112,3 +112,110 @@ Answered by Gabriel (1 Nov 2026):
 2. Wake-up checks stay one per alarm, shown in the wake-up step.
 3. "When you're up" is in this version.
 4. Timed Home steps need a Home hub. Without one, only "When you're up" is offered.
+
+## Design
+
+Status: Approved 2026-11-02
+
+Builds on the Product section above and on Squawk's approved `DESIGN.md`. Same look,
+colors, type and penguin. Nothing new to learn: steps reuse the cards, chips and pill
+buttons the app already has.
+
+### Mockups
+
+- Clickable mockup: `design/mockups/steps.html` (Artifact link:
+  https://claude.ai/artifact/6GbKYZevRaBj3fagtxpnQL). Use the Small / Phone / Wide switch
+  to see other screen sizes.
+- Screenshots: `design/screens/`. "Before" screenshots are in Squawk's
+  `design/screens/` (for example `05-edit.png`, `04-home.png`).
+
+### What changes
+
+| Screen | Before | After | Screenshot |
+|---|---|---|---|
+| Home | Ring chips under each alarm | Step chips show times with small icons (light, ring), so 6:30 💡 · 6:50 💡🔔 · 7:00 💡🔔 | [home](design/screens/home.png) |
+| Edit alarm (new) | One ring, "+ Soft ring before", "+ Loud ring after" | Looks the same. One wake-up step that rings, plus the same two quick adds, then "+ Sunrise" and "+ Add a step" with a Pro tag | [edit-new](design/screens/edit-new.png) |
+| Edit alarm (with steps) | List of rings | A timeline of step cards, top to bottom. The wake-up step has an orange outline and shows the check inside it. "When you're up" sits at the end as its own warm card | [edit](design/screens/edit.png) |
+| More options | Rings section and checks | Rings section goes away (steps live on the edit screen). Checks stay | [customize](design/screens/customize.png) |
+| Squawk Pro | Perks list | Perks become "As many steps and rings as you want" and "Lights, scenes and blinds in your morning" | [pro](design/screens/pro.png) |
+| Good morning | Streak and "Start my day" | Shows what "When you're up" just did as chips (Blinds opening, Coffee maker on) | [morning](design/screens/morning.png) |
+
+### Guided new alarm
+
+Tapping **+** on Home starts a short guide instead of dropping you into every option at
+once. One question per screen, big tappable answers, Squawk on each screen, progress dots
+at the top. **"All options"** (top right on every screen) jumps straight to the full edit
+screen with whatever you've picked so far, so nothing is lost. Editing an existing alarm
+always opens the full edit screen.
+
+| # | Question | Answers | Screenshot |
+|---|---|---|---|
+| 1 | When do you want to wake up? | Time and days | [g1](design/screens/g1.png) |
+| 2 | How should Squawk wake you? | Just one ring · Gentle start (soft peep 10 min early) · Extra nudge (Whole colony 5 min after) | [g2](design/screens/g2.png) |
+| 3 | Want your lights to help? (Pro) | Sunrise · Lights on at wake-up · No thanks. Shows the lamp it will use, with Change | [g3](design/screens/g3.png) |
+| 4 | Make sure you get up? | No check · Scan a tag · Scan a code · Penguin game (Pro) | [g4](design/screens/g4.png) |
+| 5 | Anything once you're up? (Pro) | Open the blinds · Start the coffee · Run a scene, any or none. Only shown if you picked lights, since it needs Home | [g5](design/screens/g5.png) |
+| | Here's your morning | The finished timeline. "Save alarm", or "Fine-tune in All options" | [gdone](design/screens/gdone.png) |
+
+- Each answer maps straight to steps, so the guide and the edit screen always build the
+  same alarm.
+- Defaults are the simple choice (one ring, no lights, no check), so tapping Next all the
+  way through gives today's basic alarm.
+- Free users can pick Pro answers; saving shows the Pro screen, and "Not now" saves the
+  alarm without the Pro parts.
+- The first-launch flow (Hello → Allow alarms → Wake-up time) stays short and makes a
+  basic alarm, as today.
+
+### New screens
+
+| Screen | What it's for | Screenshot |
+|---|---|---|
+| A step | The step's time (− / + in 5 minute steps, shows "10 min before") and what happens, each with Change and ✕. "+ Add something" and "Remove step". The wake-up step can't be removed and always rings | [stepdetail](design/screens/stepdetail.png) |
+| Add something | A sheet: Ring, Lights, Scene, Plug or switch, Blinds. Home kinds have a Pro tag for free users | [addthing](design/screens/addthing.png) |
+| Home access | First time you add a Home thing. Squawk in a warm glow explains the automations ("Squawk · Wake up · 6:30") and that the hub runs them. "Connect to Home" opens the iOS prompt | [homeaccess](design/screens/homeaccess.png) |
+| Pick a light | Brightness and color sliders with a live glow preview, then lights grouped by room. Pick several to set them together | [light](design/screens/light.png) |
+| When you're up | What runs when the morning ends, with a note that it works without a hub | [up](design/screens/up.png) |
+| No Home hub | Shown instead of Home access when there's no hub. Explains why in plain words and offers "When you're up" instead | [nohub](design/screens/nohub.png) |
+| After "+ Sunrise" | Three light steps at 30, 20 and 10 minutes before, getting brighter | [sunrise](design/screens/sunrise.png) |
+
+### Motion and copy
+
+- Adding a step slides its card into the timeline at the right time; the connecting
+  line grows to meet it. Removing one shrinks it out.
+- "+ Sunrise" adds its three steps one after another with a little sunrise shimmer.
+- The light glow on "Pick a light" follows the sliders as you drag.
+- Times are always shown both ways: "6:50" and "10 min before".
+- Copy keeps the penguin voice but stays plain about Home: "Squawk can turn on your
+  lights", "This needs a Home hub".
+
+### Design system
+
+- **Reused:** cards, chips, pill buttons, dashed "+" buttons, Pro tag, section labels,
+  the note box, sheets, the penguin.
+- **New, built once in the app's design system:**
+  - `StepCard`: time, offset label, list of things; highlighted style for the wake-up step.
+  - `StepTimeline`: stacks step cards with the connecting line and time dots.
+  - `ThingRow`: small colored icon (ring, light, scene, plug, blinds, check), name,
+    detail, optional Change and ✕.
+  - `OffsetStepper`: − / + time control.
+  - `LightPreview`: the glow that reacts to brightness and color.
+- **Icon colors:** ring uses sunrise orange, lights sun yellow, scene ice blue, plugs and
+  blinds penguin navy on ice, checks mint. All from the existing palette.
+
+### Sizes and accessibility
+
+- **Small phones (SE):** step cards stack the things under the time instead of beside it
+  ([edit-small](design/screens/edit-small.png)).
+- **Wide (iPhone Duo open, resizing):** the timeline gets wider with room for full
+  detail text ([edit-wide](design/screens/edit-wide.png)). Step detail opens beside the
+  timeline when there's room.
+- **Dynamic Type:** cards grow taller; times and things never get cut off.
+- **VoiceOver:** each step reads as one item, like "6:50, 10 minutes before. Bedroom lamp
+  50 percent, warm. Little peep." Icons are never the only signal; every thing has a name.
+- **Dark mode:** same tokens as the rest of the app.
+
+### Decisions
+
+- "+ Sunrise" asks which light the first time and remembers it.
+- The step time stepper moves in 5 minute jumps.
+- New alarms start with the guided setup (Gabriel, 2 Nov 2026).

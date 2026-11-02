@@ -140,6 +140,10 @@ public struct Composer: Sendable {
     private var shift: Shift = .off
     private var lastShiftPress: TimeInterval?
     private var committed: Committed?
+    /// The space before the cursor is one the keyboard wrote by itself (autospace or a
+    /// guess from the bar), so a space pressed now is not a second one, and punctuation
+    /// goes before it. Anything else typed clears it.
+    private var autoSpaced = false
     private var contextBefore = ""
     /// A word learned on its commit and reopened by backspace: deleting it all the way
     /// forgets it again.
@@ -204,6 +208,7 @@ public struct Composer: Sendable {
             }
         }
         open[id] = Open(side: side, start: time, points: [point], times: [time], startKey: letter)
+        autoSpaced = false
         autospaceDue = nil
         effects.append(.haptic(.key))
         refreshState()
@@ -236,13 +241,17 @@ public struct Composer: Sendable {
     /// Time passed: commits the open word by autospace when it is due.
     public mutating func tick(time: TimeInterval) -> [Effect] {
         guard let due = autospaceDue, time >= due, open.isEmpty, !pieces.isEmpty else { return [] }
-        return commit(trailing: " ", time: time)
+        let effects = commit(trailing: " ", time: time)
+        autoSpaced = true
+        return effects
     }
 
     // MARK: Keys
 
     public mutating func press(_ key: Key, time: TimeInterval) -> [Effect] {
         var effects: [Effect] = [.haptic(.key)]
+        let spaced = autoSpaced
+        if key != .shift { autoSpaced = false }
         switch key {
         case .letter(let c):
             // A letter sent as a press (no touch stream): a tap on its key.
@@ -252,6 +261,9 @@ public struct Composer: Sendable {
         case .space:
             if hasOpenWord {
                 effects += commit(trailing: " ", time: time)
+            } else if spaced {
+                // The keyboard already put a space here: one space between words.
+                effects += leaveFix()
             } else {
                 effects.append(.insert(" "))
                 effects += leaveFix()
@@ -260,6 +272,8 @@ public struct Composer: Sendable {
             if hasOpenWord {
                 effects += commit(trailing: "\n", time: time)
             } else {
+                // No space left at the end of the line by autospace.
+                if spaced { effects.append(.deleteBackward(1)) }
                 effects.append(.insert("\n"))
                 effects += leaveFix()
             }
@@ -285,8 +299,15 @@ public struct Composer: Sendable {
     /// with the character right after it (no space before a comma).
     public mutating func press(character: Character, time: TimeInterval) -> [Effect] {
         var effects: [Effect] = [.haptic(.key)]
+        let spaced = autoSpaced
+        autoSpaced = false
         if hasOpenWord {
             effects += commit(trailing: String(character), time: time)
+        } else if spaced, Self.closingPunctuation.contains(character) {
+            // "word ." becomes "word. ": the mark goes before the space autospace wrote.
+            effects += [.deleteBackward(1), .insert(String(character) + " ")]
+            effects += leaveFix()
+            autoSpaced = true
         } else {
             effects.append(.insert(String(character)))
             effects += leaveFix()
@@ -295,6 +316,9 @@ public struct Composer: Sendable {
         return effects
     }
 
+    /// Marks that go right after a word, before the space.
+    static let closingPunctuation: Set<Character> = [".", ",", "?", "!", ";", ":"]
+
     /// A guess tapped on the bar: with an open word it is written; after a commit it
     /// replaces the word just written.
     public mutating func choose(guess index: Int, time: TimeInterval = 0) -> [Effect] {
@@ -302,7 +326,9 @@ public struct Composer: Sendable {
         case .guesses(let words, _):
             guard words.indices.contains(index) else { return [] }
             state.bar = .guesses(words, chosen: index)
-            return commit(trailing: " ", time: time, byHand: true)
+            let effects = commit(trailing: " ", time: time, byHand: true)
+            autoSpaced = true
+            return effects
         case .fix(let words, let chosen):
             guard words.indices.contains(index), index != chosen, var last = committed else { return [] }
             let word = words[index]
@@ -327,6 +353,8 @@ public struct Composer: Sendable {
     /// the words before the open one from it.
     public mutating func setContext(before: String?) {
         contextBefore = before ?? ""
+        // The cursor moved, or the app changed the text: that space is gone from under it.
+        if let before, !before.hasSuffix(" ") { autoSpaced = false }
         matcher.context = WordContext.words(before: contextBefore)
         refreshState()
     }
@@ -355,6 +383,7 @@ public struct Composer: Sendable {
         open = [:]
         candidates = []
         autospaceDue = nil
+        autoSpaced = false
         state.bar = .idle
         refreshState()
         return effects
@@ -367,6 +396,7 @@ public struct Composer: Sendable {
         committed = nil
         state.bar = .idle
         autospaceDue = nil
+        autoSpaced = false
         if !pieces.isEmpty {
             pieces = []
             candidates = []
@@ -387,6 +417,7 @@ public struct Composer: Sendable {
     /// The cursor is about to move (a slide on the space bar): the open word goes in as
     /// it stands, with nothing after it, and the fix bar closes.
     public mutating func cursorWillMove() -> [Effect] {
+        autoSpaced = false
         guard hasOpenWord else {
             let effects = settle()
             state.bar = .idle

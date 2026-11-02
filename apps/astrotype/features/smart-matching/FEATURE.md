@@ -141,7 +141,8 @@ Each a PR, merged when green, like `BUILD.md`'s phases.
   corrections record from the extension (App Group, Full Access) and its toggle,
   `practice.shared` metric.
 - **D. Practice words and tuning**: the practice-words screen; a tuning pass of the
-  matcher's weights against the harness on real sessions, recorded in this doc.
+  matcher's weights against the harness, recorded in this doc (on synthetic typing
+  until enough real sessions are shared; the same commands run on real ones).
 - **E. Learned matcher** (only if D's numbers say so): a small model trained on shared
   sessions, shipped as Core ML, the geometric matcher as the fallback. Never in the
   extension if it costs the 40 MB budget.
@@ -174,6 +175,40 @@ recording to the exact guesses the live keyboard made (`ReplayTests`); real sess
 need recording v2, which ships with this phase, so the first numbers on real data
 come with Phase D. The `astrotype-tools` executable builds on Linux too (the App
 Group lookup is Darwin-only), so the model and the harness run in CI's toolchain.
+
+**Phase D (2026-11-02).** "Practice words" is in Settings → Privacy next to the sharing
+switches, as designed: `PracticeWords` gives one to three words at a time, phrases
+walked through the word pairs from a sentence start and single words from the
+commonest 4,500 by a random two-letter opening, never a dropped-apostrophe contraction
+("dont"); a wrong word shakes and is taken back out, and each prompt is a recording
+that is shared word by word.
+
+No real sessions were in the container, so the tuning pass ran on synthetic typing:
+`astrotype-tools synth` swipes the practice prompts through noisy aims (each thumb with
+its own habit, 0.12 key low and up to 0.16 to the side, and a random miss per letter),
+150 sessions of about 1,280 words per set, one set to tune and others to check. It
+showed the matcher's real weakness: at a sloppy 0.32 key of noise the first guess was
+right 74% of the time and in the top three only 76%, so the misses were words the
+search never reached (a swipe that ended on the next key could not end the word). The
+fix is `nearRadius`: each crossed key may also be read as a neighbour the path passed
+within half a key of, at a cost of 0.2 per stand-in (`nearPenalty`) on top of the path
+distance. Results, first guess / top three:
+
+| Set | Before | After |
+|---|---|---|
+| noise 0.22 (held out) | 95.2% / 96.6% | 96.4% / 98.0% |
+| noise 0.32 (held out) | 74.4% / 75.5% | 80.8% / 82.2% |
+
+The weight search (`astrotype-tools tune`) on the tuning set also prefers a lower
+`priorWeight` (0.06 to 0.09, worth about half a point on held-out sets). That is left
+at 0.12: synthetic prompts pick words more evenly than people do, so they undervalue
+word frequency. The first run on real shared sessions decides it:
+
+    cd ml && python3 download_samples.py --type PracticeSession
+    cd ../ios/AstrotypeKit && swift run -c release astrotype-tools tune ../../ml/samples/practice
+
+Phase E (a learned matcher) waits for those numbers too. A debug build decodes the
+50-word fixture at 5.6 ms a word with stand-ins on.
 
 **Phase C (2026-11-02).** Built as planned, as a page in Settings rather than a sheet
 ("What gets shared", from Settings → Privacy), so the list has room: the words waiting

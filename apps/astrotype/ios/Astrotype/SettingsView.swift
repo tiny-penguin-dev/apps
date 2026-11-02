@@ -162,6 +162,9 @@ struct SettingsView: View {
                 Row("What gets shared", subtitle: sharedSubtitle) {
                     Button("See") { path.append(.sharing) }.buttonStyle(.small)
                 }
+                Row("Practice words", subtitle: "Common words and short phrases, one at a time, no timer. With sharing on, they help tune the keyboard.") {
+                    Button("Start") { path.append(.practiceWords) }.buttonStyle(.small)
+                }
 
                 if Flags.handwritingPad {
                     HandwritingSettings()

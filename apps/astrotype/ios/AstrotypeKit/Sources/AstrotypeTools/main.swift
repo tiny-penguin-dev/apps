@@ -6,16 +6,23 @@ import Foundation
 //     swift run -c release astrotype-tools build-ngrams pairs.tsv Sources/AstrotypeCore/Resources/en/bigrams.bin
 //     swift run -c release astrotype-tools replay ../../ml/samples/practice
 //     swift run astrotype-tools next "thank"
+//     swift run -c release astrotype-tools synth /tmp/synth && swift run -c release astrotype-tools tune /tmp/synth
 //
-// Everything it does is in AstrotypeCore (`NgramModel.Builder`, `Replay`), so the
+// Everything it does is in AstrotypeCore (`NgramModel.Builder`, `Replay`, `Tuning`, `SyntheticTyping`, `PracticeWords`), so the
 // tests cover it; this file only parses arguments and prints.
 
 let usage = """
 usage:
   astrotype-tools build-ngrams <pairs.tsv> <out.bin> [--max-pairs N] [--lambda L]
       the word-pair binary from `previous<TAB>next<TAB>count` lines (ml/ngrams/count_pairs.py)
-  astrotype-tools replay <folder-or-file.json> [--language en] [--misses N]
+  astrotype-tools replay <folder-or-file.json> [--language en] [--misses N] [--prior P --context C --length L]
       plays practice recordings and shared words through the engine and reports first-guess accuracy
+  astrotype-tools tune <folder> [--language en] [--rounds N]
+      searches the matcher's weights for the best first-guess rate on those items
+  astrotype-tools synth <out-folder> [--sessions N] [--noise σ] [--seed S]
+      writes made-up shared words (noisy swipes of practice prompts) to measure against
+  astrotype-tools prompts [--count N] [--seed S]
+      the "Practice words" prompts
   astrotype-tools next <word> [--language en] [--limit N]
       the words the model expects after `word` (`<s>` for a sentence start)
 """
@@ -63,13 +70,7 @@ func buildNgrams(_ plain: [String], _ options: [String: String]) {
     print("after <s>: " + model.likelyWords(after: NgramModel.sentenceStart, limit: 8).joined(separator: " "))
 }
 
-/// A file is a session recording (versions 1 and 2) or one shared word (version 3).
-enum Item {
-    case recording(PracticeRecording)
-    case word(SharedWord)
-}
-
-func items(at path: String) -> [Item] {
+func items(at path: String) -> [Replay.Item] {
     let url = URL(fileURLWithPath: path)
     var files: [URL] = []
     var isDirectory: ObjCBool = false
@@ -82,35 +83,77 @@ func items(at path: String) -> [Item] {
     } else {
         files = [url]
     }
-    let decoder = JSONDecoder()
     return files.sorted { $0.path < $1.path }.compactMap { file in
         guard let data = try? Data(contentsOf: file) else { return nil }
-        if let word = try? decoder.decode(SharedWord.self, from: data) { return .word(word) }
-        if let recording = try? decoder.decode(PracticeRecording.self, from: data) { return .recording(recording) }
+        if let item = Replay.Item(json: data) { return item }
         FileHandle.standardError.write(Data("skipping \(file.lastPathComponent): not a practice recording or shared word\n".utf8))
         return nil
     }
 }
 
+/// `--prior 0.1 --context 0.15 --length 0.2` over the defaults.
+func weights(_ options: [String: String]) -> Matcher.Weights {
+    var weights = Matcher.Weights()
+    if let value = options["prior"].flatMap(Double.init) { weights.prior = value }
+    if let value = options["context"].flatMap(Double.init) { weights.context = value }
+    if let value = options["length"].flatMap(Double.init) { weights.length = value }
+    if let value = options["near"].flatMap(Double.init) { weights.near = value }
+    if let value = options["stand-in"].flatMap(Double.init) { weights.standIn = value }
+    return weights
+}
+
 func replay(_ plain: [String], _ options: [String: String]) {
     guard plain.count == 1 else { fail(usage) }
-    let language = language(options)
-    var outcomes: [Replay.Outcome] = []
-    var skipped = 0
-    for item in items(at: plain[0]) {
-        do {
-            switch item {
-            case .recording(let recording): outcomes.append(try Replay.run(recording, language: language))
-            case .word(let word): outcomes.append(try Replay.run(word, language: language))
-            }
-        } catch {
-            skipped += 1
-        }
-    }
-    let report = Replay.Report(outcomes, skipped: skipped)
+    let report = Replay.report(items(at: plain[0]), language: language(options), weights: weights(options))
     print(report.summary)
     let limit = options["misses"].flatMap(Int.init) ?? 40
     for line in report.missLines.prefix(limit) { print("  " + line) }
+}
+
+func tune(_ plain: [String], _ options: [String: String]) {
+    guard plain.count == 1 else { fail(usage) }
+    let all = items(at: plain[0])
+    guard !all.isEmpty else { fail("nothing to replay in \(plain[0])") }
+    let rounds = options["rounds"].flatMap(Int.init) ?? 2
+    let steps = Tuning.search(all, language: language(options), start: weights(options), rounds: rounds)
+    print("\(all.count) items · \(steps.first?.words ?? 0) words")
+    print("start  " + steps[0].line)
+    for step in steps.dropFirst() { print("better " + step.line) }
+}
+
+func synth(_ plain: [String], _ options: [String: String]) {
+    guard plain.count == 1 else { fail(usage) }
+    let language = language(options)
+    let count = options["sessions"].flatMap(Int.init) ?? 100
+    let noise = options["noise"].flatMap(Double.init) ?? 0.2
+    let seed = options["seed"].flatMap(UInt64.init) ?? 1
+    let folder = URL(fileURLWithPath: plain[0])
+    try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+    var prompts = PracticeWords(language: language, seed: seed)
+    // A different habit per writer: thumbs land low, high or to the side.
+    let encoder = JSONEncoder()
+    encoder.outputFormatting = [.sortedKeys]
+    var words = 0
+    for index in 0..<count {
+        let habit = Double(index % 5 - 2) * 0.08
+        var typing = SyntheticTyping(layout: .qwerty(width: 390), noise: noise,
+                                     left: KeyOffset(dx: habit, dy: 0.12), right: KeyOffset(dx: -habit, dy: 0.12),
+                                     seed: seed &+ UInt64(index))
+        var text: [String] = []
+        while text.count < 8 { text += prompts.next().split(separator: " ").map(String.init) }
+        let recording = typing.record(text, kind: "synthetic")
+        for word in SharedWord.words(of: recording) {
+            guard let data = try? encoder.encode(word) else { continue }
+            try? data.write(to: folder.appendingPathComponent(word.id.uuidString + ".json"))
+            words += 1
+        }
+    }
+    print("\(words) synthetic words in \(folder.path) (noise \(noise), seed \(seed))")
+}
+
+func prompts(_ plain: [String], _ options: [String: String]) {
+    var prompts = PracticeWords(language: language(options), seed: options["seed"].flatMap(UInt64.init))
+    for _ in 0..<(options["count"].flatMap(Int.init) ?? 20) { print(prompts.next()) }
 }
 
 func next(_ plain: [String], _ options: [String: String]) {
@@ -131,5 +174,8 @@ switch command {
 case "build-ngrams": buildNgrams(plain, options)
 case "replay": replay(plain, options)
 case "next": next(plain, options)
+case "tune": tune(plain, options)
+case "synth": synth(plain, options)
+case "prompts": prompts(plain, options)
 default: fail(usage)
 }

@@ -24,6 +24,7 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
     `ProView` (the subscription screen, StoreKit's `SubscriptionStoreView`),
     `TrialOverView` (the sheet, once), `MilestoneView` (the sheet, once each),
     `Practice/` (`SpeedTestView` on ours or Apple's keyboard, `SpeedResultView`,
+    `PracticeWordsView` (one prompt at a time from `PracticeWords`, from Settings → Privacy),
     `DrillView`),
     `Keyboard/KeyboardSession` (a text view whose input view is the shared keyboard,
     with Try it's replay),
@@ -71,9 +72,12 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
       `Sync/CloudKitPracticeUploader`), `SharedWord` (what is shared: one word with its
       touches, from a session split word by word or a fix from the keyboard;
       `SharedWordStore`, the `SharedWordUploader` protocol with its fake, the live one
-      the same `CloudKitPracticeUploader`). `Handwriting/` holds the v1 engine (`Features`, `PhraseDecoder`, `Recognizer`,
+      the same `CloudKitPracticeUploader`), `PracticeWords` (the Practice words prompts),
+      `SyntheticTyping` (noisy made-up swipes for the harness). `Handwriting/` holds the v1 engine (`Features`, `PhraseDecoder`, `Recognizer`,
       `Recording`, `StrokeSample`). Foundation only; tests run on Linux.
     - `AstrotypeTools`: the `astrotype-tools` command line (`build-ngrams`, `replay`,
+      `tune` (`Tuning`'s search over `Matcher.Weights`), `synth` (`SyntheticTyping`'s
+      made-up words to measure against), `prompts`,
       `next`), argument parsing over `AstrotypeCore` and nothing else.
     - `AstrotypeUI`: the design system (`Theme` tokens, `Components`, `Art`) and the
       keyboard's views: `KeyboardView` (bar plus keys, the pages, the settings panel;
@@ -87,7 +91,7 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
       the trial, for the extension).
       UIKit and SwiftUI, guarded
       with `#if canImport(UIKit)` so `swift test` still builds the package on macOS.
-    - `AstrotypeKitTests`: Swift Testing. `ComposerTests`, `PersonalModelTests`, `SharedWordTests`, `MatcherTests` (the 50-word
+    - `AstrotypeKitTests`: Swift Testing. `ComposerTests`, `PersonalModelTests`, `SharedWordTests`, `TuningTests`, `MatcherTests` (the 50-word
       fixture in `Fixtures/swipes.json`, through `Synth`'s straight-line swipes, and
       `ContextMatcherTests`), `WordContextTests`, `NgramModelTests`, `ReplayTests`
       (recordings made from `Synth` strokes replay to the live result),

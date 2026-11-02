@@ -263,3 +263,24 @@ import Testing
         #expect(composer.state.openWord == "store")
     }
 }
+
+/// Long words: a long swipe crosses many keys and cuts many corners, so the search must
+/// not need every letter to be a key it crossed cleanly, or short words win by default.
+@Suite struct LongWordTests {
+    /// Sloppy swipes (aims off by 0.35 key widths) of common long words: most come out
+    /// right (18 of these 20; 10 when every letter had to be a key the swipe crossed).
+    @Test func sloppyLongSwipesMostlyComeOutRight() throws {
+        let words = ["everything", "understand", "department", "themselves", "production",
+                     "management", "difference", "population", "completely", "individual",
+                     "particular", "additional", "association", "interesting", "immediately",
+                     "significant", "established", "responsible", "application", "conversation"]
+        var right = 0
+        var misses: [String] = []
+        for (index, word) in words.enumerated() {
+            var typing = SyntheticTyping(layout: .qwerty(width: 390), noise: 0.35, seed: UInt64(index + 1))
+            let outcome = try Replay.run(typing.record([word]), language: ContextMatcherTests.english)
+            if outcome.firstGuesses == 1 { right += 1 } else { misses.append("\(word) → \(outcome.words.first?.guesses ?? [])") }
+        }
+        #expect(right >= 13, "\(right) of \(words.count); misses: \(misses)")
+    }
+}

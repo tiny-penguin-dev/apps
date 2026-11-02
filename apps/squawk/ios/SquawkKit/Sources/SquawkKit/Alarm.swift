@@ -1,6 +1,7 @@
 import Foundation
 
-/// One alarm: a wake-up time, the days it repeats (or one date), and its rings.
+/// One alarm: a wake-up time, the days it repeats (or one date), and its steps: rings
+/// and Home things at times around the wake-up time.
 ///
 /// Built to grow (PRODUCT.md 8b): wake-up checks are an open list, and new kinds are
 /// new enum cases. Actions and conditions join the same way in later versions.
@@ -21,6 +22,11 @@ public struct Alarm: Codable, Identifiable, Hashable, Sendable {
     public var checks: [WakeUpCheck]
     /// One-morning changes: skip, a different time, or "already up".
     public var changes: [MorningChange]
+    /// Timed Home things (lights, scenes, plugs, blinds). With the rings, they make up the
+    /// alarm's steps (`steps`).
+    public var homeActions: [HomeAction]
+    /// "When you're up": Home things that run when the morning ends.
+    public var upActions: [HomeAction]
 
     public init(
         id: UUID = UUID(),
@@ -32,7 +38,9 @@ public struct Alarm: Codable, Identifiable, Hashable, Sendable {
         label: String = "",
         isOn: Bool = true,
         checks: [WakeUpCheck] = [],
-        changes: [MorningChange] = []
+        changes: [MorningChange] = [],
+        homeActions: [HomeAction] = [],
+        upActions: [HomeAction] = []
     ) {
         self.id = id
         self.time = time
@@ -44,6 +52,8 @@ public struct Alarm: Codable, Identifiable, Hashable, Sendable {
         self.isOn = isOn
         self.checks = checks
         self.changes = changes
+        self.homeActions = homeActions
+        self.upActions = upActions
     }
 
     public var isOneTime: Bool { date != nil }
@@ -93,7 +103,7 @@ public struct Alarm: Codable, Identifiable, Hashable, Sendable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case id, time, days, date, dayTimes, rings, label, isOn, checks, changes
+        case id, time, days, date, dayTimes, rings, label, isOn, checks, changes, homeActions, upActions
     }
 
     /// Decodes leniently so alarms saved by older versions still load.
@@ -109,7 +119,9 @@ public struct Alarm: Codable, Identifiable, Hashable, Sendable {
             label: try c.decodeIfPresent(String.self, forKey: .label) ?? "",
             isOn: try c.decodeIfPresent(Bool.self, forKey: .isOn) ?? true,
             checks: (try? c.decodeIfPresent([WakeUpCheck].self, forKey: .checks)) ?? [],
-            changes: (try? c.decodeIfPresent([MorningChange].self, forKey: .changes)) ?? []
+            changes: (try? c.decodeIfPresent([MorningChange].self, forKey: .changes)) ?? [],
+            homeActions: (try? c.decodeIfPresent([HomeAction].self, forKey: .homeActions)) ?? [],
+            upActions: (try? c.decodeIfPresent([HomeAction].self, forKey: .upActions)) ?? []
         )
     }
 }

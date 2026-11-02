@@ -94,7 +94,7 @@ struct ChecksCard: View {
 }
 
 /// Set up a tag or code: scan it once here, and say where it is.
-private struct AddCheckSheet: View {
+struct AddCheckSheet: View {
     var kind: WakeUpCheck.Kind
     var onAdd: (WakeUpCheck) -> Void
     @Environment(\.dismiss) private var dismiss

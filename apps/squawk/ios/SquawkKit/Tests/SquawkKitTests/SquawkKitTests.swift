@@ -442,3 +442,126 @@ private func onceDates(_ plan: [PlannedRing]) -> [Date] {
         #expect(alarm.isOn)
     }
 }
+
+@Suite struct StepsTests {
+    private let lamp = HomeTarget(id: UUID(), name: "Bedroom lamp", room: "Bedroom")
+
+    @Test func newAlarmHasOneWakeUpStep() {
+        let steps = Alarm().steps
+        #expect(steps.count == 1)
+        #expect(steps[0].isWakeUp)
+        #expect(steps[0].rings.count == 1)
+    }
+
+    @Test func groupsRingsAndHomeThingsByTime() {
+        var alarm = Alarm()
+        alarm.addSoftRing()
+        alarm.homeActions.append(HomeAction(offsetMinutes: -10, kind: .light, targets: [lamp]))
+        alarm.homeActions.append(HomeAction(offsetMinutes: -30, kind: .light, targets: [lamp]))
+        #expect(alarm.steps.map(\.offsetMinutes) == [-30, -10, 0])
+        let soft = alarm.steps[1]
+        #expect(soft.rings.count == 1)
+        #expect(soft.actions.count == 1)
+    }
+
+    @Test func wakeUpStepIsAlwaysThere() {
+        var alarm = Alarm(rings: [Ring(offsetMinutes: -5)])
+        alarm.homeActions = []
+        #expect(alarm.steps.map(\.offsetMinutes) == [-5, 0])
+        #expect(alarm.step(at: 0)?.rings.isEmpty == true)
+        #expect(alarm.step(at: 20) == nil)
+    }
+
+    @Test func movingAStepMovesEverythingInIt() {
+        var alarm = Alarm()
+        alarm.addSoftRing()
+        alarm.homeActions.append(HomeAction(offsetMinutes: -10, kind: .light, targets: [lamp]))
+        alarm.moveStep(from: -10, to: -20)
+        #expect(alarm.steps.map(\.offsetMinutes) == [-20, 0])
+        #expect(alarm.steps[0].rings.count == 1 && alarm.steps[0].actions.count == 1)
+    }
+
+    @Test func wakeUpStepDoesntMoveOrGo() {
+        var alarm = Alarm()
+        alarm.moveStep(from: 0, to: 10)
+        alarm.removeStep(at: 0)
+        #expect(alarm.steps.map(\.offsetMinutes) == [0])
+        #expect(alarm.rings.count == 1)
+    }
+
+    @Test func removingAStepRemovesEverythingInIt() {
+        var alarm = Alarm()
+        alarm.addLoudRing()
+        alarm.homeActions.append(HomeAction(offsetMinutes: 5, kind: .plug, targets: [lamp]))
+        alarm.removeStep(at: 5)
+        #expect(alarm.steps.map(\.offsetMinutes) == [0])
+        #expect(alarm.homeActions.isEmpty)
+    }
+
+    @Test func sunriseAddsLightSteps() {
+        var alarm = Alarm()
+        alarm.addSunrise(lights: [lamp])
+        #expect(alarm.steps.map(\.offsetMinutes) == [-30, -20, -10, 0])
+        #expect(alarm.homeActions.map { $0.setting.brightness } == [10, 40, 80, 100])
+        alarm.addSunrise(lights: [lamp])
+        #expect(alarm.homeActions.count == 4)
+    }
+
+    @Test func summaries() {
+        let light = HomeAction(kind: .light, targets: [lamp], setting: HomeSetting(brightness: 50, warmth: 10))
+        #expect(light.summary == "Bedroom lamp · 50% · warm")
+        let two = HomeAction(kind: .light, targets: [lamp, HomeTarget(id: UUID(), name: "Ceiling")])
+        #expect(two.name == "Bedroom lamp + 1")
+        let blinds = HomeAction(kind: .blinds, targets: [lamp], setting: HomeSetting(position: 50))
+        #expect(blinds.detail == "50% open")
+    }
+
+    @Test func oldAlarmsLoadWithNoHomeThings() throws {
+        let json = #"{"id":"6A1E9A7C-1D32-4C55-9C52-3B7B5E1C1A10","time":{"hour":7,"minute":0},"rings":[]}"#
+        let alarm = try JSONDecoder().decode(Alarm.self, from: Data(json.utf8))
+        #expect(alarm.homeActions.isEmpty && alarm.upActions.isEmpty)
+        #expect(alarm.steps.count == 1)
+    }
+
+    @Test func homeThingsSaveAndLoad() throws {
+        var alarm = Alarm()
+        alarm.addSunrise(lights: [lamp])
+        alarm.upActions = [HomeAction(kind: .blinds, targets: [lamp], setting: HomeSetting(position: 100))]
+        let back = try JSONDecoder().decode(Alarm.self, from: JSONEncoder().encode(alarm))
+        #expect(back == alarm)
+    }
+}
+
+@Suite struct GuideTests {
+    private let lamp = HomeTarget(id: UUID(), name: "Bedroom lamp")
+
+    @Test func defaultsMakeABasicAlarm() {
+        let alarm = NewAlarmGuide().alarm
+        #expect(alarm.rings.count == 1)
+        #expect(alarm.checks.isEmpty && !alarm.usesHome)
+        #expect(NewAlarmGuide().proFeatures.isEmpty)
+    }
+
+    @Test func wakeChoices() {
+        #expect(NewAlarmGuide(wake: .gentle).alarm.sortedRings.map(\.offsetMinutes) == [-10, 0])
+        #expect(NewAlarmGuide(wake: .nudge).alarm.sortedRings.map(\.offsetMinutes) == [0, 5])
+    }
+
+    @Test func lightsAndUpActions() {
+        let up = HomeAction(kind: .plug, targets: [lamp])
+        let guide = NewAlarmGuide(lights: .sunrise, lightTargets: [lamp], check: WakeUpCheck(kind: .game), upActions: [up])
+        let alarm = guide.alarm
+        #expect(alarm.steps.map(\.offsetMinutes) == [-30, -20, -10, 0])
+        #expect(alarm.upActions == [up])
+        #expect(alarm.checks.map(\.kind) == [.game])
+        #expect(guide.proFeatures == [.home, .checks])
+        let free = guide.freeAlarm
+        #expect(!free.usesHome && free.checks.isEmpty)
+    }
+
+    @Test func lightsWithoutALampDoNothing() {
+        let guide = NewAlarmGuide(lights: .atWakeUp, upActions: [HomeAction(kind: .plug, targets: [lamp])])
+        #expect(!guide.alarm.usesHome)
+        #expect(guide.proFeatures.isEmpty)
+    }
+}

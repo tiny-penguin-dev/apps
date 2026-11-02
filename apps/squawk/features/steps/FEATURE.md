@@ -103,6 +103,8 @@ An example morning:
 | `home.connected` (`hub`: yes / no) | How many people have a Home hub when they try this |
 | `home.sync_failed` (`reason`) | Automations Squawk couldn't set up (goal: near zero) |
 | `morning.up_actions` | How often "When you're up" runs |
+| `guide.finished` (duration) | How long the guided new alarm takes |
+| `guide.all_options` (`at`: which question) | How often people skip to All options, and where |
 
 ### Decisions
 
@@ -219,3 +221,51 @@ always opens the full edit screen.
 - "+ Sunrise" asks which light the first time and remembers it.
 - The step time stepper moves in 5 minute jumps.
 - New alarms start with the guided setup (Gabriel, 2 Nov 2026).
+
+## Build
+
+Status: Approved 2026-11-02 (Gabriel: "Assume approved, go ahead and build it")
+
+### How it fits the code
+
+- **Model (`SquawkKit`):** rings stay as they are (`Alarm.rings`), so AlarmKit planning
+  and saved alarms don't change. New `Alarm.homeActions` (timed Home things, each with an
+  offset like rings) and `Alarm.upActions` ("When you're up"). A **step** is not stored:
+  `Alarm.steps` groups the rings and Home actions that share an offset, and moving or
+  removing a step moves or removes everything in it. Old alarms load with no Home
+  actions, so nothing needs migrating.
+- **Home things** (`HomeAction`): a kind (lights, scene, plug or switch, blinds), the
+  HomeKit ids and names it controls, and a setting (on/off, brightness, warmth,
+  position). New kinds are new enum cases.
+- **Guided setup (`NewAlarmGuide` in `SquawkKit`):** the guide's answers as a value that
+  turns into an `Alarm`, so the guide and All options always build the same thing and
+  it's unit tested.
+- **Planning Home steps (`HomePlanner` in `SquawkKit`):** the same rules as rings. Days
+  with the same time become one weekly Home automation per step; a day with a
+  one-morning change (skip, new time) becomes one-off automations for a few weeks, and
+  the next re-plan puts it back on weekly.
+- **HomeKit (`Squawk/Home/`):** `HomeAccess` (permission, homes, hub state, the lights,
+  plugs, blinds and scenes Squawk can use) and `HomeSync`, the only code that writes to
+  HomeKit. It turns planned Home steps into an action set plus a trigger named
+  "Squawk · Wake up · 6:30", remembers which ones it made, and on each sync deletes the
+  ones no longer planned and adds the missing ones. Runs whenever alarms are saved, on
+  app open and after a morning ends. "When you're up" runs straight from the phone.
+- **Pro:** one new `ProFeature.home` covers Home steps and "When you're up".
+- **Setup:** HomeKit entitlement and `NSHomeKitUsageDescription`; `asc-prepare-app.py`
+  turns on the HomeKit capability for the bundle ID, like NFC.
+
+### Phases
+
+| # | Phase | Done when |
+|---|---|---|
+| 1 | Model and guided setup | `HomeAction`, `Alarm.steps`, `NewAlarmGuide`, `ProFeature.home` with tests. "+" opens the guide (time, how to wake you, get you up, your morning) with "All options" on every screen |
+| 2 | Steps and Home | Edit screen shows the steps timeline. Step detail, Add something, Home access, no-hub, light/scene/plug/blinds pickers, Sunrise. `HomePlanner` + `HomeSync`. Guide asks about lights and "When you're up" |
+| 3 | When you're up and polish | Runs at the end of a morning, chips on Good morning, metrics from the Product section, docs and the app's `CLAUDE.md` updated |
+
+### Testing
+
+- `swift test` covers steps grouping, moving/removing steps, the guide's alarms and the
+  Home planner (weekly, changed days, skips, steps crossing midnight).
+- HomeKit can't be tested in CI. On a phone from TestFlight: add Sunrise, check the
+  automations appear in the Home app and fire, skip tomorrow and check they move, delete
+  the alarm and check they're gone. Without a hub, check the no-hub screen.

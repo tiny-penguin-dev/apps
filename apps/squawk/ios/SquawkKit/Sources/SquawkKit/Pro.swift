@@ -23,6 +23,8 @@ public enum ProFeature: String, CaseIterable, Identifiable, Sendable {
     case outfits
     /// Other app icons.
     case appIcons
+    /// Home steps (lights, scenes, plugs, blinds) and "When you're up".
+    case home
 
     public var id: String { rawValue }
 

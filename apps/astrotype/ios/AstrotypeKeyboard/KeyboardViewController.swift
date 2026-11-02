@@ -34,6 +34,7 @@ final class KeyboardViewController: UIInputViewController {
                                   store: settingsStore, wordStore: wordStore, personalStore: personalStore,
                                   installID: InstallID.load(from: KeyboardFiles.own(KeyboardFiles.install)))
         let target = ProxyTarget(controller: self)
+        target.underlines = { [weak model] in model?.keyboardSettings.underlinesWord ?? false }
         model.target = target
         self.target = target
 
@@ -201,15 +202,21 @@ final class KeyboardViewController: UIInputViewController {
     }
 }
 
-/// The engine's text target on the extension's document proxy. The open word is
-/// written as ordinary text and replaced as the guesses change, not as marked text:
-/// marked text through the proxy is unreliable across apps, and the space after a word
-/// sometimes landed before it (Gabriel, 2 Nov 2026).
+/// The engine's text target on the extension's document proxy. By default the open
+/// word is written as ordinary text and replaced as the guesses change: marked text
+/// through the proxy, finished with unmark-then-insert, left the cursor before the word
+/// and the space went there (Gabriel, 2 Nov 2026). With "Underline the word you're
+/// typing" on, the open word is marked text again, and it is finished by inserting it
+/// over the marked text in one step, which leaves the cursor after it.
 @MainActor
 final class ProxyTarget: TextTarget {
     private unowned let controller: UIInputViewController
+    /// Whether the open word is shown as marked (underlined) text; read per word.
+    var underlines: () -> Bool = { false }
     /// The open word as it stands in the field, right before the cursor.
     private var open = ""
+    /// Whether `open` went in as marked text.
+    private var openIsMarked = false
 
     init(controller: UIInputViewController) {
         self.controller = controller
@@ -228,6 +235,12 @@ final class ProxyTarget: TextTarget {
 
     func mark(_ text: String) {
         guard text != open else { return }
+        if open.isEmpty { openIsMarked = underlines() }
+        if openIsMarked {
+            proxy.setMarkedText(text, selectedRange: NSRange(location: text.utf16.count, length: 0))
+            open = text
+            return
+        }
         // Take the old reading out, unless the cursor moved away from it (then it stays
         // as typed). A field that hides its text (nil) is trusted to be where we left it.
         if !open.isEmpty, proxy.documentContextBeforeInput.map({ $0.hasSuffix(open) }) ?? true {
@@ -237,6 +250,14 @@ final class ProxyTarget: TextTarget {
         open = text
     }
 
-    func unmark() { open = "" }
+    func unmark() {
+        if openIsMarked {
+            // Inserting over marked text replaces it and puts the cursor after it.
+            if open.isEmpty { proxy.unmarkText() } else { proxy.insertText(open) }
+        }
+        open = ""
+        openIsMarked = false
+    }
+
     func moveCursor(by offset: Int) { proxy.adjustTextPosition(byCharacterOffset: offset) }
 }

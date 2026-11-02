@@ -144,7 +144,8 @@ This is the product, so it gets its own section.
   side.)
 - **The open word** shows in the text field (underlined in teal in the app's own fields;
   in other apps as plain text replaced as the guesses change, because marked text
-  through the keyboard's proxy put spaces before words in some apps, 2 Nov 2026), so
+  through the keyboard's proxy put spaces before words, 2 Nov 2026; Settings
+  "Underline the word you're typing" brings the underline back), so
   the person sees what space will write without looking at the bar.
 - **Commit:** space, punctuation, or autospace after 0.9 s with no finger down (the
   delay is a setting, 0.1 to 1.5 s), for swiped and pecked words alike (Gabriel, 2 Nov

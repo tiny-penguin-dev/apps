@@ -88,6 +88,9 @@ struct SettingsView: View {
                 }
 
                 SectionLabel("Layout").padding(.top, Theme.Space.s)
+                Row("Underline the word you're typing", subtitle: "In other apps. Off types it as plain text, which keeps spaces where they belong in every app.") {
+                    Toggle("Underline the word you're typing", isOn: $model.keyboardSettings.underlinesWord).labelsHidden().tint(Theme.mint)
+                }
                 Row("Guesses bar", subtitle: "Above the keys on a phone. Off gives the keys its room. On a wide screen the guesses sit beside the keys.") {
                     Toggle("Guesses bar", isOn: $model.keyboardSettings.showsBar).labelsHidden().tint(Theme.mint)
                 }

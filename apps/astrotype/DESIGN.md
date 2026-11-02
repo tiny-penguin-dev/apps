@@ -128,9 +128,11 @@ This is the product, so it gets its own section.
   and 7 letters, shift and backspace on the third row, `123`, globe, space and return on
   the fourth. Space reads "Astrotype" when idle, like Apple's reads the language.
 - **Size:** the keys fill the height iOS gives the keyboard, with no padding of their
-  own (iOS adds its margins around the keyboard), so it sits where Apple's does: 42 pt
-  keys 14 pt apart on a wide screen, 44 and 11 on a phone, and the keys grow or shrink
-  to the height granted (Gabriel, 2 Nov 2026).
+  own (iOS adds its margins around the keyboard), so it sits where Apple's does and is
+  as tall as Apple's (210 pt on a wide screen, 209 on a phone). The keys are only 2 pt
+  apart, across and down, so they are bigger than Apple's and a tap rarely lands in a
+  gap (a tap that does goes to the nearest key). They grow or shrink to the height
+  granted (Gabriel, 2 Nov 2026).
 - **Where the guesses go:** where the keys leave a column of 96 pt or more (the middle
   of a split keyboard, the sides of a wide one) the guesses stack there, and the keys
   get the whole height. Otherwise (a phone) they are a bar above the keys, which
@@ -269,7 +271,7 @@ Three sizes, all in the mockup's Size buttons (`docs/building.md` rule 2):
   [Messages](design/screens/12-messages-small.png).
 - **Phone** (iPhone, the default): as in the screenshots.
 - **Wide** (iPhone Duo inner screen, 7.8", and iPad later): the keyboard stays one
-  keyboard, keys up to 58 pt wide and 42 pt tall (or as tall as the room allows) with 8 pt gaps, so a swipe is the same
+  keyboard, keys up to 64 pt wide and 51 pt tall (or as tall as the room allows) with 2 pt gaps, so a swipe is the same
   shape as on a phone, just bigger. Home becomes two columns (speed test and trial on the
   left, drills, week and Settings on the right). Titles step up to 36 pt. Everything else
   keeps its width and centers. [Home](design/screens/05-home-wide.png),

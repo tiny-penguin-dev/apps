@@ -41,7 +41,10 @@ final class KeyboardViewController: UIInputViewController {
         let keyboard = KeyboardView(model: model)
         keyboard.backgroundColor = .clear
         keyboard.bar.backgroundColor = .clear
-        keyboard.surface.backgroundColor = .clear
+        // Not `.clear`: the extension drops touches on clear pixels, and taps in the
+        // gaps between keys did nothing (Gabriel, 2 Nov 2026). `Layout.key(at:)` gives
+        // a gap to the nearest key once the touch arrives.
+        keyboard.surface.backgroundColor = Theme.seeThrough
         // Haptics do nothing in an extension without Full Access (Phase 1), so the
         // generators are not even prepared then.
         keyboard.hapticsAvailable = fullAccess

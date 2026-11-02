@@ -27,6 +27,10 @@ public struct KeyboardSettings: Codable, Sendable, Equatable {
     public var backspaceSwipe = true
     /// On a wide screen (the iPhone Duo open), pull the two halves apart to the edges.
     public var splitOnWide = false
+    /// Show the guesses in a bar above the keys when there is no room beside them (a
+    /// phone). Off gives the keys the bar's height. Where the keys leave room (split,
+    /// or a wide screen) the guesses sit beside them either way (Gabriel, 2 Nov 2026).
+    public var showsBar = true
     /// Learn the person's words, word pairs and where their thumbs land, on the device
     /// (features/smart-matching Phase B, "Learns from you").
     public var learnsFromYou = true
@@ -55,6 +59,7 @@ public struct KeyboardSettings: Codable, Sendable, Equatable {
         spaceSlide = try c.decodeIfPresent(Bool.self, forKey: .spaceSlide) ?? true
         backspaceSwipe = try c.decodeIfPresent(Bool.self, forKey: .backspaceSwipe) ?? true
         splitOnWide = try c.decodeIfPresent(Bool.self, forKey: .splitOnWide) ?? false
+        showsBar = try c.decodeIfPresent(Bool.self, forKey: .showsBar) ?? true
         learnsFromYou = try c.decodeIfPresent(Bool.self, forKey: .learnsFromYou) ?? true
         forgetPersonalAt = try c.decodeIfPresent(Date.self, forKey: .forgetPersonalAt)
         shareCorrections = try c.decodeIfPresent(Bool.self, forKey: .shareCorrections) ?? false

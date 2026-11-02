@@ -109,8 +109,11 @@ code (`AstrotypeKit/Theme`, `docs/building.md` rule 1). Screens only use these.
 Not drawn yet (simple, same style): the numbers and symbols pages, the in-keyboard
 settings panel (gear under the `123` hold menu, for when Full Access is off), learned
 words list, snippets editor, one-handed layouts, the milestone sheet. The split layout
-(an option on wide screens, Gabriel, 1 Nov 2026) is Apple's: five keys a side at the
-screen's edges, space on both sides, the home row half a key in.
+(an option on wide screens, Gabriel, 1 Nov 2026) is Apple's with more overlap: each half
+is a window on the whole keyboard reaching one key past the middle (Q to Y, A to H, Z to
+B on the left; T to P, G to L, V to M on the right), so T Y, G H and V B are on both
+halves and a thumb can swipe across the middle ("went": left w-e, right n-t), space on
+both sides, the guesses in the open middle (Gabriel, 2 Nov 2026).
 
 ## The keyboard
 
@@ -119,7 +122,15 @@ This is the product, so it gets its own section.
 - **Layout:** Apple's QWERTY proportions, so muscle memory carries over. Rows of 10, 9
   and 7 letters, shift and backspace on the third row, `123`, globe, space and return on
   the fourth. Space reads "Astrotype" when idle, like Apple's reads the language.
-- **The bar** above the keys has three states:
+- **Size:** the keys fill the height iOS gives the keyboard, with no padding of their
+  own (iOS adds its margins around the keyboard), so it sits where Apple's does: 42 pt
+  keys 14 pt apart on a wide screen, 44 and 11 on a phone, and the keys grow or shrink
+  to the height granted (Gabriel, 2 Nov 2026).
+- **Where the guesses go:** where the keys leave a column of 96 pt or more (the middle
+  of a split keyboard, the sides of a wide one) the guesses stack there, and the keys
+  get the whole height. Otherwise (a phone) they are a bar above the keys, which
+  Settings ("Guesses bar") can turn off to give the keys its room.
+- **The bar** (or column) has three states:
   - *Idle:* a short note ("Both thumbs, one word") or, with nothing to say, empty.
   - *Open word:* up to three guesses, the first one in a white pill. That one is what
     space writes. Tapping any guess writes it.
@@ -134,8 +145,8 @@ This is the product, so it gets its own section.
 - **The open word** shows in the text field underlined in teal, so the person sees what
   space will write without looking at the bar.
 - **Commit:** space, punctuation, or autospace after 0.9 s with no finger down (the
-  delay is a setting, 0.1 to 1.5 s). Autospace is for swiped words only: a word pecked
-  out tap by tap waits for space (Gabriel, 1 Nov 2026). On autospace the bar gives a
+  delay is a setting, 0.1 to 1.5 s), for swiped and pecked words alike (Gabriel, 2 Nov
+  2026: swipe-only broke one-word pecks and "I" or "a"). On autospace the bar gives a
   tiny squeeze so the person notices the word went in.
 - **Backspace:** with an open word, removes the last piece. Otherwise one character.
   Swipe left on it deletes the last word; the keys to the left of it do not need to be
@@ -247,7 +258,7 @@ Three sizes, all in the mockup's Size buttons (`docs/building.md` rule 2):
   [Messages](design/screens/12-messages-small.png).
 - **Phone** (iPhone, the default): as in the screenshots.
 - **Wide** (iPhone Duo inner screen, 7.8", and iPad later): the keyboard stays one
-  keyboard, keys up to 58 pt wide and 54 pt tall with 8 pt gaps, so a swipe is the same
+  keyboard, keys up to 58 pt wide and 42 pt tall (or as tall as the room allows) with 8 pt gaps, so a swipe is the same
   shape as on a phone, just bigger. Home becomes two columns (speed test and trial on the
   left, drills, week and Settings on the right). Titles step up to 36 pt. Everything else
   keeps its width and centers. [Home](design/screens/05-home-wide.png),

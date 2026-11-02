@@ -88,6 +88,9 @@ struct SettingsView: View {
                 }
 
                 SectionLabel("Layout").padding(.top, Theme.Space.s)
+                Row("Guesses bar", subtitle: "Above the keys on a phone. Off gives the keys its room. On a wide screen the guesses sit beside the keys.") {
+                    Toggle("Guesses bar", isOn: $model.keyboardSettings.showsBar).labelsHidden().tint(Theme.mint)
+                }
                 Card {
                     VStack(alignment: .leading, spacing: Theme.Space.s) {
                         HStack {

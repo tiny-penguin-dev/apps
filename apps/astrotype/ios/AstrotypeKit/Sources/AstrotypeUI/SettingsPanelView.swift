@@ -4,8 +4,8 @@ import UIKit
 
 /// The in-keyboard settings (DESIGN.md: under the "123" hold), for when Full Access is
 /// off and the app's Settings cannot reach the keyboard: autospace, its delay, how
-/// strictly it keeps to real words, trails,
-/// the split, and learning from the person (with a forget that asks twice).
+/// strictly it keeps to real words, trails, the guesses bar, the split, and learning
+/// from the person (with a forget that asks twice).
 /// Shown over the keys; Done puts the keys back.
 public final class SettingsPanelView: UIView {
     public var settings: KeyboardSettings {
@@ -28,6 +28,8 @@ public final class SettingsPanelView: UIView {
     private let strictSlider = UISlider()
     private let trailsLabel = UILabel()
     private let trailsSwitch = UISwitch()
+    private let barLabel = UILabel()
+    private let barSwitch = UISwitch()
     private let splitLabel = UILabel()
     private let splitSwitch = UISwitch()
     private let learnLabel = UILabel()
@@ -47,7 +49,7 @@ public final class SettingsPanelView: UIView {
         title.textColor = Theme.ui(.ink)
         addSubview(title)
 
-        for (label, text) in [(autospaceLabel, "Autospace"), (delayLabel, "Delay"), (strictLabel, "Real words"), (trailsLabel, "Trails"), (splitLabel, "Split on wide screens"), (learnLabel, "Learn from my typing")] {
+        for (label, text) in [(autospaceLabel, "Autospace"), (delayLabel, "Delay"), (strictLabel, "Real words"), (trailsLabel, "Trails"), (barLabel, "Guesses bar"), (splitLabel, "Split on wide screens"), (learnLabel, "Learn from my typing")] {
             label.text = text
             label.font = Theme.uiFont(size: 15, weight: .semibold)
             label.textColor = Theme.ui(.ink)
@@ -56,6 +58,8 @@ public final class SettingsPanelView: UIView {
         autospaceLabel.accessibilityHint = "Write a swiped word after a short pause"
         addSubview(autospaceSwitch)
         addSubview(trailsSwitch)
+        addSubview(barSwitch)
+        barLabel.accessibilityHint = "Show the guesses above the keys on a phone"
         addSubview(splitSwitch)
         addSubview(learnSwitch)
         learnLabel.accessibilityHint = "Your words, word pairs and where your thumbs land, kept on this phone"
@@ -77,7 +81,7 @@ public final class SettingsPanelView: UIView {
             self.onChange?(self.settings)
         }, for: .valueChanged)
 
-        for control in [autospaceSwitch, trailsSwitch, splitSwitch, learnSwitch] {
+        for control in [autospaceSwitch, trailsSwitch, barSwitch, splitSwitch, learnSwitch] {
             control.onTintColor = Theme.ui(.accent)
         }
 
@@ -89,6 +93,11 @@ public final class SettingsPanelView: UIView {
         trailsSwitch.addAction(UIAction { [weak self] _ in
             guard let self else { return }
             self.settings.trails = self.trailsSwitch.isOn
+            self.onChange?(self.settings)
+        }, for: .valueChanged)
+        barSwitch.addAction(UIAction { [weak self] _ in
+            guard let self else { return }
+            self.settings.showsBar = self.barSwitch.isOn
             self.onChange?(self.settings)
         }, for: .valueChanged)
         splitSwitch.addAction(UIAction { [weak self] _ in
@@ -138,6 +147,7 @@ public final class SettingsPanelView: UIView {
     private func render() {
         autospaceSwitch.isOn = settings.autospace
         trailsSwitch.isOn = settings.trails
+        barSwitch.isOn = settings.showsBar
         splitSwitch.isOn = settings.splitOnWide && allowsSplit
         splitSwitch.isEnabled = allowsSplit
         splitLabel.text = allowsSplit ? "Split on wide screens" : "Split on wide screens · PRO"
@@ -174,7 +184,15 @@ public final class SettingsPanelView: UIView {
         strictLabel.frame = CGRect(x: inset.minX, y: y, width: inset.width * 0.35, height: rowHeight)
         strictSlider.frame = CGRect(x: inset.minX + inset.width * 0.38, y: y, width: inset.width * 0.62, height: rowHeight)
         y += rowHeight
-        row(trailsLabel, trailsSwitch)
+        // Two short ones share a row.
+        let middle = inset.midX
+        for (label, control, from, to) in [(trailsLabel, trailsSwitch as UIView, inset.minX, middle - Theme.Space.s),
+                                           (barLabel, barSwitch as UIView, middle + Theme.Space.s, inset.maxX)] {
+            control.sizeToFit()
+            label.frame = CGRect(x: from, y: y, width: to - from - control.bounds.width - Theme.Space.xs, height: rowHeight)
+            control.frame.origin = CGPoint(x: to - control.bounds.width, y: y + (rowHeight - control.bounds.height) / 2)
+        }
+        y += rowHeight
         row(splitLabel, splitSwitch)
         row(learnLabel, learnSwitch)
         forget.sizeToFit()

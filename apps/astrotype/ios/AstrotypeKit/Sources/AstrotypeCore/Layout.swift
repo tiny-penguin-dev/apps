@@ -78,7 +78,8 @@ public struct Layout: Sendable, Equatable {
     public let page: Page
     /// The halves pulled apart to the screen's edges (wide screens only).
     public let split: Bool
-    /// The keyboard's height, keys and padding included (the bar is not part of it).
+    /// The keyboard's height: the keys fill it edge to edge, with no padding of their
+    /// own (iOS pads the keyboard itself). The bar is not part of it.
     public let height: CGFloat
     public let keyHeight: CGFloat
     public let gap: CGFloat
@@ -89,28 +90,49 @@ public struct Layout: Sendable, Equatable {
 
     /// From what width on the screen counts as wide (the iPhone Duo's inner screen).
     public static let wideWidth: CGFloat = 700
+    /// The least room a split keyboard leaves between its halves, for the guesses.
+    public static let splitMiddle: CGFloat = 120
 
     /// The standard layout for a width: 33 pt keys at 390 pt (an iPhone), wider on the
     /// iPhone Duo's screens, capped at 58 pt so a swipe keeps its shape on a wide
-    /// screen (DESIGN.md "Sizes"). Every page has the same height. `split` pulls the
-    /// two halves apart on a wide screen, each under a thumb, with the space bar in
-    /// both. `maxHeight` shrinks the keys when the system grants less room than the
-    /// layout wants, so the bar and every row stay on screen.
-    public static func qwerty(width: CGFloat, page: Page = .letters, split: Bool = false, maxHeight: CGFloat? = nil) -> Layout {
-        let margin: CGFloat = 3
+    /// screen (DESIGN.md "Sizes"). Every page has the same height, and no page has any
+    /// padding: the keys run to the edges and iOS adds its own margins around the
+    /// keyboard, so ours lines up with Apple's (Gabriel, 2 Nov 2026).
+    ///
+    /// `split` pulls the two halves apart on a wide screen, each under a thumb, with the
+    /// space bar in both and the middle letters on both halves (each half reaches one
+    /// key past the middle: T Y, G H and V B are on both), so a thumb can swipe across
+    /// the middle the way it would on one keyboard. `height` makes the keys fill that
+    /// height (the room the system granted): they shrink to fit or grow up to a limit,
+    /// and past the limit they sit at the bottom.
+    public static func qwerty(width: CGFloat, page: Page = .letters, split: Bool = false, height fill: CGFloat? = nil) -> Layout {
         let gap = min(8, max(4, (6 * width / 390).rounded()))
-        let unit = min(58, ((width - 2 * margin - 9 * gap) / 10).rounded(.down))
         let wide = width >= wideWidth
-        var keyHeight: CGFloat = wide ? 54 : 44
-        var rowGap: CGFloat = wide ? 10 : 9
-        let top: CGFloat = 8
-        let bottom: CGFloat = 5
-        if let maxHeight, top + 4 * keyHeight + 3 * rowGap + bottom > maxHeight {
-            let available = maxHeight - top - bottom
-            rowGap = max(4, min(rowGap, ((available - 4 * 36) / 3).rounded(.down)))
-            keyHeight = max(28, ((available - 3 * rowGap) / 4).rounded(.down))
-        }
         let split = split && wide
+        var unit = min(58, ((width - 9 * gap) / 10).rounded(.down))
+        if split {
+            // Two halves of 6.5 and 6 keys with the middle left over.
+            unit = min(unit, ((width - splitMiddle - 10.5 * gap) / 12.5).rounded(.down))
+        }
+
+        // Apple's rows: 42 pt keys 14 pt apart on a wide screen, 44 and 11 on a phone.
+        let naturalKey: CGFloat = wide ? 42 : 44
+        let naturalGap: CGFloat = wide ? 14 : 11
+        let natural = 4 * naturalKey + 3 * naturalGap
+        var keyHeight = naturalKey
+        var rowGap = naturalGap
+        var top: CGFloat = 0
+        var height = natural
+        if let fill, fill > 0, fill != natural {
+            let scale = fill / natural
+            let guessGap = min(18, max(4, naturalGap * scale))
+            keyHeight = min(64, max(28, ((fill - 3 * guessGap) / 4).rounded(.down)))
+            rowGap = min(18, max(4, (fill - 4 * keyHeight) / 3))
+            let used = 4 * keyHeight + 3 * rowGap
+            top = max(0, fill - used)
+            height = max(fill, used)
+        }
+
         let rowWidth = 10 * unit + 9 * gap
         let left = ((width - rowWidth) / 2).rounded()
 
@@ -134,49 +156,50 @@ public struct Layout: Sendable, Equatable {
         var x: CGFloat
 
         if split {
-            // Two blocks, five keys wide, at the screen's edges. Rows are laid from the
-            // left edge on the left and end at the right edge on the right; the home row
-            // sits half a key in, as it does whole.
-            let edge: CGFloat = 12
-            let half = 5 * unit + 4 * gap
-            func leftRow(_ items: [(Key, CGFloat)], row: Int, inset: CGFloat = 0) {
-                var x = edge + inset
-                for (key, w) in items {
-                    add(key, row: row, x: x, width: w)
-                    x += w + gap
-                }
-            }
-            func rightRow(_ items: [(Key, CGFloat)], row: Int, inset: CGFloat = 0) {
-                let total = items.reduce(0) { $0 + $1.1 } + CGFloat(items.count - 1) * gap
-                var x = width - edge - inset - total
-                for (key, w) in items {
-                    add(key, row: row, x: x, width: w)
-                    x += w + gap
-                }
-            }
-            func units(_ chars: ArraySlice<Character>, as make: (Character) -> Key) -> [(Key, CGFloat)] {
-                chars.map { (make($0), unit) }
-            }
+            // Each half is a window on the whole keyboard, so a swipe has the same shape
+            // as on one keyboard: the left half from Q to Y, A to H and Z to B, the
+            // right from T to P, G to L and V to M. Each letter's own copy is placed
+            // first (`frame(of:)` finds it), the copies past the middle after.
+            let pitch = unit + gap
+            let leftEnd = 5.5 * pitch + unit
+            let backspaceX = 8.5 * pitch
+            let rightShift = width - max(9 * pitch + unit, backspaceX + wideKey)
+            let rightStart = 4 * pitch + rightShift
             switch page {
             case .letters:
-                leftRow(units(rows[0][0..<5], as: Key.letter), row: 0)
-                rightRow(units(rows[0][5...], as: Key.letter), row: 0)
-                leftRow(units(rows[1][0..<5], as: Key.letter), row: 1, inset: unit / 2)
-                rightRow(units(rows[1][5...], as: Key.letter), row: 1, inset: unit / 2)
-                leftRow([(.shift, wideKey)] + units(rows[2][0..<4], as: Key.letter), row: 2)
-                rightRow(units(rows[2][4...], as: Key.letter) + [(.backspace, wideKey)], row: 2)
+                func letter(_ row: Int, _ column: Int, shift dx: CGFloat) {
+                    let offset: CGFloat = [0, 0.5, 1.5][row]
+                    add(.letter(rows[row][column]), row: row, x: (CGFloat(column) + offset) * pitch + dx, width: unit)
+                }
+                // Left half's own keys, then the right's, then the shared ones.
+                for c in 0..<5 { letter(0, c, shift: 0) }
+                for c in 0..<5 { letter(1, c, shift: 0) }
+                add(.shift, row: 2, x: 1.5 * pitch - gap - wideKey, width: wideKey)
+                for c in 0..<4 { letter(2, c, shift: 0) }
+                for c in 5..<10 { letter(0, c, shift: rightShift) }
+                for c in 5..<9 { letter(1, c, shift: rightShift) }
+                for c in 4..<7 { letter(2, c, shift: rightShift) }
+                add(.backspace, row: 2, x: backspaceX + rightShift, width: wideKey)
+                letter(0, 5, shift: 0); letter(1, 5, shift: 0); letter(2, 4, shift: 0)
+                letter(0, 4, shift: rightShift); letter(1, 4, shift: rightShift); letter(2, 3, shift: rightShift)
             case .numbers, .symbols:
                 let table = page == .numbers ? numberRows : symbolRows
-                leftRow(units(table[0][0..<5], as: Key.symbol), row: 0)
-                rightRow(units(table[0][5...], as: Key.symbol), row: 0)
-                leftRow(units(table[1][0..<5], as: Key.symbol), row: 1)
-                rightRow(units(table[1][5...], as: Key.symbol), row: 1)
-                leftRow([(page == .numbers ? .symbols : .numbers, wideKey)] + units(table[2][0..<3], as: Key.symbol), row: 2)
-                rightRow(units(table[2][3...], as: Key.symbol) + [(.backspace, wideKey)], row: 2)
+                let half = 5 * unit + 4 * gap
+                _ = keys(Array(table[0][0..<5]), as: Key.symbol, row: 0, from: 0)
+                _ = keys(Array(table[0][5...]), as: Key.symbol, row: 0, from: width - half)
+                _ = keys(Array(table[1][0..<5]), as: Key.symbol, row: 1, from: 0)
+                _ = keys(Array(table[1][5...]), as: Key.symbol, row: 1, from: width - half)
+                add(page == .numbers ? .symbols : .numbers, row: 2, x: 0, width: wideKey)
+                _ = keys(Array(table[2][0..<3]), as: Key.symbol, row: 2, from: wideKey + gap)
+                x = keys(Array(table[2][3...]), as: Key.symbol, row: 2, from: width - wideKey - 2 * unit - 2 * gap)
+                add(.backspace, row: 2, x: x, width: wideKey)
             }
-            leftRow([(page == .letters ? .numbers : .letters, fnKey), (.globe, fnKey), (.space, half - 2 * fnKey - 2 * gap)], row: 3)
-            rightRow([(.space, half - returnKey - gap), (.returnKey, returnKey)], row: 3)
-            return Layout(width: width, page: page, split: true, height: top + 4 * keyHeight + 3 * rowGap + bottom,
+            add(page == .letters ? .numbers : .letters, row: 3, x: 0, width: fnKey)
+            add(.globe, row: 3, x: fnKey + gap, width: fnKey)
+            add(.space, row: 3, x: 2 * (fnKey + gap), width: leftEnd - 2 * (fnKey + gap))
+            add(.space, row: 3, x: rightStart, width: width - rightStart - returnKey - gap)
+            add(.returnKey, row: 3, x: width - returnKey, width: returnKey)
+            return Layout(width: width, page: page, split: true, height: height,
                           keyHeight: keyHeight, gap: gap, placements: placements, top: top, rowGap: rowGap)
         }
 
@@ -207,7 +230,7 @@ public struct Layout: Sendable, Equatable {
         add(.space, row: 3, x: x, width: space); x += space + gap
         add(.returnKey, row: 3, x: x, width: returnKey)
 
-        return Layout(width: width, page: page, split: false, height: top + 4 * keyHeight + 3 * rowGap + bottom,
+        return Layout(width: width, page: page, split: false, height: height,
                       keyHeight: keyHeight, gap: gap, placements: placements, top: top, rowGap: rowGap)
     }
 
@@ -221,9 +244,34 @@ public struct Layout: Sendable, Equatable {
         return nearest.key
     }
 
-    /// The key's frame; for a key that is placed twice (space on a split keyboard), the first.
+    /// The key's frame; for a key that is placed twice (space, and the middle letters
+    /// on a split keyboard), its own copy: the one on the half it belongs to.
     public func frame(of key: Key) -> CGRect? {
         placements.first { $0.key == key }?.frame
+    }
+
+    /// The key's frame on one half: for a middle letter on a split keyboard, the copy
+    /// under that thumb ("t" on the right is the T beside Y there). Any copy when the
+    /// key is only on the other half.
+    ///
+    ///     layout.frame(of: .letter("t"), on: .right)   // the right half's T
+    public func frame(of key: Key, on side: Side) -> CGRect? {
+        let copies = placements.filter { $0.key == key }
+        return (copies.first { self.side(at: CGPoint(x: $0.frame.midX, y: 0)) == side } ?? copies.first)?.frame
+    }
+
+    /// The stretches of the width that no key in any row covers and that are at least
+    /// `minWidth` wide, left to right: the middle of a split keyboard, the sides of a
+    /// wide one. The keyboard puts its guesses there instead of in a bar on top.
+    public func openColumns(atLeast minWidth: CGFloat) -> [ClosedRange<CGFloat>] {
+        var out: [ClosedRange<CGFloat>] = []
+        var x: CGFloat = 0
+        for frame in placements.map(\.frame).sorted(by: { $0.minX < $1.minX }) {
+            if frame.minX - x >= minWidth { out.append(x...frame.minX) }
+            x = max(x, frame.maxX)
+        }
+        if width - x >= minWidth { out.append(x...width) }
+        return out
     }
 
     /// Whether this width counts as wide (the iPhone Duo's inner screen).

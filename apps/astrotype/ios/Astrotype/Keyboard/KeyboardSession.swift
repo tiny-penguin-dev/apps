@@ -89,7 +89,7 @@ final class KeyboardSession: NSObject, UITextViewDelegate {
     /// the resize after the first layout came too late (Gabriel, 1 Nov 2026).
     func fit(width: CGFloat) {
         guard width > 0 else { return }
-        let height = AstrotypeUI.KeyboardView.height(forWidth: width)
+        let height = keyboard.height(forWidth: width)
         guard keyboard.frame.size.height != height || keyboard.frame.size.width != width else { return }
         keyboard.frame = CGRect(x: 0, y: 0, width: width, height: height)
         target.textView?.reloadInputViews()

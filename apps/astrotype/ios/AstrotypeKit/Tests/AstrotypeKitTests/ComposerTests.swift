@@ -125,15 +125,12 @@ import Testing
         #expect(composer.tick(time: 2).isEmpty)
     }
 
-    @Test func autospaceIsOnlyForSwipedWords() {
+    @Test func autospaceAlsoFollowsPeckedWords() {
         var composer = Synth.composer()
-        let lifted = Synth.taps(&composer, "the")
-        #expect(composer.autospaceDue == nil)
-        #expect(composer.tick(time: lifted + 5).isEmpty)
-        #expect(composer.state.openWord == "the")
-        // A swipe anywhere in the word brings autospace back.
-        Synth.swipe(&composer, "re", id: 2, at: lifted + 5.1)
+        let lifted = Synth.taps(&composer, "a")
         #expect(composer.autospaceDue != nil)
+        let effects = composer.tick(time: lifted + 5)
+        #expect(effects.contains(.insert(" ")))
     }
 
     @Test func autospaceWaitsWhileAFingerIsDown() {

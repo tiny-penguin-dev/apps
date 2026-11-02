@@ -144,6 +144,12 @@ public struct Composer: Sendable {
     /// guess from the bar), so a space pressed now is not a second one, and punctuation
     /// goes before it. Anything else typed clears it.
     private var autoSpaced = false
+    /// When space was last pressed with a space after a word to show for it (the word
+    /// it committed, or the autospace it stood for). A second press soon after makes
+    /// that space a period, like Apple's keyboard.
+    private var lastSpace: TimeInterval?
+    /// How soon a second space counts as a double tap.
+    static let doubleSpaceWindow: TimeInterval = 0.4
     private var contextBefore = ""
     /// A word learned on its commit and reopened by backspace: deleting it all the way
     /// forgets it again.
@@ -209,6 +215,7 @@ public struct Composer: Sendable {
         }
         open[id] = Open(side: side, start: time, points: [point], times: [time], startKey: letter)
         autoSpaced = false
+        lastSpace = nil
         autospaceDue = nil
         effects.append(.haptic(.key))
         refreshState()
@@ -251,7 +258,11 @@ public struct Composer: Sendable {
     public mutating func press(_ key: Key, time: TimeInterval) -> [Effect] {
         var effects: [Effect] = [.haptic(.key)]
         let spaced = autoSpaced
-        if key != .shift { autoSpaced = false }
+        let previousSpace = lastSpace
+        if key != .shift {
+            autoSpaced = false
+            lastSpace = nil
+        }
         switch key {
         case .letter(let c):
             // A letter sent as a press (no touch stream): a tap on its key.
@@ -261,9 +272,16 @@ public struct Composer: Sendable {
         case .space:
             if hasOpenWord {
                 effects += commit(trailing: " ", time: time)
-            } else if spaced {
-                // The keyboard already put a space here: one space between words.
+                lastSpace = time
+            } else if let previousSpace, time - previousSpace < Self.doubleSpaceWindow {
+                // A double tap: the space after the word becomes a period and a space.
+                effects += [.deleteBackward(1), .insert(". ")]
                 effects += leaveFix()
+            } else if spaced {
+                // The keyboard already put a space here: one space between words, and
+                // nothing else.
+                effects += leaveFix()
+                lastSpace = time
             } else {
                 effects.append(.insert(" "))
                 effects += leaveFix()
@@ -301,6 +319,7 @@ public struct Composer: Sendable {
         var effects: [Effect] = [.haptic(.key)]
         let spaced = autoSpaced
         autoSpaced = false
+        lastSpace = nil
         if hasOpenWord {
             effects += commit(trailing: String(character), time: time)
         } else if spaced, Self.closingPunctuation.contains(character) {

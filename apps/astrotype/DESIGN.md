@@ -149,7 +149,8 @@ This is the product, so it gets its own section.
 - **Commit:** space, punctuation, or autospace after 0.9 s with no finger down (the
   delay is a setting, 0.1 to 1.5 s), for swiped and pecked words alike (Gabriel, 2 Nov
   2026: swipe-only broke one-word pecks and "I" or "a"). One space between words: a
-  space pressed right after autospace (or a guess from the bar) wrote one adds nothing,
+  space pressed right after autospace (or a guess from the bar) wrote one adds nothing
+  (and no period); a double tap on space, after autospace or not, makes it ". ";
   punctuation goes before that space ("word. "), and return drops it. On autospace the bar gives a
   tiny squeeze so the person notices the word went in.
 - **Backspace:** with an open word, removes the last piece. Otherwise one character.

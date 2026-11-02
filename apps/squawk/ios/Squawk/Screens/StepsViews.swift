@@ -7,7 +7,7 @@ struct ThingIcon: View {
     enum Kind {
         case ring, check
         case home(HomeAction.Kind)
-        /// "Home devices": lights, plugs, switches and blinds together.
+        /// "Home control": lights, plugs, switches and blinds together.
         case devices
     }
 

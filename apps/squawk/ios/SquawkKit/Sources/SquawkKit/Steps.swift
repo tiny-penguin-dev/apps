@@ -21,7 +21,7 @@ public struct HomeAction: Codable, Identifiable, Hashable, Sendable {
         public var title: String {
             switch self {
             case .light: "Lights"
-            case .scene: "Scene"
+            case .scene: "Home scene"
             case .plug: "Plug or switch"
             case .blinds: "Blinds"
             case .sunrise: "Sunrise lights"

@@ -128,7 +128,7 @@ struct HomeThingEditor: View {
     /// "+ Sunrise lights": the sunrise ends at the wake-up time, so its start moves with
     /// its length.
     var endsAtWakeUp = false
-    /// "Home devices": every light, plug, switch and blind is listed together, and the
+    /// "Home control": every light, plug, switch and blind is listed together, and the
     /// settings follow the kind of the first one picked.
     var anyDevice = false
     var onSave: (HomeAction) -> Void
@@ -140,12 +140,12 @@ struct HomeThingEditor: View {
     @State private var setting = HomeSetting(isOn: true, brightness: 50, warmth: 30, position: 100)
     @State private var sunrise = Sunrise.standard
     @State private var started = false
-    /// In "Home devices", the kind of what's picked so far.
+    /// In "Home control", the kind of what's picked so far.
     @State private var picked: HomeAction.Kind?
 
-    /// What's being set up: the editor's kind, or in "Home devices" the picked one's.
+    /// What's being set up: the editor's kind, or in "Home control" the picked one's.
     private var current: HomeAction.Kind { picked ?? kind }
-    /// "Home devices" before anything is picked: no settings yet.
+    /// "Home control" before anything is picked: no settings yet.
     private var choosing: Bool { anyDevice && existing == nil && selected.isEmpty }
 
     var body: some View {
@@ -170,7 +170,7 @@ struct HomeThingEditor: View {
             .readableWidth()
         }
         .background(Theme.background)
-        .navigationTitle(anyDevice && existing == nil ? "Home devices" : current.title)
+        .navigationTitle(anyDevice && existing == nil ? "Home control" : current.title)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {

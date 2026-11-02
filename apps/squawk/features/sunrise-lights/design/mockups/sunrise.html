@@ -379,7 +379,7 @@ stepdetail:()=>{const st=steps().find(s=>s.off===sel)||steps()[0];return `${stat
 
 addthing:()=>`${screens.stepdetail()}<div class="scrim" data-go="stepdetail"></div><div class="sheet" style="text-align:left;gap:0" role="dialog" aria-label="Add to this step">
   <b class="h2" style="margin-bottom:6px">Add to this step</b>
-  ${[["ring","Ring"],["sunrise","Sunrise lights"],["scene","Scene"],["house","Home devices","Lights, plugs, switches and blinds"]].map(([k,n,sub])=>`<button class="opt" ${k==="sunrise"?'data-act="addsr"':""}>${ic(k)}<b>${n}${sub?`<span class="sub" style="display:block;font-size:13px;font-weight:700">${sub}</span>`:""}</b>${k==="ring"?"":`<span class="pro">PRO</span>`}<span>›</span></button>`).join("")}</div>`,
+  ${[["ring","Ring"],["sunrise","Sunrise lights"],["scene","Home scene"],["house","Home control","Lights, plugs, switches and blinds"]].map(([k,n,sub])=>`<button class="opt" ${k==="sunrise"?'data-act="addsr"':""}>${ic(k)}<b>${n}${sub?`<span class="sub" style="display:block;font-size:13px;font-weight:700">${sub}</span>`:""}</b>${k==="ring"?"":`<span class="pro">PRO</span>`}<span>›</span></button>`).join("")}</div>`,
 
 g3:()=>`${status()}<div class="screen">
   <div class="gtop"><button class="back">‹ Back</button><div class="gdots"><i class="done"></i><i class="done"></i><i class="on"></i><i></i><i></i></div><button class="skipall">All options</button></div>

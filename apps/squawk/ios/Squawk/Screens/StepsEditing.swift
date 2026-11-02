@@ -310,12 +310,12 @@ struct StepDetailView: View {
 struct HomeEditTarget: Identifiable, Hashable {
     var kind: HomeAction.Kind
     var existing: HomeAction?
-    /// "Home devices": pick any light, plug, switch or blind, and the editor follows it.
+    /// "Home control": pick any light, plug, switch or blind, and the editor follows it.
     var anyDevice = false
     var id: String { "\(kind.rawValue)|\(existing?.id.uuidString ?? "new")|\(anyDevice)" }
 }
 
-/// "Add to this step": a ring, Sunrise lights, a scene, or Home devices (lights, plugs,
+/// "Add to this step": a ring, Sunrise lights, a scene, or Home control (lights, plugs,
 /// switches and blinds in one row, so the sheet stays short). Home things need Pro.
 struct AddThingSheet: View {
     enum Choice { case ring, home(HomeAction.Kind), devices }
@@ -339,7 +339,7 @@ struct AddThingSheet: View {
                 row(.home(.sunrise), HomeAction.Kind.sunrise.title, locked: locked)
             }
             row(.home(.scene), HomeAction.Kind.scene.title, locked: locked)
-            row(.devices, "Home devices", subtitle: "Lights, plugs, switches and blinds", locked: locked)
+            row(.devices, "Home control", subtitle: "Lights, plugs, switches and blinds", locked: locked)
         }
         .padding(22)
         .presentationDetents([.medium])

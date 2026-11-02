@@ -39,7 +39,7 @@ struct ThingIcon: View {
         case .home(.light): Theme.sun
         case .home(.sunrise): Theme.accent
         case .home(.scene): Color(light: 0x5B7BD6, dark: 0x9DB4FF)
-        case .home: Theme.ink
+        case .home, .devices: Theme.ink
         }
     }
 }

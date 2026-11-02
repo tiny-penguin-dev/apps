@@ -18,6 +18,9 @@ folder and may come back as an input mode; the sections below describe it.
   two-week trial, the speed test and drills, and the store polish (VoiceOver, text
   sizes, Reduce Motion, the icon, screenshots, the privacy label). What is left before
   the App Store is a pass on a phone and Gabriel's manual steps; phases in `BUILD.md`.
+- **Smart matching, Phase A built:** the keyboard reads the words before the cursor
+  (an English word-pair model from Tatoeba) and a replay harness scores the engine on
+  recorded practice sessions; phases in `features/smart-matching/FEATURE.md`.
 - **v1 model prototype: done** (`ml/`), kept for the practice-session loop. Trained on
   synthetic phrases only: 98.7% of 1–4 word phrases come out exactly right.
 - **v1 handwriting pad:** in the code behind `Flags.handwritingPad`, not shown.

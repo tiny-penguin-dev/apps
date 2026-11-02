@@ -27,9 +27,10 @@ final class KeyboardViewController: UIInputViewController {
         view.backgroundColor = .clear
 
         let fullAccess = hasFullAccess
-        let dictionary = (try? Lexicon.bundled()) ?? Lexicon(entries: [])
+        // English, with its word pairs when they shipped (features/smart-matching).
+        let language = (try? Language.bundled()) ?? Language(code: "en", lexicon: Lexicon(entries: []))
         let (settingsStore, wordStore) = Self.stores(fullAccess: fullAccess)
-        let model = KeyboardModel(composer: Composer(dictionary: dictionary, layout: Layout.qwerty(width: 390)),
+        let model = KeyboardModel(composer: Composer(language: language, layout: Layout.qwerty(width: 390)),
                                   store: settingsStore, wordStore: wordStore)
         let target = ProxyTarget(controller: self)
         model.target = target

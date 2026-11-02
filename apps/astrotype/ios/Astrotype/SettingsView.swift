@@ -146,6 +146,7 @@ struct SettingsView: View {
 
                 SectionLabel("About").padding(.top, Theme.Space.s)
                 Row("Version", subtitle: DeviceInfo.appVersion)
+                Row("Word pairs", subtitle: "Built from Tatoeba's English sentences (tatoeba.org, CC BY 2.0 FR)")
             }
             .padding(.horizontal, Theme.Space.gutter)
             .padding(.bottom, Theme.Space.xl)

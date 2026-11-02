@@ -131,6 +131,14 @@ public struct Composer: Sendable {
         refreshState()
     }
 
+    /// With the language's word pairs: guesses follow the sentence so far.
+    public init(language: Language, learned: LearnedWords = LearnedWords(), layout: Layout, settings: Settings = Settings()) {
+        self.layout = layout
+        self.settings = settings
+        self.matcher = Matcher(language: language, layout: layout, learned: learned)
+        refreshState()
+    }
+
     public var hasOpenWord: Bool { !pieces.isEmpty }
 
     /// What the person taught the keyboard. The host sets it from its store and after
@@ -281,9 +289,11 @@ public struct Composer: Sendable {
     }
 
     /// The text before the cursor, after the host applied the effects or the field
-    /// changed on its own. Sentence starts capitalise from it.
+    /// changed on its own. Sentence starts capitalise from it, and the matcher reads
+    /// the words before the open one from it.
     public mutating func setContext(before: String?) {
         contextBefore = before ?? ""
+        matcher.context = WordContext.words(before: contextBefore)
         refreshState()
     }
 

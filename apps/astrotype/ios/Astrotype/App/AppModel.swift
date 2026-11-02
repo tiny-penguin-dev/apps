@@ -118,6 +118,15 @@ final class AppModel {
         }
     }
 
+    /// Sends the keyboard's memory readings the app has not sent yet (`KeyboardHealth`).
+    /// With sharing off the keyboard writes none, and the metrics go nowhere.
+    func sendKeyboardHealth() {
+        guard let health = environment.keyboardHealth?.load() else { return }
+        let due = health.toSend(after: state.keyboardHealthSent, now: environment.now())
+        guard !due.isEmpty else { return }
+        if let newest = KeyboardHealth.report(due, to: environment.metrics) { state.keyboardHealthSent = newest }
+    }
+
     /// Whether the keyboard has run with Full Access, as far as the app can tell.
     var isFullAccessOn: Bool { extensionStatus?.fullAccess == true }
 

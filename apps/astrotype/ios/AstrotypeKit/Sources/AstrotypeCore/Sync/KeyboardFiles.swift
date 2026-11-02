@@ -14,6 +14,10 @@ public enum KeyboardFiles {
     public static let settings = "settings.json"
     /// What the extension last saw, written for the app (`ExtensionStatus`).
     public static let status = "keyboard-status.json"
+    /// The keyboard's memory per session, written for the app to send (`KeyboardHealth`).
+    public static let health = "keyboard-health.json"
+    /// Whether "Share anonymous usage data" is on, written by the app (`UsageSharing`).
+    public static let usage = "usage-sharing.json"
     /// When the Pro trial started (`TrialStore`).
     public static let trial = "trial.json"
     /// The App Store's last answer about Pro (`ProCache`); the extension's own file only.

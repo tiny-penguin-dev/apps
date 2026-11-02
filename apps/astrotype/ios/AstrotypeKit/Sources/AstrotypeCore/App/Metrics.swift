@@ -1,13 +1,16 @@
 import Foundation
 
 /// Anonymous counts and timings (docs/telemetry.md). The app's live one sends to
-/// Sentry; the keyboard extension never has one. Names are lowercase and dotted;
+/// Sentry; the keyboard extension never has one (its readings go through the app,
+/// `KeyboardHealth`). Names are lowercase and dotted;
 /// attributes are small fixed values, never anything typed.
 public protocol Metrics: Sendable {
     func count(_ name: String, _ attributes: [String: String])
     func duration(_ name: String, seconds: Double)
     /// A current value, like a speed test's words per minute.
     func gauge(_ name: String, value: Double, _ attributes: [String: String])
+    /// An amount of memory in MB, like the keyboard's peak, as a distribution.
+    func size(_ name: String, megabytes: Double)
 }
 
 public extension Metrics {
@@ -47,5 +50,10 @@ public final class RecordingMetrics: Metrics, @unchecked Sendable {
     public func gauge(_ name: String, value: Double, _ attributes: [String: String]) {
         lock.lock(); defer { lock.unlock() }
         entries.append(Entry(name: name, attributes: attributes, seconds: nil, value: value))
+    }
+
+    public func size(_ name: String, megabytes: Double) {
+        lock.lock(); defer { lock.unlock() }
+        entries.append(Entry(name: name, attributes: [:], seconds: nil, value: megabytes))
     }
 }

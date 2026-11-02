@@ -174,7 +174,7 @@ struct SettingsView: View {
                 }
 
                 SectionLabel("Privacy").padding(.top, Theme.Space.s)
-                Row("Share anonymous usage data", subtitle: "Crash reports and counts like how many people turn the keyboard on. Never anything you type.") {
+                Row("Share anonymous usage data", subtitle: "Crash reports from the app and the keyboard, and counts like how many people turn the keyboard on. Never anything you type.") {
                     Toggle("Share anonymous usage data", isOn: $shareUsage).labelsHidden().tint(Theme.mint)
                         .onChange(of: shareUsage) { Telemetry.isEnabled = shareUsage }
                 }

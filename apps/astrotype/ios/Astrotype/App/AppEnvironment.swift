@@ -19,6 +19,8 @@ struct AppEnvironment {
     var keyboardStatus: KeyboardStatusReading
     /// What the keyboard extension last wrote for us (Full Access, its last sync).
     var extensionStatus: ExtensionStatusReading
+    /// The keyboard's memory readings, for the app to send (`KeyboardHealth`); nil in tests.
+    var keyboardHealth: FileKeyboardHealthStore?
     /// Whether this Apple Account has Astrotype Pro (StoreKit).
     var proStore: ProStore
     /// Where the trial's start is written for the keyboard extension to read (the App
@@ -50,6 +52,7 @@ struct AppEnvironment {
             cloudSync: CloudKitSync(),
             keyboardStatus: UserDefaultsKeyboardStatus(),
             extensionStatus: KeyboardFiles.shared(KeyboardFiles.status).map { FileExtensionStatusStore(url: $0) as ExtensionStatusReading } ?? FakeExtensionStatus(),
+            keyboardHealth: KeyboardFiles.shared(KeyboardFiles.health).map { FileKeyboardHealthStore(url: $0) },
             proStore: StoreKitProStore(),
             trialStore: TrialStore(url: dataFile(KeyboardFiles.trial)),
             practiceStore: PracticeStore(folder: KeyboardFiles.own("Practice")),
@@ -94,6 +97,7 @@ struct AppEnvironment {
         cloudSync: CloudSync? = nil,
         keyboardStatus: KeyboardStatusReading = FakeKeyboardStatus(),
         extensionStatus: ExtensionStatusReading = FakeExtensionStatus(),
+        keyboardHealth: FileKeyboardHealthStore? = nil,
         proStore: ProStore = MemoryProStore(),
         trialStore: TrialStore? = nil,
         practiceStore: PracticeStore? = nil,
@@ -108,7 +112,8 @@ struct AppEnvironment {
     ) -> AppEnvironment {
         AppEnvironment(appStateStore: appStateStore, settingsStore: settingsStore, wordStore: wordStore,
                        personalStore: personalStore, cloudSync: cloudSync,
-                       keyboardStatus: keyboardStatus, extensionStatus: extensionStatus, proStore: proStore,
+                       keyboardStatus: keyboardStatus, extensionStatus: extensionStatus,
+                       keyboardHealth: keyboardHealth, proStore: proStore,
                        trialStore: trialStore, practiceStore: practiceStore,
                        sharedWords: sharedWords, sharedUploader: sharedUploader,
                        device: device, metrics: metrics, now: now,
@@ -128,5 +133,9 @@ struct LiveMetrics: Metrics {
 
     func gauge(_ name: String, value: Double, _ attributes: [String: String]) {
         Telemetry.gauge(name, value: value, attributes)
+    }
+
+    func size(_ name: String, megabytes: Double) {
+        Telemetry.size(name, megabytes: megabytes)
     }
 }

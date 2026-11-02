@@ -46,6 +46,20 @@ struct SettingsView: View {
                 }
                 .opacity(model.keyboardSettings.autospace ? 1 : 0.5)
                 .disabled(!model.keyboardSettings.autospace)
+                Row("Real words", subtitle: "How sure the keyboard must be of a real word before it puts one in for letters you tapped. At 100% it only ever types real words.") {
+                    Text("\(Int((model.keyboardSettings.wordStrictness * 100).rounded()))%")
+                        .font(.sw(.heading)).monospacedDigit()
+                }
+                Card {
+                    HStack(spacing: Theme.Space.m) {
+                        Text("As tapped").font(.sw(.small)).foregroundStyle(Theme.muted)
+                        Slider(value: $model.keyboardSettings.wordStrictness, in: 0...1, step: 0.1)
+                            .tint(Theme.accent)
+                            .accessibilityLabel("Real words")
+                            .accessibilityValue("\(Int((model.keyboardSettings.wordStrictness * 100).rounded())) percent")
+                        Text("Words only").font(.sw(.small)).foregroundStyle(Theme.muted)
+                    }
+                }
                 Row("Learned words", subtitle: learnedWordsSubtitle) {
                     Button("Open") { path.append(.learnedWords) }.buttonStyle(.small)
                 }

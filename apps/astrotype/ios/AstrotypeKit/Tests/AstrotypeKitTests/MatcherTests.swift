@@ -153,7 +153,8 @@ import Testing
         Synth.play(&composer, [.tap("h", id: 1, at: 0.00), .tap("t", id: 2, at: 0.06), .tap("e", id: 1, at: 0.30)])
         #expect(composer.state.openWord == "the")
         composer = Synth.composer()
-        // Spaced out, the taps mean what they say.
+        // Spaced out, the taps mean what they say (with no real word put in for them).
+        composer.settings.strictness = 0
         Synth.play(&composer, [.tap("h", id: 1, at: 0.00), .tap("t", id: 2, at: 0.20), .tap("e", id: 1, at: 0.40)])
         #expect(composer.state.openWord == "hte")
     }

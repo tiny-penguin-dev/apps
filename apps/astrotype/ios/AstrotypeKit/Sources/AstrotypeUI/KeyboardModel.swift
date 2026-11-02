@@ -318,6 +318,12 @@ public final class KeyboardModel {
                 composer.learned = words
                 wordStore?.save(words)
                 onWordsChange?(words)
+            case .unlearn(let word):
+                var words = composer.learned
+                words.unlearn(word, at: Date())
+                composer.learned = words
+                wordStore?.save(words)
+                onWordsChange?(words)
             case .notice(let notice):
                 onNotice?(notice)
             case .settled(let word):

@@ -41,6 +41,10 @@ public struct KeyboardSettings: Codable, Sendable, Equatable {
     /// around them) for the app to share with "Send practice sessions"
     /// (features/smart-matching Phase C). Off by default; needs Full Access.
     public var shareCorrections = false
+    /// How sure the keyboard must be of a real word before it writes it in place of
+    /// pecked letters that spell none, 0 to 1 (`Matcher.strictness`). At 1 it only
+    /// ever writes real words.
+    public var wordStrictness = 0.8
 
     public init() {}
 
@@ -59,12 +63,14 @@ public struct KeyboardSettings: Codable, Sendable, Equatable {
         learnsFromYou = try c.decodeIfPresent(Bool.self, forKey: .learnsFromYou) ?? true
         forgetPersonalAt = try c.decodeIfPresent(Date.self, forKey: .forgetPersonalAt)
         shareCorrections = try c.decodeIfPresent(Bool.self, forKey: .shareCorrections) ?? false
+        wordStrictness = try c.decodeIfPresent(Double.self, forKey: .wordStrictness) ?? 0.8
     }
 
     /// `base` with these settings applied; the rest of the engine's settings stay.
     public func composerSettings(from base: Composer.Settings = Composer.Settings()) -> Composer.Settings {
         var out = base
         out.autospaceDelay = autospace ? min(max(autospaceDelay, Self.delayRange.lowerBound), Self.delayRange.upperBound) : nil
+        out.strictness = min(max(wordStrictness, 0), 1)
         return out
     }
 }

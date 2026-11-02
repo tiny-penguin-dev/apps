@@ -299,7 +299,14 @@ with Full Access, in the App Group too through `MirroredWordStore` and
 `MirroredSettingsStore` (words merge per word, settings take the later copy); the app
 reads and writes the App Group copies. A word pecked out tap by tap that neither the
 dictionary nor the person's words know comes back from `Composer` as `.learn` on
-commit; `KeyboardModel` adds it with the time and saves. Learned words are searched by
+commit; `KeyboardModel` adds it with the time and saves. Since 2 Nov 2026 such letters
+only go in when no real word is close enough to them ("Real words" in Settings,
+`Matcher.strictness`, default 80%): otherwise the nearest real word does, with the
+letters behind it on the bar, so only letters typed on purpose are learned. Learned
+words also count their uses (`LearnedWords.Entry.uses`): written once a word ranks as
+rare (`learnedPrior`, -10), each e-fold of uses lifts it 1.5 (`LearnedWords.logPrior`,
+at most -3), and a learned word deleted straight after it went in takes its use back
+(`.unlearn`), forgetting it when none are left. Learned words are searched by
 the matcher as a second small trie beside the dictionary (`Matcher.learnedPrior` stands
 in for their frequency), so a swipe can land on them. Holding a guess on the bar and
 sliding up boosts it, down forgets it (the pill turns mint or coral while held); the

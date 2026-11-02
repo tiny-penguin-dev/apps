@@ -7,10 +7,17 @@ import UIKit
 /// view of a text view, so both run the same engine and the same views. Switches
 /// between the letters, numbers and symbols pages, and shows the settings panel.
 ///
+/// The keys fill the height they are given, with no padding (iOS pads the keyboard).
+/// The guesses sit beside the keys where the layout leaves a column for them (the middle
+/// of a split keyboard, the sides of a wide one), else in a bar on top, which the
+/// person can turn off (`KeyboardSettings.showsBar`).
+///
 ///     let keyboard = KeyboardView(model: model)
 ///     keyboard.onSystemKey = { key in if key == .globe { advanceToNextInputMode() } }
 public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFeedback {
     public static let barHeight: CGFloat = 44
+    /// The narrowest open column beside the keys that takes the guesses.
+    public static let columnWidth: CGFloat = 96
 
     public let model: KeyboardModel
     public let bar = BarView()
@@ -21,12 +28,25 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
     public var onHeightChange: ((CGFloat) -> Void)?
 
     public private(set) var page: Layout.Page = .letters {
-        didSet { if page != oldValue { surface.layout = pageLayout(width: model.layout.width, maxHeight: fittedKeysHeight) } }
+        didSet { if page != oldValue { surface.layout = pageLayout(width: model.layout.width, height: keysHeight) } }
     }
 
-    /// The keys' height when the view is shorter than the layout wants (the system
-    /// granted less), nil when the natural layout fits.
-    private var fittedKeysHeight: CGFloat?
+    /// The height the keys fill: the view's, less the bar when it is on top.
+    private var keysHeight: CGFloat?
+    /// Where the guesses are now.
+    private var place: BarPlace = .top
+    /// The height last asked of the host, to tell it when that changes.
+    private var asked: CGFloat = 0
+
+    /// Where the guesses go.
+    enum BarPlace: Equatable {
+        /// A bar above the keys.
+        case top
+        /// A column beside the keys, over this stretch of the width.
+        case column(ClosedRange<CGFloat>)
+        /// Nowhere: no room beside the keys and the bar is off.
+        case hidden
+    }
 
     private var panel: SettingsPanelView?
     /// Whether the host can play haptics at all: the extension only with Full Access
@@ -37,14 +57,10 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
     private let keyHaptic = UIImpactFeedbackGenerator(style: .soft)
     private let commitHaptic = UIImpactFeedbackGenerator(style: .light)
 
-    /// The height for a width: the bar plus the keys.
-    public static func height(forWidth width: CGFloat) -> CGFloat {
-        barHeight + Layout.qwerty(width: width).height
-    }
-
     public init(model: KeyboardModel) {
         self.model = model
         super.init(frame: CGRect(x: 0, y: 0, width: model.layout.width, height: Self.barHeight + model.layout.height))
+        asked = height
         backgroundColor = Theme.ui(.kb)
         addSubview(bar)
         addSubview(surface)
@@ -68,44 +84,81 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
 
     public var enableInputClicksWhenVisible: Bool { true }
 
-    /// The natural height for the current width: the bar plus the keys as they want to be.
-    public var height: CGFloat { Self.barHeight + Layout.qwerty(width: model.layout.width).height }
+    /// The height to ask the host for at a width: the keys at Apple's size, plus the
+    /// bar when it sits on top.
+    public func height(forWidth width: CGFloat) -> CGFloat {
+        let keys = Layout.qwerty(width: width, split: model.splitOnWide)
+        return barPlace(for: keys) == .top ? Self.barHeight + keys.height : keys.height
+    }
+
+    /// The height to ask for at the current width.
+    public var height: CGFloat { height(forWidth: model.layout.width) }
+
+    /// The widest column the keys leave open, else the bar on top if it is on.
+    func barPlace(for layout: Layout) -> BarPlace {
+        let columns = layout.openColumns(atLeast: Self.columnWidth)
+        if let column = columns.max(by: { $0.upperBound - $0.lowerBound < $1.upperBound - $1.lowerBound }) {
+            return .column(column)
+        }
+        return model.keyboardSettings.showsBar ? .top : .hidden
+    }
 
     public override var intrinsicContentSize: CGSize {
         CGSize(width: UIView.noIntrinsicMetric, height: height)
     }
 
-    /// Lays the bar and the keys out for the view's size. When the view is shorter
-    /// than the natural layout (the system granted less height), the keys shrink so
-    /// the bar and every row stay on screen; when it is taller, the keys sit at the
-    /// bottom. `height` stays the natural height, which hosts ask the system for.
+    /// Lays the guesses and the keys out for the view's size: the keys fill whatever
+    /// height the host granted (shrinking or growing), less the bar when it is on top.
+    /// `height` stays the height to ask for, which hosts pass to the system.
     public override func layoutSubviews() {
         super.layoutSubviews()
         let width = bounds.width
         guard width > 0 else { return }
         let split = model.splitOnWide
         let natural = Layout.qwerty(width: width, split: split)
-        let room = bounds.height - Self.barHeight
-        let fitted: CGFloat? = room > 0 && room < natural.height ? room : nil
-        if model.layout.width != width || model.layout.split != natural.split || fitted != fittedKeysHeight {
-            let was = height
-            fittedKeysHeight = fitted
-            model.layout = Layout.qwerty(width: width, split: split, maxHeight: fitted)
-            surface.layout = pageLayout(width: width, maxHeight: fitted)
-            if height != was {
-                invalidateIntrinsicContentSize()
-                onHeightChange?(height)
-            }
+        let place = barPlace(for: natural)
+        let barOnTop = place == .top
+        let room = bounds.height - (barOnTop ? Self.barHeight : 0)
+        let fill: CGFloat? = room > 0 ? room : nil
+        if model.layout.width != width || model.layout.split != natural.split || fill != keysHeight || place != self.place {
+            keysHeight = fill
+            self.place = place
+            model.layout = Layout.qwerty(width: width, split: split, height: fill)
+            surface.layout = pageLayout(width: width, height: fill)
         }
-        let total = Self.barHeight + model.layout.height
-        let top = max(0, bounds.height - total)
-        bar.frame = CGRect(x: 0, y: top, width: width, height: Self.barHeight)
-        surface.frame = CGRect(x: 0, y: top + Self.barHeight, width: width, height: model.layout.height)
-        panel?.frame = surface.frame
+        let wanted = height
+        if wanted != asked {
+            asked = wanted
+            invalidateIntrinsicContentSize()
+            onHeightChange?(wanted)
+        }
+        let keys = model.layout.height
+        let top = max(0, bounds.height - keys - (barOnTop ? Self.barHeight : 0))
+        switch place {
+        case .top:
+            bar.isHidden = false
+            bar.axis = .horizontal
+            bar.frame = CGRect(x: 0, y: top, width: width, height: Self.barHeight)
+            surface.frame = CGRect(x: 0, y: top + Self.barHeight, width: width, height: keys)
+        case .column(let column):
+            surface.frame = CGRect(x: 0, y: top, width: width, height: keys)
+            bar.isHidden = false
+            bar.axis = .vertical
+            bar.frame = CGRect(x: column.lowerBound, y: top, width: column.upperBound - column.lowerBound, height: keys)
+            // Over the keys' open column; touches between the guesses fall through.
+            bringSubviewToFront(bar)
+        case .hidden:
+            bar.isHidden = true
+            surface.frame = CGRect(x: 0, y: top, width: width, height: keys)
+        }
+        if let panel {
+            panel.frame = surface.frame
+            bringSubviewToFront(panel)
+        }
     }
 
-    private func pageLayout(width: CGFloat, maxHeight: CGFloat?) -> Layout {
-        Layout.qwerty(width: width, page: page, split: model.splitOnWide, maxHeight: maxHeight)
+    private func pageLayout(width: CGFloat, height: CGFloat?) -> Layout {
+        Layout.qwerty(width: width, page: page, split: model.splitOnWide, height: height)
     }
 
     /// What the bar says when idle, unless the host set its own note.
@@ -122,7 +175,7 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         surface.spaceSlideEnabled = model.keyboardSettings.spaceSlide
         surface.backspaceSwipeEnabled = model.keyboardSettings.backspaceSwipe
         panel?.allowsSplit = model.entitlement.allows(.splitLayout)
-        if model.layout.split != (model.splitOnWide && model.layout.isWide) { setNeedsLayout() }
+        if model.layout.split != (model.splitOnWide && model.layout.isWide) || barPlace(for: model.layout) != place { setNeedsLayout() }
     }
 
     private func play(_ haptic: Composer.Haptic) {

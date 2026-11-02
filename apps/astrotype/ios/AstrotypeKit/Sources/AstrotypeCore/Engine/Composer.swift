@@ -164,9 +164,9 @@ public struct Composer: Sendable {
         set { matcher.learned = newValue }
     }
 
-    /// Autospace is for swiped words: a word pecked out tap by tap waits for space, so
-    /// a pause between letters never cuts it short (Gabriel, 1 Nov 2026).
-    private var autospaceApplies: Bool { pieces.contains { !$0.isTap } }
+    /// Autospace is for every word, swiped or pecked: a pecked-only rule broke one-word
+    /// pecks and one-letter words like "I" and "a" (Gabriel, 2 Nov 2026).
+    private var autospaceApplies: Bool { !pieces.isEmpty }
 
     // MARK: Touches
 
@@ -485,7 +485,7 @@ public struct Composer: Sendable {
         let source: SettledWord.Source = last.fixedFrom != nil ? .fixed : last.pieces.allSatisfy(\.isTap) ? .tapped : .swiped
         var touches: [SettledWord.Touch] = []
         func touch(_ letter: Character, _ piece: Piece, weight: Float) {
-            guard let frame = layout.frame(of: .letter(letter)), frame.width > 0, frame.height > 0 else { return }
+            guard let frame = layout.frame(of: .letter(letter), on: piece.side), frame.width > 0, frame.height > 0 else { return }
             let landed = piece.landing ?? piece.points.first ?? CGPoint(x: frame.midX, y: frame.midY)
             let dx = (landed.x - frame.midX) / frame.width
             let dy = (landed.y - frame.midY) / frame.height
@@ -563,7 +563,7 @@ public struct Composer: Sendable {
     /// key's centre. Unchanged while nothing is learned.
     static func corrected(_ point: CGPoint, side: Side, layout: Layout, personal: PersonalIndex) -> CGPoint {
         guard !personal.isEmpty, let letter = layout.key(at: point)?.character,
-              let frame = layout.frame(of: .letter(letter)) else { return point }
+              let frame = layout.frame(of: .letter(letter), on: layout.side(at: point)) else { return point }
         let offset = personal.offset(for: letter, side: side)
         guard offset != .zero else { return point }
         return CGPoint(x: point.x - offset.dx * frame.width, y: point.y - offset.dy * frame.height)

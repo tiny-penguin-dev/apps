@@ -40,6 +40,7 @@ import Testing
         #expect(!read.splitOnWide)
         #expect(read.showsBar)
         #expect(!read.underlinesWord)
+        #expect(!read.splitExtraLetters)
         #expect(read.haptics)
     }
 

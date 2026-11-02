@@ -78,6 +78,9 @@ public struct Layout: Sendable, Equatable {
     public let page: Page
     /// The halves pulled apart to the screen's edges (wide screens only).
     public let split: Bool
+    /// On a split keyboard, each half also has the next key past Apple's: Y H B on the
+    /// left, T F C on the right (an option, Gabriel, 2 Nov 2026).
+    public let extraLetters: Bool
     /// The keyboard's height: the keys fill it edge to edge, with no padding of their
     /// own (iOS pads the keyboard itself). The bar is not part of it.
     public let height: CGFloat
@@ -100,19 +103,22 @@ public struct Layout: Sendable, Equatable {
     /// keyboard, so ours lines up with Apple's (Gabriel, 2 Nov 2026).
     ///
     /// `split` pulls the two halves apart on a wide screen, each under a thumb, with the
-    /// space bar in both and the middle letters on both halves (each half reaches one
-    /// key past the middle: T Y, G H and V B are on both), so a thumb can swipe across
-    /// the middle the way it would on one keyboard. `height` makes the keys fill that
+    /// space bar in both and, like Apple's, G and V on both halves. `extraLetters`
+    /// adds one more key past the middle to each half (Y H B left, T F C right). `height` makes the keys fill that
     /// height (the room the system granted): they shrink to fit or grow up to a limit,
     /// and past the limit they sit at the bottom.
-    public static func qwerty(width: CGFloat, page: Page = .letters, split: Bool = false, height fill: CGFloat? = nil) -> Layout {
+    public static func qwerty(width: CGFloat, page: Page = .letters, split: Bool = false, extraLetters: Bool = false,
+                              height fill: CGFloat? = nil) -> Layout {
         let gap = min(8, max(4, (6 * width / 390).rounded()))
         let wide = width >= wideWidth
         let split = split && wide
+        let extra = split && extraLetters
         var unit = min(58, ((width - 9 * gap) / 10).rounded(.down))
         if split {
-            // Two halves of 6.5 and 6 keys with the middle left over.
-            unit = min(unit, ((width - splitMiddle - 10.5 * gap) / 12.5).rounded(.down))
+            // Two halves of 5.5 keys (6.5 with the extra letters), the middle left over.
+            unit = extraLetters
+                ? min(unit, ((width - splitMiddle - 11 * gap) / 13).rounded(.down))
+                : min(unit, ((width - splitMiddle - 9 * gap) / 11).rounded(.down))
         }
 
         // Apple's rows: 42 pt keys 14 pt apart on a wide screen, 44 and 11 on a phone.
@@ -156,15 +162,16 @@ public struct Layout: Sendable, Equatable {
         var x: CGFloat
 
         if split {
-            // Each half is a window on the whole keyboard, so a swipe has the same shape
-            // as on one keyboard: the left half from Q to Y, A to H and Z to B, the
-            // right from T to P, G to L and V to M. Each letter's own copy is placed
-            // first (`frame(of:)` finds it), the copies past the middle after.
+            // Apple's split: each half is a window on the whole keyboard, so a swipe has
+            // the same shape as on one keyboard. The left half is Q to T, A to G and Z to
+            // V; the right is Y to P, G to L and V to M, so G and V are on both (Gabriel,
+            // 2 Nov 2026: exactly like Apple's). Each letter's own copy is placed first
+            // (`frame(of:)` finds it), the right half's G and V after.
             let pitch = unit + gap
-            let leftEnd = 5.5 * pitch + unit
+            let leftEnd = (extra ? 5.5 : 4.5) * pitch + unit
             let backspaceX = 8.5 * pitch
             let rightShift = width - max(9 * pitch + unit, backspaceX + wideKey)
-            let rightStart = 4 * pitch + rightShift
+            let rightStart = (extra ? 3.5 : 4.5) * pitch + rightShift
             switch page {
             case .letters:
                 func letter(_ row: Int, _ column: Int, shift dx: CGFloat) {
@@ -180,8 +187,11 @@ public struct Layout: Sendable, Equatable {
                 for c in 5..<9 { letter(1, c, shift: rightShift) }
                 for c in 4..<7 { letter(2, c, shift: rightShift) }
                 add(.backspace, row: 2, x: backspaceX + rightShift, width: wideKey)
-                letter(0, 5, shift: 0); letter(1, 5, shift: 0); letter(2, 4, shift: 0)
-                letter(0, 4, shift: rightShift); letter(1, 4, shift: rightShift); letter(2, 3, shift: rightShift)
+                letter(1, 4, shift: rightShift); letter(2, 3, shift: rightShift)
+                if extra {
+                    letter(0, 5, shift: 0); letter(1, 5, shift: 0); letter(2, 4, shift: 0)
+                    letter(0, 4, shift: rightShift); letter(1, 3, shift: rightShift); letter(2, 2, shift: rightShift)
+                }
             case .numbers, .symbols:
                 let table = page == .numbers ? numberRows : symbolRows
                 let half = 5 * unit + 4 * gap
@@ -199,7 +209,7 @@ public struct Layout: Sendable, Equatable {
             add(.space, row: 3, x: 2 * (fnKey + gap), width: leftEnd - 2 * (fnKey + gap))
             add(.space, row: 3, x: rightStart, width: width - rightStart - returnKey - gap)
             add(.returnKey, row: 3, x: width - returnKey, width: returnKey)
-            return Layout(width: width, page: page, split: true, height: height,
+            return Layout(width: width, page: page, split: true, extraLetters: extra, height: height,
                           keyHeight: keyHeight, gap: gap, placements: placements, top: top, rowGap: rowGap)
         }
 
@@ -230,7 +240,7 @@ public struct Layout: Sendable, Equatable {
         add(.space, row: 3, x: x, width: space); x += space + gap
         add(.returnKey, row: 3, x: x, width: returnKey)
 
-        return Layout(width: width, page: page, split: false, height: height,
+        return Layout(width: width, page: page, split: false, extraLetters: false, height: height,
                       keyHeight: keyHeight, gap: gap, placements: placements, top: top, rowGap: rowGap)
     }
 

@@ -516,11 +516,18 @@ final class KeyElement: UIAccessibilityElement {
     }
 }
 
-/// One key: a rounded face with a letter or a symbol.
+/// One key: a rounded face with a letter, a symbol or an SF Symbol, drawn like Apple's
+/// keyboard (its colours, type and glyphs) so it feels native next to it.
 final class KeyView: UIView {
     let key: Key
     let label = UILabel()
-    var shifted = false { didSet { label.text = text } }
+    let icon = UIImageView()
+    var shifted = false {
+        didSet {
+            label.text = text
+            if key == .shift { icon.image = symbol }
+        }
+    }
 
     private let spaceLabel: String
 
@@ -532,17 +539,21 @@ final class KeyView: UIView {
         layer.cornerRadius = Theme.Radius.key
         layer.cornerCurve = .continuous
         layer.shadowColor = UIColor.black.cgColor
-        layer.shadowOpacity = 0.25
+        layer.shadowOpacity = 0.2
         layer.shadowOffset = CGSize(width: 0, height: 1)
         layer.shadowRadius = 0
-        backgroundColor = Theme.ui(key.isFunction ? .keyDark : .key)
+        backgroundColor = restColor
         label.textAlignment = .center
-        label.textColor = Theme.ui(key == .space ? .muted : .keyInk)
-        label.font = Theme.uiFont(size: fontSize, weight: key == .space ? .heavy : key.isFunction ? .medium : .bold)
+        label.textColor = inkColor
+        label.font = UIFont.systemFont(ofSize: fontSize, weight: .regular)
         label.adjustsFontSizeToFitWidth = true
         label.minimumScaleFactor = 0.6
         label.text = text
         addSubview(label)
+        icon.contentMode = .center
+        icon.tintColor = Theme.ui(.keyInk)
+        icon.image = symbol
+        addSubview(icon)
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
@@ -550,29 +561,42 @@ final class KeyView: UIView {
     override func layoutSubviews() {
         super.layoutSubviews()
         label.frame = bounds.insetBy(dx: 2, dy: 0)
+        icon.frame = bounds
     }
+
+    private var restColor: UIColor { Theme.ui(key.isFunction ? .keyDark : .key) }
+    private var inkColor: UIColor { Theme.ui(key == .space ? .muted : .keyInk) }
 
     private var fontSize: CGFloat {
         switch key {
-        case .letter, .symbol: 21
-        case .space: 13
-        case .shift, .backspace: 18
-        default: 14
+        case .letter, .symbol: 23
+        case .space: 15
+        default: 16
         }
+    }
+
+    /// Apple's glyphs for the keys that have one.
+    private var symbol: UIImage? {
+        let name: String
+        switch key {
+        case .shift: name = shifted ? "shift.fill" : "shift"
+        case .backspace: name = "delete.left"
+        case .globe: name = "globe"
+        case .returnKey: name = "return.left"
+        default: return nil
+        }
+        return UIImage(systemName: name, withConfiguration: UIImage.SymbolConfiguration(pointSize: 18, weight: .regular))
     }
 
     private var text: String {
         switch key {
         case .letter(let c): shifted ? String(c).uppercased() : String(c)
         case .symbol(let c): String(c)
-        case .shift: "⇧"
-        case .backspace: "⌫"
         case .numbers: "123"
         case .symbols: "#+="
         case .letters: "ABC"
-        case .globe: "🌐"
         case .space: spaceLabel
-        case .returnKey: "return"
+        case .shift, .backspace, .globe, .returnKey: ""
         }
     }
 
@@ -580,6 +604,7 @@ final class KeyView: UIView {
     func flash(side: Side) {
         backgroundColor = Theme.ui(side == .left ? .left : .right)
         label.textColor = .white
+        icon.tintColor = .white
         guard !UIAccessibility.isReduceMotionEnabled else { return }
         UIView.animate(withDuration: Theme.Motion.keyHit, delay: 0, usingSpringWithDamping: 0.6, initialSpringVelocity: 0) {
             self.transform = CGAffineTransform(scaleX: 1.06, y: 1.06)
@@ -593,8 +618,9 @@ final class KeyView: UIView {
 
     func unflash() {
         UIView.animate(withDuration: 0.25) {
-            self.backgroundColor = Theme.ui(self.key.isFunction ? .keyDark : .key)
-            self.label.textColor = Theme.ui(self.key == .space ? .muted : .keyInk)
+            self.backgroundColor = self.restColor
+            self.label.textColor = self.inkColor
+            self.icon.tintColor = Theme.ui(.keyInk)
             self.transform = .identity
         }
     }

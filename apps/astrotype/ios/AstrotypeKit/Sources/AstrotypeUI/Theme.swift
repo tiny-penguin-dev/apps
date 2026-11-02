@@ -27,11 +27,13 @@ public enum Theme {
             case .sunInk: (0x3A2600, 0x3A2600)
             case .mint: (0x2FBF96, 0x45D3AA)
             case .ice: (0xD9EDF3, 0x1D3240)
-            case .key: (0xFFFFFF, 0x2A3A4A)
-            case .keyDark: (0xC9D6DE, 0x1C2834)
-            case .keyInk: (0x1E2945, 0xEEF4F8)
-            case .kb: (0xDCE6EC, 0x131E29)
-            case .keyPressed: (0xE4EDF2, 0x3B4D5F)
+            // The keys are Apple's keyboard's (iOS 26), so ours sits beside it unnoticed
+            // (Gabriel, 2 Nov 2026); dark measured from his screenshots.
+            case .key: (0xFFFFFF, 0x464646)
+            case .keyDark: (0xDCDDE1, 0x404040)
+            case .keyInk: (0x000000, 0xFFFFFF)
+            case .kb: (0xD1D3D9, 0x1F1F1F)
+            case .keyPressed: (0xC4C6CC, 0x6B6B6B)
             }
         }
     }
@@ -108,7 +110,7 @@ public enum Theme {
         public static let lg: CGFloat = 28
         public static let md: CGFloat = 18
         public static let sm: CGFloat = 12
-        public static let key: CGFloat = 7
+        public static let key: CGFloat = 8.5
     }
 
     public enum Motion {

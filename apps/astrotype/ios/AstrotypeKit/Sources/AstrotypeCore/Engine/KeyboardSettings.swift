@@ -31,6 +31,10 @@ public struct KeyboardSettings: Codable, Sendable, Equatable {
     /// phone). Off gives the keys the bar's height. Where the keys leave room (split,
     /// or a wide screen) the guesses sit beside them either way (Gabriel, 2 Nov 2026).
     public var showsBar = true
+    /// In other apps, show the word being typed underlined (as marked text) instead of
+    /// as plain text. Off by default: marked text put spaces before words (Gabriel kept
+    /// it as a choice, 2 Nov 2026). The app's own fields always underline.
+    public var underlinesWord = false
     /// Learn the person's words, word pairs and where their thumbs land, on the device
     /// (features/smart-matching Phase B, "Learns from you").
     public var learnsFromYou = true
@@ -60,6 +64,7 @@ public struct KeyboardSettings: Codable, Sendable, Equatable {
         backspaceSwipe = try c.decodeIfPresent(Bool.self, forKey: .backspaceSwipe) ?? true
         splitOnWide = try c.decodeIfPresent(Bool.self, forKey: .splitOnWide) ?? false
         showsBar = try c.decodeIfPresent(Bool.self, forKey: .showsBar) ?? true
+        underlinesWord = try c.decodeIfPresent(Bool.self, forKey: .underlinesWord) ?? false
         learnsFromYou = try c.decodeIfPresent(Bool.self, forKey: .learnsFromYou) ?? true
         forgetPersonalAt = try c.decodeIfPresent(Date.self, forKey: .forgetPersonalAt)
         shareCorrections = try c.decodeIfPresent(Bool.self, forKey: .shareCorrections) ?? false

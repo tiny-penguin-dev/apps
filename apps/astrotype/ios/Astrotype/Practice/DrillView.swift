@@ -53,7 +53,7 @@ struct DrillView: View {
         .toolbarBackground(.hidden, for: .navigationBar)
         .onAppear {
             guard session == nil else { return }
-            let session = KeyboardSession(settingsStore: MemorySettingsStore(model.keyboardSettings), learned: model.learnedWords)
+            let session = KeyboardSession(settingsStore: MemorySettingsStore(model.keyboardSettings), learned: model.learnedWords, personal: model.personal)
             session.apply(entitlement: model.entitlement)
             session.onWordsChange = { words in model.learnedWordsChanged(words) }
             session.onCommit = { word in committed(word) }

@@ -11,6 +11,9 @@ struct AppEnvironment {
     var settingsStore: SettingsStore
     /// The learned words, in the App Group for the same reason.
     var wordStore: WordStore
+    /// What the keyboard learned from the person's typing, in the App Group: the
+    /// keyboard writes it (with Full Access), the app shows it, syncs it and forgets it.
+    var personalStore: PersonalStore
     /// iCloud, nil when the app is not to sync (tests).
     var cloudSync: CloudSync?
     var keyboardStatus: KeyboardStatusReading
@@ -39,6 +42,7 @@ struct AppEnvironment {
             appStateStore: UserDefaultsAppStateStore(),
             settingsStore: liveSettingsStore(),
             wordStore: FileWordStore(url: dataFile(KeyboardFiles.words)),
+            personalStore: FilePersonalStore(url: dataFile(KeyboardFiles.personal)),
             cloudSync: CloudKitSync(),
             keyboardStatus: UserDefaultsKeyboardStatus(),
             extensionStatus: KeyboardFiles.shared(KeyboardFiles.status).map { FileExtensionStatusStore(url: $0) as ExtensionStatusReading } ?? FakeExtensionStatus(),
@@ -52,7 +56,7 @@ struct AppEnvironment {
             now: { Date() },
             appVersion: DeviceInfo.appVersion,
             backup: { label in
-                let files = [dataFile(KeyboardFiles.words), dataFile(KeyboardFiles.settings)]
+                let files = [dataFile(KeyboardFiles.words), dataFile(KeyboardFiles.settings), dataFile(KeyboardFiles.personal)]
                 try? Backup.make(of: files, into: KeyboardFiles.own("Backups"), label: label)
             },
             openSettings: {
@@ -81,6 +85,7 @@ struct AppEnvironment {
         appStateStore: AppStateStore = MemoryAppStateStore(),
         settingsStore: SettingsStore = MemorySettingsStore(),
         wordStore: WordStore = MemoryWordStore(),
+        personalStore: PersonalStore = MemoryPersonalStore(),
         cloudSync: CloudSync? = nil,
         keyboardStatus: KeyboardStatusReading = FakeKeyboardStatus(),
         extensionStatus: ExtensionStatusReading = FakeExtensionStatus(),
@@ -95,7 +100,8 @@ struct AppEnvironment {
         backup: @escaping (String) -> Void = { _ in },
         openSettings: @escaping () -> Void = {}
     ) -> AppEnvironment {
-        AppEnvironment(appStateStore: appStateStore, settingsStore: settingsStore, wordStore: wordStore, cloudSync: cloudSync,
+        AppEnvironment(appStateStore: appStateStore, settingsStore: settingsStore, wordStore: wordStore,
+                       personalStore: personalStore, cloudSync: cloudSync,
                        keyboardStatus: keyboardStatus, extensionStatus: extensionStatus, proStore: proStore,
                        trialStore: trialStore, practiceStore: practiceStore, practiceUploader: practiceUploader,
                        device: device, metrics: metrics, now: now,

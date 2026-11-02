@@ -17,8 +17,12 @@ public struct Piece: Sendable, Equatable {
     public var keys: [Character]
     /// A tap: lifted within the tap threshold of where it landed, on one key.
     public var isTap: Bool
+    /// Where the finger first touched, as the screen reported it; `points` are read
+    /// through the person's thumb offsets (`PersonalIndex`). Nil when unknown (a piece made by hand).
+    public var landing: CGPoint?
 
-    public init(id: Int, side: Side, start: TimeInterval, end: TimeInterval, points: [CGPoint], times: [TimeInterval] = [], keys: [Character], isTap: Bool) {
+    public init(id: Int, side: Side, start: TimeInterval, end: TimeInterval, points: [CGPoint], times: [TimeInterval] = [], keys: [Character], isTap: Bool,
+                landing: CGPoint? = nil) {
         self.id = id
         self.side = side
         self.start = start
@@ -27,6 +31,7 @@ public struct Piece: Sendable, Equatable {
         self.times = times
         self.keys = keys
         self.isTap = isTap
+        self.landing = landing
     }
 
     /// A tap on one letter.

@@ -2,7 +2,7 @@
 import Foundation
 import AstrotypeCore
 
-/// Keeps a `KeyboardModel`'s words and settings in step with iCloud (BUILD.md "Data"):
+/// Keeps a `KeyboardModel`'s words, settings and personal model in step with iCloud (BUILD.md "Data"):
 /// one round of `Syncer.sync` on demand, and a short while after the words or settings
 /// change here. Used by the keyboard extension when Full Access is on; the app syncs
 /// through its own model.
@@ -30,6 +30,11 @@ public final class SyncController {
             before?(words)
             self?.pushSoon()
         }
+        let beforePersonal = model.onPersonalChange
+        model.onPersonalChange = { [weak self] personal in
+            beforePersonal?(personal)
+            self?.pushPersonalSoon()
+        }
         let beforeSettings = model.onSettingsChange
         model.onSettingsChange = { [weak self] settings in
             beforeSettings?(settings)
@@ -44,13 +49,15 @@ public final class SyncController {
         pending = nil
         guard !running else { again = true; return }
         running = true
-        let local = SyncSnapshot(words: model.learnedWords, settings: model.keyboardSettings, settingsChanged: model.settingsChanged)
+        let local = SyncSnapshot(words: model.learnedWords, settings: model.keyboardSettings, settingsChanged: model.settingsChanged,
+                                 personal: model.personalStore == nil ? nil : model.personal.model)
         Task { [weak self] in
             guard let self else { return }
             do {
                 let merged = try await Syncer.sync(local: local, cloud: cloud)
                 self.model.learnedWords = merged.words
                 self.model.adopt(merged.settings, changed: merged.settingsChanged)
+                if let personal = merged.personal { self.model.adoptPersonal(personal) }
                 self.onResult?(.success(Date()))
             } catch {
                 self.onResult?(.failure(error))
@@ -60,6 +67,23 @@ public final class SyncController {
                 self.again = false
                 self.sync()
             }
+        }
+    }
+
+    /// What the keyboard learns changes with every word: it goes up at most once every
+    /// `personalDelay`, not after every word.
+    public var personalDelay: TimeInterval = 120
+    private var personalPending = false
+
+    private func pushPersonalSoon() {
+        guard !personalPending else { return }
+        personalPending = true
+        Task { [weak self] in
+            guard let delay = self?.personalDelay else { return }
+            try? await Task.sleep(for: .seconds(delay))
+            guard let self else { return }
+            self.personalPending = false
+            self.sync()
         }
     }
 

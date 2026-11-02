@@ -31,6 +31,9 @@ final class AppModel {
     }
     /// What the keyboard learned from the person, as last read from the shared store.
     private(set) var learnedWords: LearnedWords
+    /// What the keyboard learned from the person's typing in other apps, as last read
+    /// from the shared store (features/smart-matching Phase B).
+    private(set) var personal: PersonalModel
     /// What the keyboard extension last told us (nil until it has run with Full Access).
     private(set) var extensionStatus: ExtensionStatus?
 
@@ -72,6 +75,7 @@ final class AppModel {
         self.screen = state.onboardingDone ? .home : .hello
         self.keyboardSettings = environment.settingsStore.load() ?? KeyboardSettings()
         self.learnedWords = environment.wordStore.load() ?? LearnedWords()
+        self.personal = environment.personalStore.load() ?? PersonalModel()
         environment.appStateStore.save(state)
         shareTrial()
         refreshKeyboardStatus()
@@ -307,9 +311,37 @@ final class AppModel {
 
     // MARK: Learned words
 
-    /// Re-reads the shared words (the keyboard may have learned some since).
+    /// Re-reads the shared words and what the keyboard learned (it may have learned
+    /// some since).
     func reloadWords() {
         if let words = environment.wordStore.load() { learnedWords = words }
+        if let model = environment.personalStore.load() { personal = model }
+    }
+
+    // MARK: Learns from you
+
+    /// "Learns from you" (Settings → Typing): the keyboard learns the person's words,
+    /// pairs and thumbs, and uses them. It follows the settings to the keyboard.
+    var learnsFromYou: Bool {
+        get { keyboardSettings.learnsFromYou }
+        set { keyboardSettings.learnsFromYou = newValue }
+    }
+
+    /// What the keyboard knows, for the line under the switch.
+    var personalSummary: PersonalModel.Summary { personal.summary }
+
+    /// "Forget everything": the shared copy is cleared now, and the forget travels with
+    /// the settings to the keyboard and through iCloud to the other devices. Counted as
+    /// `personal.reset`.
+    func forgetPersonal() {
+        let date = now
+        var model = personal
+        model.forget(at: date)
+        personal = model
+        environment.personalStore.save(model)
+        keyboardSettings.forgetPersonalAt = date
+        environment.metrics.count("personal.reset")
+        sync()
     }
 
     /// The practice keyboard learned, boosted or forgot something.
@@ -341,11 +373,16 @@ final class AppModel {
         let before = syncState
         syncState = .syncing
         let local = SyncSnapshot(words: learnedWords, settings: keyboardSettings,
-                                 settingsChanged: environment.settingsStore.lastChanged() ?? .distantPast)
+                                 settingsChanged: environment.settingsStore.lastChanged() ?? .distantPast,
+                                 personal: personal)
         Task { @MainActor in
             do {
                 let merged = try await Syncer.sync(local: local, cloud: cloud)
                 saveWords(merged.words)
+                if let model = merged.personal, model != personal {
+                    personal = model
+                    environment.personalStore.save(model)
+                }
                 if merged.settingsChanged > local.settingsChanged { keyboardSettings = merged.settings }
                 syncFailureCounted = false
                 syncState = isFullAccessOn || before != .needsFullAccess ? .idle(last: now) : .needsFullAccess

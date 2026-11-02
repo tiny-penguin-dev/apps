@@ -25,8 +25,10 @@ are in the app's Settings → Privacy.
 
 - Anything typed with the keyboard, in any app. The extension sends no data anywhere and
   works without Full Access (PRODUCT.md).
-- Learned words and keyboard settings. They sync through the person's own iCloud
-  (CloudKit private database) when Full Access is on; Tiny Penguin never sees them.
+- Learned words, keyboard settings and what the keyboard learns from typing (the
+  person's word counts, word pairs and where their thumbs land, `personal.json`). They
+  stay on the device and sync through the person's own iCloud (CloudKit private
+  database) when Full Access is on; Tiny Penguin never sees them.
 - Purchases. Apple handles Astrotype Pro through StoreKit; the app sees only the
   entitlement.
 

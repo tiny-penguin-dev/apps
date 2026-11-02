@@ -43,6 +43,9 @@ public final class KeyboardModel {
     public var onNotice: ((Composer.Notice) -> Void)?
     /// A word already written was swapped for another from the bar (a fix).
     public var onFix: (() -> Void)?
+    /// What the keyboard learned from the person changed here (a word settled, a
+    /// forget), for the host's sync. Saving is the model's own job.
+    public var onPersonalChange: ((PersonalModel) -> Void)?
     /// Every touch on the keys as the engine sees it, for the app's practice
     /// recordings (never set in the extension).
     public var onTouch: ((TouchRecorder.Phase, Int, CGPoint, TimeInterval) -> Void)?
@@ -62,6 +65,7 @@ public final class KeyboardModel {
         didSet {
             guard keyboardSettings != oldValue else { return }
             composer.settings = keyboardSettings.composerSettings(from: composer.settings)
+            applyPersonalSettings()
             settingsChanged = Date()
             store?.save(keyboardSettings)
             onChange?()
@@ -72,6 +76,16 @@ public final class KeyboardModel {
     public private(set) var settingsChanged: Date
     public var store: SettingsStore?
     public var wordStore: WordStore?
+    /// Where what the keyboard learns from the person is kept; nil learns nothing
+    /// (the app's practice field reads the model but never writes it).
+    public var personalStore: PersonalStore?
+    /// Whether the field being typed in may teach the keyboard: the host turns it off
+    /// for addresses, codes and fields that ask for no autocorrection.
+    public var learningAllowed = true
+
+    /// What the keyboard learned from the person's typing (features/smart-matching).
+    public private(set) var personal: PersonalLearner
+    private var personalSave: Task<Void, Never>?
 
     /// What the person taught the keyboard; saved to `wordStore` on every change.
     public var learnedWords: LearnedWords {
@@ -88,16 +102,75 @@ public final class KeyboardModel {
 
     /// `store`'s settings and `wordStore`'s words apply when they have any; otherwise
     /// the defaults and no words.
-    public init(composer: Composer, store: SettingsStore? = nil, wordStore: WordStore? = nil) {
+    ///
+    /// With a `personalStore`, the model learns from each settled word into the shard
+    /// of `installID`; with only a `personal` model it reads and never learns.
+    public init(composer: Composer, store: SettingsStore? = nil, wordStore: WordStore? = nil,
+                personalStore: PersonalStore? = nil, personal: PersonalModel? = nil, installID: String = "app") {
         var composer = composer
         let settings = store?.load() ?? KeyboardSettings()
         composer.settings = settings.composerSettings(from: composer.settings)
         if let words = wordStore?.load() { composer.learned = words }
+        let now = Date()
+        var learner = PersonalLearner(model: personalStore?.load() ?? personal ?? PersonalModel(), device: installID, now: now)
+        let forgot = learner.apply(settings, now: now)
+        composer.personal = learner.index
         self.composer = composer
         self.store = store
         self.wordStore = wordStore
+        self.personalStore = personalStore
+        self.personal = learner
         self.keyboardSettings = settings
         self.settingsChanged = store?.lastChanged() ?? .distantPast
+        if forgot { personalStore?.save(learner.model) }
+    }
+
+    /// "Forget everything" from the keyboard's own settings: the forget travels with
+    /// the settings, so the app and the other devices forget too.
+    public func forgetPersonal() {
+        keyboardSettings.forgetPersonalAt = Date()
+    }
+
+    /// A personal model from elsewhere (the App Group, iCloud), merged in.
+    public func adoptPersonal(_ model: PersonalModel) {
+        guard personal.merge(model, now: Date()) else { return }
+        composer.personal = personal.index
+        savePersonalSoon()
+    }
+
+    /// Writes what was learned now, not after the usual pause (the keyboard is going away).
+    public func savePersonalNow() {
+        guard personalSave != nil else { return }
+        personalSave?.cancel()
+        personalSave = nil
+        personalStore?.save(personal.model)
+    }
+
+    private func applyPersonalSettings() {
+        let changed = personal.apply(keyboardSettings, now: Date())
+        composer.personal = personal.index
+        if changed {
+            personalStore?.save(personal.model)
+            onPersonalChange?(personal.model)
+        }
+    }
+
+    private func learn(from word: SettledWord) {
+        guard personalStore != nil, personal.learn(word, allowed: learningAllowed, now: Date()) else { return }
+        composer.personal = personal.index
+        savePersonalSoon()
+        onPersonalChange?(personal.model)
+    }
+
+    /// Saves a few seconds after the last word, so typing does not write a file per word.
+    private func savePersonalSoon() {
+        personalSave?.cancel()
+        personalSave = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(3))
+            guard !Task.isCancelled, let self else { return }
+            self.personalSave = nil
+            self.personalStore?.save(self.personal.model)
+        }
     }
 
     /// Settings that arrived from elsewhere (a sync) with the time they changed there.
@@ -204,7 +277,7 @@ public final class KeyboardModel {
     /// The field was replaced or the cursor moved: drop the open word.
     public func reset() {
         autospace?.cancel()
-        composer.reset()
+        for case .settled(let word) in composer.reset() { learn(from: word) }
         composer.setContext(before: target?.textBeforeCursor)
         onChange?()
     }
@@ -239,6 +312,8 @@ public final class KeyboardModel {
                 onWordsChange?(words)
             case .notice(let notice):
                 onNotice?(notice)
+            case .settled(let word):
+                learn(from: word)
             }
         }
         composer.setContext(before: target?.textBeforeCursor)

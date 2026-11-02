@@ -21,7 +21,8 @@ public struct Candidate: Sendable, Equatable {
 /// can drop a letter into a swipe ("hel|l|o"). Each match is scored by dynamic time
 /// warping between the swipe and the path through the word's keys, the swipe's length,
 /// the word's frequency, how well it follows the words before it (`context`, the
-/// language's word pairs), and what the person taught the keyboard.
+/// language's word pairs), what the person taught the keyboard, and what it learned
+/// from how they write (`personal`: their words and pairs).
 ///
 ///     let matcher = Matcher(language: try Language.bundled(), layout: layout)
 ///     matcher.context = WordContext.words(before: "going to the ")
@@ -38,6 +39,9 @@ public struct Matcher: Sendable {
     public var learned: LearnedWords {
         didSet { learnedLexicon = Self.lexicon(of: learned) }
     }
+    /// What the keyboard learned from the person's typing (features/smart-matching
+    /// Phase B): words they use more than most people and the pairs they write.
+    public var personal = PersonalIndex()
     /// The person's own words as a small trie, searched beside the dictionary.
     private var learnedLexicon: Lexicon
     /// The log frequency a word of the person's own counts as (rare, like a word near
@@ -51,6 +55,15 @@ public struct Matcher: Sendable {
     /// before count against the swipe's shape. The same scale as `priorWeight`, so a
     /// pair ten times likelier than the word alone is worth a word ten times as common.
     public var contextWeight = 0.12
+    /// Score per unit of log ratio between the person's use of a word and the
+    /// dictionary's (`personalBonus`): the same scale as `priorWeight`, so a word the
+    /// person uses ten times more than most people gains what a word ten times as
+    /// common would.
+    public var personalWordWeight = 0.12
+    /// Score per unit of `log(1 + times the person wrote this pair)`.
+    public var personalPairWeight = 0.15
+    /// The most the personal terms together add.
+    public var personalCap = 0.8
     /// Score per key width of difference between the swipe's length and the word's path
     /// length, so "the" does not win a swipe that went on to "there".
     public var lengthWeight = 0.15
@@ -80,6 +93,24 @@ public struct Matcher: Sendable {
         return Double(ngrams.contextBonus(for: word, after: previous, unigramLogProbability: prior + dictionary.logProbabilityOffset))
     }
 
+    /// The person's say on `word`: how much more they use it than the dictionary
+    /// expects, and how often they wrote it after the previous word. Never negative, so
+    /// a word they have not used yet loses nothing.
+    func personalBonus(for word: String, prior: Float) -> Double {
+        guard !personal.isEmpty else { return 0 }
+        var bonus = 0.0
+        let count = Double(personal.wordCount(word))
+        if count > 0, personal.totalWords > 0 {
+            // Their count against what their total would give the word in general.
+            let expected = Double(personal.totalWords) * exp(Double(prior + dictionary.logProbabilityOffset))
+            bonus += personalWordWeight * min(4, max(0, log((count + 1) / (expected + 1))))
+        }
+        if let previous = previousWord {
+            bonus += personalPairWeight * log(1 + Double(personal.pairCount(previous, word)))
+        }
+        return min(bonus, personalCap)
+    }
+
     static func lexicon(of learned: LearnedWords) -> Lexicon {
         Lexicon(entries: learned.entries.filter { $0.value.weight > 0 }.map { Lexicon.Entry(word: $0.key, frequency: 1) })
     }
@@ -102,7 +133,8 @@ public struct Matcher: Sendable {
                 .filter { word in !out.contains { $0.word == word } }
                 .map { word in
                     let own = dictionary.logPrior(of: word) ?? -20
-                    return Candidate(word: word, score: priorWeight * Double(own) + contextWeight * contextBonus(for: word, prior: own) - 1)
+                    return Candidate(word: word, score: priorWeight * Double(own) + contextWeight * contextBonus(for: word, prior: own)
+                                     + personalBonus(for: word, prior: own) - 1)
                 }
                 .sorted { $0.score > $1.score }
             out += completions.prefix(limit - 1)
@@ -334,7 +366,8 @@ public struct Matcher: Sendable {
             weight += count
         }
         let path = weight > 0 ? distance / Double(weight) : 0
-        return -pathWeight * path + priorWeight * Double(prior) + contextWeight * contextBonus(for: word, prior: prior) + learned.weight(of: word)
+        return -pathWeight * path + priorWeight * Double(prior) + contextWeight * contextBonus(for: word, prior: prior)
+            + personalBonus(for: word, prior: prior) + learned.weight(of: word)
     }
 
     static func fallback(_ pieces: [Piece]) -> String {

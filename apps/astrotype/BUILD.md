@@ -136,6 +136,7 @@ words.merged(with: otherDevice)              // last change wins per word
 | `trial.started`, `pro.subscribed` (`plan`) | 6 |
 | `speedtest.finished` (gauge: words per minute) | 7 |
 | `drill.finished` (`drill`) | 7 |
+| `personal.reset` | smart-matching B |
 
 ## Phases
 

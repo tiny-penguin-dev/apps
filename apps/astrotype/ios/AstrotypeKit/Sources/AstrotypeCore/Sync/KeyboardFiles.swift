@@ -18,6 +18,10 @@ public enum KeyboardFiles {
     public static let trial = "trial.json"
     /// The App Store's last answer about Pro (`ProCache`); the extension's own file only.
     public static let pro = "pro.json"
+    /// What the keyboard learned from the person's typing (`PersonalModel`).
+    public static let personal = "personal.json"
+    /// This install's random ID, the personal model's shard (`InstallID`); own file only.
+    public static let install = "install.json"
 
     /// A file in this process's own Application Support folder.
     public static func own(_ name: String, fileManager: FileManager = .default) -> URL {

@@ -13,15 +13,31 @@ struct NewAlarmFlow: View {
     @State private var addingCheck: WakeUpCheck.Kind?
     @State private var paywall: ProFeature?
     @State private var startedAt = Date()
+    @State private var pickingLights = false
+    @State private var addingUp = false
+    @State private var editingUp: HomeEditTarget?
 
     @Environment(AlarmsModel.self) private var model
     @Environment(ProModel.self) private var pro
+    @Environment(HomeAccess.self) private var home
     @Environment(\.dismiss) private var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    /// The guide's screens, in order.
+    /// The guide's screens, in order. "When you're up" is only asked once lights are
+    /// on, since it needs Home.
     enum Question: Int, CaseIterable {
-        case time, wake, check, done
+        case time, wake, lights, check, up, done
+    }
+
+    /// The questions this guide asks, given the answers so far.
+    private var questions: [Question] {
+        Question.allCases.filter { $0 != .done && ($0 != .up || guide.usesLights) }
+    }
+
+    private func next(after current: Question) -> Question {
+        let list = questions + [.done]
+        guard let i = list.firstIndex(of: current), i + 1 < list.count else { return .done }
+        return list[i + 1]
     }
 
     var body: some View {
@@ -46,6 +62,43 @@ struct NewAlarmFlow: View {
             .sheet(item: $paywall, onDismiss: finishAfterPaywall) { feature in
                 ProView(from: feature)
             }
+            .sheet(isPresented: $pickingLights, onDismiss: {
+                if guide.lightTargets.isEmpty { guide.lights = .none }
+            }) {
+                NavigationStack {
+                    HomeGate(needsHub: true) {
+                        HomeThingEditor(kind: .light, existing: nil) { picked in
+                            guide.lightTargets = picked.targets
+                        }
+                    }
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) { Button("Cancel") { pickingLights = false } }
+                    }
+                }
+                .environment(home)
+                .environment(pro)
+            }
+            .sheet(isPresented: $addingUp) {
+                AddThingSheet(timed: false) { choice in
+                    addingUp = false
+                    if case .home(let kind) = choice { editingUp = HomeEditTarget(kind: kind, existing: nil) }
+                }
+            }
+            .sheet(item: $editingUp) { target in
+                NavigationStack {
+                    HomeGate(needsHub: false) {
+                        HomeThingEditor(kind: target.kind, existing: target.existing) { action in
+                            guide.upActions.removeAll { $0.id == action.id }
+                            guide.upActions.append(action)
+                        }
+                    }
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) { Button("Cancel") { editingUp = nil } }
+                    }
+                }
+                .environment(home)
+                .environment(pro)
+            }
         }
     }
 
@@ -55,13 +108,15 @@ struct NewAlarmFlow: View {
         switch question {
         case .time: timeScreen
         case .wake: wakeScreen
+        case .lights: lightsScreen
         case .check: checkScreen
+        case .up: upScreen
         case .done: doneScreen
         }
     }
 
     private var timeScreen: some View {
-        GuideScreen(title: "When do you want to wake up?", mood: .asleep, nextDisabled: guide.days.isEmpty, next: { go(.wake) }) {
+        GuideScreen(title: "When do you want to wake up?", mood: .asleep, nextDisabled: guide.days.isEmpty, next: { go(next(after: .time)) }) {
             DatePicker("Wake-up time", selection: $guide.time.asDate, displayedComponents: .hourAndMinute)
                 .datePickerStyle(.wheel)
                 .labelsHidden()
@@ -76,7 +131,7 @@ struct NewAlarmFlow: View {
     }
 
     private var wakeScreen: some View {
-        GuideScreen(title: "How should Squawk wake you?", mood: .awake, next: { go(.check) }) {
+        GuideScreen(title: "How should Squawk wake you?", mood: .awake, next: { go(next(after: .wake)) }) {
             choice(.one, "Just one ring", "Morning squawk at wake-up time. Simple.", offsets: [0])
             choice(.gentle, "Gentle start", "A soft peep 10 minutes early, then Morning squawk.", offsets: [-10, 0])
             choice(.nudge, "Extra nudge", "Morning squawk, then the Whole colony 5 minutes later if you're still in bed.", offsets: [0, 5])
@@ -88,7 +143,7 @@ struct NewAlarmFlow: View {
         GuideScreen(
             title: "Make sure you get up?", mood: .grumpy,
             subtitle: "To turn the alarm off, do something that gets you out of bed. Until then, it keeps ringing.",
-            next: { go(.done) }
+            next: { go(next(after: .check)) }
         ) {
             ChoiceCard(
                 title: "No check", subtitle: "Turn it off from the lock screen, like a normal alarm.",
@@ -111,6 +166,69 @@ struct NewAlarmFlow: View {
         }
     }
 
+    private var lightsScreen: some View {
+        let locked = !pro.access.allows(.home)
+        return GuideScreen(
+            title: "Want your lights to help?", mood: .awake,
+            subtitle: "Waking up to a bright room is much easier. Squawk can use the lights in your Home app.",
+            next: { go(next(after: .lights)) }
+        ) {
+            lightChoice(.sunrise, "Sunrise", "Your lamp brightens slowly over the 30 minutes before you wake up.", offsets: [-30, -10], locked: locked)
+            lightChoice(.atWakeUp, "Lights on at wake-up", "Your lamp turns on with the alarm.", offsets: [0], locked: locked)
+            ChoiceCard(title: "No thanks", subtitle: "Just sound. You can add lights later.", selected: guide.lights == .none) {
+                guide.lights = .none
+            }
+            if guide.usesLights {
+                Card {
+                    HStack(spacing: 12) {
+                        ThingIcon(kind: .home(.light))
+                        Text(HomeAction(kind: .light, targets: guide.lightTargets).name).font(Theme.label)
+                        Spacer()
+                        Button("Change") { pickingLights = true }
+                            .font(Theme.label)
+                    }
+                }
+                GuideHint("Your Home hub turns the lights on, even while your phone sleeps.")
+            }
+        }
+    }
+
+    private func lightChoice(_ lights: NewAlarmGuide.Lights, _ title: String, _ subtitle: String, offsets: [Int], locked: Bool) -> some View {
+        ChoiceCard(
+            title: title, subtitle: subtitle, selected: guide.lights == lights, pro: locked,
+            times: offsets.map { guide.time.adding(minutes: $0).short }
+        ) {
+            guide.lights = lights
+            if guide.lightTargets.isEmpty { pickingLights = true }
+        }
+    }
+
+    private var upScreen: some View {
+        GuideScreen(
+            title: "Anything once you're up?", mood: .proud,
+            subtitle: "Runs when you finish the check or tap \"I'm up\". Pick any, or none.",
+            next: { go(next(after: .up)) }
+        ) {
+            ForEach(guide.upActions) { action in
+                Card {
+                    HStack {
+                        ThingRow(kind: .home(action.kind), name: action.name, detail: action.detail)
+                        Button {
+                            withAnimation(.spring) { guide.upActions.removeAll { $0.id == action.id } }
+                        } label: {
+                            Image(systemName: "xmark.circle.fill").font(.title3).foregroundStyle(Theme.muted)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Remove \(action.name)")
+                    }
+                }
+            }
+            ChoiceCard(title: "+ Add something", subtitle: "Open the blinds, start the coffee, or run a scene.", selected: false) {
+                addingUp = true
+            }
+        }
+    }
+
     private var doneScreen: some View {
         let alarm = guide.alarm
         return ScrollView {
@@ -128,8 +246,19 @@ struct NewAlarmFlow: View {
                 StepTimeline(alarm: alarm) { step in
                     StepCard(step: step, wake: alarm.time, checks: alarm.checks)
                 }
+                if !alarm.upActions.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("When you're up").font(Theme.label)
+                        ForEach(alarm.upActions) { action in
+                            ThingRow(kind: .home(action.kind), name: action.name, detail: action.detail)
+                        }
+                    }
+                    .padding(14)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Theme.sun.opacity(0.18), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                }
                 if !missingPro.isEmpty {
-                    GuideHint("Wake-up checks are part of Squawk Pro. You'll see the plans when you save.")
+                    GuideHint("Lights, wake-up checks and \"When you're up\" are part of Squawk Pro. You'll see the plans when you save.")
                 }
             }
             .padding(20)
@@ -167,7 +296,7 @@ struct NewAlarmFlow: View {
             }
         }
         ToolbarItem(placement: .principal) {
-            if question != .done { ProgressDots(count: Question.allCases.count - 1, current: question.rawValue) }
+            if let index = questions.firstIndex(of: question) { ProgressDots(count: questions.count, current: index) }
         }
         ToolbarItem(placement: .confirmationAction) {
             Button("All options") { showAllOptions() }
@@ -192,8 +321,9 @@ struct NewAlarmFlow: View {
     }
 
     private func back() {
-        guard let previous = Question(rawValue: question.rawValue - 1) else { return dismiss() }
-        go(previous)
+        let list = questions + [.done]
+        guard let i = list.firstIndex(of: question), i > 0 else { return dismiss() }
+        go(list[i - 1])
     }
 
     private func showAllOptions() {
@@ -377,4 +507,5 @@ extension WakeUpCheck.Kind {
     NewAlarmFlow()
         .environment(AlarmsModel.preview([]))
         .environment(ProModel.preview())
+        .environment(HomeAccess.shared)
 }

@@ -565,3 +565,69 @@ private func onceDates(_ plan: [PlannedRing]) -> [Date] {
         #expect(guide.proFeatures.isEmpty)
     }
 }
+
+@Suite struct HomePlannerTests {
+    private let lamp = HomeTarget(id: UUID(), name: "Bedroom lamp")
+
+    private func sunriseAlarm() -> Alarm {
+        var alarm = Alarm(time: .sevenAM, days: Weekday.weekdays)
+        alarm.addSunrise(lights: [lamp])
+        return alarm
+    }
+
+    @Test func noHomeThingsNoAutomations() {
+        #expect(HomePlanner.plan(Alarm(), now: sundayNight, calendar: utc).isEmpty)
+    }
+
+    @Test func weeklyAutomationPerStep() {
+        let plan = HomePlanner.plan(sunriseAlarm(), now: sundayNight, calendar: utc)
+        #expect(plan.count == 4)
+        #expect(plan.map(\.name) == ["Squawk · Wake up · 6:30", "Squawk · Wake up · 6:40", "Squawk · Wake up · 6:50", "Squawk · Wake up · 7:00"])
+        #expect(plan[0].schedule == .weekly(TimeOfDay(hour: 6, minute: 30), Weekday.weekdays.sorted()))
+    }
+
+    @Test func skippedMorningGoesOneOff() {
+        var alarm = sunriseAlarm()
+        alarm.setChange(.skip, on: LocalDate(year: 2026, month: 11, day: 2))
+        let plan = HomePlanner.plan(alarm, now: sundayNight, calendar: utc)
+        let once = plan.filter { if case .once = $0.schedule { true } else { false } }
+        let weekly = plan.filter { if case .weekly = $0.schedule { true } else { false } }
+        #expect(weekly.count == 4)
+        #expect(weekly.allSatisfy { if case .weekly(_, let days) = $0.schedule { !days.contains(.monday) } else { false } })
+        #expect(once.count == 4 * AlarmPlanner.weeksAhead)
+        let firstMonday = utc.date(from: DateComponents(year: 2026, month: 11, day: 9, hour: 6, minute: 30))!
+        #expect(once.contains { $0.schedule == .once(firstMonday) })
+    }
+
+    @Test func newTimeMovesEveryStep() {
+        var alarm = sunriseAlarm()
+        alarm.setChange(.time(TimeOfDay(hour: 6, minute: 0)), on: LocalDate(year: 2026, month: 11, day: 2))
+        let plan = HomePlanner.plan(alarm, now: sundayNight, calendar: utc)
+        let early = utc.date(from: DateComponents(year: 2026, month: 11, day: 2, hour: 5, minute: 30))!
+        #expect(plan.contains { $0.schedule == .once(early) && $0.name == "Squawk · Wake up · 5:30" })
+    }
+
+    @Test func stepBeforeMidnightMovesToTheDayBefore() {
+        var alarm = Alarm(time: TimeOfDay(hour: 0, minute: 10), days: [.monday])
+        alarm.homeActions = [HomeAction(offsetMinutes: -30, kind: .light, targets: [lamp])]
+        let plan = HomePlanner.plan(alarm, now: sundayNight.addingTimeInterval(-6 * 3600), calendar: utc)
+        #expect(plan.count == 1)
+        #expect(plan[0].schedule == .weekly(TimeOfDay(hour: 23, minute: 40), [.sunday]))
+    }
+
+    @Test func fingerprintChangesWithTheSetting() {
+        var alarm = sunriseAlarm()
+        let before = HomePlanner.plan(alarm, now: sundayNight, calendar: utc).map(\.fingerprint)
+        #expect(before == HomePlanner.plan(alarm, now: sundayNight, calendar: utc).map(\.fingerprint))
+        alarm.homeActions[0].setting.brightness = 20
+        let after = HomePlanner.plan(alarm, now: sundayNight, calendar: utc).map(\.fingerprint)
+        #expect(before[0] != after[0])
+        #expect(before[1] == after[1])
+    }
+
+    @Test func offAlarmsPlanNothing() {
+        var alarm = sunriseAlarm()
+        alarm.isOn = false
+        #expect(HomePlanner.plan([alarm], now: sundayNight, calendar: utc).isEmpty)
+    }
+}

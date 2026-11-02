@@ -6,6 +6,7 @@ import SwiftUI
 struct RootView: View {
     @State private var model = AlarmsModel.shared
     @State private var pro = ProModel.shared
+    @State private var home = HomeAccess.shared
     @AppStorage("onboarding.done") private var onboardingDone = false
     @Environment(\.scenePhase) private var scenePhase
     @State private var confetti = false
@@ -29,6 +30,7 @@ struct RootView: View {
         }
         .environment(model)
         .environment(pro)
+        .environment(home)
         .foregroundStyle(Theme.ink)
         .tint(Theme.accent)
         .onChange(of: scenePhase) { _, phase in
@@ -48,6 +50,7 @@ struct RootView: View {
             }
             .environment(model)
             .environment(pro)
+            .environment(home)
         }
     }
 

@@ -1,96 +1,30 @@
 import SquawkKit
 import SwiftUI
 
-/// The "Rings" card in Edit: the timeline, the two quick-add buttons and "More options".
-struct RingsCard: View {
+/// "More options" on the edit screen: wake-up checks.
+struct MoreOptionsLink: View {
     @Binding var alarm: Alarm
     @Environment(ProModel.self) private var pro
-    @State private var paywall: ProFeature?
 
     var body: some View {
         Card {
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Rings").font(Theme.label)
-                RingTimeline(alarm: $alarm)
-                let locked = !pro.access.canAddRing(to: alarm)
-                ViewThatFits(in: .horizontal) {
-                    HStack(spacing: 18) { quickAdds(locked: locked) }
-                    VStack(alignment: .leading, spacing: 10) { quickAdds(locked: locked) }
+            NavigationLink {
+                MoreOptionsView(alarm: $alarm)
+            } label: {
+                HStack(spacing: 6) {
+                    Text("More options").font(Theme.label)
+                    if !pro.access.isPro { ProBadge() }
+                    Spacer()
+                    Text("Checks").font(.system(.subheadline, design: .rounded, weight: .semibold)).foregroundStyle(Theme.muted)
+                    Image(systemName: "chevron.right").font(.footnote.weight(.bold)).foregroundStyle(Theme.muted)
                 }
-                Divider()
-                NavigationLink {
-                    MoreOptionsView(alarm: $alarm)
-                } label: {
-                    HStack(spacing: 6) {
-                        Text("More options").font(Theme.label)
-                        if !pro.access.isPro { ProBadge() }
-                        Spacer()
-                        Image(systemName: "chevron.right").font(.footnote.weight(.bold)).foregroundStyle(Theme.muted)
-                    }
-                    .contentShape(Rectangle())
-                }
+                .contentShape(Rectangle())
             }
         }
-        .proSheet($paywall)
-    }
-
-    /// "+ Soft ring before" and "+ Loud ring after". Past the free rings, they open Pro.
-    @ViewBuilder private func quickAdds(locked: Bool) -> some View {
-        ProLinkButton(title: "+ Soft ring before", locked: locked, action: {
-            withAnimation(.spring(duration: 0.4, bounce: 0.4)) { alarm.addSoftRing() }
-            Telemetry.count("alarm.ring_added", ["kind": "soft"])
-        }, onLocked: { paywall = .moreRings })
-        ProLinkButton(title: "+ Loud ring after", locked: locked, action: {
-            withAnimation(.spring(duration: 0.4, bounce: 0.4)) { alarm.addLoudRing() }
-            Telemetry.count("alarm.ring_added", ["kind": "loud"])
-        }, onLocked: { paywall = .moreRings })
     }
 }
 
-/// Every ring in time order. Tap one to change it.
-struct RingTimeline: View {
-    @Binding var alarm: Alarm
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            ForEach(alarm.sortedRings) { ring in
-                NavigationLink {
-                    RingDetail(alarm: $alarm, ringID: ring.id)
-                } label: {
-                    RingRow(ring: ring, wake: alarm.time)
-                }
-                .transition(.scale(scale: 0.6).combined(with: .opacity))
-            }
-        }
-        .animation(.spring(duration: 0.4, bounce: 0.4), value: alarm.rings)
-    }
-}
-
-/// One ring: a colored dot, "6:50 · Nudge" and "10 min before".
-struct RingRow: View {
-    var ring: Ring
-    var wake: TimeOfDay
-
-    var body: some View {
-        HStack(spacing: 10) {
-            Circle().fill(ring.color.color).frame(width: 14, height: 14)
-            Text(ring.summary(wake: wake))
-                .font(.system(.body, design: .rounded, weight: .bold))
-                .lineLimit(1)
-            Spacer()
-            Text(ring.offsetText)
-                .font(.system(.subheadline, design: .rounded, weight: .semibold))
-                .foregroundStyle(Theme.muted)
-            Image(systemName: "chevron.right").font(.footnote.weight(.bold)).foregroundStyle(Theme.muted)
-        }
-        .padding(.horizontal, 12).padding(.vertical, 10)
-        .background(ring.color.color.opacity(0.14), in: Capsule())
-        .contentShape(Capsule())
-        .accessibilityElement(children: .combine)
-    }
-}
-
-/// Screen 6: any number of rings, and wake-up checks.
+/// Screen 6: wake-up checks. Rings live in the steps on the edit screen.
 struct MoreOptionsView: View {
     @Binding var alarm: Alarm
     @Environment(ProModel.self) private var pro
@@ -99,25 +33,12 @@ struct MoreOptionsView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
-                Card {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Rings").font(Theme.label)
-                        Text("Each ring can have its own time, sound, color and name.")
-                            .font(.system(.subheadline, design: .rounded, weight: .semibold))
-                            .foregroundStyle(Theme.muted)
-                        RingTimeline(alarm: $alarm)
-                        if pro.access.canAddRing(to: alarm) {
-                            NavigationLink {
-                                RingDetail(alarm: $alarm, ringID: nil)
-                            } label: {
-                                Text("+ Add a ring")
-                            }
-                            .buttonStyle(LinkButtonStyle())
-                        } else {
-                            ProLinkButton(title: "+ Add a ring", locked: true, action: {}, onLocked: { paywall = .moreRings })
-                        }
-                    }
-                }
+                Text("Rings moved to Steps on the edit screen, next to lights and scenes.")
+                    .font(.system(.footnote, design: .rounded, weight: .semibold))
+                    .foregroundStyle(Theme.muted)
+                    .padding(12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Theme.ice.opacity(0.7), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                 ChecksCard(alarm: $alarm)
             }
             .padding(20)
@@ -130,7 +51,7 @@ struct MoreOptionsView: View {
     }
 }
 
-/// Change one ring: when, sound, color and name. With no ring id, it adds a new ring
+/// Change one ring: sound, color and name. Its time is its step's. With no ring id, it adds a new ring
 /// 15 minutes after the last one.
 struct RingDetail: View {
     @Binding var alarm: Alarm
@@ -142,22 +63,6 @@ struct RingDetail: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
-                Card {
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("When").font(Theme.label)
-                        Stepper(value: ring.offsetMinutes, in: Alarm.ringRange, step: 5) {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(alarm.time.adding(minutes: current.offsetMinutes).full)
-                                    .font(.system(.title2, design: .rounded, weight: .black))
-                                    .monospacedDigit()
-                                Text(current.offsetText)
-                                    .font(.system(.subheadline, design: .rounded, weight: .semibold))
-                                    .foregroundStyle(Theme.muted)
-                            }
-                        }
-                    }
-                }
-
                 Card {
                     VStack(alignment: .leading, spacing: 14) {
                         NavigationLink {

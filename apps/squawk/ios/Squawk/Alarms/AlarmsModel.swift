@@ -21,11 +21,14 @@ final class AlarmsModel {
     private let store: any AlarmStore
     private let morningsStore: any MorningsStore
     private let scheduler: any RingScheduler
+    /// Lights, scenes and blinds. Nil in previews.
+    private let home: (any HomeController)?
 
-    init(store: any AlarmStore, morningsStore: any MorningsStore, scheduler: any RingScheduler) {
+    init(store: any AlarmStore, morningsStore: any MorningsStore, scheduler: any RingScheduler, home: (any HomeController)? = nil) {
         self.store = store
         self.morningsStore = morningsStore
         self.scheduler = scheduler
+        self.home = home
         self.access = scheduler.access
         do {
             alarms = try store.load()
@@ -43,7 +46,7 @@ final class AlarmsModel {
     static func live() -> AlarmsModel {
         let store: any AlarmStore = (try? FileAlarmStore.standard()) ?? MemoryAlarmStore()
         let mornings: any MorningsStore = (try? FileMorningsStore.standard()) ?? MemoryMorningsStore()
-        return AlarmsModel(store: store, morningsStore: mornings, scheduler: AlarmKitScheduler.shared)
+        return AlarmsModel(store: store, morningsStore: mornings, scheduler: AlarmKitScheduler.shared, home: HomeAccess.shared)
     }
 
     static func preview(_ alarms: [Alarm] = [
@@ -118,6 +121,7 @@ final class AlarmsModel {
         guard alarms[index].markUp(at: now) else { return }
         Telemetry.count("morning.up", ["from": "button"])
         save()
+        await home?.runUp(alarms[index].upActions)
         await reschedule()
     }
 
@@ -136,6 +140,7 @@ final class AlarmsModel {
         alarms[index].markUp(at: now)
         Telemetry.count("check.finished", ["how": how])
         save()
+        await home?.runUp(alarms[index].upActions)
         await reschedule()
     }
 
@@ -188,6 +193,7 @@ final class AlarmsModel {
         access = scheduler.access
         let now = Date()
         var anyUp = false
+        var upActions: [HomeAction] = []
         // A check screen left open after its morning ran out closes.
         if goodMorning == nil, let alarm = activeCheckAlarm, alarm.morningInProgress(at: now) == nil {
             activeCheckID = nil
@@ -200,7 +206,10 @@ final class AlarmsModel {
                 }
             } else if alarms[index].morningInProgress(at: now) != nil {
                 logUp(index, at: now, show: true)
-                if alarms[index].markUp(at: now) { anyUp = true }
+                if alarms[index].markUp(at: now) {
+                    anyUp = true
+                    upActions += alarms[index].upActions
+                }
             }
             // Mornings whose wake-up check rang out: Squawk faints.
             for record in alarms[index].faintedMornings(before: now)
@@ -213,6 +222,7 @@ final class AlarmsModel {
         if anyUp {
             Telemetry.count("morning.up", ["from": "app"])
             save()
+            await home?.runUp(upActions)
         }
         // A morning ended from the ringing screen, or one that rang out, shows now.
         if goodMorning == nil, activeCheckID == nil {
@@ -265,6 +275,7 @@ final class AlarmsModel {
         }
         Telemetry.gauge("alarms.total", value: Double(alarms.count))
         WidgetBridge.publish(alarms: alarms, streak: log.streak)
+        await home?.sync(HomePlanner.plan(alarms, now: Date()))
     }
 
     static let failureMessage = "I couldn't set this alarm. Try again, and if it keeps happening, restart your iPhone."

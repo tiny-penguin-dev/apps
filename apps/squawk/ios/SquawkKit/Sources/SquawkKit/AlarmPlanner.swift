@@ -65,16 +65,7 @@ public enum AlarmPlanner {
         }
 
         // Weekdays whose next morning has a change ring as one-off alarms for a while.
-        let today = LocalDate(now, calendar: calendar)
-        var seen: Set<Weekday> = []
-        var changed: [Weekday: LocalDate] = [:]
-        for offset in -1...7 {
-            let day = today.adding(days: offset, calendar: calendar)
-            let weekday = day.weekday(calendar: calendar)
-            guard !seen.contains(weekday), alarm.isPending(day, now: now, calendar: calendar) else { continue }
-            seen.insert(weekday)
-            if alarm.change(on: day) != nil { changed[weekday] = day }
-        }
+        let changed = changedWeekdays(alarm, now: now, calendar: calendar)
 
         var result: [PlannedRing] = []
         for (_, day) in changed.sorted(by: { $0.value < $1.value }) {
@@ -141,6 +132,22 @@ public enum AlarmPlanner {
             }
         }
         return result
+    }
+
+    /// Weekdays whose next morning has a one-morning change, with that morning. These
+    /// can't use a weekly repeat until the change has passed.
+    static func changedWeekdays(_ alarm: Alarm, now: Date, calendar: Calendar) -> [Weekday: LocalDate] {
+        let today = LocalDate(now, calendar: calendar)
+        var seen: Set<Weekday> = []
+        var changed: [Weekday: LocalDate] = [:]
+        for offset in -1...7 {
+            let day = today.adding(days: offset, calendar: calendar)
+            let weekday = day.weekday(calendar: calendar)
+            guard !seen.contains(weekday), alarm.isPending(day, now: now, calendar: calendar) else { continue }
+            seen.insert(weekday)
+            if alarm.change(on: day) != nil { changed[weekday] = day }
+        }
+        return changed
     }
 
     static func shift(_ day: Weekday, by delta: Int) -> Weekday {

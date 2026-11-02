@@ -109,10 +109,9 @@ code (`AstrotypeKit/Theme`, `docs/building.md` rule 1). Screens only use these.
 Not drawn yet (simple, same style): the numbers and symbols pages, the in-keyboard
 settings panel (gear under the `123` hold menu, for when Full Access is off), learned
 words list, snippets editor, one-handed layouts, the milestone sheet. The split layout
-(an option on wide screens, Gabriel, 1 Nov 2026) is Apple's with more overlap: each half
-is a window on the whole keyboard reaching one key past the middle (Q to Y, A to H, Z to
-B on the left; T to P, G to L, V to M on the right), so T Y, G H and V B are on both
-halves and a thumb can swipe across the middle ("went": left w-e, right n-t), space on
+(an option on wide screens, Gabriel, 1 Nov 2026) is exactly Apple's: Q to T, A to G
+and Z to V on the left, Y to P, G to L and V to M on the right (G and V on both halves,
+nothing repeated on the top row; Gabriel, 2 Nov 2026, after trying more overlap), space on
 both sides, the guesses in the open middle (Gabriel, 2 Nov 2026).
 
 ## The keyboard

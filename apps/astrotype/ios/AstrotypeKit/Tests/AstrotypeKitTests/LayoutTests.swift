@@ -149,27 +149,31 @@ import Testing
     }
 
     @Test(arguments: [744.0, 951.0, 1000.0] as [CGFloat])
-    func splitRepeatsTheMiddleLettersOnBothHalves(width: CGFloat) {
+    func splitIsApplesWithGAndVOnBothHalves(width: CGFloat) {
         let layout = Layout.qwerty(width: width, split: true)
-        for letter in "tyghvb" {
+        for letter in "gv" {
             let copies = layout.placements.filter { $0.key == .letter(letter) }
             #expect(copies.count == 2, "\(letter)")
             let left = layout.frame(of: .letter(letter), on: .left)!
             let right = layout.frame(of: .letter(letter), on: .right)!
             #expect(left.maxX < width / 2 && right.minX > width / 2, "\(letter)")
-            // Each copy is under its own half's touch.
             #expect(layout.key(at: CGPoint(x: left.midX, y: left.midY)) == .letter(letter))
             #expect(layout.key(at: CGPoint(x: right.midX, y: right.midY)) == .letter(letter))
         }
-        for letter in "qwerasdfzxc" { #expect(layout.placements.filter { $0.key == .letter(letter) }.count == 1) }
-        for letter in "uiopjklnm" { #expect(layout.placements.filter { $0.key == .letter(letter) }.count == 1) }
-        // Each half is the whole keyboard's shape: T sits left of Y on the right half as
-        // on one keyboard, and G under the gap between them.
-        let t = layout.frame(of: .letter("t"), on: .right)!, y = layout.frame(of: .letter("y"), on: .right)!
-        let g = layout.frame(of: .letter("g"), on: .right)!
-        #expect(y.minX - t.minX == t.width + layout.gap)
-        #expect(g.minX > t.minX && g.maxX < y.maxX)
-        // The middle is open for the guesses.
+        for letter in "qwertyuiopasdfhjklzxcbnm" {
+            #expect(layout.placements.filter { $0.key == .letter(letter) }.count == 1, "\(letter)")
+        }
+        // Rows as Apple's: QWERT | YUIOP, ASDFG | GHJKL, ZXCV | VBNM.
+        func half(_ row: Int, _ side: Side) -> String {
+            String(layout.placements.filter { $0.row == row && layout.side(at: CGPoint(x: $0.frame.midX, y: 0)) == side }
+                .sorted { $0.frame.minX < $1.frame.minX }.compactMap(\.key.character))
+        }
+        #expect(half(0, .left) == "qwert" && half(0, .right) == "yuiop")
+        #expect(half(1, .left) == "asdfg" && half(1, .right) == "ghjkl")
+        #expect(half(2, .left) == "zxcv" && half(2, .right) == "vbnm")
+        // Each half keeps the whole keyboard's stagger: the right G sits under Y's left edge.
+        let y = layout.frame(of: .letter("y"))!, g = layout.frame(of: .letter("g"), on: .right)!
+        #expect(g.minX < y.minX && g.maxX > y.minX)
         let columns = layout.openColumns(atLeast: Layout.splitMiddle)
         #expect(columns.count == 1)
         #expect(columns[0].lowerBound > width * 0.3 && columns[0].upperBound < width * 0.7)

@@ -111,30 +111,22 @@ import Testing
         #expect(composer.pieces.count == 4)
     }
 
-    /// Split (the Duo open): the middle letters are on both halves, so "went" is the left
-    /// thumb's w-e and the right thumb's n-t through the right half's own T (Gabriel's
-    /// Switching thumbs drill, 2 Nov 2026).
-    @Test func aSplitKeyboardSwipesAcrossTheMiddle() {
+    /// Split (the Duo open): G is on both halves, so the right thumb swipes "high"
+    /// through the right half's own G.
+    @Test func aSplitKeyboardSwipesThroughTheRightHalfsG() {
         let layout = Layout.qwerty(width: 951, split: true)
         var composer = Composer(dictionary: Synth.lexicon, layout: layout)
-        func path(_ letters: String, _ side: Side) -> [CGPoint] {
-            Geometry.walk(letters.map { c in
-                let frame = layout.frame(of: .letter(c), on: side)!
-                return CGPoint(x: frame.midX, y: frame.midY)
-            }, step: 6)
+        let points = Geometry.walk("high".map { c in
+            let frame = layout.frame(of: .letter(c), on: .right)!
+            return CGPoint(x: frame.midX, y: frame.midY)
+        }, step: 6)
+        #expect(points.allSatisfy { layout.side(at: $0) == .right })
+        _ = composer.touchDown(id: 1, at: points[0], time: 0)
+        for (i, point) in points.enumerated().dropFirst() {
+            _ = composer.touchMoved(id: 1, to: point, time: 0.3 * Double(i) / Double(points.count))
         }
-        func swipe(_ points: [CGPoint], id: Int, from start: TimeInterval) {
-            _ = composer.touchDown(id: id, at: points[0], time: start)
-            for (i, point) in points.enumerated().dropFirst() {
-                _ = composer.touchMoved(id: id, to: point, time: start + 0.3 * Double(i) / Double(points.count))
-            }
-            _ = composer.touchUp(id: id, at: points[points.count - 1], time: start + 0.3)
-        }
-        let right = path("nt", .right)
-        #expect(right.allSatisfy { layout.side(at: $0) == .right })
-        swipe(path("we", .left), id: 1, from: 0)
-        swipe(right, id: 2, from: 0.35)
-        #expect(composer.state.openWord?.lowercased() == "went")
+        _ = composer.touchUp(id: 1, at: points[points.count - 1], time: 0.3)
+        #expect(composer.state.openWord?.lowercased() == "high")
     }
 
     /// A tap that lands while the other thumb's swipe is over a key doubles that letter.

@@ -7,6 +7,8 @@ struct ThingIcon: View {
     enum Kind {
         case ring, check
         case home(HomeAction.Kind)
+        /// "Home devices": lights, plugs, switches and blinds together.
+        case devices
     }
 
     var kind: Kind
@@ -25,6 +27,7 @@ struct ThingIcon: View {
         switch kind {
         case .ring: "bell.fill"
         case .check: "checkmark"
+        case .devices: "house.fill"
         case .home(let kind): kind.symbol
         }
     }

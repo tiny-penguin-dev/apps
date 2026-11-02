@@ -108,7 +108,7 @@ icons; one new icon and one new small component.
 |---|---|---|---|
 | Edit alarm | "+ Sunrise" adds three or four light step cards | "+ Sunrise lights" adds one card with a rising bar strip | [before](../steps/design/screens/sunrise.png) · [after](design/screens/edit.png) |
 | A step | Light rows with Change | Sunrise lights row with Change, its bar strip and "starts 6:30 · bright by 7:00" | [stepdetail](design/screens/stepdetail.png) |
-| Add something | Ring, Lights, Scene, Plug, Blinds | Adds "Sunrise lights" (Pro) | [addthing](design/screens/addthing.png) |
+| Add something | Ring, Lights, Scene, Plug or switch, Blinds | Ring, Sunrise lights, Scene, and one "Home devices" row for lights, plugs, switches and blinds. Picking any device shows the settings for that kind (Gabriel, 2 Nov 2026) | [addthing](design/screens/addthing.png) |
 | Guide, lights question | "Sunrise" with three time chips | "Sunrise lights" with the bar strip and start/end times | [g3](design/screens/g3.png) |
 | Home | Chips show each light step | One sunrise chip at its start time | [home](design/screens/home.png) |
 

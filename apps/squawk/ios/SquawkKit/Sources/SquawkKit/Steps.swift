@@ -122,6 +122,12 @@ public struct AlarmStep: Identifiable, Hashable, Sendable {
     public var rings: [Ring]
     public var actions: [HomeAction]
 
+    public init(offsetMinutes: Int, rings: [Ring] = [], actions: [HomeAction] = []) {
+        self.offsetMinutes = offsetMinutes
+        self.rings = rings
+        self.actions = actions
+    }
+
     public var id: Int { offsetMinutes }
     public var isWakeUp: Bool { offsetMinutes == 0 }
 }

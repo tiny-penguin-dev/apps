@@ -48,7 +48,7 @@ extension HomeAction.Kind {
     var symbol: String {
         switch self {
         case .light: "lightbulb.fill"
-        case .scene: "sparkles"
+        case .scene: "play.rectangle.fill"
         case .plug: "powerplug.fill"
         case .blinds: "blinds.horizontal.open"
         case .sunrise: "sunrise.fill"

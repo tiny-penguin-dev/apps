@@ -55,11 +55,11 @@ import Testing
         let effects = composer.press(.space, time: lifted + 0.1)
         #expect(effects.contains(.learn("zorblat")))
 
-        // The host adds it; the next time it is known, so it is not learned again.
+        // The host adds it; the next time it goes in it counts one more use.
         composer.learned.learn("zorblat")
         let again = Synth.taps(&composer, "zorblat", at: lifted + 1)
         let effects2 = composer.press(.space, time: again + 0.1)
-        #expect(!effects2.contains(.learn("zorblat")))
+        #expect(effects2.contains(.learn("zorblat")))
 
         // Dictionary words are never learned.
         let the = Synth.taps(&composer, "the", at: again + 2)

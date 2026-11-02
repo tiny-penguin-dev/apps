@@ -101,4 +101,81 @@ import Testing
         strict.wordStrictness = 1
         #expect(strict.composerSettings().strictness == 1)
     }
+
+    /// A word learned when it went in and deleted straight away was a slip: forgotten.
+    @Test func deletingAWordJustLearnedForgetsIt() {
+        // Swipe-left delete right after the word went in.
+        var composer = Self.composer(strictness: 0)
+        var t = Synth.taps(&composer, "qzxqzv")
+        #expect(composer.press(.space, time: t + 0.1).contains(.learn("qzxqzv")))
+        #expect(composer.deleteWord(time: t + 0.3).contains(.unlearn("qzxqzv")))
+
+        // Backspace into it and on through every letter.
+        composer = Self.composer(strictness: 0)
+        t = Synth.taps(&composer, "qzxqzv")
+        _ = composer.press(.space, time: t + 0.1)
+        var effects: [Composer.Effect] = []
+        for i in 0..<7 { effects += composer.press(.backspace, time: t + 0.2 + Double(i) * 0.1) }
+        #expect(effects.filter { $0 == .unlearn("qzxqzv") }.count == 1)
+
+        // Fixed by backspace and typed on: kept.
+        composer = Self.composer(strictness: 0)
+        t = Synth.taps(&composer, "qzxqzv")
+        _ = composer.press(.space, time: t + 0.1)
+        effects = composer.press(.backspace, time: t + 0.2)
+        effects += composer.press(.backspace, time: t + 0.3)
+        Synth.tap(&composer, "q", at: t + 0.4)
+        effects += composer.press(.space, time: t + 0.6)
+        #expect(!effects.contains(.unlearn("qzxqzv")))
+
+        // A word it knew is never unlearned.
+        composer = Self.composer(strictness: 0)
+        t = Synth.taps(&composer, "the")
+        _ = composer.press(.space, time: t + 0.1)
+        #expect(!composer.deleteWord(time: t + 0.3).contains { if case .unlearn = $0 { true } else { false } })
+    }
+
+    /// A word of your own written once ranks like a rare word; written often, like a
+    /// common one (Gabriel, 2 Nov 2026).
+    @Test func learnedWordsRiseWithUse() throws {
+        var words = LearnedWords()
+        words.learn("zorb")
+        #expect(words.uses(of: "zorb") == 1)
+        let once = words.logPrior(of: "zorb", base: -10)
+        for _ in 0..<19 { words.learn("zorb") }
+        let often = words.logPrior(of: "zorb", base: -10)
+        #expect(once == -10)
+        #expect(often > -6 && often <= -3)
+        // A slip deleted straight away takes its use back; the last one forgets it.
+        words.unlearn("zorb")
+        #expect(words.uses(of: "zorb") == 19)
+        var single = LearnedWords()
+        single.learn("zorb")
+        single.unlearn("zorb")
+        #expect(!single.contains("zorb"))
+
+        // Words saved before uses were counted read as learned once.
+        let old = #"{"entries":{"flotilla":{"weight":1,"changed":0},"penguin":{"weight":1.5,"changed":0},"zorb":{"weight":2.5,"changed":0}}}"#
+        let read = try JSONDecoder().decode(LearnedWords.self, from: Data(old.utf8))
+        #expect(read.uses(of: "flotilla") == 1 && read.weight(of: "flotilla") == 0 && read.contains("flotilla"))
+        #expect(read.uses(of: "penguin") == 0 && read.isBoosted("penguin"))
+        #expect(read.uses(of: "zorb") == 1 && read.isBoosted("zorb"))
+    }
+
+    @Test func aWordWrittenOnceDoesNotBeatTheDictionary() {
+        // "brinng" fits a swipe for "bring" exactly as well (a doubled letter), so only
+        // how common each is decides. Written once it stays behind the dictionary's…
+        func first(after uses: Int) -> String? {
+            var composer = Self.composer()
+            var words = LearnedWords()
+            for _ in 0..<uses { words.learn("brinng") }
+            composer.learned = words
+            Synth.swipe(&composer, "bring")
+            #expect(composer.candidates.contains { $0.word == "brinng" })
+            return composer.state.openWord
+        }
+        #expect(first(after: 1) == "bring")
+        // …written often, it is the guess.
+        #expect(first(after: 60) == "brinng")
+    }
 }

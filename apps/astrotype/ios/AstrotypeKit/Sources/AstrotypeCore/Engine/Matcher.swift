@@ -46,9 +46,10 @@ public struct Matcher: Sendable {
     public var personal = PersonalIndex()
     /// The person's own words as a small trie, searched beside the dictionary.
     private var learnedLexicon: Lexicon
-    /// The log frequency a word of the person's own counts as (rare, like a word near
-    /// the end of the dictionary); its learned weight lifts it from there.
-    public var learnedPrior: Float = -8
+    /// The log frequency a word of the person's own counts as the first time they write
+    /// it (rare, like a word near the end of the dictionary); each use lifts it
+    /// (`LearnedWords.logPrior`), and a boost from the bar on top.
+    public var learnedPrior: Float = -10
     /// Score per key width of mean path distance.
     public var pathWeight = 1.0
     /// Score per unit of log frequency (0 for the most common word, about -9 for rare).
@@ -177,7 +178,7 @@ public struct Matcher: Sendable {
     }
 
     static func lexicon(of learned: LearnedWords) -> Lexicon {
-        Lexicon(entries: learned.entries.filter { $0.value.weight > 0 }.map { Lexicon.Entry(word: $0.key, frequency: 1) })
+        Lexicon(entries: learned.entries.keys.filter { learned.contains($0) }.map { Lexicon.Entry(word: $0, frequency: 1) })
     }
 
     /// The guesses, best first. `final` is false while the word is still being typed:
@@ -207,7 +208,7 @@ public struct Matcher: Sendable {
                     best[word] = max(best[word] ?? -.infinity, score)
                 }
                 guard learnedLexicon.nodeCount > 1 else { continue }
-                for (word, score) in search(segments, in: learnedLexicon, prior: learnedPrior) {
+                for (word, score) in search(segments, in: learnedLexicon, prior: ownPrior) {
                     best[word] = max(best[word] ?? -.infinity, score)
                 }
             }
@@ -223,6 +224,11 @@ public struct Matcher: Sendable {
         return Array(out.prefix(limit))
     }
 
+    /// The log prior of a word of the person's own, from how often they wrote it.
+    func ownPrior(_ word: String) -> Float {
+        learned.logPrior(of: word, base: learnedPrior)
+    }
+
     /// In the dictionary or the person's own words.
     func isKnown(_ word: String) -> Bool {
         dictionary.contains(word) || learned.contains(word)
@@ -230,7 +236,7 @@ public struct Matcher: Sendable {
 
     /// What was tapped, then common words that continue it, the context deciding among them.
     private func exactly(_ typed: String, limit: Int) -> [Candidate] {
-        let prior = dictionary.logPrior(of: typed).map { priorWeight * Double($0) } ?? -1
+        let prior = priorWeight * Double(dictionary.logPrior(of: typed) ?? (learned.contains(typed) ? ownPrior(typed) : unknownPrior))
         var out = [Candidate(word: typed, score: prior + learned.weight(of: typed))]
         let completions = dictionary.completions(of: typed, limit: limit + 2)
             .filter { $0 != typed }
@@ -275,7 +281,7 @@ public struct Matcher: Sendable {
         public var distance = 0.25
         /// A letter of the word with no tap for it, and a tap for no letter.
         public var missing = 0.45
-        public var extra = 0.45
+        public var extra = 0.6
         /// Two letters in the wrong order, which two thumbs make easily.
         public var swapped = 0.3
         public init() {}
@@ -302,19 +308,19 @@ public struct Matcher: Sendable {
             }
         }
         var best: [String: Double] = [:]
-        func collect(_ lexicon: Lexicon, prior fixed: Float?) {
+        func collect(_ lexicon: Lexicon, prior fixed: ((String) -> Float)?) {
             for (node, cost) in nearest(typed, in: lexicon, substitute: substitute) {
                 guard let own = lexicon.logPrior(at: node) else { continue }
                 let word = lexicon.word(at: node)
                 guard word != letters else { continue }
-                let prior = fixed ?? own
+                let prior = fixed?(word) ?? own
                 let ranking: Double = priorWeight * Double(prior) + contextWeight * contextBonus(for: word, prior: prior)
                 let value: Double = ranking + personalBonus(for: word, prior: prior) + learned.weight(of: word) - cost
                 best[word] = max(best[word] ?? -.infinity, value)
             }
         }
         collect(dictionary, prior: nil)
-        if learnedLexicon.nodeCount > 1 { collect(learnedLexicon, prior: learnedPrior) }
+        if learnedLexicon.nodeCount > 1 { collect(learnedLexicon, prior: ownPrior) }
         let ranked: [Candidate] = best.map { Candidate(word: $0.key, score: $0.value) }
             .sorted { $0.score > $1.score || ($0.score == $1.score && $0.word < $1.word) }
         return Array(ranked.prefix(limit))
@@ -517,7 +523,7 @@ public struct Matcher: Sendable {
 
     /// The words in `lexicon` that the segments can spell, with their scores. `prior`
     /// stands in for the lexicon's own word frequencies when given.
-    private func search(_ segments: [Segment], in lexicon: Lexicon, prior fixedPrior: Float?) -> [String: Double] {
+    private func search(_ segments: [Segment], in lexicon: Lexicon, prior fixedPrior: ((String) -> Float)?) -> [String: Double] {
         // The best score per word: two paths through the keys can spell the same word.
         var best: [String: Double] = [:]
         var seen = Set<SearchState>()
@@ -547,8 +553,8 @@ public struct Matcher: Sendable {
             if canLeave {
                 if state.segment == segments.count - 1 {
                     if let own = lexicon.logPrior(at: state.node) {
-                        let prior = fixedPrior ?? own
                         let word = lexicon.word(at: state.node)
+                        let prior = fixedPrior?(word) ?? own
                         let value = score(word: word, prior: prior, counts: counts, segments: segments) - nearPenalty * Double(standIns)
                         best[word] = max(best[word] ?? -.infinity, value)
                     }

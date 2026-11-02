@@ -120,6 +120,10 @@ both sides, the guesses in the open middle (Gabriel, 2 Nov 2026).
 
 This is the product, so it gets its own section.
 
+- **Keycaps:** Apple's (iOS 26): white keys on light grey in light mode, #464646 keys
+  on the system glass in dark, SF Pro regular letters, Apple's glyphs for shift, delete,
+  globe and return, 8.5 pt corners. Only the thumb flashes and trails are ours (Gabriel,
+  2 Nov 2026).
 - **Layout:** Apple's QWERTY proportions, so muscle memory carries over. Rows of 10, 9
   and 7 letters, shift and backspace on the third row, `123`, globe, space and return on
   the fourth. Space reads "Astrotype" when idle, like Apple's reads the language.

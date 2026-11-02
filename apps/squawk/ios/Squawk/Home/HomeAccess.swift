@@ -168,7 +168,7 @@ struct HomeSnapshot: Equatable {
     }
 
     func devices(_ kind: HomeAction.Kind) -> [HomeDevice] {
-        devices.filter { $0.kind == kind }
+        devices.filter { $0.kind == kind.deviceKind }
     }
 }
 
@@ -205,7 +205,7 @@ struct HomeDevice: Identifiable, Equatable {
     /// "Dimmable, color", "On / off".
     var abilities: String {
         switch kind {
-        case .light: hasColor ? "Dimmable, color" : dimmable ? "Dimmable" : "On / off"
+        case .light, .sunrise: hasColor ? "Dimmable, color" : dimmable ? "Dimmable" : "On / off"
         case .plug: "On / off"
         case .blinds: "Opens and closes"
         case .scene: ""

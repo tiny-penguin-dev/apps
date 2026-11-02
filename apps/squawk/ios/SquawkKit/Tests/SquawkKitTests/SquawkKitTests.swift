@@ -498,13 +498,65 @@ private func onceDates(_ plan: [PlannedRing]) -> [Date] {
         #expect(alarm.homeActions.isEmpty)
     }
 
-    @Test func sunriseAddsLightSteps() {
+    @Test func sunriseAddsOneStepThatEndsAtWakeUp() {
         var alarm = Alarm()
         alarm.addSunrise(lights: [lamp])
-        #expect(alarm.steps.map(\.offsetMinutes) == [-30, -20, -10, 0])
-        #expect(alarm.homeActions.map { $0.setting.brightness } == [10, 40, 80, 100])
+        #expect(alarm.steps.map(\.offsetMinutes) == [-30, 0])
+        #expect(alarm.homeActions.map(\.kind) == [.sunrise])
+        #expect(alarm.homeActions[0].sunrise == .standard)
+        alarm.addSunrise(lights: [lamp], sunrise: Sunrise(minutes: 45))
+        #expect(alarm.homeActions.count == 1)
+        #expect(alarm.homeActions[0].offsetMinutes == -45)
+        #expect(alarm.homeActions[0].detail == "45 min · 5% → 100%")
+    }
+
+    @Test func sunrisePoints() {
+        let points = Sunrise.standard.points
+        #expect(points.map(\.minutes) == [0, 3, 6, 9, 12, 15, 18, 21, 24, 27, 30])
+        #expect(points.first?.setting == HomeSetting(isOn: true, brightness: 5, warmth: 0))
+        #expect(points.last?.setting == HomeSetting(isOn: true, brightness: 100, warmth: 70))
+        // Eases in: the first half brightens much less than the second.
+        #expect(points[5].setting.brightness! < 40)
+        let brightness = points.compactMap(\.setting.brightness)
+        #expect(brightness == brightness.sorted())
+    }
+
+    @Test func shortSunriseChangesEveryMinute() {
+        #expect(Sunrise(minutes: 5).points.map(\.minutes) == [0, 1, 2, 3, 4, 5])
+        #expect(Sunrise(minutes: 60).points.count == Sunrise.maxChanges + 1)
+    }
+
+    @Test func sunriseCanGetDimmerAndWarmer() {
+        let sunset = Sunrise(minutes: 10, startBrightness: 80, endBrightness: 10, startWarmth: 60, endWarmth: 0)
+        #expect(sunset.points.last?.setting == HomeSetting(isOn: true, brightness: 10, warmth: 0))
+    }
+
+    @Test func homeStepsSpreadTheSunrise() {
+        var alarm = Alarm()
+        alarm.addSunrise(lights: [lamp], sunrise: Sunrise(minutes: 10))
+        alarm.homeActions.append(HomeAction(offsetMinutes: -5, kind: .plug, targets: [lamp]))
+        let steps = alarm.homeSteps
+        #expect(steps.map(\.offsetMinutes) == Array(-10...0))
+        #expect(steps.first { $0.offsetMinutes == -5 }?.actions.map(\.kind) == [.light, .plug])
+        #expect(steps.allSatisfy { $0.actions.allSatisfy { $0.kind != .sunrise } })
+        // Same ids every time, so planning stays stable.
+        #expect(alarm.homeSteps.flatMap(\.actions).map(\.id) == steps.flatMap(\.actions).map(\.id))
+    }
+
+    @Test func movingTheStepMovesTheSunrise() {
+        var alarm = Alarm()
         alarm.addSunrise(lights: [lamp])
-        #expect(alarm.homeActions.count == 4)
+        alarm.moveStep(from: -30, to: -40)
+        #expect(alarm.homeSteps.first?.offsetMinutes == -40)
+        #expect(alarm.homeSteps.last?.offsetMinutes == -10)
+    }
+
+    @Test func oldLightActionsLoadWithoutSunrise() throws {
+        let action = HomeAction(kind: .light, targets: [lamp], setting: HomeSetting(brightness: 50))
+        let json = String(decoding: try JSONEncoder().encode(action), as: UTF8.self)
+        #expect(!json.contains("sunrise"))
+        let back = try JSONDecoder().decode(HomeAction.self, from: Data(json.utf8))
+        #expect(back.sunrise == nil && back == action)
     }
 
     @Test func summaries() {
@@ -551,7 +603,8 @@ private func onceDates(_ plan: [PlannedRing]) -> [Date] {
         let up = HomeAction(kind: .plug, targets: [lamp])
         let guide = NewAlarmGuide(lights: .sunrise, lightTargets: [lamp], check: WakeUpCheck(kind: .game), upActions: [up])
         let alarm = guide.alarm
-        #expect(alarm.steps.map(\.offsetMinutes) == [-30, -20, -10, 0])
+        #expect(alarm.steps.map(\.offsetMinutes) == [-30, 0])
+        #expect(alarm.homeActions.map(\.kind) == [.sunrise])
         #expect(alarm.upActions == [up])
         #expect(alarm.checks.map(\.kind) == [.game])
         #expect(guide.proFeatures == [.home, .checks])
@@ -569,10 +622,28 @@ private func onceDates(_ plan: [PlannedRing]) -> [Date] {
 @Suite struct HomePlannerTests {
     private let lamp = HomeTarget(id: UUID(), name: "Bedroom lamp")
 
+    /// Lamp to 10% at 6:30, 50% at 6:50, 100% at 7:00.
     private func sunriseAlarm() -> Alarm {
         var alarm = Alarm(time: .sevenAM, days: Weekday.weekdays)
-        alarm.addSunrise(lights: [lamp])
+        for (offset, brightness) in [(-30, 10), (-10, 50), (0, 100)] {
+            alarm.homeActions.append(HomeAction(
+                offsetMinutes: offset, kind: .light, targets: [lamp],
+                setting: HomeSetting(isOn: true, brightness: brightness)
+            ))
+        }
+        alarm.homeActions.append(HomeAction(offsetMinutes: -20, kind: .plug, targets: [lamp]))
         return alarm
+    }
+
+    @Test func sunriseLightsPlanOneAutomationPerChange() {
+        var alarm = Alarm(time: .sevenAM, days: Weekday.weekdays)
+        alarm.addSunrise(lights: [lamp])
+        let plan = HomePlanner.plan(alarm, now: sundayNight, calendar: utc)
+        #expect(plan.count == 11)
+        #expect(plan.first?.name == "Squawk · Wake up · 6:30")
+        #expect(plan.last?.name == "Squawk · Wake up · 7:00")
+        #expect(plan.last?.actions.first?.setting.brightness == 100)
+        #expect(plan.allSatisfy { $0.actions.allSatisfy { $0.kind == .light } })
     }
 
     @Test func noHomeThingsNoAutomations() {

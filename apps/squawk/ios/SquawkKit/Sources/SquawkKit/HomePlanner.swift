@@ -37,7 +37,7 @@ public enum HomePlanner {
     }
 
     public static func plan(_ alarm: Alarm, now: Date, calendar: Calendar = .current) -> [PlannedHomeStep] {
-        let steps = alarm.steps.filter { !$0.actions.isEmpty }
+        let steps = alarm.homeSteps
         guard !steps.isEmpty else { return [] }
 
         func once(_ day: LocalDate) -> [PlannedHomeStep] {

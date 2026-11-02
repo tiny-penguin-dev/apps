@@ -34,6 +34,7 @@ struct ThingIcon: View {
         case .ring: Theme.accent
         case .check: Theme.mint
         case .home(.light): Theme.sun
+        case .home(.sunrise): Theme.accent
         case .home(.scene): Color(light: 0x5B7BD6, dark: 0x9DB4FF)
         case .home: Theme.ink
         }
@@ -47,6 +48,7 @@ extension HomeAction.Kind {
         case .scene: "sparkles"
         case .plug: "powerplug.fill"
         case .blinds: "blinds.horizontal.open"
+        case .sunrise: "sunrise.fill"
         }
     }
 }
@@ -97,6 +99,11 @@ struct StepCard: View {
                 }
                 ForEach(step.actions) { action in
                     ThingRow(kind: .home(action.kind), name: action.name, detail: action.detail)
+                    if let sunrise = action.sunrise {
+                        SunriseBars(sunrise: sunrise)
+                            .frame(height: 18)
+                            .padding(.leading, 34)
+                    }
                 }
                 if step.isWakeUp {
                     ForEach(checks) { check in
@@ -117,6 +124,41 @@ struct StepCard: View {
             }
         }
         .accessibilityElement(children: .combine)
+    }
+}
+
+/// Sunrise lights as a strip of bars: one per light change, as tall as its brightness and
+/// tinted its color, so you can see what the Home hub will do
+/// (features/sunrise-lights/FEATURE.md, `SunriseBars`).
+struct SunriseBars: View {
+    var sunrise: Sunrise
+
+    var body: some View {
+        let points = sunrise.points
+        GeometryReader { geo in
+            HStack(alignment: .bottom, spacing: 3) {
+                ForEach(points, id: \.minutes) { point in
+                    UnevenRoundedRectangle(topLeadingRadius: 4, bottomLeadingRadius: 2, bottomTrailingRadius: 2, topTrailingRadius: 4, style: .continuous)
+                        .fill(LightColor.color(warmth: point.setting.warmth ?? 50))
+                        .frame(height: max(geo.size.height * Double(point.setting.brightness ?? 100) / 100, 3))
+                }
+            }
+            .frame(width: geo.size.width, height: geo.size.height, alignment: .bottom)
+        }
+        .animation(.spring(duration: 0.45, bounce: 0.4), value: sunrise)
+        .accessibilityHidden(true)
+    }
+}
+
+/// The color a light glows at a warmth (0 warm, 100 daylight), for previews.
+enum LightColor {
+    static func color(warmth: Int) -> Color {
+        let warm = (r: 1.0, g: 0.67, b: 0.31), soft = (r: 1.0, g: 0.89, b: 0.66), day = (r: 0.93, g: 0.95, b: 1.0)
+        let t = Double(min(max(warmth, 0), 100)) / 100
+        func mix(_ a: (r: Double, g: Double, b: Double), _ c: (r: Double, g: Double, b: Double), _ u: Double) -> Color {
+            Color(red: a.r + (c.r - a.r) * u, green: a.g + (c.g - a.g) * u, blue: a.b + (c.b - a.b) * u)
+        }
+        return t < 0.5 ? mix(warm, soft, t * 2) : mix(soft, day, (t - 0.5) * 2)
     }
 }
 

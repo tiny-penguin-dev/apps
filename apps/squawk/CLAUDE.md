@@ -51,7 +51,10 @@ Squawk is in the **Build** stage. Read `PRODUCT.md`, `DESIGN.md` and `BUILD.md` 
   `Squawk/Home/`: `HomeAccess` (permission, hub, devices; created lazily since it shows
   the iOS prompt) and `HomeSync`, the only code that writes to HomeKit: action sets plus
   triggers named "Squawk · …", remembered in UserDefaults and re-synced on every
-  reschedule. "+" on Home opens the guided setup (`Screens/NewAlarmFlow.swift`, answers
+  reschedule. Sunrise lights (`features/sunrise-lights/FEATURE.md`) are a `HomeAction`
+  of kind `.sunrise` with a `Sunrise` (length, start/end brightness and warmth); HomeKit
+  can't fade, so `Alarm.homeSteps` spreads each one into up to 10 timed light changes and
+  `HomePlanner` plans from `homeSteps`, not `steps`. "+" on Home opens the guided setup (`Screens/NewAlarmFlow.swift`, answers
   in `NewAlarmGuide`), with "All options" going to `EditAlarmView`.
 - `ios/SquawkWidget/`: the next-alarm widget (home screen small and medium, lock screen).
   The app saves a `WidgetSnapshot` (next wake-ups and the streak, in `SquawkKit`) to the

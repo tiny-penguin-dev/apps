@@ -173,7 +173,7 @@ struct NewAlarmFlow: View {
             subtitle: "Waking up to a bright room is much easier. Squawk can use the lights in your Home app.",
             next: { go(next(after: .lights)) }
         ) {
-            lightChoice(.sunrise, "Sunrise", "Your lamp brightens slowly over the 30 minutes before you wake up.", offsets: [-30, -10], locked: locked)
+            lightChoice(.sunrise, "Sunrise lights", "Your lamp slowly brightens and warms up over the 30 minutes before you wake up.", offsets: [-30, 0], locked: locked)
             lightChoice(.atWakeUp, "Lights on at wake-up", "Your lamp turns on with the alarm.", offsets: [0], locked: locked)
             ChoiceCard(title: "No thanks", subtitle: "Just sound. You can add lights later.", selected: guide.lights == .none) {
                 guide.lights = .none

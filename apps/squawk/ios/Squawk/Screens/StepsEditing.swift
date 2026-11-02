@@ -32,11 +32,11 @@ struct StepsSection: View {
         }
         .navigationDestination(isPresented: $sunrise) {
             HomeGate(needsHub: true) {
-                HomeThingEditor(kind: .light, existing: nil) { picked in
-                    withAnimation(.spring(duration: 0.5, bounce: 0.35)) { alarm.addSunrise(lights: picked.targets) }
-                    Telemetry.count("step.sunrise_added")
+                HomeThingEditor(kind: .sunrise, existing: nil, wake: alarm.time, endsAtWakeUp: true) { picked in
+                    let sunrise = picked.sunrise ?? .standard
+                    withAnimation(.spring(duration: 0.5, bounce: 0.35)) { alarm.addSunrise(lights: picked.targets, sunrise: sunrise) }
+                    Telemetry.count("step.sunrise_added", ["minutes": String(sunrise.minutes)])
                 }
-                .navigationTitle("Sunrise lights")
             }
         }
         .proSheet($paywall)
@@ -56,7 +56,7 @@ struct StepsSection: View {
                     Telemetry.count("step.added", ["kind": "ring"])
                 } onLocked: { paywall = .moreRings }
             }
-            QuickAdd(title: "+ Sunrise", locked: homeLocked) { sunrise = true } onLocked: { paywall = .home }
+            QuickAdd(title: "+ Sunrise lights", locked: homeLocked) { sunrise = true } onLocked: { paywall = .home }
             QuickAdd(title: "+ Add a step", locked: ringsLocked && homeLocked) {
                 let offset = alarm.nextFreeStepOffset
                 withAnimation(.spring(duration: 0.4, bounce: 0.4)) {
@@ -208,6 +208,13 @@ struct StepDetailView: View {
                                 }
                                 removeButton("Remove \(action.name)") { alarm.homeActions.removeAll { $0.id == action.id } }
                             }
+                            if let sunrise = action.sunrise {
+                                SunriseBars(sunrise: sunrise).frame(height: 22).padding(.leading, 34)
+                                Text("Starts \(alarm.time.adding(minutes: offset).short), bright by \(alarm.time.adding(minutes: offset + sunrise.minutes).short). Moving this step moves the whole sunrise.")
+                                    .font(.system(.footnote, design: .rounded, weight: .semibold))
+                                    .foregroundStyle(Theme.muted)
+                                    .padding(.leading, 34)
+                            }
                         }
                         if step.isWakeUp {
                             ForEach(alarm.checks) { check in
@@ -266,7 +273,7 @@ struct StepDetailView: View {
         }
         .navigationDestination(item: $editing) { target in
             HomeGate(needsHub: true) {
-                HomeThingEditor(kind: target.kind, existing: target.existing, offsetMinutes: offset) { action in
+                HomeThingEditor(kind: target.kind, existing: target.existing, offsetMinutes: offset, wake: alarm.time) { action in
                     if let index = alarm.homeActions.firstIndex(where: { $0.id == action.id }) {
                         alarm.homeActions[index] = action
                     } else {
@@ -323,7 +330,8 @@ struct AddThingSheet: View {
             if timed {
                 row(.ring, "Ring", locked: false)
             }
-            ForEach(HomeAction.Kind.allCases) { kind in
+            // Sunrise lights take time, so they only fit a timed step.
+            ForEach(HomeAction.Kind.allCases.filter { timed || $0 != .sunrise }) { kind in
                 row(.home(kind), kind.title, locked: !pro.access.allows(.home))
             }
         }

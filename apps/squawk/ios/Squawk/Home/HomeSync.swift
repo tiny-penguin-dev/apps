@@ -173,7 +173,8 @@ final class HomeSync {
                 write(HMCharacteristicTypePowerState, NSNumber(value: setting.isOn))
             case .blinds:
                 write(HMCharacteristicTypeTargetPosition, NSNumber(value: min(max(setting.position ?? 100, 0), 100)))
-            case .scene:
+            case .scene, .sunrise:
+                // Sunrise lights are planned as plain light changes (`Alarm.homeSteps`).
                 break
             }
         }

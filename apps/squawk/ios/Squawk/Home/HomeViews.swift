@@ -116,18 +116,26 @@ struct NoHubView: View {
 }
 
 /// Pick what a Home thing does: which lights (or plugs, blinds, scene) and how. Lights
-/// get brightness and warmth sliders with a glow that follows them.
+/// get brightness and warmth sliders with a glow that follows them; Sunrise lights get
+/// a length and start and end sliders, with a preview that plays the sunrise.
 struct HomeThingEditor: View {
     var kind: HomeAction.Kind
     /// The thing being changed, or nil for a new one.
     var existing: HomeAction?
     var offsetMinutes: Int = 0
+    /// The alarm's wake-up time, so Sunrise lights can show "6:30 → 7:00".
+    var wake: TimeOfDay?
+    /// "+ Sunrise lights": the sunrise ends at the wake-up time, so its start moves with
+    /// its length.
+    var endsAtWakeUp = false
     var onSave: (HomeAction) -> Void
 
     @Environment(HomeAccess.self) private var home
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.dynamicTypeSize) private var typeSize
     @State private var selected: [HomeTarget] = []
     @State private var setting = HomeSetting(isOn: true, brightness: 50, warmth: 30, position: 100)
+    @State private var sunrise = Sunrise.standard
     @State private var started = false
 
     var body: some View {
@@ -135,6 +143,7 @@ struct HomeThingEditor: View {
             VStack(alignment: .leading, spacing: 14) {
                 switch kind {
                 case .light: lightSettings
+                case .sunrise: sunriseSettings
                 case .plug: plugSettings
                 case .blinds: blindsSettings
                 case .scene: EmptyView()
@@ -182,6 +191,126 @@ struct HomeThingEditor: View {
         }
     }
 
+    /// When the sunrise starts, in minutes from the wake-up time.
+    private var sunriseStart: Int {
+        if endsAtWakeUp, existing == nil { return -sunrise.minutes }
+        return existing?.offsetMinutes ?? offsetMinutes
+    }
+
+    private var sunriseSettings: some View {
+        let start = sunriseStart
+        let end = start + sunrise.minutes
+        let startTime = wake?.adding(minutes: start)
+        let pairs = typeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 14))
+            : AnyLayout(HStackLayout(alignment: .top, spacing: 14))
+        return VStack(alignment: .leading, spacing: 14) {
+            SunrisePreview(sunrise: sunrise, start: startTime)
+            Card {
+                VStack(spacing: 12) {
+                    HStack {
+                        roundButton("minus", label: "5 minutes shorter") { changeLength(by: -5) }
+                        VStack(spacing: 2) {
+                            Text("\(sunrise.minutes) min").bigNumberFont(30)
+                            Text(timing(start: start, end: end))
+                                .font(.system(.footnote, design: .rounded, weight: .semibold))
+                                .foregroundStyle(Theme.muted)
+                                .multilineTextAlignment(.center)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .accessibilityElement(children: .combine)
+                        roundButton("plus", label: "5 minutes longer") { changeLength(by: 5) }
+                    }
+                    SunriseBars(sunrise: sunrise).frame(height: 64)
+                    HStack {
+                        Text(startTime?.short ?? "Start")
+                        Spacer()
+                        Text("\(sunrise.points.count) light changes")
+                        Spacer()
+                        Text(wake?.adding(minutes: end).short ?? "End")
+                    }
+                    .font(.system(.caption, design: .rounded, weight: .bold))
+                    .foregroundStyle(Theme.muted)
+                    .monospacedDigit()
+                }
+            }
+            sectionLabel("Brightness")
+            Card {
+                pairs {
+                    sliderRow("Start", value: sunriseBinding(\.startBrightness), range: 1...100,
+                              text: "\(sunrise.startBrightness)%", label: "Start brightness")
+                    sliderRow("End", value: sunriseBinding(\.endBrightness), range: 1...100,
+                              text: "\(sunrise.endBrightness)%", label: "End brightness")
+                }
+            }
+            if selected.isEmpty || selectedDevices.contains(where: \.hasColor) {
+                sectionLabel("Color")
+                Card {
+                    pairs {
+                        sliderRow("Start", value: sunriseBinding(\.startWarmth), range: 0...100,
+                                  text: HomeSetting.warmthName(sunrise.startWarmth).capitalizedFirst, label: "Start color")
+                        sliderRow("End", value: sunriseBinding(\.endWarmth), range: 0...100,
+                                  text: HomeSetting.warmthName(sunrise.endWarmth).capitalizedFirst, label: "End color")
+                    }
+                }
+            }
+            Text("Your Home hub changes the lights every \(changeEvery) min, in small steps. Lights without color only get brighter.")
+                .font(.system(.footnote, design: .rounded, weight: .semibold))
+                .foregroundStyle(Theme.muted)
+                .padding(12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Theme.ice.opacity(0.7), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        }
+    }
+
+    /// "6:30 → 7:00 · ends at wake-up".
+    private func timing(start: Int, end: Int) -> String {
+        let ending = end == 0 ? "ends at wake-up" : end < 0 ? "ends \(-end) min before" : "ends \(end) min after"
+        guard let wake else { return ending }
+        return "\(wake.adding(minutes: start).short) → \(wake.adding(minutes: end).short) · \(ending)"
+    }
+
+    private var changeEvery: Int {
+        let points = sunrise.points
+        guard points.count > 1 else { return sunrise.minutes }
+        return max(1, Int((Double(sunrise.minutes) / Double(points.count - 1)).rounded()))
+    }
+
+    private func changeLength(by delta: Int) {
+        let next = sunrise.minutes + delta
+        guard Sunrise.minutesRange.contains(next) else { return }
+        // A sunrise that starts at a step must still start within the alarm's range.
+        if endsAtWakeUp, existing == nil, !Alarm.ringRange.contains(-next) { return }
+        sunrise.minutes = next
+    }
+
+    private func roundButton(_ symbol: String, label: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.title3.weight(.black))
+                .frame(width: 48, height: 48)
+                .background(Theme.background, in: Circle())
+        }
+        .buttonStyle(SquishStyle())
+        .foregroundStyle(Theme.ink)
+        .accessibilityLabel(label)
+    }
+
+    private func sectionLabel(_ title: String) -> some View {
+        Text(title)
+            .font(.system(.footnote, design: .rounded, weight: .heavy))
+            .textCase(.uppercase)
+            .foregroundStyle(Theme.muted)
+            .padding(.leading, 4)
+    }
+
+    private func sunriseBinding(_ path: WritableKeyPath<Sunrise, Int>) -> Binding<Double> {
+        Binding(
+            get: { Double(sunrise[keyPath: path]) },
+            set: { sunrise[keyPath: path] = Int($0.rounded()) }
+        )
+    }
+
     private var plugSettings: some View {
         Card {
             Picker("Turn it", selection: $setting.isOn) {
@@ -199,14 +328,18 @@ struct HomeThingEditor: View {
         }
     }
 
-    private func sliderRow(_ title: String, value: Binding<Double>, range: ClosedRange<Double>, text: String) -> some View {
+    private func sliderRow(_ title: String, value: Binding<Double>, range: ClosedRange<Double>, text: String, label: String? = nil) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
                 Text(title).font(Theme.label)
                 Spacer()
                 Text(text).font(Theme.label).monospacedDigit()
             }
-            Slider(value: value, in: range).tint(Theme.accent)
+            .accessibilityHidden(true)
+            Slider(value: value, in: range)
+                .tint(Theme.accent)
+                .accessibilityLabel(label ?? title)
+                .accessibilityValue(text)
         }
     }
 
@@ -239,7 +372,7 @@ struct HomeThingEditor: View {
                 pickRow(device.target, detail: device.abilities, multiple: true)
             }
         }
-        if kind == .light {
+        if kind.deviceKind == .light {
             Text("Lights come from your Home app. Pick several to set them together.")
                 .font(.system(.footnote, design: .rounded, weight: .semibold))
                 .foregroundStyle(Theme.muted)
@@ -268,7 +401,7 @@ struct HomeThingEditor: View {
             }
         } label: {
             HStack(spacing: 12) {
-                ThingIcon(kind: .home(kind))
+                ThingIcon(kind: .home(kind.deviceKind))
                 Text(target.name).font(Theme.label)
                 Spacer()
                 Text(detail)
@@ -295,7 +428,8 @@ struct HomeThingEditor: View {
         if let existing {
             selected = existing.targets
             setting = existing.setting
-        } else if let first = LightPicks.remembered(kind, in: available) {
+            sunrise = existing.sunrise ?? .standard
+        } else if let first = LightPicks.remembered(kind.deviceKind, in: available) {
             selected = first
         }
         if kind == .plug, existing == nil { setting = HomeSetting(isOn: true) }
@@ -308,6 +442,8 @@ struct HomeThingEditor: View {
             if !selectedDevices.contains(where: \.dimmable) { final.brightness = nil }
             if !selectedDevices.contains(where: \.hasColor) { final.warmth = nil }
             final.position = nil
+        case .sunrise:
+            final = HomeSetting(isOn: true)
         case .plug, .scene:
             final = HomeSetting(isOn: setting.isOn)
         case .blinds:
@@ -316,7 +452,9 @@ struct HomeThingEditor: View {
         var action = existing ?? HomeAction(offsetMinutes: offsetMinutes, kind: kind, targets: [])
         action.targets = selected
         action.setting = final
-        LightPicks.remember(kind, selected)
+        action.sunrise = kind == .sunrise ? sunrise : nil
+        if kind == .sunrise, endsAtWakeUp, existing == nil { action.offsetMinutes = -sunrise.minutes }
+        LightPicks.remember(kind.deviceKind, selected)
         onSave(action)
         if existing == nil { Telemetry.count("step.added", ["kind": kind.rawValue]) }
         dismiss()
@@ -337,6 +475,88 @@ enum LightPicks {
         let ids = Set(UserDefaults.standard.stringArray(forKey: key(kind)) ?? [])
         let found = devices.filter { ids.contains($0.id.uuidString) }.map(\.target)
         return found.isEmpty ? nil : found
+    }
+}
+
+/// A small sky and lamp that show the sunrise. "Preview" plays it in a few seconds, with
+/// the clock and brightness ticking; with Reduce Motion it shows the end.
+struct SunrisePreview: View {
+    var sunrise: Sunrise
+    /// When it starts, for the clock. Nil hides the time.
+    var start: TimeOfDay?
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var progress = 1.0
+    @State private var playing: Task<Void, Never>?
+
+    var body: some View {
+        SunriseSky(sunrise: sunrise, start: start, progress: progress)
+            .frame(height: 180)
+            .overlay(alignment: .bottomTrailing) {
+                Button(action: play) {
+                    Label("Preview", systemImage: "play.fill")
+                        .font(.system(.subheadline, design: .rounded, weight: .heavy))
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 8)
+                        .background(Theme.card, in: Capsule())
+                        .foregroundStyle(Theme.accent)
+                }
+                .buttonStyle(SquishStyle())
+                .padding(12)
+                .accessibilityLabel("Preview the sunrise")
+            }
+            .onDisappear { playing?.cancel() }
+    }
+
+    /// Plays the sunrise in 4 seconds, a frame every 50 ms.
+    private func play() {
+        playing?.cancel()
+        guard !reduceMotion else { progress = 1; return }
+        playing = Task {
+            for frame in 0...80 {
+                progress = Double(frame) / 80
+                try? await Task.sleep(for: .milliseconds(50))
+                if Task.isCancelled { return }
+            }
+        }
+    }
+}
+
+/// The sky and lamp at one moment of the sunrise.
+private struct SunriseSky: View {
+    var sunrise: Sunrise
+    var start: TimeOfDay?
+    var progress: Double
+
+    var body: some View {
+        let setting = sunrise.setting(at: progress)
+        let brightness = Double(setting.brightness ?? 100) / 100
+        let glow = LightColor.color(warmth: setting.warmth ?? 50)
+        let minute = Int((progress * Double(sunrise.minutes)).rounded())
+        ZStack {
+            Theme.ice
+            LinearGradient(
+                colors: [Color(hex: 0x172239).opacity(0.75 * (1 - progress)), glow.opacity(0.2 + 0.6 * progress)],
+                startPoint: .top, endPoint: .bottom
+            )
+            Circle()
+                .fill(glow.opacity(0.25 + 0.6 * brightness))
+                .frame(width: 96, height: 96)
+                .shadow(color: glow.opacity(brightness), radius: 8 + 36 * brightness)
+            ThingIcon(kind: .home(.light), size: 50)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .overlay(alignment: .topLeading) {
+            Text([start?.adding(minutes: minute).short, "\(setting.brightness ?? 100)%"].compactMap { $0 }.joined(separator: " · "))
+                .font(.system(.subheadline, design: .rounded, weight: .heavy))
+                .monospacedDigit()
+                .foregroundStyle(Theme.ink)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 4)
+                .background(Theme.card.opacity(0.75), in: Capsule())
+                .padding(12)
+        }
+        .accessibilityHidden(true)
     }
 }
 

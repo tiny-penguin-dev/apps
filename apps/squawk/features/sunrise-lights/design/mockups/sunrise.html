@@ -1,0 +1,423 @@
+<title>Squawk Sunrise Lights</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;700;800;900&display=swap">
+<style>
+/* Layout: one phone (390x844) centered on a dawn-sky stage, with a screen picker beside it. */
+:root{
+  --stage:#E9EEFB; --bg:#F4F7FF; --card:#FFFFFF; --ink:#1E2945; --muted:#6B7594; --line:#E1E7F5;
+  --accent:#FF8A4C; --accent-ink:#FFFFFF; --sun:#FFC24D; --coral:#FF5C63; --mint:#2FBF96; --ice:#DCE7FF;
+  --peng:#172239; --belly:#FFFFFF; --beak:#FFB020; --cheek:#FFB3B8;
+  --font:ui-rounded,"SF Pro Rounded","Nunito",system-ui,sans-serif;
+  --r-lg:28px; --r-md:18px; --r-sm:12px;
+  --spring:cubic-bezier(.34,1.56,.64,1);
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --stage:#0A0F20; --bg:#11182E; --card:#1B2443; --ink:#EEF2FF; --muted:#9AA5C6; --line:#28345A;
+  --accent:#FF9A5E; --accent-ink:#1A1206; --sun:#FFCD66; --coral:#FF6F75; --mint:#45D3AA; --ice:#24305A;
+  --peng:#2A3762; --belly:#F3F6FF; --beak:#FFBE3D; --cheek:#FF9BA2; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --stage:#0A0F20; --bg:#11182E; --card:#1B2443; --ink:#EEF2FF; --muted:#9AA5C6; --line:#28345A;
+  --accent:#FF9A5E; --accent-ink:#1A1206; --sun:#FFCD66; --coral:#FF6F75; --mint:#45D3AA; --ice:#24305A;
+  --peng:#2A3762; --belly:#F3F6FF; --beak:#FFBE3D; --cheek:#FF9BA2; color-scheme:dark}
+html,body{height:100%}
+body{background:var(--stage);color:var(--ink);font-family:var(--font);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.stage{display:flex;gap:32px;justify-content:center;align-items:flex-start;padding-block:24px;flex-wrap:wrap}
+.picker{display:flex;flex-direction:column;gap:6px;max-width:220px;min-width:0}
+.picker h1{font-size:28px;font-weight:900;margin:0}
+.picker p{margin:0 0 10px;color:var(--muted);font-size:13px;line-height:1.45}
+.picker button{font:inherit;font-weight:700;font-size:14px;text-align:left;border:0;background:transparent;color:var(--muted);padding:7px 12px;border-radius:10px;cursor:pointer}
+.picker button[aria-current="true"]{background:var(--card);color:var(--ink)}
+.picker button:focus-visible,.phone button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.picker small{color:var(--muted);font-size:11px;letter-spacing:.06em;text-transform:uppercase;font-weight:800;margin-top:10px;padding-left:12px}
+.phone{width:390px;max-width:100%;height:844px;background:var(--bg);border-radius:48px;position:relative;overflow:hidden;
+  box-shadow:0 0 0 10px var(--ink),0 30px 60px rgba(20,30,60,.25);flex:none}
+@media (max-width:700px){.picker{max-width:100%;flex-direction:row;flex-wrap:wrap}.picker h1,.picker p{width:100%}.picker small{display:none}
+  .phone{box-shadow:none;border-radius:32px;height:820px}}
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;padding:58px 22px 30px;gap:16px;animation:in .45s var(--spring)}
+@keyframes in{from{transform:translateX(30px);opacity:0}to{transform:none;opacity:1}}
+.status{position:absolute;top:14px;left:30px;right:30px;display:flex;justify-content:space-between;font-weight:800;font-size:15px;z-index:3}
+.h1{font-size:30px;font-weight:900;line-height:1.1;margin:0;text-wrap:balance}
+.h2{font-size:20px;font-weight:800;margin:0}
+.sub{color:var(--muted);font-size:16px;line-height:1.4;margin:0}
+.btn{font:inherit;font-weight:800;font-size:18px;border:0;border-radius:999px;padding:17px 22px;background:var(--accent);color:var(--accent-ink);cursor:pointer;
+  transition:transform .25s var(--spring);box-shadow:0 6px 0 color-mix(in srgb,var(--accent) 60%,#000 25%)}
+.btn:active{transform:translateY(3px) scale(.98);box-shadow:0 3px 0 color-mix(in srgb,var(--accent) 60%,#000 25%)}
+.btn.ghost{background:transparent;color:var(--muted);box-shadow:none;font-size:15px;padding:8px}
+.spacer{flex:1}
+.card{background:var(--card);border-radius:var(--r-md);padding:16px}
+.row{display:flex;align-items:center;gap:12px}
+.chip{display:inline-flex;align-items:center;gap:6px;font-weight:800;font-size:13px;padding:6px 10px;border-radius:999px;background:var(--ice);color:var(--ink)}
+.dot{width:10px;height:10px;border-radius:50%;flex:none}
+.pro{font-size:10px;font-weight:900;letter-spacing:.08em;background:var(--sun);color:#3A2600;padding:3px 7px;border-radius:6px}
+.toggle{width:52px;height:32px;border-radius:999px;background:var(--line);border:0;position:relative;cursor:pointer;flex:none;transition:background .2s}
+.toggle::after{content:"";position:absolute;top:3px;left:3px;width:26px;height:26px;border-radius:50%;background:#fff;box-shadow:0 2px 4px rgba(0,0,0,.2);transition:transform .35s var(--spring)}
+.toggle[aria-pressed="true"]{background:var(--mint)}
+.toggle[aria-pressed="true"]::after{transform:translateX(20px)}
+.toggle.wob{animation:wob .4s var(--spring)}
+@keyframes wob{30%{transform:scaleX(1.12)}60%{transform:scaleX(.95)}}
+.timeline{display:flex;gap:6px;flex-wrap:wrap}
+.timeline .chip{animation:pop .5s var(--spring) backwards}
+.timeline .chip:nth-child(2){animation-delay:.08s}.timeline .chip:nth-child(3){animation-delay:.16s}.timeline .chip:nth-child(4){animation-delay:.24s}
+@keyframes pop{from{transform:scale(.4);opacity:0}}
+.back{font:inherit;font-weight:800;color:var(--accent);background:none;border:0;font-size:17px;padding:0;cursor:pointer;align-self:flex-start}
+.list{display:flex;flex-direction:column;gap:10px}
+.sec{font-size:13px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:6px 0 -6px 4px}
+.scroll{overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:14px;margin:0 -22px;padding:0 22px 10px}
+/* penguin */
+.peng{display:block;margin:0 auto}
+.peng .body{animation:breathe 3.2s ease-in-out infinite;transform-origin:50% 90%}
+@keyframes breathe{50%{transform:scale(1.03,.97)}}
+.peng.wave .wing-r{animation:wave .6s ease-in-out infinite alternate;transform-origin:144px 106px}
+@keyframes wave{from{transform:rotate(-10deg)}to{transform:rotate(-55deg)}}
+.peng.hop{animation:hop .7s var(--spring) infinite alternate}
+@keyframes hop{to{transform:translateY(-10px)}}
+.peng.waddle{animation:waddle .9s var(--spring) both}
+@keyframes waddle{0%{transform:translateX(-160px) rotate(-8deg)}40%{transform:translateX(-40px) rotate(8deg)}70%{transform:translateX(10px) rotate(-4deg)}100%{transform:none}}
+.zz{font-weight:900;fill:var(--muted);animation:zz 2.6s ease-in infinite;opacity:0}
+.zz:nth-of-type(2){animation-delay:1.3s}
+@keyframes zz{0%{opacity:0;transform:translate(0,0)}30%{opacity:1}100%{opacity:0;transform:translate(14px,-30px)}}
+.ice{fill:var(--ice)}
+/* time picker */
+.timepick{display:flex;justify-content:center;align-items:center;gap:6px;font-size:76px;font-weight:900;font-variant-numeric:tabular-nums}
+.wheel{display:flex;flex-direction:column;align-items:center}
+.wheel button{font:inherit;font-size:20px;background:none;border:0;color:var(--muted);cursor:pointer;padding:4px 18px}
+.wheel span{line-height:1}
+.ampm{font-size:22px;font-weight:900;color:var(--muted);align-self:flex-end;margin-bottom:34px}
+.days{display:flex;justify-content:space-between;gap:4px}
+.days button{font:inherit;font-weight:900;width:42px;height:42px;border-radius:50%;border:0;background:var(--card);color:var(--muted);cursor:pointer;transition:transform .3s var(--spring)}
+.days button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.days button:active{transform:scale(.88)}
+/* style cards */
+.style{font:inherit;text-align:left;color:inherit;border:3px solid transparent;cursor:pointer;display:flex;flex-direction:column;gap:8px;transition:transform .3s var(--spring),border-color .2s}
+.style[aria-pressed="true"]{border-color:var(--accent);transform:scale(1.02)}
+.style b{font-size:18px}
+.style span{color:var(--muted);font-size:14px}
+/* home */
+.hero{position:relative;border-radius:var(--r-lg);padding:18px 18px 0;background:linear-gradient(180deg,color-mix(in srgb,var(--ice) 60%,var(--bg)),var(--ice));overflow:hidden}
+.bubble{position:absolute;right:16px;top:18px;background:var(--card);border-radius:16px;padding:8px 12px;font-weight:800;font-size:13px;box-shadow:0 4px 10px rgba(20,30,60,.08)}
+.bubble::after{content:"";position:absolute;left:-6px;bottom:10px;border:6px solid transparent;border-right-color:var(--card);border-left:0}
+.big{font-size:56px;font-weight:900;font-variant-numeric:tabular-nums;line-height:1}
+.alarm{display:flex;flex-direction:column;gap:10px;cursor:pointer;border:0;font:inherit;color:inherit;text-align:left;width:100%}
+.fab{position:absolute;right:22px;bottom:30px;width:62px;height:62px;border-radius:50%;padding:0;font-size:34px;line-height:1}
+/* ringing (iOS-drawn) */
+.ring{background:radial-gradient(circle at 50% 20%,#3B2A4F,#0B0D16 70%);color:#fff;align-items:center;text-align:center}
+.ring .note{position:absolute;top:44px;left:16px;right:16px;font-size:11px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#ffffff99}
+.ring .t{font-size:96px;font-weight:300;font-family:-apple-system,system-ui,sans-serif;margin-top:60px;letter-spacing:-2px}
+.ring .alarmbtns{display:flex;flex-direction:column;gap:12px;width:100%}
+.ring .ab{font:inherit;font-family:-apple-system,system-ui,sans-serif;font-weight:600;font-size:19px;border:0;border-radius:999px;padding:18px;color:#fff;cursor:pointer;display:flex;justify-content:center;gap:8px}
+.pulse{animation:pulse 1s ease-in-out infinite}
+@keyframes pulse{50%{transform:scale(1.04)}}
+/* check */
+.scan{height:230px;border-radius:var(--r-lg);background:var(--card);position:relative;overflow:hidden;display:grid;place-items:center}
+.tagdot{width:90px;height:90px;border-radius:50%;background:var(--ice);display:grid;place-items:center;font-weight:900;color:var(--muted)}
+.wavering{position:absolute;width:90px;height:90px;border-radius:50%;border:3px solid var(--accent);animation:ringout 1.6s ease-out infinite}
+.wavering:nth-child(2){animation-delay:.8s}
+@keyframes ringout{to{transform:scale(2.4);opacity:0}}
+.keypad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.keypad button{font:inherit;font-size:26px;font-weight:800;background:var(--card);color:var(--ink);border:0;border-radius:var(--r-md);padding:14px 0;cursor:pointer;transition:transform .2s var(--spring)}
+.keypad button:active{transform:scale(.92)}
+.answer{font-size:44px;font-weight:900;text-align:center;font-variant-numeric:tabular-nums;min-height:52px;border-bottom:3px dashed var(--line)}
+.shake{animation:shake .4s}
+@keyframes shake{25%{transform:translateX(-10px)}75%{transform:translateX(10px)}}
+/* morning */
+.week{display:flex;justify-content:space-between}
+.week div{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:12px;font-weight:800;color:var(--muted)}
+.week i{width:34px;height:34px;border-radius:50%;background:var(--line);display:grid;place-items:center;font-style:normal;color:#fff}
+.week i.y{background:var(--mint)}.week i.m{background:var(--sun)}
+.fish{position:absolute;top:-30px;width:22px;height:12px;pointer-events:none;animation:fall 2.2s ease-in forwards}
+@keyframes fall{to{transform:translateY(900px) rotate(540deg)}}
+.game{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:12px;background:var(--ice);border-radius:var(--r-lg)}
+.choices{display:flex;gap:10px}
+.choices button{flex:1;font:inherit;font-size:24px;font-weight:900;background:var(--card);color:var(--ink);border:0;border-radius:var(--r-md);padding:14px 0;cursor:pointer}
+.step{display:flex;gap:12px;align-items:center}
+.step .grip{color:var(--muted);font-weight:900;letter-spacing:-2px}
+.step .meta{flex:1;min-width:0}
+.step .meta b{display:block;font-size:17px}
+.step .meta span{color:var(--muted);font-size:13px}
+.seg{display:flex;background:var(--line);border-radius:999px;padding:4px}
+.seg button{flex:1;font:inherit;font-weight:800;font-size:14px;border:0;background:transparent;color:var(--muted);padding:9px 0;border-radius:999px;cursor:pointer;transition:background .2s}
+.seg button[aria-pressed="true"]{background:var(--card);color:var(--ink);box-shadow:0 2px 6px rgba(20,30,60,.12)}
+.perk{display:flex;gap:12px;align-items:center;font-weight:700}
+.perk i{width:30px;height:30px;border-radius:10px;background:var(--ice);display:grid;place-items:center;font-style:normal;color:var(--accent);font-weight:900;flex:none}
+.sheet{position:absolute;inset:auto 12px 20px;background:var(--card);border-radius:24px;padding:20px;text-align:center;box-shadow:0 20px 50px rgba(0,0,0,.3);animation:up .4s var(--spring);display:flex;flex-direction:column;gap:10px;z-index:5}
+.scrim{position:absolute;inset:0;background:rgba(10,15,30,.35);z-index:4}
+@keyframes up{from{transform:translateY(120%)}}
+.sheet .sbtn{font:inherit;font-family:-apple-system,system-ui,sans-serif;font-size:17px;font-weight:600;border:0;background:none;color:#0A84FF;padding:10px;cursor:pointer;border-top:1px solid var(--line)}
+/* steps (new) */
+.size{display:flex;gap:4px;background:var(--line);border-radius:999px;padding:3px;margin:4px 0 6px}
+.size button{flex:1;text-align:center;padding:6px 8px;font-size:12px}
+.size button[aria-pressed="true"]{background:var(--card);color:var(--ink)}
+.phone[data-size="small"]{width:375px;height:667px}
+.phone[data-size="wide"]{width:720px;height:820px}
+.phone[data-size="wide"] .screen{padding-left:max(22px,calc(50% - 280px));padding-right:max(22px,calc(50% - 280px))}
+.phone[data-size="wide"] .scroll{margin:0 calc(-1 * max(22px,calc(50% - 280px)));padding:0 max(22px,calc(50% - 280px)) 10px}
+.tl{position:relative;display:flex;flex-direction:column;gap:10px}
+.tl::before{content:"";position:absolute;left:21px;top:20px;bottom:20px;width:3px;border-radius:2px;background:linear-gradient(var(--sun),var(--accent),var(--coral))}
+.stp{position:relative;display:flex;gap:12px;align-items:flex-start;background:var(--card);border-radius:var(--r-md);padding:14px 14px 14px 46px;border:0;font:inherit;color:inherit;text-align:left;cursor:pointer;width:100%;animation:pop .5s var(--spring) backwards}
+.stp::before{content:"";position:absolute;left:14px;top:18px;width:17px;height:17px;border-radius:50%;background:var(--card);border:4px solid var(--dotc,var(--accent))}
+.stp.wake{box-shadow:0 0 0 3px var(--accent)}
+.stp .when{min-width:64px}
+.stp .when b{display:block;font-size:20px;font-weight:900;font-variant-numeric:tabular-nums}
+.stp .when span{font-size:12px;font-weight:800;color:var(--muted)}
+.stp .what{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}
+.thing{display:flex;align-items:center;gap:8px;font-weight:800;font-size:14px}
+.thing span{color:var(--muted);font-weight:700}
+.ic{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;flex:none;background:var(--ice);color:var(--ink)}
+.ic svg{width:16px;height:16px}
+.ic.ring{background:color-mix(in srgb,var(--accent) 22%,var(--card));color:var(--accent)}
+.ic.light{background:color-mix(in srgb,var(--sun) 35%,var(--card));color:color-mix(in srgb,var(--sun) 40%,var(--ink))}
+.ic.check{background:color-mix(in srgb,var(--mint) 25%,var(--card));color:var(--mint)}
+.add{border:2px dashed var(--line);background:transparent;font:inherit;font-weight:800;color:var(--accent);cursor:pointer;border-radius:var(--r-md);padding:12px;text-align:center;display:flex;gap:6px;align-items:center;justify-content:center}
+.adds{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.up{background:linear-gradient(135deg,color-mix(in srgb,var(--sun) 30%,var(--card)),var(--card));border-radius:var(--r-md);padding:14px;display:flex;flex-direction:column;gap:8px;border:0;font:inherit;color:inherit;text-align:left;cursor:pointer;width:100%}
+.stepper{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.stepper button{font:inherit;font-size:24px;font-weight:900;width:52px;height:52px;border-radius:50%;border:0;background:var(--card);color:var(--ink);cursor:pointer;transition:transform .2s var(--spring)}
+.stepper button:active{transform:scale(.9)}
+.stepper .val{text-align:center}
+.stepper .val b{display:block;font-size:40px;font-weight:900;font-variant-numeric:tabular-nums}
+.opt{display:flex;align-items:center;gap:12px;padding:12px 4px;border:0;border-top:1px solid var(--line);background:none;font:inherit;color:inherit;text-align:left;cursor:pointer;width:100%}
+.opt:first-of-type{border-top:0}
+.opt b{flex:1}
+.glow{width:130px;height:130px;border-radius:50%;margin:0 auto;display:grid;place-items:center;transition:box-shadow .4s,background .4s}
+.slider{display:flex;flex-direction:column;gap:6px}
+.slider label{display:flex;justify-content:space-between;font-weight:800}
+.slider input{width:100%;accent-color:var(--accent)}
+.room{font-size:13px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:8px 0 0 4px}
+.dev{display:flex;align-items:center;gap:12px;background:var(--card);border-radius:var(--r-md);padding:12px 14px;border:0;font:inherit;color:inherit;cursor:pointer;width:100%;text-align:left}
+.dev[aria-pressed="true"]{box-shadow:0 0 0 3px var(--accent)}
+.dev b{flex:1}
+/* guided setup */
+.gtop{display:flex;align-items:center;gap:10px}
+.gdots{flex:1;display:flex;justify-content:center;gap:6px}
+.gdots i{width:8px;height:8px;border-radius:99px;background:var(--line);transition:width .35s var(--spring),background .2s}
+.gdots i.on{width:22px;background:var(--accent)}.gdots i.done{background:color-mix(in srgb,var(--accent) 45%,var(--line))}
+.gq{display:flex;gap:12px;align-items:flex-end}
+.gq .h1{flex:1;font-size:27px}
+.choice{display:flex;flex-direction:column;gap:6px;background:var(--card);border:3px solid transparent;border-radius:var(--r-md);padding:14px 16px;font:inherit;color:inherit;text-align:left;cursor:pointer;width:100%;transition:transform .25s var(--spring),border-color .2s;animation:pop .45s var(--spring) backwards}
+.choice:nth-child(2){animation-delay:.05s}.choice:nth-child(3){animation-delay:.1s}.choice:nth-child(4){animation-delay:.15s}
+.choice:active{transform:scale(.97)}
+.choice[aria-pressed="true"]{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 8%,var(--card))}
+.choice .row b{flex:1;font-size:17px}
+.choice .sub{font-size:14px}
+.mini{display:flex;gap:4px;flex-wrap:wrap}
+.mini span{font-size:12px;font-weight:800;padding:3px 8px;border-radius:99px;background:var(--ice);color:var(--ink);display:inline-flex;gap:4px;align-items:center}
+.mini .ic{width:16px;height:16px;border-radius:5px}.mini .ic svg{width:11px;height:11px}
+.tick{width:24px;height:24px;border-radius:50%;border:2px solid var(--line);flex:none;display:grid;place-items:center;color:var(--accent-ink)}
+.choice[aria-pressed="true"] .tick{background:var(--accent);border-color:var(--accent)}
+.skipall{font:inherit;font-weight:800;font-size:15px;color:var(--muted);background:none;border:0;cursor:pointer;padding:4px 0}
+.note2{font-size:13px;color:var(--muted);background:var(--ice);border-radius:var(--r-sm);padding:10px 12px;line-height:1.4}
+/* Sunrise lights (new) */
+.ic.sunrise{background:linear-gradient(160deg,color-mix(in srgb,var(--sun) 45%,var(--card)),color-mix(in srgb,var(--accent) 30%,var(--card)));color:color-mix(in srgb,var(--accent) 70%,var(--ink))}
+.ramp{display:flex;align-items:flex-end;gap:3px;height:34px;padding:0 2px}
+.ramp i{flex:1;border-radius:4px 4px 2px 2px;min-height:3px;transition:height .45s var(--spring),background .3s}
+.ramp.big{height:70px;gap:4px}
+.rampcap{display:flex;justify-content:space-between;font-size:12px;font-weight:800;color:var(--muted);font-variant-numeric:tabular-nums}
+.what .ramp{height:20px;gap:2px;margin:-2px 0 2px 34px}
+.sky{flex:none;position:relative;height:190px;border-radius:var(--r-lg);overflow:hidden;display:grid;place-items:center;transition:background .3s}
+.sky .clock{position:absolute;top:12px;left:14px;font-weight:900;font-size:15px;font-variant-numeric:tabular-nums;color:var(--ink);background:color-mix(in srgb,var(--card) 70%,transparent);padding:4px 10px;border-radius:99px}
+.sky .lamp{width:96px;height:96px;border-radius:50%;display:grid;place-items:center;transition:box-shadow .3s,background .3s}
+.sky .play{position:absolute;right:12px;bottom:12px;font:inherit;font-weight:900;font-size:14px;border:0;border-radius:99px;padding:8px 14px;background:var(--card);color:var(--accent);cursor:pointer}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.pair .slider label{font-size:14px}
+.lenrow{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.lenrow button{font:inherit;font-size:22px;font-weight:900;width:44px;height:44px;border-radius:50%;border:0;background:var(--bg);color:var(--ink);cursor:pointer}
+.lenrow .val{text-align:center;flex:1}
+.lenrow .val b{display:block;font-size:30px;font-weight:900;font-variant-numeric:tabular-nums}
+.lenrow .val span{font-size:13px;color:var(--muted);font-weight:700}
+.new{font-size:10px;font-weight:900;letter-spacing:.08em;background:var(--mint);color:#06281D;padding:3px 7px;border-radius:6px}
+.shimmer{animation:shim 1.2s ease-out}
+@keyframes shim{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--sun) 80%,transparent)}100%{box-shadow:0 0 0 18px transparent}}
+</style>
+
+<div class="stage">
+  <nav class="picker" aria-label="Screens">
+    <h1>Sunrise lights</h1>
+    <p>A step that slowly brightens your lights and warms them up to daylight. You pick how long it takes, and where brightness and color start and end. Tap through the phone, or jump to a screen.</p>
+    <div class="size" role="group" aria-label="Screen size"><button data-size="small" aria-pressed="false">Small</button><button data-size="phone" aria-pressed="true">Phone</button><button data-size="wide" aria-pressed="false">Wide</button></div>
+    <small>Edit alarm</small>
+    <button data-go="edit">Steps with Sunrise lights</button>
+    <button data-go="sunrise">Sunrise lights</button>
+    <button data-go="stepdetail">A step</button>
+    <button data-go="addthing">Add something</button>
+    <small>Guided new alarm</small>
+    <button data-go="g3">3 · Lights</button>
+    <small>Home screen</small>
+    <button data-go="home">Home</button>
+  </nav>
+  <div class="phone" id="phone" role="region" aria-label="Squawk app"></div>
+</div>
+
+<script>
+const S={h:7,m:0,sr:{on:true,off:-30,len:30,b0:5,b1:100,w0:0,w1:70},quick:false,g:"sunrise"};
+const pad=n=>String(n).padStart(2,"0");
+function fmt(h,m){const hh=((h+11)%12)+1;return hh+":"+pad(m)}
+function at(off){let t=S.h*60+S.m+off;t=(t+1440)%1440;return fmt(Math.floor(t/60),t%60)}
+function offLabel(o){return o<0?-o+" min before":o>0?o+" min after":"Wake-up time"}
+const warmName=w=>w<34?"warm":w<67?"soft white":"daylight";
+const cap=s=>s[0].toUpperCase()+s.slice(1);
+/* The light changes Squawk sets up: at most 10 jumps, whole minutes, brightness eases in. */
+function points(sr){const n=Math.min(sr.len,10);const out=[];
+  for(let k=0;k<=n;k++){const t=k/n;const off=Math.round(t*sr.len);if(out.length&&out[out.length-1].off===off)continue;
+    out.push({off,b:Math.round(sr.b0+(sr.b1-sr.b0)*t*t),w:Math.round(sr.w0+(sr.w1-sr.w0)*t)})}return out}
+function lightColor(w,b){const warm=[255,170,80],soft=[255,226,168],day=[236,243,255];const t=w/100;
+  const mix=(a,c,u)=>a.map((x,i)=>Math.round(x+(c[i]-x)*u));const c=t<.5?mix(warm,soft,t*2):mix(soft,day,(t-.5)*2);return `rgb(${c.join(",")})`}
+function rampBars(sr,cls="ramp"){return `<div class="${cls}" aria-hidden="true">${points(sr).map(p=>`<i style="height:${Math.max(8,p.b)}%;background:${lightColor(p.w)}"></i>`).join("")}</div>`}
+const ICON={
+  ring:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a1.5 1.5 0 0 1 1.5 1.5v.6A6.5 6.5 0 0 1 18.5 10.5v4.3l1.8 2.6a.9.9 0 0 1-.8 1.4H4.5a.9.9 0 0 1-.8-1.4l1.8-2.6v-4.3a6.5 6.5 0 0 1 5-6.4v-.6A1.5 1.5 0 0 1 12 2Zm-2.5 18h5a2.5 2.5 0 0 1-5 0Z"/></svg>',
+  light:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a7 7 0 0 1 4.2 12.6c-.7.5-1.2 1.3-1.2 2.2v.2H9v-.2c0-.9-.5-1.7-1.2-2.2A7 7 0 0 1 12 2Zm-3 17h6v1a2 2 0 0 1-2 2h-2a2 2 0 0 1-2-2v-1Z"/></svg>',
+  sunrise:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 9a6 6 0 0 1 6 6H6a6 6 0 0 1 6-6Zm-1-6h2v3h-2V3ZM4.2 6.6l1.4-1.4 2.1 2.1-1.4 1.4-2.1-2.1Zm12.1.7 2.1-2.1 1.4 1.4-2.1 2.1-1.4-1.4ZM2 17h20v2H2v-2Z"/></svg>',
+  scene:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.2 6.2L20 10l-5.8 1.8L12 18l-2.2-6.2L4 10l5.8-1.8L12 2Z"/></svg>',
+  plug:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 2a1 1 0 0 1 1 1v4h6V3a1 1 0 1 1 2 0v4h1a1 1 0 0 1 1 1v3a7 7 0 0 1-6 6.9V21a1 1 0 1 1-2 0v-3.1A7 7 0 0 1 5 11V8a1 1 0 0 1 1-1h1V3a1 1 0 0 1 1-1Z"/></svg>',
+  blinds:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 3h18v2H3V3Zm1 4h16v2H4V7Zm0 4h16v2H4v-2Zm7 4h2v4.2a2 2 0 1 1-2 0V15Z"/></svg>',
+  check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>'};
+const ic=k=>`<span class="ic ${k}" aria-hidden="true">${ICON[k]}</span>`;
+function srDetail(sr){return `${sr.len} min · ${sr.b0}% → ${sr.b1}%`}
+function thing(t){return `<div class="thing">${ic(t.k)}<div style="min-width:0">${t.name}${t.v?` <span>· ${t.v}</span>`:""}</div></div>`}
+function steps(){const st=[{off:0,wake:true,things:[{k:"ring",name:"Morning squawk",v:"until you scan the tag"}]},{off:-10,things:[{k:"ring",name:"Little peep",v:"soft"}]}];
+  if(S.sr.on){const ex=st.find(x=>x.off===S.sr.off);const t={k:"sunrise",name:"Bedroom lamp",v:srDetail(S.sr),sr:true};ex?ex.things.unshift(t):st.push({off:S.sr.off,things:[t]})}
+  return st.sort((a,b)=>a.off-b.off)}
+function dotColor(st){return st.wake?"var(--accent)":st.off<0?"var(--sun)":"var(--coral)"}
+function stepCard(st){return `<button class="stp${st.wake?" wake":""}" style="--dotc:${dotColor(st)}" data-step="${st.off}">
+  <div class="when"><b>${at(st.off)}</b><span>${offLabel(st.off)}</span></div>
+  <div class="what">${st.things.map(t=>thing(t)+(t.sr?rampBars(S.sr):"")).join("")}${st.wake?thing({k:"check",name:"Scan the tag",v:"Bathroom mirror"}):""}</div></button>`}
+const status=()=>`<div class="status"><span>9:41</span><span>●●● ▮</span></div>`;
+/* Penguin, drawn with shapes so every part can move. mood: sleep | awake | proud | grumpy | faint */
+/* Squawk: penguin 2 (rounded bottom, legs to the edge), beak B, mouth F. Cheeks only when proud. */
+const P_BODY="M50 96 A50 50 0 0 1 150 96 V170 Q150 188 132 188 H68 Q50 188 50 170 Z";
+const P_WING="M57 103 C42 115 36 140 40 161 C49 156 56 142 60 127 Z";
+const P_WING_R=P_WING.replace(/(-?\d+(\.\d+)?) (-?\d+(\.\d+)?)/g,(_,x,__,y)=>`${200-x} ${y}`);
+function penguin(mood="awake",size=170,cls=""){
+  const W="var(--belly)",P="var(--peng)",lx=82,rx=118,y=90;
+  const eyes={
+    sleep:`<path d="M${lx-9} ${y} q9 7 18 0 M${rx-9} ${y} q9 7 18 0" stroke="${W}" stroke-width="5" fill="none" stroke-linecap="round"/>`,
+    awake:`<circle cx="${lx}" cy="${y}" r="10" fill="${W}"/><circle cx="${rx}" cy="${y}" r="10" fill="${W}"/><circle cx="${lx+2}" cy="${y+1}" r="5" fill="${P}"/><circle cx="${rx+2}" cy="${y+1}" r="5" fill="${P}"/><circle cx="${lx+4}" cy="${y-2}" r="1.8" fill="${W}"/><circle cx="${rx+4}" cy="${y-2}" r="1.8" fill="${W}"/>`,
+    proud:`<path d="M${lx-9} ${y+3} q9 -10 18 0 M${rx-9} ${y+3} q9 -10 18 0" stroke="${W}" stroke-width="5" fill="none" stroke-linecap="round"/>`,
+    grumpy:`<circle cx="${lx}" cy="${y}" r="10" fill="${W}"/><circle cx="${rx}" cy="${y}" r="10" fill="${W}"/><circle cx="${lx+1}" cy="${y+3}" r="4.5" fill="${P}"/><circle cx="${rx-1}" cy="${y+3}" r="4.5" fill="${P}"/><path d="M${lx-12} ${y-14} L${lx+12} ${y-4} L${lx+12} ${y-16}Z M${rx+12} ${y-14} L${rx-12} ${y-4} L${rx-12} ${y-16}Z" fill="${P}"/>`,
+    squawk:`<circle cx="${lx}" cy="${y}" r="11" fill="${W}"/><circle cx="${rx}" cy="${y}" r="11" fill="${W}"/><circle cx="${lx}" cy="${y}" r="3.5" fill="${P}"/><circle cx="${rx}" cy="${y}" r="3.5" fill="${P}"/>`,
+    faint:`<path d="M${lx-6} ${y-6} l12 12 M${lx+6} ${y-6} l-12 12 M${rx-6} ${y-6} l12 12 M${rx+6} ${y-6} l-12 12" stroke="${W}" stroke-width="4.5" stroke-linecap="round"/>`
+  }[mood];
+  const by=104,B="var(--beak)";
+  const beak=mood==="squawk"
+    ?`<path d="M89 ${by+2} Q100 ${by+4} 111 ${by+2} Q108 ${by+15} 100.8 ${by+22} Q100 ${by+23} 99.2 ${by+22} Q92 ${by+15} 89 ${by+2}Z" fill="#4A1526"/><ellipse cx="100" cy="${by+15.5}" rx="5" ry="3" fill="#FF7D8C"/><path d="M88 ${by+3} Q93 ${by+17} 99 ${by+27} Q100 ${by+28.5} 101 ${by+27} Q107 ${by+17} 112 ${by+3} Q107 ${by+14} 100 ${by+21.5} Q93 ${by+14} 88 ${by+3}Z" fill="${B}"/><path d="M88 ${by} Q100 ${by-2} 112 ${by} L101.6 ${by+10.5} Q100 ${by+12.5} 98.4 ${by+10.5}Z" fill="${B}"/>`
+    :`<path d="M91.5 ${by} Q100 ${by-1.5} 108.5 ${by} L101.6 ${by+14.5} Q100 ${by+17} 98.4 ${by+14.5} Z" fill="${B}"/>`;
+  const up=mood==="proud"||mood==="squawk"?30:0;
+  const cheeks=mood==="proud"?`<circle cx="66" cy="110" r="6" fill="var(--cheek)" opacity=".85"/><circle cx="134" cy="110" r="6" fill="var(--cheek)" opacity=".85"/>`:"";
+  const cap=mood==="sleep"?`<path d="M64 70 Q100 0 140 64 Q100 52 64 70Z" fill="var(--accent)"/><circle cx="146" cy="62" r="9" fill="var(--sun)"/>`:"";
+  const zz=mood==="sleep"?`<text class="zz" x="152" y="40" font-size="22">z</text><text class="zz" x="164" y="28" font-size="16">z</text>`:"";
+  return `<svg class="peng ${cls}" width="${size}" height="${size}" viewBox="0 0 200 200" role="img" aria-label="Squawk the penguin, ${mood}">
+    <ellipse cx="100" cy="192" rx="50" ry="6" fill="rgba(20,30,60,.12)"/>
+    <g class="body">
+      <path d="${P_WING}" fill="${P}" transform="rotate(${up} 56 106)"/>
+      <g class="wing-r"><path d="${P_WING_R}" fill="${P}" transform="rotate(${-up} 144 106)"/></g>
+      <path d="${P_BODY}" fill="${P}"/>
+      <path d="M70 188 V140 A30 30 0 0 1 130 140 V188 Z" fill="${W}"/>
+      <path d="M90 188 V176 A10 10 0 0 1 110 176 V188 Z" fill="${P}"/>
+      ${eyes}${beak}${cheeks}${cap}
+      <ellipse cx="80" cy="189" rx="13" ry="5" fill="${B}"/><ellipse cx="120" cy="189" rx="13" ry="5" fill="${B}"/>
+    </g>${zz}</svg>`;
+}
+let sel=-30, playing=null;
+const screens={
+home:()=>`${status()}<div class="screen">
+  <div class="row"><h1 class="h1" style="flex:1">Alarms</h1></div>
+  <div class="card alarm"><div class="row"><div style="flex:1"><div class="big">${fmt(S.h,S.m)}<span style="font-size:20px"> AM</span></div><div class="sub" style="font-weight:800">Weekdays · Work days</div></div><span class="toggle" aria-pressed="true" role="switch" aria-label="Alarm on"></span></div>
+  <div class="timeline">${steps().map(st=>`<span class="chip">${at(st.off)} ${st.things.map(t=>`<span class="ic ${t.k}" style="width:18px;height:18px;border-radius:5px" aria-hidden="true">${ICON[t.k]}</span>`).join("")}</span>`).join("")}</div></div>
+  <p class="note2">The sunrise chip shows when the sunrise starts. The lamp keeps brightening until ${at(S.sr.off+S.sr.len)}.</p></div>`,
+
+edit:()=>`${status()}<div class="screen">
+  <div class="row"><button class="back">‹ Alarms</button><span class="spacer"></span><button class="back">Save</button></div>
+  <div class="scroll">
+  <div class="timepick" style="font-size:56px"><span>${fmt(S.h,S.m)}</span><span class="ampm" style="margin-bottom:22px">AM</span></div>
+  <div class="sec">Steps</div>
+  <div class="tl">${steps().map(stepCard).join("")}</div>
+  <div class="adds">
+    <button class="add" data-act="quick">+ Sunrise lights <span class="pro">PRO</span></button>
+    <button class="add">+ Add a step <span class="pro">PRO</span></button>
+  </div>
+  <button class="up"><div class="row"><b style="flex:1">When you're up</b><span>›</span></div>${thing({k:"blinds",name:"Bedroom blinds",v:"open"})}</button>
+  <p class="note2">Tap the 6:30 step, then Bedroom lamp, to change the sunrise.</p>
+  </div></div>`,
+
+sunrise:()=>{const sr=S.sr,end=sr.off+sr.len,pts=points(sr);return `${status()}<div class="screen">
+  <div class="row"><button class="back" data-go="${S.quick?"edit":"stepdetail"}">‹ ${S.quick?"Edit alarm":"Step"}</button><span class="spacer"></span><button class="back" data-act="save">Done</button></div>
+  <div class="scroll">
+  <div class="sky" id="sky"><span class="clock" id="clock">${at(sr.off)}</span><div class="lamp" id="lamp">${ic("light").replace('class="ic light"','class="ic light" style="width:52px;height:52px;border-radius:16px"').replace('<svg','<svg style="width:30px;height:30px"')}</div>
+    <button class="play" data-act="play">▶ Preview</button></div>
+  <div class="card list">
+    <div class="lenrow"><button data-act="len-" aria-label="5 minutes shorter">−</button>
+      <div class="val"><b>${sr.len} min</b><span>${at(sr.off)} → ${at(end)}${end===0?" · ends at wake-up":end<0?" · ends "+(-end)+" min before":" · ends "+end+" min after"}</span></div>
+      <button data-act="len+" aria-label="5 minutes longer">+</button></div>
+    ${rampBars(sr,"ramp big")}
+    <div class="rampcap"><span>${at(sr.off)}</span><span>${pts.length} light changes</span><span>${at(end)}</span></div>
+  </div>
+  <div class="sec">Brightness</div>
+  <div class="card pair">
+    <div class="slider"><label for="b0"><span>Start</span><span id="b0v">${sr.b0}%</span></label><input id="b0" type="range" min="1" max="100" value="${sr.b0}" data-slide="b0"></div>
+    <div class="slider"><label for="b1"><span>End</span><span id="b1v">${sr.b1}%</span></label><input id="b1" type="range" min="1" max="100" value="${sr.b1}" data-slide="b1"></div></div>
+  <div class="sec">Color</div>
+  <div class="card pair">
+    <div class="slider"><label for="w0"><span>Start</span><span id="w0v">${cap(warmName(sr.w0))}</span></label><input id="w0" type="range" min="0" max="100" value="${sr.w0}" data-slide="w0"></div>
+    <div class="slider"><label for="w1"><span>End</span><span id="w1v">${cap(warmName(sr.w1))}</span></label><input id="w1" type="range" min="0" max="100" value="${sr.w1}" data-slide="w1"></div></div>
+  <div class="room">Bedroom</div>
+  <button class="dev" aria-pressed="true">${ic("light")}<b>Bedroom lamp</b><span class="sub" style="font-size:13px">Dimmable, color</span></button>
+  <button class="dev" aria-pressed="false">${ic("light")}<b>Ceiling light</b><span class="sub" style="font-size:13px">Dimmable</span></button>
+  <p class="note2">Your Home hub changes the lights every ${Math.max(1,Math.round(sr.len/Math.min(sr.len,10)))} min, in small steps. Lights without color only get brighter.</p>
+  </div></div>`},
+
+stepdetail:()=>{const st=steps().find(s=>s.off===sel)||steps()[0];return `${status()}<div class="screen">
+  <div class="row"><button class="back" data-go="edit">‹ Edit alarm</button><span class="spacer"></span><button class="back" data-go="edit">Done</button></div>
+  <div class="scroll">
+  <div class="sec">When</div>
+  <div class="card stepper">${st.wake?`<div class="val" style="flex:1"><b>${at(0)}</b><span class="sub">Wake-up time</span></div>`:`<button data-act="off-" aria-label="Five minutes earlier">−</button><div class="val"><b>${at(st.off)}</b><span class="sub">${offLabel(st.off)}</span></div><button data-act="off+" aria-label="Five minutes later">+</button>`}</div>
+  <div class="sec">What happens</div>
+  <div class="card list">${st.things.map(t=>`<div class="row">${thing(t)}<span class="spacer"></span>${t.sr?`<button class="back" style="font-size:15px" data-act="change">Change</button>`:""}</div>${t.sr?rampBars(S.sr)+`<div class="rampcap"><span>starts ${at(S.sr.off)}</span><span>bright by ${at(S.sr.off+S.sr.len)}</span></div>`:""}`).join("")}</div>
+  <button class="add" data-go="addthing">+ Add something</button>
+  ${st.things.some(t=>t.sr)?`<p class="note2">Sunrise lights start at this step's time. Moving the step moves the whole sunrise.</p>`:""}
+  </div></div>`},
+
+addthing:()=>`${screens.stepdetail()}<div class="scrim" data-go="stepdetail"></div><div class="sheet" style="text-align:left;gap:0" role="dialog" aria-label="Add to this step">
+  <b class="h2" style="margin-bottom:6px">Add to this step</b>
+  ${[["ring","Ring"],["light","Lights"],["sunrise","Sunrise lights"],["scene","Scene"],["plug","Plug or switch"],["blinds","Blinds"]].map(([k,n])=>`<button class="opt" ${k==="sunrise"?'data-act="addsr"':""}>${ic(k)}<b>${n}</b>${k==="sunrise"?`<span class="new">NEW</span>`:""}${k==="ring"?"":`<span class="pro">PRO</span>`}<span>›</span></button>`).join("")}</div>`,
+
+g3:()=>`${status()}<div class="screen">
+  <div class="gtop"><button class="back">‹ Back</button><div class="gdots"><i class="done"></i><i class="done"></i><i class="on"></i><i></i><i></i></div><button class="skipall">All options</button></div>
+  <div class="gq"><h1 class="h1">Want your lights to help?</h1>${penguin("awake",76)}</div>
+  <div class="list">
+  <button class="choice" aria-pressed="${S.g==="sunrise"}" data-g="sunrise"><div class="row"><b>Sunrise lights</b><span class="pro">PRO</span></div><span class="sub">Your lamp slowly brightens and warms up over the 30 minutes before you wake up.</span>${rampBars({len:30,b0:5,b1:100,w0:0,w1:70})}<div class="rampcap"><span>${at(-30)}</span><span>${at(0)}</span></div></button>
+  <button class="choice" aria-pressed="${S.g==="on"}" data-g="on"><div class="row"><b>Lights on at wake-up</b><span class="pro">PRO</span></div><span class="sub">Your lamp turns on with the alarm.</span></button>
+  <button class="choice" aria-pressed="${S.g==="none"}" data-g="none"><div class="row"><b>No thanks</b></div><span class="sub">Just sound. You can add lights later.</span></button>
+  </div><div class="spacer"></div><button class="btn">Next</button></div>`
+};
+const phone=document.getElementById("phone");let current="edit";
+function go(name){if(!screens[name])name="edit";clearInterval(playing);phone.innerHTML=screens[name]();current=name;
+  document.querySelectorAll(".picker button").forEach(b=>b.setAttribute("aria-current",b.dataset.go===name));
+  try{history.replaceState(null,"","#"+name)}catch(e){} if(name==="sunrise")paint(1)}
+/* Paints the preview sky and lamp at a point t (0 to 1) through the sunrise. */
+function paint(t){const sr=S.sr,b=Math.round(sr.b0+(sr.b1-sr.b0)*t*t),w=sr.w0+(sr.w1-sr.w0)*t,c=lightColor(w);
+  const sky=document.getElementById("sky"),lamp=document.getElementById("lamp");if(!sky)return;
+  sky.style.background=`linear-gradient(180deg,color-mix(in srgb,var(--peng) ${Math.round(70-60*t)}%,var(--ice)),color-mix(in srgb,${c} ${Math.round(20+60*t)}%,var(--ice)))`;
+  lamp.style.background=`color-mix(in srgb,${c} ${20+b*.7}%,var(--card))`;lamp.style.boxShadow=`0 0 ${b*.9}px ${b/3}px color-mix(in srgb,${c} ${b}%,transparent)`;
+  document.getElementById("clock").textContent=at(sr.off+Math.round(sr.len*t))+" · "+b+"%"}
+document.addEventListener("click",e=>{const t=e.target.closest("[data-go],[data-act],[data-size],[data-step],[data-g]");if(!t)return;const d=t.dataset;
+  if(d.go){if(t.closest(".picker"))S.quick=false;go(d.go);return}
+  if(d.size){phone.dataset.size=d.size;document.querySelectorAll(".size button").forEach(b=>b.setAttribute("aria-pressed",b===t));return}
+  if(d.step!==undefined){sel=+d.step;go("stepdetail");return}
+  if(d.g){S.g=d.g;go("g3");return}
+  const a=d.act,sr=S.sr;
+  if(a==="quick"){S.quick=true;sr.off=-sr.len;go("sunrise");return}
+  if(a==="change"||a==="addsr"){S.quick=false;go("sunrise");return}
+  if(a==="save"){go("edit");const c=[...phone.querySelectorAll(".stp")].find(x=>+x.dataset.step===sr.off);if(c)c.classList.add("shimmer");return}
+  if(a==="len-"||a==="len+"){const n=Math.min(60,Math.max(5,sr.len+(a==="len+"?5:-5)));if(S.quick)sr.off=-n;sr.len=n;go("sunrise");return}
+  if(a==="off-"||a==="off+"){const n=sr.off+(a==="off-"?-5:5);if(n===0||n<-120)return;if(sel===sr.off){sr.off=n;sel=n}go("stepdetail");return}
+  if(a==="play"){if(matchMedia("(prefers-reduced-motion: reduce)").matches){paint(1);return}let k=0;clearInterval(playing);
+    playing=setInterval(()=>{k+=1/80;paint(Math.min(k,1));if(k>=1)clearInterval(playing)},50);return}
+});
+document.addEventListener("input",e=>{const k=e.target.dataset.slide;if(!k)return;S.sr[k]=+e.target.value;
+  ["b0","b1"].forEach(x=>document.getElementById(x+"v").textContent=S.sr[x]+"%");["w0","w1"].forEach(x=>document.getElementById(x+"v").textContent=cap(warmName(S.sr[x])));
+  const r=phone.querySelector(".ramp.big");if(r)r.outerHTML=rampBars(S.sr,"ramp big");paint(k.endsWith("0")?0:1)});
+function route(){go((location.hash||"#edit").slice(1))}
+addEventListener("hashchange",()=>{const n=location.hash.slice(1);if(n!==current)route()});
+route();
+</script>

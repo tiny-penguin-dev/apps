@@ -115,7 +115,7 @@ Answered by Gabriel (1 Nov 2026):
 
 ## Design
 
-Status: Draft
+Status: Approved 2026-11-02
 
 Builds on the Product section above and on Squawk's approved `DESIGN.md`. Same look,
 colors, type and penguin. Nothing new to learn: steps reuse the cards, chips and pill
@@ -139,6 +139,32 @@ buttons the app already has.
 | More options | Rings section and checks | Rings section goes away (steps live on the edit screen). Checks stay | [customize](design/screens/customize.png) |
 | Squawk Pro | Perks list | Perks become "As many steps and rings as you want" and "Lights, scenes and blinds in your morning" | [pro](design/screens/pro.png) |
 | Good morning | Streak and "Start my day" | Shows what "When you're up" just did as chips (Blinds opening, Coffee maker on) | [morning](design/screens/morning.png) |
+
+### Guided new alarm
+
+Tapping **+** on Home starts a short guide instead of dropping you into every option at
+once. One question per screen, big tappable answers, Squawk on each screen, progress dots
+at the top. **"All options"** (top right on every screen) jumps straight to the full edit
+screen with whatever you've picked so far, so nothing is lost. Editing an existing alarm
+always opens the full edit screen.
+
+| # | Question | Answers | Screenshot |
+|---|---|---|---|
+| 1 | When do you want to wake up? | Time and days | [g1](design/screens/g1.png) |
+| 2 | How should Squawk wake you? | Just one ring · Gentle start (soft peep 10 min early) · Extra nudge (Whole colony 5 min after) | [g2](design/screens/g2.png) |
+| 3 | Want your lights to help? (Pro) | Sunrise · Lights on at wake-up · No thanks. Shows the lamp it will use, with Change | [g3](design/screens/g3.png) |
+| 4 | Make sure you get up? | No check · Scan a tag · Scan a code · Penguin game (Pro) | [g4](design/screens/g4.png) |
+| 5 | Anything once you're up? (Pro) | Open the blinds · Start the coffee · Run a scene, any or none. Only shown if you picked lights, since it needs Home | [g5](design/screens/g5.png) |
+| | Here's your morning | The finished timeline. "Save alarm", or "Fine-tune in All options" | [gdone](design/screens/gdone.png) |
+
+- Each answer maps straight to steps, so the guide and the edit screen always build the
+  same alarm.
+- Defaults are the simple choice (one ring, no lights, no check), so tapping Next all the
+  way through gives today's basic alarm.
+- Free users can pick Pro answers; saving shows the Pro screen, and "Not now" saves the
+  alarm without the Pro parts.
+- The first-launch flow (Hello → Allow alarms → Wake-up time) stays short and makes a
+  basic alarm, as today.
 
 ### New screens
 
@@ -188,8 +214,8 @@ buttons the app already has.
   50 percent, warm. Little peep." Icons are never the only signal; every thing has a name.
 - **Dark mode:** same tokens as the rest of the app.
 
-### Open questions
+### Decisions
 
-1. Should "+ Sunrise" pick the light for you (the first dimmable one), or always ask?
-   The mockup asks the first time and remembers it.
-2. Is 5 minutes the right step size for the time stepper, or should it go by 1 minute?
+- "+ Sunrise" asks which light the first time and remembers it.
+- The step time stepper moves in 5 minute jumps.
+- New alarms start with the guided setup (Gabriel, 2 Nov 2026).

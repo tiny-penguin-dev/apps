@@ -93,7 +93,8 @@ private struct ProPerk: Identifiable {
     var features: Set<ProFeature>
 
     static let all = [
-        ProPerk(title: "As many rings as you want", symbol: "plus", features: [.moreRings]),
+        ProPerk(title: "As many steps and rings as you want", symbol: "plus", features: [.moreRings]),
+        ProPerk(title: "Lights, scenes and blinds in your morning", symbol: "lightbulb.fill", features: [.home]),
         ProPerk(title: "Wake-up checks: tag, code, penguin game", symbol: "checkmark", features: [.checks]),
         ProPerk(title: "Change tomorrow to a new time, just once", symbol: "clock", features: [.changeNextTime]),
         ProPerk(title: "Every sound, color and ring name", symbol: "music.note", features: [.allSounds, .ringStyle]),

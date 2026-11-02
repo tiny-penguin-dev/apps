@@ -55,7 +55,10 @@ struct HomeView: View {
             .accessibilityLabel("Add alarm")
         }
         .sheet(item: $editing) { target in
-            EditAlarmView(alarm: target.alarm, isNew: target.isNew)
+            switch target {
+            case .new: NewAlarmFlow()
+            case .existing(let alarm): EditAlarmView(alarm: alarm, isNew: false)
+            }
         }
         .sheet(isPresented: $showSettings) {
             SettingsView()
@@ -136,7 +139,8 @@ struct HomeView: View {
     }
 }
 
-/// Which alarm the edit sheet is showing.
+/// What the add/edit sheet is showing: the guided setup for a new alarm, or an
+/// existing alarm's edit screen.
 enum EditTarget: Identifiable {
     case new
     case existing(Alarm)
@@ -145,20 +149,6 @@ enum EditTarget: Identifiable {
         switch self {
         case .new: "new"
         case .existing(let alarm): alarm.id.uuidString
-        }
-    }
-
-    var alarm: Alarm {
-        switch self {
-        case .new: Alarm()
-        case .existing(let alarm): alarm
-        }
-    }
-
-    var isNew: Bool {
-        switch self {
-        case .new: true
-        case .existing: false
         }
     }
 }

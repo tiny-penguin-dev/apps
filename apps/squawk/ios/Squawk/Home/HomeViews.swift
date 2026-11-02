@@ -518,7 +518,7 @@ private struct SunriseSky: View, Animatable {
     var start: TimeOfDay?
     var progress: Double
 
-    var animatableData: Double {
+    nonisolated var animatableData: Double {
         get { progress }
         set { progress = newValue }
     }

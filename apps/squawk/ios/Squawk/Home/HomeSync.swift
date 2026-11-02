@@ -86,7 +86,7 @@ final class HomeSync {
 
         var ownSet: HMActionSet?
         if !writes.isEmpty {
-            let set = try await home.addActionSet(withName: name)
+            let set = try await home.addActionSet(named: name)
             ownSet = set
             for write in writes {
                 try await set.addAction(write)

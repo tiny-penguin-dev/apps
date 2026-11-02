@@ -1,8 +1,8 @@
 import SquawkKit
 import SwiftUI
 
-/// Screen 5: time, days or a date, different times on some days, rings, label, and
-/// skip next morning.
+/// Screen 5: time, days or a date, different times on some days, steps, "When you're
+/// up", label, and skip next morning.
 struct EditAlarmView: View {
     @State var alarm: Alarm
     var isNew: Bool
@@ -43,7 +43,9 @@ struct EditAlarmView: View {
                         dayTimesCard
                     }
 
-                    RingsCard(alarm: $alarm)
+                    StepsSection(alarm: $alarm)
+
+                    MoreOptionsLink(alarm: $alarm)
 
                     Card {
                         VStack(alignment: .leading, spacing: 14) {

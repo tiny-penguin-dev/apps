@@ -44,6 +44,15 @@ Squawk is in the **Build** stage. Read `PRODUCT.md`, `DESIGN.md` and `BUILD.md` 
   `ProLinkButton`/`ProBadge` and `.proSheet($paywall)`. Product IDs are in
   `ProProducts`; the launch prices are introductory offers in App Store Connect.
   `Config/Squawk.storekit` lets Xcode test buying without App Store Connect.
+- Wake-up steps and Home (`features/steps/FEATURE.md`): a step is the rings and Home
+  things at one time, grouped by `Alarm.steps` (not stored). Home things are
+  `HomeAction`s in `Alarm.homeActions` (timed) and `Alarm.upActions` ("When you're up").
+  `HomePlanner` turns them into Home automations with the same rules as rings.
+  `Squawk/Home/`: `HomeAccess` (permission, hub, devices; created lazily since it shows
+  the iOS prompt) and `HomeSync`, the only code that writes to HomeKit: action sets plus
+  triggers named "Squawk · …", remembered in UserDefaults and re-synced on every
+  reschedule. "+" on Home opens the guided setup (`Screens/NewAlarmFlow.swift`, answers
+  in `NewAlarmGuide`), with "All options" going to `EditAlarmView`.
 - `ios/SquawkWidget/`: the next-alarm widget (home screen small and medium, lock screen).
   The app saves a `WidgetSnapshot` (next wake-ups and the streak, in `SquawkKit`) to the
   App Group `group.com.tinypenguin.squawk` whenever alarms or mornings change

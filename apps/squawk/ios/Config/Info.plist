@@ -14,6 +14,9 @@
 	<string>Squawk reads your wake-up tag to turn off the alarm.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Squawk scans your wake-up code to turn off the alarm.</string>
+	<!-- Wake-up steps: lights and scenes from the Home app. -->
+	<key>NSHomeKitUsageDescription</key>
+	<string>Squawk turns on lights, runs scenes and opens blinds as part of your alarms.</string>
 	<!-- Needed to read ISO 14443 tags (most NFC stickers). Squawk only reads the tag's id. -->
 	<key>com.apple.developer.nfc.readersession.iso7816.select-identifiers</key>
 	<array>

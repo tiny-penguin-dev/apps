@@ -41,11 +41,13 @@ public enum Replay {
     /// and height, and the touches scaled onto it; the context before each word is what
     /// the replay itself has written so far.
     public static func run(_ recording: PracticeRecording, language: Language,
-                           settings: Composer.Settings = Replay.settings, before: String = "") throws(Skip) -> Outcome {
+                           settings: Composer.Settings = Replay.settings, before: String = "",
+                           weights: Matcher.Weights? = nil) throws(Skip) -> Outcome {
         guard !recording.commits.isEmpty else { throw .noCommits }
         guard !recording.touches.isEmpty else { throw .noTouches }
         let layout = Layout.qwerty(width: recording.layoutWidth, split: recording.split, maxHeight: recording.layoutHeight)
         var composer = Composer(language: language, layout: layout, settings: settings)
+        if let weights { composer.matcher.weights = weights }
         let expected = recording.expected.split(separator: " ").map(String.init)
         var events = events(of: recording, layout: layout)
         events.sort { $0.time == $1.time ? $0.order < $1.order : $0.time < $1.time }
@@ -82,9 +84,47 @@ public enum Replay {
     }
 
     /// One shared word (Phase C): its touches with the word before it as the context.
-    public static func run(_ word: SharedWord, language: Language) throws(Skip) -> Outcome {
+    public static func run(_ word: SharedWord, language: Language, weights: Matcher.Weights? = nil) throws(Skip) -> Outcome {
         let before = word.previous.map { $0 == NgramModel.sentenceStart ? "" : $0 + " " } ?? ""
-        return try run(word.recording, language: language, before: before)
+        return try run(word.recording, language: language, before: before, weights: weights)
+    }
+
+    /// What the harness replays: a whole recording (versions 1 and 2) or one shared word.
+    public enum Item: Sendable {
+        case recording(PracticeRecording)
+        case word(SharedWord)
+
+        /// Either kind from a file's JSON, nil for anything else. Recordings come with
+        /// ISO 8601 dates, as the app stores and uploads them, or plain ones.
+        public init?(json data: Data) {
+            let iso = JSONDecoder()
+            iso.dateDecodingStrategy = .iso8601
+            if let word = try? JSONDecoder().decode(SharedWord.self, from: data) {
+                self = .word(word)
+            } else if let recording = (try? iso.decode(PracticeRecording.self, from: data))
+                        ?? (try? JSONDecoder().decode(PracticeRecording.self, from: data)) {
+                self = .recording(recording)
+            } else {
+                return nil
+            }
+        }
+
+        public func run(language: Language, weights: Matcher.Weights? = nil) throws(Skip) -> Outcome {
+            switch self {
+            case .recording(let recording): try Replay.run(recording, language: language, weights: weights)
+            case .word(let word): try Replay.run(word, language: language, weights: weights)
+            }
+        }
+    }
+
+    /// Many items through the engine with one set of weights.
+    public static func report(_ items: [Item], language: Language, weights: Matcher.Weights? = nil) -> Report {
+        var outcomes: [Outcome] = []
+        var skipped = 0
+        for item in items {
+            do { outcomes.append(try item.run(language: language, weights: weights)) } catch { skipped += 1 }
+        }
+        return Report(outcomes, skipped: skipped)
     }
 
     /// The composer as the keyboard runs it in practice: two thumbs, no capitals (the

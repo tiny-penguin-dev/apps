@@ -316,6 +316,12 @@ final class AppModel {
         uploadPractice()
     }
 
+    /// The prompts for "Practice words": common words and short phrases from the
+    /// language's dictionary and word pairs. Nil if the language files are missing.
+    func practiceWords() -> PracticeWords? {
+        (try? Language.bundled()).map { PracticeWords(language: $0) }
+    }
+
     /// Re-reads what is waiting (the keyboard may have added corrections).
     func reloadShared() {
         pendingShared = environment.sharedWords?.pending() ?? []

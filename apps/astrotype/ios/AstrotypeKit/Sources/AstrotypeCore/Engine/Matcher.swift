@@ -16,7 +16,9 @@ public struct Candidate: Sendable, Equatable {
 /// Pieces are read in touch-down order; two that landed within the swap window are
 /// tried both ways. A word must start on each piece's first key and end on its last;
 /// between them the word's letters are a subsequence of the keys a swipe crossed (a
-/// crossed key may stand for a doubled letter). A tap that lands while a swipe is
+/// crossed key may stand for a doubled letter), where each crossed key may also be read
+/// as a neighbour the path passed close to (`nearRadius`), so a swipe that cut a corner
+/// or landed on the next key still finds the word. A tap that lands while a swipe is
 /// still moving is also tried at the point the swipe had reached, so the other thumb
 /// can drop a letter into a swipe ("hel|l|o"). Each match is scored by dynamic time
 /// warping between the swipe and the path through the word's keys, the swipe's length,
@@ -67,6 +69,54 @@ public struct Matcher: Sendable {
     /// Score per key width of difference between the swipe's length and the word's path
     /// length, so "the" does not win a swipe that went on to "there".
     public var lengthWeight = 0.15
+    /// The weights the harness tunes (features/smart-matching Phase D), as one value.
+    public struct Weights: Sendable, Equatable, Codable, CustomStringConvertible {
+        public var path: Double
+        public var prior: Double
+        public var context: Double
+        public var length: Double
+        /// `nearRadius`, in key widths, and `nearPenalty`.
+        public var near: Double
+        public var standIn: Double
+
+        public init(path: Double = 1.0, prior: Double = 0.12, context: Double = 0.12, length: Double = 0.15,
+                    near: Double = 0.5, standIn: Double = 0.2) {
+            self.path = path
+            self.prior = prior
+            self.context = context
+            self.length = length
+            self.near = near
+            self.standIn = standIn
+        }
+
+        public var description: String {
+            String(format: "path %.3f · prior %.3f · context %.3f · length %.3f · near %.2f · stand-in %.2f",
+                   path, prior, context, length, near, standIn)
+        }
+    }
+
+    public var weights: Weights {
+        get {
+            Weights(path: pathWeight, prior: priorWeight, context: contextWeight, length: lengthWeight,
+                    near: Double(nearRadius), standIn: nearPenalty)
+        }
+        set {
+            nearPenalty = newValue.standIn
+            nearRadius = CGFloat(newValue.near)
+            pathWeight = newValue.path
+            priorWeight = newValue.prior
+            contextWeight = newValue.context
+            lengthWeight = newValue.length
+        }
+    }
+
+    /// A key the path passed within this many key widths of (but did not cross) may
+    /// stand in for the crossed key beside it; 0 reads only the keys crossed. The path
+    /// distance still scores the stand-in, so a near miss costs what it should.
+    public var nearRadius: CGFloat = 0.5
+    /// Score per stand-in letter, on top of what the path distance says, so a word the
+    /// keys actually crossed wins a close call.
+    public var nearPenalty = 0.2
     /// Two pieces that landed this close together are tried in both orders.
     public var swapWindow: TimeInterval = 0.12
     /// How many trie states a search may expand before it stops.
@@ -184,6 +234,8 @@ public struct Matcher: Sendable {
     /// A stretch of one piece that the word's letters are matched against.
     struct Segment {
         var keys: [Character]
+        /// Per key, the neighbours the path passed close to, which may stand in for it.
+        var near: [[Character]]
         /// The whole path of the piece this segment came from: the parts of a split
         /// swipe are scored together, as one path through the letters they contribute.
         var points: [CGPoint]
@@ -197,15 +249,17 @@ public struct Matcher: Sendable {
         /// The segment may contribute no letter at all.
         var skippable = false
 
-        init(_ piece: Piece, source: Int) {
+        init(_ piece: Piece, source: Int, near: [[Character]]) {
             keys = piece.keys
+            self.near = near
             points = piece.points
             isTap = piece.isTap
             self.source = source
         }
 
-        init(keys: [Character], of piece: Piece, source: Int, anchoredStart: Bool, anchoredEnd: Bool, skippable: Bool) {
+        init(keys: [Character], near: [[Character]], of piece: Piece, source: Int, anchoredStart: Bool, anchoredEnd: Bool, skippable: Bool) {
             self.keys = keys
+            self.near = near
             self.points = piece.points
             self.isTap = false
             self.source = source
@@ -218,18 +272,19 @@ public struct Matcher: Sendable {
     /// The pieces as segments, in order. When a tap landed while a swipe was moving, a
     /// second reading splits the swipe where the finger was and drops the tap in there.
     func segmentations(of pieces: [Piece]) -> [[Segment]] {
-        let plain = pieces.enumerated().map { Segment($0.element, source: $0.offset) }
+        let nears = pieces.map(nearKeys(of:))
+        let plain = pieces.enumerated().map { Segment($0.element, source: $0.offset, near: nears[$0.offset]) }
         var split: [Segment] = []
         var placed = Set<Int>()
         var didSplit = false
         for (index, piece) in pieces.enumerated() where !placed.contains(index) {
             guard !piece.isTap else {
-                split.append(Segment(piece, source: index))
+                split.append(Segment(piece, source: index, near: nears[index]))
                 continue
             }
             let inner = pieces.enumerated().filter { $0.offset > index && $0.element.isTap && piece.covers($0.element.start) }
             guard !inner.isEmpty, piece.times.count == piece.points.count else {
-                split.append(Segment(piece, source: index))
+                split.append(Segment(piece, source: index, near: nears[index]))
                 continue
             }
             var cutKey = 0
@@ -238,25 +293,64 @@ public struct Matcher: Sendable {
             for (offset, tap) in inner {
                 guard let pointIndex = piece.pointIndex(at: tap.start), pointIndex >= cutPoint else { continue }
                 let keyIndex = keyIndex(of: piece, upTo: pointIndex, from: cutKey)
-                parts.append(Segment(keys: Array(piece.keys[cutKey...keyIndex]), of: piece, source: index,
+                parts.append(Segment(keys: Array(piece.keys[cutKey...keyIndex]), near: Array(nears[index][cutKey...keyIndex]),
+                                     of: piece, source: index,
                                      anchoredStart: parts.isEmpty, anchoredEnd: false, skippable: !parts.isEmpty))
-                parts.append(Segment(tap, source: offset))
+                parts.append(Segment(tap, source: offset, near: nears[offset]))
                 placed.insert(offset)
                 cutKey = keyIndex
                 cutPoint = pointIndex
             }
             guard !parts.isEmpty else {
-                split.append(Segment(piece, source: index))
+                split.append(Segment(piece, source: index, near: nears[index]))
                 continue
             }
             let tail = Array(piece.keys[cutKey...])
-            parts.append(Segment(keys: tail, of: piece, source: index,
+            parts.append(Segment(keys: tail, near: Array(nears[index][cutKey...]), of: piece, source: index,
                                  anchoredStart: false, anchoredEnd: true, skippable: tail.count == 1))
             split += parts
             didSplit = true
         }
         return didSplit ? [plain, split] : [plain]
     }
+
+    /// For each key the piece crossed, the neighbouring letters (centres within 1.5 key
+    /// widths of it) that its stretch of path came within `nearRadius` of a key's edge
+    /// of: the letters it may stand for besides its own. A tap's are the keys around
+    /// where it landed.
+    func nearKeys(of piece: Piece) -> [[Character]] {
+        guard nearRadius > 0, let unit = layout.frame(of: .letter("q")), !piece.points.isEmpty else {
+            return piece.keys.map { _ in [] }
+        }
+        let walked = piece.points.count > 1 ? Geometry.walk(piece.points, step: 4) : piece.points
+        // Which crossed key each walked point belongs to, in order.
+        var owner: [Int] = []
+        var reached = 0
+        for point in walked {
+            if let letter = layout.key(at: point)?.character,
+               let next = piece.keys[reached...].firstIndex(of: letter), next <= reached + 1 {
+                reached = next
+            }
+            owner.append(reached)
+        }
+        let margin = nearRadius * unit.width
+        var out = Array(repeating: [Character](), count: piece.keys.count)
+        for (index, key) in piece.keys.enumerated() {
+            guard let home = layout.frame(of: .letter(key)) else { continue }
+            let stretch = walked.indices.filter { owner[$0] == index }.map { walked[$0] }
+            let points = stretch.isEmpty ? [walked[index == 0 ? 0 : walked.count - 1]] : stretch
+            for letter in Self.alphabet where letter != key {
+                guard let frame = layout.frame(of: .letter(letter)),
+                      Geometry.distance(CGPoint(x: frame.midX, y: frame.midY), CGPoint(x: home.midX, y: home.midY)) < unit.width * 1.5,
+                      !piece.keys.contains(letter) || piece.isTap else { continue }
+                let grown = frame.insetBy(dx: -margin, dy: -margin * frame.height / frame.width)
+                if points.contains(where: { grown.contains($0) }) { out[index].append(letter) }
+            }
+        }
+        return out
+    }
+
+    static let alphabet = Array("abcdefghijklmnopqrstuvwxyz")
 
     /// The index in the swipe's keys of the key the finger had reached by `pointIndex`,
     /// no earlier than `from`. The points are walked in order against the crossed keys,
@@ -279,6 +373,8 @@ public struct Matcher: Sendable {
         var lastKey: Int
         var node: Int32
         var doubled: Bool
+        /// The trie label of the letter taken for `lastKey` (it or a neighbour).
+        var letter: Int
     }
 
     /// The words in `lexicon` that the segments can spell, with their scores. `prior`
@@ -288,11 +384,12 @@ public struct Matcher: Sendable {
         var best: [String: Double] = [:]
         var seen = Set<SearchState>()
         // Each queue entry carries how many letters each segment has contributed so far.
-        var queue: [(SearchState, [Int])] = [(SearchState(segment: 0, lastKey: -1, node: 0, doubled: false), [0])]
+        // And how many of its letters were stand-ins for a crossed key.
+        var queue: [(SearchState, [Int], Int)] = [(SearchState(segment: 0, lastKey: -1, node: 0, doubled: false, letter: 0), [0], 0)]
         var expanded = 0
         var index = 0
         while index < queue.count, expanded < budget {
-            let (state, counts) = queue[index]
+            let (state, counts, standIns) = queue[index]
             index += 1
             if !seen.insert(state).inserted { continue }
             expanded += 1
@@ -300,10 +397,10 @@ public struct Matcher: Sendable {
             let keys = segment.keys
             // The same crossed key again, for a doubled letter in a swipe ("hello", "coffee").
             if state.lastKey >= 0, !state.doubled, !segment.isTap,
-               let child = lexicon.child(of: state.node, label: Self.index(of: keys[state.lastKey])) {
+               let child = lexicon.child(of: state.node, label: state.letter) {
                 var next = counts
                 next[next.count - 1] += 1
-                queue.append((SearchState(segment: state.segment, lastKey: state.lastKey, node: child, doubled: true), next))
+                queue.append((SearchState(segment: state.segment, lastKey: state.lastKey, node: child, doubled: true, letter: state.letter), next, standIns))
             }
             // Done with this segment: finish the word or go on to the next segment.
             let canLeave = state.lastKey >= 0
@@ -314,11 +411,11 @@ public struct Matcher: Sendable {
                     if let own = lexicon.logPrior(at: state.node) {
                         let prior = fixedPrior ?? own
                         let word = lexicon.word(at: state.node)
-                        let value = score(word: word, prior: prior, counts: counts, segments: segments)
+                        let value = score(word: word, prior: prior, counts: counts, segments: segments) - nearPenalty * Double(standIns)
                         best[word] = max(best[word] ?? -.infinity, value)
                     }
                 } else {
-                    queue.append((SearchState(segment: state.segment + 1, lastKey: -1, node: state.node, doubled: false), counts + [0]))
+                    queue.append((SearchState(segment: state.segment + 1, lastKey: -1, node: state.node, doubled: false, letter: 0), counts + [0], standIns))
                 }
             }
             // Next letter: the segment's first key to begin (any key, for a segment that
@@ -327,10 +424,14 @@ public struct Matcher: Sendable {
                 ? (segment.anchoredStart ? 0..<min(1, keys.count) : 0..<keys.count)
                 : (state.lastKey + 1)..<keys.count
             for j in range {
-                guard let child = lexicon.child(of: state.node, label: Self.index(of: keys[j])) else { continue }
-                var next = counts
-                next[next.count - 1] += 1
-                queue.append((SearchState(segment: state.segment, lastKey: j, node: child, doubled: false), next))
+                for (n, letter) in ([keys[j]] + (segment.near.indices.contains(j) ? segment.near[j] : [])).enumerated() {
+                    let label = Self.index(of: letter)
+                    guard let child = lexicon.child(of: state.node, label: label) else { continue }
+                    var next = counts
+                    next[next.count - 1] += 1
+                    queue.append((SearchState(segment: state.segment, lastKey: j, node: child, doubled: false, letter: label), next,
+                                   standIns + (n > 0 ? 1 : 0)))
+                }
             }
         }
         return best

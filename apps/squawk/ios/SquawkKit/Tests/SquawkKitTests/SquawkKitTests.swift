@@ -250,9 +250,12 @@ private func onceDates(_ plan: [PlannedRing]) -> [Date] {
 
     @Test func shortcutTurnsOffOnlyWhatItMay() {
         let ringing = at(2, 7, 3)
-        let plain = Alarm(days: Weekday.weekdays)
+        let plain = Alarm(days: Weekday.weekdays, rings: [Ring(offsetMinutes: -5), Ring()])
         #expect(plain.shortcutTurnOff(at: at(2, 6, 0), calendar: utc) == .notRinging)
-        #expect(plain.shortcutTurnOff(at: at(2, 7, 0), calendar: utc) == .up(monday))
+        #expect(plain.shortcutTurnOff(at: at(2, 6, 56), calendar: utc) == .up(monday))
+        // Its last ring keeps going until it's stopped, so the action can still silence it.
+        #expect(plain.shortcutTurnOff(at: at(2, 7, 3), calendar: utc) == .lastRing)
+        #expect(plain.shortcutTurnOff(at: at(2, 7, 11), calendar: utc) == .notRinging)
         // It never skips another check.
         #expect(tagAlarm().shortcutTurnOff(at: ringing, calendar: utc) == .needsOtherCheck)
         let shortcutOnly = Alarm(days: Weekday.weekdays, checks: [WakeUpCheck(kind: .shortcut)])

@@ -152,6 +152,9 @@ final class AlarmsModel {
             switch alarms[index].shortcutTurnOff(at: now) {
             case .notRinging:
                 continue
+            case .lastRing:
+                Telemetry.count("morning.up", ["from": "shortcut"])
+                results.append(.turnedOff)
             case .needsOtherCheck:
                 results.append(.needsCheck)
             case .shortcutDone(let day):

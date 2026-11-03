@@ -54,8 +54,9 @@ adding its files under `Resources/<code>/` and a line in the table; the matcher,
 personal models and the harness read whatever the language gives them.
 
 **What we measure** (`docs/telemetry.md`, anonymous, with "Share anonymous usage data"):
-`guess.fixed` (a word swapped from the bar; the rate against `word.committed` is the
-in-the-wild miss rate), `practice.shared` (sessions uploaded, by kind) and
+`guess.words` and `guess.first` (words that went in, and how many as the keyboard's
+first guess, by `kind`: `swipe` or `tap`; their ratio is the in-the-wild first-guess
+rate, 3 Nov 2026, `GuessTally`), `practice.shared` (sessions uploaded, by kind) and
 `personal.reset`. Nothing about which words.
 
 ## Design

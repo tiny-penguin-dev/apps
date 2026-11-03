@@ -6,6 +6,8 @@ import Foundation
 /// attributes are small fixed values, never anything typed.
 public protocol Metrics: Sendable {
     func count(_ name: String, _ attributes: [String: String])
+    /// Counts several at once, like the words in a session.
+    func count(_ name: String, by amount: Int, _ attributes: [String: String])
     func duration(_ name: String, seconds: Double)
     /// A current value, like a speed test's words per minute.
     func gauge(_ name: String, value: Double, _ attributes: [String: String])
@@ -40,6 +42,11 @@ public final class RecordingMetrics: Metrics, @unchecked Sendable {
     public func count(_ name: String, _ attributes: [String: String]) {
         lock.lock(); defer { lock.unlock() }
         entries.append(Entry(name: name, attributes: attributes, seconds: nil, value: nil))
+    }
+
+    public func count(_ name: String, by amount: Int, _ attributes: [String: String]) {
+        lock.lock(); defer { lock.unlock() }
+        entries.append(Entry(name: name, attributes: attributes, seconds: nil, value: Double(amount)))
     }
 
     public func duration(_ name: String, seconds: Double) {

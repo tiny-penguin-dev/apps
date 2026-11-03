@@ -127,6 +127,10 @@ struct LiveMetrics: Metrics {
         Telemetry.count(name, attributes)
     }
 
+    func count(_ name: String, by amount: Int, _ attributes: [String: String]) {
+        Telemetry.count(name, by: amount, attributes)
+    }
+
     func duration(_ name: String, seconds: Double) {
         Telemetry.duration(name, seconds: seconds)
     }

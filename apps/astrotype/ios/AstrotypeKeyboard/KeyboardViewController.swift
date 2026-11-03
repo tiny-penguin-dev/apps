@@ -46,6 +46,7 @@ final class KeyboardViewController: UIInputViewController {
         target.underlines = { [weak model] in model?.keyboardSettings.underlinesWord ?? false }
         model.target = target
         self.target = target
+        if let health { model.onSettled = { [weak health] word in health?.settled(word) } }
 
         let keyboard = KeyboardView(model: model)
         keyboard.backgroundColor = .clear

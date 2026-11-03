@@ -276,6 +276,24 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         setNeedsLayout()
     }
 
+    /// Adds an invisible settings panel and takes it away a moment later. Opening the
+    /// panel was the one thing seen to make iOS give the keyboard the height it asked
+    /// for; the host tries this when nothing else has (KeyboardViewController).
+    public func flashHiddenPanel() {
+        guard panel == nil else { return }
+        let ghost = SettingsPanelView(settings: model.keyboardSettings)
+        ghost.alpha = 0
+        ghost.isUserInteractionEnabled = false
+        ghost.frame = surface.frame
+        addSubview(ghost)
+        ghost.setNeedsLayout()
+        ghost.layoutIfNeeded()
+        Task { @MainActor [weak ghost] in
+            try? await Task.sleep(for: .milliseconds(100))
+            ghost?.removeFromSuperview()
+        }
+    }
+
     public func hideSettings() {
         panel?.removeFromSuperview()
         panel = nil

@@ -212,12 +212,7 @@ final class KeyboardViewController: UIInputViewController {
         applyHeight(fresh: true)
         nudgeLayout()
         let this = appearance
-        for delay in [0.15, 0.4, 0.8, 1.5] {
-            Task { @MainActor [weak self] in
-                try? await Task.sleep(for: .seconds(delay))
-                self?.askAgainIfOff(appearance: this, last: delay == 1.5)
-            }
-        }
+        Task { @MainActor [weak self] in await self?.tryEachWay(appearance: this) }
     }
 
     override func viewWillDisappear(_ animated: Bool) {
@@ -323,19 +318,90 @@ final class KeyboardViewController: UIInputViewController {
         if isVisible, openedAt == nil, granted > 0 { openedAt = (granted, height) }
     }
 
-    /// A timed re-ask after the keyboard appeared: asks again if iOS still gives a
-    /// different height, and on the last one writes down how the opening went.
-    private func askAgainIfOff(appearance: Int, last: Bool) {
-        guard appearance == self.appearance, isVisible, let keyboard else { return }
-        let got = view.bounds.height
-        let asked = keyboard.height(forWidth: view.bounds.width)
-        if abs(got - asked) > 0.5 {
-            applyHeight(fresh: true)
-            nudgeLayout()
+    /// Ways of getting iOS to take the height, tried one at a time after the keyboard
+    /// appears until one works. Asking again, however late, did nothing three builds
+    /// running ("Opened at 224 of the 264 pt asked, still 224 after asking again"),
+    /// while holding 123 made it grow. This build tries each way in turn and writes down
+    /// which one worked, for the settings panel's note, so the next build keeps only
+    /// that one (Gabriel, 3 Nov 2026).
+    private func tryEachWay(appearance: Int) async {
+        let ways: [(String, () -> Void)] = [
+            ("a changed height", { [weak self] in self?.changeHeightConstant() }),
+            ("self-sizing", { [weak self] in self?.turnOnSelfSizing() }),
+            ("re-adding the keys", { [weak self] in self?.readdKeys() }),
+            ("the settings panel", { [weak self] in self?.keyboard?.flashHiddenPanel() }),
+        ]
+        var tried: [String] = []
+        // First a look with nothing tried, then each way in turn.
+        let steps: [(String, () -> Void)] = [("", {})] + ways
+        for (name, way) in steps {
+            try? await Task.sleep(for: .seconds(name.isEmpty ? 0.3 : 0.5))
+            guard appearance == self.appearance, isVisible, let keyboard else { return }
+            if !isOff {
+                if let openedAt, abs(openedAt.got - openedAt.asked) > 0.5 {
+                    keyboard.heightStory = "Opened at \(Int(openedAt.got)) of the \(Int(openedAt.asked.rounded())) pt asked, "
+                        + (tried.last.map { "grew after \($0)." } ?? "then grew by itself.")
+                }
+                if tried.last != "self-sizing" { turnOffSelfSizing() }
+                return
+            }
+            if tried.last == "self-sizing" { turnOffSelfSizing() }
+            if !name.isEmpty {
+                tried.append(name)
+                way()
+            }
         }
-        guard last, let openedAt, abs(openedAt.got - openedAt.asked) > 0.5 else { return }
+        try? await Task.sleep(for: .seconds(0.5))
+        guard appearance == self.appearance, isVisible, let keyboard, let openedAt else { return }
         keyboard.heightStory = "Opened at \(Int(openedAt.got)) of the \(Int(openedAt.asked.rounded())) pt asked, "
-            + (abs(got - asked) > 0.5 ? "still \(Int(got)) after asking again." : "then grew to it.")
+            + (isOff ? "still \(Int(view.bounds.height)) after trying every way." : "grew after the settings panel.")
+    }
+
+    /// Whether iOS gives a different height from the one asked for.
+    private var isOff: Bool {
+        guard let keyboard else { return false }
+        return abs(view.bounds.height - keyboard.height(forWidth: view.bounds.width)) > 0.5
+    }
+
+    /// A different number on the height constraint, then the right one a moment later:
+    /// iOS may only notice a constant that changed.
+    private func changeHeightConstant() {
+        guard let heightConstraint else { return }
+        let height = heightConstraint.constant
+        heightConstraint.constant = height - 1
+        view.setNeedsLayout()
+        view.layoutIfNeeded()
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .milliseconds(50))
+            self?.heightConstraint?.constant = height
+            self?.view.setNeedsLayout()
+        }
+    }
+
+    /// The input view sizing itself from the constraints inside it. Off again unless it
+    /// is what worked: it once laid the keyboard out inset on a wide screen.
+    private func turnOnSelfSizing() {
+        (inputView ?? (view as? UIInputView))?.allowsSelfSizing = true
+        keyboard?.invalidateIntrinsicContentSize()
+        view.setNeedsLayout()
+    }
+
+    private func turnOffSelfSizing() {
+        (inputView ?? (view as? UIInputView))?.allowsSelfSizing = false
+    }
+
+    /// Takes the keys out of the view and puts them back, pinned again.
+    private func readdKeys() {
+        guard let keyboard else { return }
+        keyboard.removeFromSuperview()
+        view.addSubview(keyboard)
+        NSLayoutConstraint.activate([
+            keyboard.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            keyboard.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            keyboard.topAnchor.constraint(equalTo: view.topAnchor),
+            keyboard.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+        ])
+        view.setNeedsLayout()
     }
 
     /// Asks iOS for the keyboard's height with a constraint on the view. `fresh` swaps in

@@ -233,6 +233,14 @@ public final class KeyboardModel {
     }
 
     /// Writes what was learned now, not after the usual pause (the keyboard is going away).
+    /// The keyboard is going away: settle the last word (a miss saved just before
+    /// is kept now) and write what was learned.
+    public func keyboardWillHide() {
+        for case .settled(let word) in composer.keyboardWillHide() { learn(from: word) }
+        onChange?()
+        savePersonalNow()
+    }
+
     public func savePersonalNow() {
         guard personalSave != nil else { return }
         personalSave?.cancel()

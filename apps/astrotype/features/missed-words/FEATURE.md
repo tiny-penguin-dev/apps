@@ -170,3 +170,7 @@ Status: Approved 2026-11-03 (with the design, at Gabriel's request)
   swipe to delete (also takes it off the sharing list). "Forget what it learned"
   clears the list with the shapes. Folded into `PRODUCT.md` 5.3 and `DESIGN.md` "The
   bar".
+- **Fix** (3 Nov 2026): a miss settled only when the next word started, so saving
+  "second" and closing the keyboard could lose it (Gabriel's first real miss never
+  arrived). `Composer.keyboardWillHide()` settles the last word when the keyboard goes
+  away (`KeyboardModel.keyboardWillHide`, from `viewWillDisappear`).

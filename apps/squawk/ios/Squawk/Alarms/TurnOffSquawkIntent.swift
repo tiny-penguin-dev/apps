@@ -12,16 +12,13 @@ struct TurnOffSquawkIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
-        switch await AlarmsModel.shared.turnOffFromShortcut() {
-        case .turnedOff:
-            .result(dialog: "Squawk is off. Good morning!")
-        case .oneCheckLeft:
-            .result(dialog: "Nice! Open Squawk to finish your other wake-up checks.")
-        case .needsCheck:
-            .result(dialog: "This alarm has a wake-up check. Open Squawk to do it.")
-        case .nothingRinging:
-            .result(dialog: "No Squawk alarm is ringing right now.")
+        let dialog: IntentDialog = switch await AlarmsModel.shared.turnOffFromShortcut() {
+        case .turnedOff: "Squawk is off. Good morning!"
+        case .oneCheckLeft: "Nice! Open Squawk to finish your other wake-up checks."
+        case .needsCheck: "This alarm has a wake-up check. Open Squawk to do it."
+        case .nothingRinging: "No Squawk alarm is ringing right now."
         }
+        return .result(dialog: dialog)
     }
 }
 

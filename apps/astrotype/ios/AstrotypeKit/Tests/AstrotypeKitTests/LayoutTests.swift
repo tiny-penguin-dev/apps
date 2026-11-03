@@ -64,11 +64,11 @@ import Testing
         let shorter = Layout.qwerty(width: 390, scale: 0.8)
         #expect(taller.keyHeight > apple.keyHeight)
         #expect(shorter.keyHeight < apple.keyHeight)
-        #expect(taller.height == 256 + 7)
-        #expect(shorter.height == 170 + 7)
+        #expect(abs(taller.height - 263) < 0.001)
+        #expect(abs(shorter.height - 177) < 0.001)
         // Measured from the bottom, the bottom row stays put.
         for layout in [taller, shorter] {
-            #expect(layout.height - layout.frame(of: .space)!.maxY == 7)
+            #expect(abs(layout.height - layout.frame(of: .space)!.maxY - 7) < 0.001)
             #expect(layout.frame(of: .letter("q"))!.minY == 0)
         }
     }
@@ -79,7 +79,7 @@ import Testing
         #expect(full.bottomInset == 4)
         #expect(split.bottomInset == 8)
         #expect(split.keyHeight == full.keyHeight)
-        #expect(split.height == full.height + 4)
+        #expect(abs(split.height - full.height - 4) < 0.001)
     }
 
     @Test func sidesFollowTheHalves() {
@@ -246,7 +246,7 @@ import Testing
         #expect(shorter.height == 180)
         #expect(shorter.keyHeight < natural.keyHeight)
         #expect(shorter.frame(of: .letter("q"))!.minY == 0)
-        #expect(shorter.frame(of: .space)!.maxY == 180 - 4)
+        #expect(abs(shorter.frame(of: .space)!.maxY - 176) < 0.001)
         #expect(shorter.frame(of: .letter("q"))!.width == natural.frame(of: .letter("q"))!.width)
         let taller = Layout.qwerty(width: 390, height: 240)
         #expect(taller.height == 240)

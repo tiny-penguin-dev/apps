@@ -6,7 +6,7 @@ that swipe, and keeps it so we can see what went wrong.
 
 ## Product
 
-Status: Draft
+Status: Draft (Gabriel answered the open questions, 3 Nov 2026)
 
 - **The problem:** when a swipe comes out wrong and the word you meant isn't among the
   guesses, all you can do is delete it and peck the word out. The keyboard learns
@@ -41,13 +41,15 @@ Status: Draft
   (newest first) with the word meant, what it wrote, and the swipe drawn on a little
   keyboard. Swipe a row to delete it; "Forget what it learned" also clears the list.
   The list keeps the last 200.
-  - **Share for checking** (button at the bottom) makes a file of the misses and opens
-    the share sheet, so it can be dropped into a project thread or the repo, and
-    `astrotype-tools replay` plays it through the engine. This is how a miss like
-    "second" gets debugged and turned into a test.
-  - With "Send practice sessions" and "Include corrections" on, misses also go up with
-    the corrections (they are the same kind of record: one word, its swipe, no text
-    around it), and show on "What gets shared" first.
+  - **Uploading (iCloud, for anyone):** with "Send practice sessions" and "Include
+    corrections" on, misses go up to our iCloud container with the corrections. They
+    are the same kind of record (one word, its swipe and the word written, no text
+    around it), so anyone who turned sharing on helps, not just us. They show on "What
+    gets shared" before they go, and the app sends them, never the extension.
+    Each row in the list says "Shared" or "On this phone".
+  - **Debugging:** `download_samples.py --type PracticeSession` fetches them and
+    `astrotype-tools replay` plays them through the engine, so a miss like "second"
+    becomes a test and a fix (Gabriel, 3 Nov 2026: "Do iCloud so anyone can upload").
 - **What it changes:**
   - The bar: the new button in the FIX and open-word states, and a new "field" state.
   - The keyboard: while the field is open, taps type into it instead of into the app.
@@ -56,8 +58,8 @@ Status: Draft
   - "Forget what it learned" also forgets shapes and misses.
 - **Scope:**
   - *This version:* the button, the field, fixing the text, learning (word, shape,
-    boost), the list, sharing the file, uploading with corrections.
-  - *Later:* "Not it?" for pecked words; editing a miss in the app; a debug view that
+    boost), the list, uploading with corrections.
+  - *Later:* "Not it?" for pecked words; exporting misses as a file; editing a miss in the app; a debug view that
     shows the matcher's top ten with scores for a miss (handy for us, not for people).
   - *Never:* anything typed around the word leaves the phone; misses sent without
     "Include corrections" on.
@@ -69,14 +71,11 @@ Status: Draft
   - `miss.shape_hit` (count): later swipes that a remembered shape got right. Shows
     whether learning from misses works.
   - Nothing about which words.
-- **Open questions** for Gabriel
-  1. Show **Not it?** only after a swiped word (my pick), or always, at the end of the
-     bar?
-  2. Should Save also fix the text in the app (my pick), or only teach the keyboard and
-     leave the text for you to fix?
-  3. For debugging: is a shared file you drop in the thread good (my pick, we can read
-     it right away), or should misses go up automatically to iCloud with your sharing
-     switches, for us to download?
+- **Decided** (Gabriel, 3 Nov 2026)
+  1. **Not it?** shows only after a swiped word.
+  2. Save fixes the word in the text and teaches the keyboard.
+  3. Misses upload to iCloud with the sharing switches, from anyone who turns them on,
+     rather than a file to share.
 
 ## Design
 
@@ -89,10 +88,10 @@ Status: Not started
 Notes for later, so the plan fits the code:
 
 - Core (`AstrotypeCore`, tested): `MissedWord` (or a `SharedWord` with a new kind,
-  `word.miss`, so upload and replay already read it) and a `MissStore` with a cap;
+  `word.miss`, so `CloudKitPracticeUploader`, `download_samples.py` and replay already read it) and a `MissStore` with a cap;
   `ShapeMemory` (remembered swipes per word, scored by DTW against a new swipe, synced
   with the personal model's shards); `Matcher` takes its guesses beside the dictionary.
 - The composer gets a field mode: taps go to a buffer, not the text target; Save emits
   "replace the last word with X" and a `.miss` effect for `KeyboardModel` to store.
 - Phases: A, the button, field, text fix and miss store (with a test that a saved miss
-  replays); B, shape memory in the matcher; C, the Settings list and the share file.
+  replays); B, shape memory in the matcher; C, the Settings list and the upload.

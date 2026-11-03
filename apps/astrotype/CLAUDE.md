@@ -126,7 +126,7 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
   `smart-matching` (context, personal learning, consented sharing, the harness),
   `languages` (Spanish and the next languages, both at once; built),
   `missed-words` (the bar's "Not it?": type the word meant, learn from the swipe, keep
-  it for debugging; product draft).
+  it for debugging; product answered, design next).
 - `design/`: the mockup (`mockups/astrotype.html`, the keyboard in it works), the
   screen captures the design doc links, the icon's SVGs (`icon/`) and
   `appstore/make-screenshots.mjs`, which renders the store screenshots from the mockup

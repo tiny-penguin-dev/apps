@@ -9,6 +9,9 @@ public enum ProFeature: String, CaseIterable, Sendable {
     case splitLayout
     /// The practice drills (Phase 7). The speed test stays free.
     case drills
+    /// Typing in two languages at once (features/languages). Every language is free
+    /// on its own.
+    case twoLanguages
 
     /// Features that are free for everyone. Moving a feature out of Pro is adding it here.
     public static let free: Set<ProFeature> = []

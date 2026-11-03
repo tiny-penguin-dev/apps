@@ -18,7 +18,7 @@ let package = Package(
     ],
     targets: [
         // One folder per language under Resources/ (lexicon.tsv, bigrams.bin).
-        .target(name: "AstrotypeCore", resources: [.copy("Resources/en")]),
+        .target(name: "AstrotypeCore", resources: [.copy("Resources/en"), .copy("Resources/es")]),
         .target(name: "AstrotypeUI", dependencies: ["AstrotypeCore"]),
         .executableTarget(name: "AstrotypeTools", dependencies: ["AstrotypeCore"]),
         .testTarget(name: "AstrotypeKitTests", dependencies: ["AstrotypeCore"], exclude: ["Fixtures"]),

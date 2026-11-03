@@ -20,9 +20,16 @@ final class KeyboardViewController: UIInputViewController {
     /// Fresh height constraints sent since the keyboard last appeared (`askAgainIfShort`).
     private var heightRetries = 0
     private var isVisible = false
+    /// What iOS gave when the keyboard last opened, for the settings panel's note.
+    private var openedAt: (got: CGFloat, asked: CGFloat)?
+    /// Bumped on each appearance, so re-asks left over from the last one stop.
+    private var appearance = 0
     private let checks = ExtensionChecks()
     private var health: KeyboardHealthRecorder?
     private var edits = 0
+    /// The last appearance the field asked for, and whether it only echoed the phone's
+    /// light or dark mode (`followKeyboardAppearance`).
+    private var askedAppearance: (asked: UIKeyboardAppearance, echo: Bool)?
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -36,9 +43,14 @@ final class KeyboardViewController: UIInputViewController {
         // First, so a crash while loading is caught.
         KeyboardTelemetry.start(fullAccess: fullAccess)
         health = KeyboardHealthRecorder(fullAccess: fullAccess)
-        // English, with its word pairs when they shipped (features/smart-matching).
-        let language = (try? Language.bundled()) ?? Language(code: "en", lexicon: Lexicon(entries: []))
         let (settingsStore, wordStore, personalStore) = Self.stores(fullAccess: fullAccess)
+        // The languages turned on, or the phone's (features/languages), with their word
+        // pairs. Pro is not known yet, so both load; the model drops to one when the
+        // entitlement says the keyboard is free.
+        let codes = (settingsStore.load() ?? KeyboardSettings())
+            .activeLanguages(preferred: Locale.preferredLanguages, allowsTwo: true)
+        let language = (try? Language.bundled(codes)) ?? (try? Language.bundled())
+            ?? Language(code: "en", lexicon: Lexicon(entries: []))
         let model = KeyboardModel(composer: Composer(language: language, layout: Layout.qwerty(width: 390)),
                                   store: settingsStore, wordStore: wordStore, personalStore: personalStore,
                                   installID: InstallID.load(from: KeyboardFiles.own(KeyboardFiles.install)))
@@ -82,6 +94,12 @@ final class KeyboardViewController: UIInputViewController {
             checks.run(hasFullAccess: fullAccess) { [weak keyboard] note in
                 keyboard?.bar.note = note
             }
+        }
+
+        // Light or dark mode changing while the keyboard is up (Gabriel, 3 Nov 2026: the
+        // keys stayed white until the app was reopened).
+        registerForTraitChanges([UITraitUserInterfaceStyle.self]) { (self: Self, _: UITraitCollection) in
+            self.followKeyboardAppearance()
         }
     }
 
@@ -151,6 +169,7 @@ final class KeyboardViewController: UIInputViewController {
         heightRetries = 0
         applyHeight(fresh: true)
         health?.appeared()
+        askedAppearance = nil
         followKeyboardAppearance()
         keyboard?.model.learningAllowed = fieldAllowsLearning
         keyboard?.model.contextChanged()
@@ -159,11 +178,23 @@ final class KeyboardViewController: UIInputViewController {
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
         isVisible = true
-        // iOS only takes a new height once the keyboard is on screen; before that it can
-        // keep its own, and the keyboard opened short until something laid it out again
-        // (Gabriel, 3 Nov 2026: it grew when the 123 menu opened).
+        appearance += 1
+        openedAt = nil
+        keyboard?.heightStory = nil
+        // iOS only takes a new height once the keyboard is on screen, and seems to drop
+        // one sent while it is still sliding the keyboard in; the keyboard opened short
+        // until something laid it out again (Gabriel, 3 Nov 2026: it grew when the 123
+        // menu opened, and asking again right away was not enough). So ask now, and
+        // again after the slide has ended, as long as the height is still off.
         applyHeight(fresh: true)
         view.setNeedsLayout()
+        let this = appearance
+        for delay in [0.15, 0.4, 0.8, 1.5] {
+            Task { @MainActor [weak self] in
+                try? await Task.sleep(for: .seconds(delay))
+                self?.askAgainIfOff(appearance: this, last: delay == 1.5)
+            }
+        }
     }
 
     override func viewWillDisappear(_ animated: Bool) {
@@ -196,13 +227,33 @@ final class KeyboardViewController: UIInputViewController {
         return true
     }
 
-    /// Light or dark as the app asked for its keyboard, like Apple's keyboard does.
+    /// Light or dark as the app asked for its keyboard, like Apple's keyboard does, and
+    /// otherwise the phone's mode, live.
+    ///
+    /// The override goes on the keyboard view, not on this controller's view, so this
+    /// controller's own traits stay the phone's and tell it when the mode changes. A field
+    /// often answers with the mode the phone was in when it opened (light in light mode)
+    /// and keeps answering that after the mode changes; pinned to that answer, the keys
+    /// stayed white in dark mode until the app was reopened. So an answer that only
+    /// echoes the phone's mode is not pinned, and stays an echo until the field answers
+    /// something else.
     private func followKeyboardAppearance() {
-        switch textDocumentProxy.keyboardAppearance ?? .default {
-        case .dark: view.overrideUserInterfaceStyle = .dark
-        case .light: view.overrideUserInterfaceStyle = .light
-        default: view.overrideUserInterfaceStyle = .unspecified
+        guard let keyboard else { return }
+        let asked = textDocumentProxy.keyboardAppearance ?? .default
+        let phone = traitCollection.userInterfaceStyle
+        let echo: Bool
+        if let last = askedAppearance, last.asked == asked {
+            echo = last.echo
+        } else {
+            switch asked {
+            case .dark: echo = phone == .dark
+            case .light: echo = phone != .dark
+            default: echo = true
+            }
         }
+        askedAppearance = (asked, echo)
+        let style: UIUserInterfaceStyle = echo ? .unspecified : (asked == .dark ? .dark : .light)
+        if keyboard.overrideUserInterfaceStyle != style { keyboard.overrideUserInterfaceStyle = style }
     }
 
     override func viewWillLayoutSubviews() {
@@ -217,6 +268,22 @@ final class KeyboardViewController: UIInputViewController {
         keyboard.frame = CGRect(x: 0, y: 0, width: width, height: granted > 0 ? granted : height)
         checks.sized(granted: granted, wanted: height, width: width, screenWidth: view.window?.windowScene?.screen.bounds.width ?? 0)
         askAgainIfShort(granted: granted, wanted: height)
+        if isVisible, openedAt == nil, granted > 0 { openedAt = (granted, height) }
+    }
+
+    /// A timed re-ask after the keyboard appeared: asks again if iOS still gives a
+    /// different height, and on the last one writes down how the opening went.
+    private func askAgainIfOff(appearance: Int, last: Bool) {
+        guard appearance == self.appearance, isVisible, let keyboard else { return }
+        let got = view.bounds.height
+        let asked = keyboard.height(forWidth: view.bounds.width)
+        if abs(got - asked) > 0.5 {
+            applyHeight(fresh: true)
+            view.setNeedsLayout()
+        }
+        guard last, let openedAt, abs(openedAt.got - openedAt.asked) > 0.5 else { return }
+        keyboard.heightStory = "Opened at \(Int(openedAt.got)) of the \(Int(openedAt.asked.rounded())) pt asked, "
+            + (abs(got - asked) > 0.5 ? "still \(Int(got)) after asking again." : "then grew to it.")
     }
 
     /// Asks iOS for the keyboard's height with a constraint on the view. `fresh` swaps in

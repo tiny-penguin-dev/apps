@@ -10,7 +10,7 @@ import UIKit
 public enum Theme {
     /// A colour with a light and a dark value (0xRRGGBB).
     public enum Tone: CaseIterable, Sendable {
-        case bg, card, ink, muted, line, accent, accentInk, left, right, sun, sunInk, mint, ice, key, keyDark, keyInk, kb, keyPressed
+        case bg, card, ink, muted, line, accent, accentInk, left, right, sun, sunInk, mint, ice, danger, slate, key, keyDark, keyInk, kb, keyPressed
 
         var values: (light: UInt32, dark: UInt32) {
             switch self {
@@ -27,6 +27,10 @@ public enum Theme {
             case .sunInk: (0x3A2600, 0x3A2600)
             case .mint: (0x2FBF96, 0x45D3AA)
             case .ice: (0xD9EDF3, 0x1D3240)
+            // The right thumb's coral, darker so red text passes contrast (Forget).
+            case .danger: (0xE0526A, 0xFF7A8E)
+            // Settings icon tiles for system rows (privacy, haptics, about).
+            case .slate: (0x5B6B8C, 0x6E7FA0)
             // The keys are Apple's keyboard's (iOS 26), so ours sits beside it unnoticed
             // (Gabriel, 2 Nov 2026); dark measured from his screenshots.
             case .key: (0xFFFFFF, 0x464646)
@@ -61,6 +65,10 @@ public enum Theme {
     public static let sunInk = Color(uiColor: ui(.sunInk))
     public static let mint = Color(uiColor: ui(.mint))
     public static let ice = Color(uiColor: ui(.ice))
+    /// Destructive text, like Forget.
+    public static let danger = Color(uiColor: ui(.danger))
+    /// Icon tiles for system rows in Settings.
+    public static let slate = Color(uiColor: ui(.slate))
     public static let key = Color(uiColor: ui(.key))
     public static let keyDark = Color(uiColor: ui(.keyDark))
     public static let kb = Color(uiColor: ui(.kb))

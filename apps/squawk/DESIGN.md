@@ -47,7 +47,7 @@ different times on some days, Pro pricing).
 | 9 | Wake-up check: tag | "Go scan your tag", where it is, a pulsing scan target, grumpy penguin, time left. Link to the math way out. | [09](design/screens/09-check.png) |
 | 10 | Wake-up check: game | "How many penguins?" Pick the right number. Wrong answers shake, no penalty. | [10](design/screens/10-game.png) |
 | 11 | Math way out | One multiplication (like 47 × 8) and a big keypad. | [11](design/screens/11-math.png) |
-| 12 | Good morning | Penguin reaction, a line about how the morning went, this week's dots and streak, fish confetti. | [12](design/screens/12-morning.png) |
+| 12 | Good morning | Penguin reaction, a line about how the morning went, the Today card (weather and first event, Pro, see [morning summary](features/morning-summary/FEATURE.md)) or the offer to add it, this week's dots and streak, fish confetti. | [12](design/screens/12-morning.png) |
 
 Not drawn yet (simple, same style): Settings (sounds, Pro, help), the code-scan check
 (camera view with a friendly frame), the "change next morning only" sheet, the widget,

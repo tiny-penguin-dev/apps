@@ -503,6 +503,7 @@ extension WakeUpCheck.Kind {
         case .tag: "Stick a tag by the bathroom mirror and tap your phone on it."
         case .code: "Any QR code or barcode, like the one on your toothpaste."
         case .game: "Count the penguins. Hard to do half asleep."
+        case .shortcut: "Use \"Turn off Squawk\" in an automation, like tapping an NFC tag."
         }
     }
 }

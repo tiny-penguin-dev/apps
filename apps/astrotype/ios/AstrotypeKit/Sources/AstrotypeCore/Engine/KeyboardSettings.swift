@@ -65,6 +65,10 @@ public struct KeyboardSettings: Codable, Sendable, Equatable {
     /// After each word, offer the likely next words on the bar; a tap writes one
     /// (features/next-word). On by default.
     public var nextWords = true
+    /// The languages the person turned on, as codes ("en", "es"), in their order. Nil
+    /// follows the phone (`phoneLanguages`): a Spanish phone types Spanish
+    /// (features/languages). Two at once is Pro; `activeLanguages` says which apply.
+    public var languages: [String]?
 
     /// `keyboardHeight` kept in its range, for `Layout.qwerty(scale:)`.
     public var heightScale: CGFloat {
@@ -94,6 +98,34 @@ public struct KeyboardSettings: Codable, Sendable, Equatable {
         splitStrictness = try c.decodeIfPresent(Double.self, forKey: .splitStrictness) ?? 0.8
         keyboardHeight = try c.decodeIfPresent(Double.self, forKey: .keyboardHeight) ?? 1.0
         nextWords = try c.decodeIfPresent(Bool.self, forKey: .nextWords) ?? true
+        languages = try c.decodeIfPresent([String].self, forKey: .languages)
+    }
+
+    /// The bundled languages among the phone's preferred ones (`Locale.preferredLanguages`,
+    /// "es-MX" is "es"), in its order; English when it lists none of them.
+    public static func phoneLanguages(_ preferred: [String]) -> [String] {
+        var out: [String] = []
+        for identifier in preferred {
+            let code = String(identifier.lowercased().prefix { $0.isLetter })
+            if Language.bundledCodes.contains(code), !out.contains(code) { out.append(code) }
+        }
+        return out.isEmpty ? ["en"] : out
+    }
+
+    /// The languages turned on (or the phone's), bundled ones only, never none.
+    public func chosenLanguages(preferred: [String]) -> [String] {
+        let chosen = (languages ?? Self.phoneLanguages(preferred)).filter { Language.bundledCodes.contains($0) }
+        return chosen.isEmpty ? Self.phoneLanguages(preferred) : chosen
+    }
+
+    /// The languages the keyboard types in: the chosen ones, or with one allowed (the
+    /// free keyboard), the chosen one the phone puts first. At most two.
+    public func activeLanguages(preferred: [String], allowsTwo: Bool) -> [String] {
+        let chosen = chosenLanguages(preferred: preferred)
+        guard !allowsTwo, chosen.count > 1 else { return Array(chosen.prefix(2)) }
+        let phone = Self.phoneLanguages(preferred)
+        let first = chosen.min { (phone.firstIndex(of: $0) ?? .max) < (phone.firstIndex(of: $1) ?? .max) } ?? chosen[0]
+        return [first]
     }
 
     /// `base` with these settings applied; the rest of the engine's settings stay.

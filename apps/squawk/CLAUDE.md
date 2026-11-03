@@ -31,13 +31,23 @@ Squawk is in the **Build** stage. Read `PRODUCT.md`, `DESIGN.md` and `BUILD.md` 
   only cancels or adds the AlarmKit alarms that changed (it remembers what it made in
   UserDefaults). "I'm up" on the ringing screen runs
   `SquawkUpIntent`.
+- "Turn off Squawk" (`Alarms/TurnOffSquawkIntent.swift`): the Shortcuts action, also
+  the "Run a Shortcut" wake-up check. It runs in the background and calls
+  `AlarmsModel.turnOffFromShortcut()`; `Alarm.shortcutTurnOff` decides what it may do.
+  It ends a morning with no checks or only Shortcut checks, and only ticks off the
+  Shortcut check when there are others. It never skips another check.
 - Wake-up checks: `ios/Squawk/Checks/` (`TagReader` reads an NFC sticker's id with
   CoreNFC, `CodeScanner` wraps VisionKit's barcode scanner), `Screens/CheckFlowView.swift`
   (tag, code, penguin game, math way out) and `Screens/ChecksSetup.swift`. An alarm with
   a check is planned as one-off rings 5 mornings ahead, and its last ring repeats
   every 30 s for 10 minutes; doing the check marks the morning done. To stay under
   AlarmKit's per-app limit, only the next 2 minutes of repeats are scheduled, plus a
-  backup every 2 minutes; Snooze (`SquawkStopIntent`) re-plans to schedule the next ones. NFC needs the
+  backup every 2 minutes; Snooze (`SquawkStopIntent`) re-plans to schedule the next ones. Since the 5 mornings run out
+  if nobody opens the app, `RunOutReminder` (`Alarms/RunOutReminder.swift`, the app's only
+  local notification) says "Open Squawk to keep your alarms" at 8 PM the evening before the
+  last planned morning (`AlarmPlanner.runOutReminder`, which also covers a changed weekday's
+  one-off weeks). Every re-plan moves it. Saving a repeating alarm with a check asks for
+  notification permission. NFC needs the
   entitlement in `Config/Squawk.entitlements`; CI turns the capability on.
 - Squawk Pro: `ProAccess` in `SquawkKit/Pro.swift` is the one place that says what's
   free (2 rings, the 3 quick-add sounds, skip next morning, outfits earned with a
@@ -54,12 +64,23 @@ Squawk is in the **Build** stage. Read `PRODUCT.md`, `DESIGN.md` and `BUILD.md` 
   `HomePlanner` turns them into Home automations with the same rules as rings.
   `Squawk/Home/`: `HomeAccess` (permission, hub, devices; created lazily since it shows
   the iOS prompt) and `HomeSync`, the only code that writes to HomeKit: action sets plus
-  triggers named "Squawk · …", remembered in UserDefaults and re-synced on every
-  reschedule. Sunrise lights (`features/sunrise-lights/FEATURE.md`) are a `HomeAction`
+  triggers named "Squawk · …" (action sets show as scenes in the Home app, so steps that
+  set the same things share one), remembered in UserDefaults and re-synced on every
+  reschedule. HomeKit refuses changes while the app is in the background ("Request not
+  handled", e.g. after "I'm up" or Snooze on the lock screen), so `HomeAccess` holds that
+  sync and runs it, with a fresh plan, the next time the app is active. Sunrise lights (`features/sunrise-lights/FEATURE.md`) are a `HomeAction`
   of kind `.sunrise` with a `Sunrise` (length, start/end brightness and warmth); HomeKit
   can't fade, so `Alarm.homeSteps` spreads each one into up to 10 timed light changes and
   `HomePlanner` plans from `homeSteps`, not `steps`. "+" on Home opens the guided setup (`Screens/NewAlarmFlow.swift`, answers
   in `NewAlarmGuide`), with "All options" going to `EditAlarmView`.
+- Morning summary (`features/morning-summary/FEATURE.md`, Pro): the Today card on Good
+  morning with the weather and the first event of the day. The rules (`Agenda`,
+  `WeatherNote`, `SummarySettings`, `withTimeout`) and the `WeatherSource`/`AgendaSource`
+  protocols with fakes are in `SquawkKit/MorningSummary.swift`. `Squawk/Summary/` has
+  `MorningSummaryModel` (switches, permissions, loading; the weather is dropped after 6 s)
+  and the live sources: WeatherKit with approximate "while using" location, and EventKit
+  (read only). WeatherKit needs its entitlement and the App Service on the App ID
+  (`docs/ios-release.md`). Apple's Weather mark and "Data sources" link must stay on the card.
 - `ios/SquawkWidget/`: the next-alarm widget (home screen small and medium, lock screen).
   The app saves a `WidgetSnapshot` (next wake-ups and the streak, in `SquawkKit`) to the
   App Group `group.com.tinypenguin.squawk` whenever alarms or mornings change

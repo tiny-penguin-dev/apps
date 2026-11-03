@@ -176,6 +176,11 @@ Status: Approved 2026-11-03 (built in the same PR, as Gabriel asked)
 - Nothing is offered after a comma, inside a word, after a word neither the pairs nor
   the person know, in fields that do not learn, or in the app's practice fields. After
   a period with no space ("Done.") the pick adds the space first.
+- With two languages on (features/languages, merged the same day), each language's
+  pairs that know the word before have their say and the likelier wins, as in the
+  matcher; the guesses come back with their accents from the dictionary ("muy" →
+  "bien", "difícil"). The setting is a "Next word" tile in the keyboard's panel and a
+  row on the app's Typing page.
 - Speed: `NextWords` after "the" (the most pairs) takes about 1.8 ms in a debug build
   on Linux, once per word; release is several times faster. `NextWordTests.guessesAreFast`
   keeps it under 5 ms.

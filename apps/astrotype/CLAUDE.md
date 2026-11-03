@@ -18,8 +18,9 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
     `AppModel` from `AppEnvironment.live()`, shows the setup screens then `HomeView`),
     `App/` (`AppModel`, the only thing views talk to; `AppEnvironment`, the one place
     real services are named; `LiveMetrics` on `Telemetry`), `Onboarding/`
-    (`TurnOnView`, `SyncView`, `TryItView`, and `SetupPage`, their shared shape),
-    `HelloView`, `HomeView`, `SettingsView`, `LearnedWordsView`, `SharingView` ("What
+    (`TurnOnView`, `LanguagesSetupView` (only on a phone set to two languages), `SyncView`, `TryItView`, and `SetupPage`, their shared shape),
+    `HelloView`, `HomeView`, `Settings/` (`SettingsView`, the main page with its
+    `SettingsPage`s, and `SettingsPages`, one view per page), `LearnedWordsView`, `SharingView` ("What
     gets shared": the words waiting to go up, drawn on the keys), `PracticeView`,
     `ProView` (the subscription screen, StoreKit's `SubscriptionStoreView`),
     `TrialOverView` (the sheet, once), `MilestoneView` (the sheet, once each),
@@ -44,8 +45,9 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
   - `AstrotypeKit/`: the local package, three targets:
     - `AstrotypeCore`: Core and Services. `Layout` (key geometry), `Language` (one
       language's files from `Resources/<code>/`: `Lexicon`, the trie from
-      `lexicon.tsv`, and `NgramModel`, the word pairs from `bigrams.bin`; English
-      only so far), `Flags`, and `Engine/`: `Composer` (touches in, effects out, pure,
+      `lexicon.tsv`, and `NgramModel`, the word pairs from `bigrams.bin`; English and
+      Spanish, `Language.bundled(["en", "es"])` for both at once; accented words sit
+      under their plain letters, `Lexicon.fold`, and `Matcher` writes the accents back), `Flags`, and `Engine/`: `Composer` (touches in, effects out, pure,
       time passed in), `Matcher` (pieces to ranked candidates: trie search plus DTW,
       two-thumb orderings and split swipes, the words before the open one from
       `WordContext` and the person's `PersonalIndex`), `NextWords` (the likely next words for
@@ -55,7 +57,7 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
       composer emits when a word is final, and `PersonalLearner`, the model as a
       keyboard holds it), `NgramModel` (the word-pair binary, read and built), `Replay`
       (the harness: a practice recording through the engine, first-guess accuracy),
-      `Piece`, `Geometry`, `LearnedWords`, `KeyboardSettings` (the in-keyboard settings
+      `Piece`, `Geometry`, `Accents` (what a held key offers), `LearnedWords`, `KeyboardSettings` (the in-keyboard settings
       and their `SettingsStore`). `Sync/` holds the data layer: `Stores` (`JSONFile`,
       `WordStore` and file, memory and mirrored stores for words, settings and the
       personal model, `InstallID`),
@@ -86,15 +88,15 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
       keyboard's views: `KeyboardView` (bar plus keys, the pages, the settings panel;
       owns a `KeyboardModel`), `BarView`, `KeySurfaceView` (touch stream, flashes,
       trails, rings, and the gestures: space slide, backspace swipe and hold, "123"
-      hold), `SettingsPanelView`, `KeyboardModel` (applies the composer's effects to a
-      `TextTarget`, runs the autospace timer, keeps the settings and the learned words,
+      hold, the slide from "123" to a number or symbol, and a held letter's accents, `AccentCallout`), `SettingsPanelView`, `KeyboardModel` (applies the composer's effects to a
+      `TextTarget`, runs the autospace timer, keeps the settings and the learned words, loads the languages that are on,
       learns, boosts and forgets, and feeds each settled word to the personal model; `TextViewTarget` for a `UITextView`),
       `SyncController` (a model's words and settings in step with a `CloudSync`),
       `EntitlementController` (a model's entitlement in step with a `ProStore` and
       the trial, for the extension).
       UIKit and SwiftUI, guarded
       with `#if canImport(UIKit)` so `swift test` still builds the package on macOS.
-    - `AstrotypeKitTests`: Swift Testing. `ComposerTests`, `NextWordTests`, `PersonalModelTests`, `SharedWordTests`, `TuningTests`, `MatcherTests` (the 50-word
+    - `AstrotypeKitTests`: Swift Testing. `ComposerTests`, `NextWordTests`, `LanguagesTests` (Spanish, accents, both at once, picked accents, which languages are on), `PersonalModelTests`, `SharedWordTests`, `TuningTests`, `MatcherTests` (the 50-word
       fixture in `Fixtures/swipes.json`, through `Synth`'s straight-line swipes, and
       `ContextMatcherTests`), `WordContextTests`, `NgramModelTests`, `ReplayTests`
       (recordings made from `Synth` strokes replay to the live result),
@@ -118,11 +120,12 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
 - `ml/`: the v1 Python training loop (see `ml/README.md`); the opt-in practice-session
   uploads (`PracticeSession` records) land in the same container, and
   `download_samples.py --type PracticeSession` fetches them for `astrotype-tools
-  replay`. `ml/ngrams/` counts a corpus's word pairs for `build-ngrams` (its README
-  has the commands and the data source).
+  replay`. `ml/ngrams/` makes a language's word list (`make_lexicon.py`) and counts a
+  corpus's word pairs for `build-ngrams` (its README has the commands and the data sources).
 - `features/`: the bigger features after the v2 build, one folder each with a
   `FEATURE.md` (product, design, build and its phases, notes as they ship):
   `smart-matching` (context, personal learning, consented sharing, the harness),
+  `languages` (Spanish and the next languages, both at once; built),
   `next-word` (the likely next words on the bar after each word, with the FIX chip).
 - `design/`: the mockup (`mockups/astrotype.html`, the keyboard in it works), the
   screen captures the design doc links, the icon's SVGs (`icon/`) and

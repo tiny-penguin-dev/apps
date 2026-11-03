@@ -239,6 +239,40 @@ private func onceDates(_ plan: [PlannedRing]) -> [Date] {
         #expect(dates.first == at(3, 6, 50))
     }
 
+    @Test func remindsTheEveningBeforeTheLastPlannedMorning() {
+        // Planned Mon to Fri; Friday's first ring is 6:50, so the reminder is Thursday 20:00.
+        let alarm = tagAlarm()
+        #expect(AlarmPlanner.runOutReminder([alarm], now: sundayNight, calendar: utc) == at(5, 20))
+        // Opening the app on Tuesday plans Wed to next Tue, which moves it out.
+        #expect(AlarmPlanner.runOutReminder([alarm], now: at(3, 9), calendar: utc) == at(9, 20))
+        // Off alarms don't count.
+        var off = alarm
+        off.isOn = false
+        #expect(AlarmPlanner.runOutReminder([off], now: sundayNight, calendar: utc) == nil)
+    }
+
+    @Test func reminderSkipsASkippedLastMorning() {
+        var alarm = tagAlarm()
+        alarm.setChange(.skip, on: LocalDate(year: 2026, month: 11, day: 6))
+        // Friday is skipped, so Thursday is the last morning that rings.
+        #expect(AlarmPlanner.runOutReminder([alarm], now: sundayNight, calendar: utc) == at(4, 20))
+    }
+
+    @Test func noReminderForAlarmsThatDontRunOut() {
+        let weekly = Alarm(days: Weekday.weekdays)
+        let once = Alarm(time: .sevenAM, date: LocalDate(year: 2026, month: 11, day: 20), checks: [WakeUpCheck(kind: .game)])
+        #expect(AlarmPlanner.runOutReminder([weekly, once], now: sundayNight, calendar: utc) == nil)
+    }
+
+    @Test func reminderForAChangedWeekdayAfterItsOneOffWeeks() {
+        // Skipping Monday rings Mondays as one-off alarms through Nov 30.
+        var alarm = Alarm(days: Weekday.weekdays)
+        alarm.setChange(.skip, on: monday)
+        #expect(AlarmPlanner.runOutReminder([alarm], now: sundayNight, calendar: utc) == at(29, 20))
+        // The earliest alarm to run out wins.
+        #expect(AlarmPlanner.runOutReminder([alarm, tagAlarm()], now: sundayNight, calendar: utc) == at(5, 20))
+    }
+
     @Test func stillInProgressWhileTheLastRingRepeats() {
         let alarm = tagAlarm(rings: [Ring()])
         #expect(alarm.morningInProgress(at: at(2, 7, 9), calendar: utc) == monday)
@@ -246,6 +280,27 @@ private func onceDates(_ plan: [PlannedRing]) -> [Date] {
         // Repeats still to come this morning are kept.
         let dates = onceDates(AlarmPlanner.plan(alarm, now: at(2, 7, 5), calendar: utc))
         #expect(dates.first == at(2, 7, 5).addingTimeInterval(30))
+    }
+
+    @Test func shortcutTurnsOffOnlyWhatItMay() {
+        let ringing = at(2, 7, 3)
+        let plain = Alarm(days: Weekday.weekdays, rings: [Ring(offsetMinutes: -5), Ring()])
+        #expect(plain.shortcutTurnOff(at: at(2, 6, 0), calendar: utc) == .notRinging)
+        #expect(plain.shortcutTurnOff(at: at(2, 6, 56), calendar: utc) == .up(monday))
+        // Its last ring keeps going until it's stopped, so the action can still silence it.
+        #expect(plain.shortcutTurnOff(at: at(2, 7, 3), calendar: utc) == .lastRing)
+        #expect(plain.shortcutTurnOff(at: at(2, 7, 11), calendar: utc) == .notRinging)
+        // It never skips another check.
+        #expect(tagAlarm().shortcutTurnOff(at: ringing, calendar: utc) == .needsOtherCheck)
+        let shortcutOnly = Alarm(days: Weekday.weekdays, checks: [WakeUpCheck(kind: .shortcut)])
+        #expect(shortcutOnly.shortcutTurnOff(at: ringing, calendar: utc) == .up(monday))
+        var both = tagAlarm()
+        both.checks.append(WakeUpCheck(kind: .shortcut))
+        #expect(both.shortcutTurnOff(at: ringing, calendar: utc) == .shortcutDone(monday))
+        // Once the morning is done, there's nothing left to turn off.
+        var done = shortcutOnly
+        done.markUp(at: ringing, calendar: utc)
+        #expect(done.shortcutTurnOff(at: ringing, calendar: utc) == .notRinging)
     }
 
     @Test func matching() {
@@ -458,7 +513,8 @@ private func onceDates(_ plan: [PlannedRing]) -> [Date] {
             Alarm(date: LocalDate(year: 2026, month: 11, day: 7), label: "Hike day"),
             Alarm(changes: [MorningChange(date: monday, kind: .skip),
                             MorningChange(date: monday.adding(days: 1, calendar: utc), kind: .time(.sevenAM))]),
-            Alarm(checks: [WakeUpCheck(kind: .tag, secret: "04A1", place: "Kitchen"), WakeUpCheck(kind: .game)]),
+            Alarm(checks: [WakeUpCheck(kind: .tag, secret: "04A1", place: "Kitchen"), WakeUpCheck(kind: .game),
+                           WakeUpCheck(kind: .shortcut)]),
         ]
         try store.save(alarms)
         #expect(try store.load() == alarms)
@@ -732,5 +788,97 @@ private func onceDates(_ plan: [PlannedRing]) -> [Date] {
         var alarm = sunriseAlarm()
         alarm.isOn = false
         #expect(HomePlanner.plan([alarm], now: sundayNight, calendar: utc).isEmpty)
+    }
+}
+
+@Suite struct MorningSummaryTests {
+    /// Tuesday 2026-11-03 at `hour`:`minute` UTC.
+    private func at(_ hour: Int, _ minute: Int = 0, day: Int = 3) -> Date {
+        utc.date(from: DateComponents(year: 2026, month: 11, day: day, hour: hour, minute: minute))!
+    }
+
+    @Test func firstEventIsTheNextOneThatHasntEnded() {
+        let events = [
+            AgendaEvent(title: "Lunch", start: at(12), end: at(13)),
+            AgendaEvent(title: "Gym", start: at(6), end: at(7)),
+            AgendaEvent(title: "Standup", start: at(9, 30), end: at(9, 45)),
+            AgendaEvent(title: "Holiday", start: at(0), end: at(0, day: 4), isAllDay: true),
+            AgendaEvent(title: "Tomorrow", start: at(9, day: 4), end: at(10, day: 4)),
+        ]
+        let agenda = Agenda(events: events, now: at(7, 15), calendar: utc)
+        #expect(agenda == .next(events[2], started: false, more: 1))
+    }
+
+    @Test func anEventThatIsOnCountsAsStarted() {
+        let event = AgendaEvent(title: "Flight", start: at(5), end: at(9))
+        #expect(Agenda(events: [event], now: at(7), calendar: utc) == .next(event, started: true, more: 0))
+    }
+
+    @Test func noEventsLeftIsEmpty() {
+        let events = [
+            AgendaEvent(title: "Gym", start: at(6), end: at(7)),
+            AgendaEvent(title: "Holiday", start: at(0), end: at(0, day: 4), isAllDay: true),
+        ]
+        #expect(Agenda(events: events, now: at(7, 30), calendar: utc) == .empty)
+        #expect(Agenda(events: [], now: at(7), calendar: utc) == .empty)
+    }
+
+    @Test func rainComesBeforeWind() {
+        let hours = [
+            HourForecast(date: at(7), windKmh: 45),
+            HourForecast(date: at(15), precipitationChance: 0.7, precipitation: .rain),
+            HourForecast(date: at(16), precipitationChance: 0.9, precipitation: .snow),
+        ]
+        #expect(WeatherNote.pick(from: hours, now: at(7, 20), calendar: utc) == .rain(from: at(15)))
+    }
+
+    @Test func unlikelyRainAndPastHoursDontCount() {
+        let hours = [
+            HourForecast(date: at(5), precipitationChance: 0.9, precipitation: .rain),
+            HourForecast(date: at(10), precipitationChance: 0.3, precipitation: .rain),
+            HourForecast(date: at(12), windKmh: 50),
+            HourForecast(date: at(9, day: 4), precipitationChance: 0.9, precipitation: .snow),
+        ]
+        #expect(WeatherNote.pick(from: hours, now: at(7, 20), calendar: utc) == .windy)
+    }
+
+    @Test func rainThisHourCountsAsNow() {
+        let hours = [HourForecast(date: at(7), precipitationChance: 0.8, precipitation: .snow)]
+        #expect(WeatherNote.pick(from: hours, now: at(7, 40), calendar: utc) == .snow(from: at(7)))
+    }
+
+    @Test func calmDayHasNoNote() {
+        let hours = [HourForecast(date: at(8), precipitationChance: 0.1, precipitation: .rain, windKmh: 10)]
+        #expect(WeatherNote.pick(from: hours, now: at(7), calendar: utc) == nil)
+    }
+
+    @Test func offerShowsAFewTimesUntilDismissedOrOn() {
+        var settings = SummarySettings()
+        #expect(settings.shouldOffer)
+        settings.offersShown = SummarySettings.maxOffers
+        #expect(!settings.shouldOffer)
+        #expect(!SummarySettings(offerDismissed: true).shouldOffer)
+        #expect(!SummarySettings(calendar: true).shouldOffer)
+    }
+
+    @Test func timeoutThrowsWhenSlow() async throws {
+        let fast = try await withTimeout(seconds: 1) { 42 }
+        #expect(fast == 42)
+        await #expect(throws: TimedOut.self) {
+            try await withTimeout(seconds: 0.05) {
+                try await Task.sleep(for: .seconds(5))
+                return 1
+            }
+        }
+    }
+
+    @MainActor @Test func fakeSourcesAskOnce() async {
+        let weather = FakeWeatherSource(access: .notAsked)
+        weather.answer = .denied
+        #expect(await weather.requestAccess() == false)
+        #expect(weather.access == .denied)
+        let agenda = FakeAgendaSource(access: .notAsked)
+        #expect(await agenda.requestAccess())
+        #expect(agenda.access == .allowed)
     }
 }

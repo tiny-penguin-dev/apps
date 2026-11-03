@@ -114,7 +114,7 @@ Pick one or more. When there are several, you must do all of them.
 | Scan a tag | Tap your phone on an NFC sticker you placed somewhere far from bed. | v1 |
 | Scan a code | Scan any QR code or barcode you picked (your coffee bag, a toothpaste tube). Works on every iPhone, no sticker needed. | v1 |
 | Penguin game | A quick tap game with Squawk (catch the fish, count the penguins). Wakes up your brain. | v1 |
-| Run a Shortcut | Use the "Turn off Squawk" action in any Shortcut or automation. | later |
+| Run a Shortcut | Use the "Turn off Squawk" action in any Shortcut or automation. | v1.1 |
 | Walk it off | Take a number of steps. | later |
 
 There's always an emergency way out: solve a math question (like 47 × 8) to turn it off.
@@ -131,6 +131,7 @@ nobody is ever stuck with a ringing phone.
 | Default sounds | |
 | Skip next morning | Change next morning only (new time) |
 | Penguin reactions and streaks | Extra penguin outfits and app icons |
+| | Morning summary: weather and first event on Good morning |
 | | Later: app blocking, "only when home", morning actions |
 
 **Pro pricing (auto-renewing subscription):**
@@ -177,7 +178,9 @@ These shape the design, so they're listed here, not just in the build doc.
   default sound. Sounds are about 30 seconds long.
 - Alarms with wake-up checks are scheduled one morning at a time, so the app has to
   re-plan the next morning after each one. If the phone is off for a few days, those
-  alarms might not be set. We should plan a few mornings ahead to be safe.
+  alarms might not be set. We should plan a few mornings ahead to be safe. We plan 5
+  mornings ahead, and the evening before the last one, a notification asks the person to
+  open Squawk so the next few get set.
 - Different times on some days fit AlarmKit well: each group of days with the same time
   becomes one weekly repeating alarm per ring.
 - App blocking (later) needs Apple's Screen Time permission and a special entitlement.
@@ -187,7 +190,7 @@ These shape the design, so they're listed here, not just in the build doc.
 v1 ships few features, but its shape must make the later ones easy. Like Lanata's
 Morning model, these are open lists, so adding a new kind is adding one case, not a redesign:
 
-- **Wake-up checks** (tag, code, game; later Shortcut, steps).
+- **Wake-up checks** (tag, code, game, Shortcut; later steps).
 - **Actions** when the alarm starts or ends (later HomeKit lights, music, Shortcut).
 - **Conditions** for whether an alarm rings at all (later "only when home").
 - **Storage** sits behind one layer, so iCloud sync can be added without touching screens.
@@ -209,15 +212,16 @@ The build doc turns this into the real structure.
 - Widget showing the next alarm.
 - Everything stored on the phone, no account.
 - Free basics + Pro subscription.
+- Morning summary (Pro): weather and the first calendar event on Good morning
+  ([features/morning-summary](features/morning-summary/FEATURE.md)).
 
 ### Later
 - "Only ring when I'm home" (location).
 - App blocking during the morning (Screen Time).
 - Morning actions: turn on lights with HomeKit (next version), start music, run a Shortcut.
 - iCloud sync, if people need it.
-- Shortcut and step-count wake-up checks.
+- Step-count wake-up check.
 - Apple Watch app.
-- Morning summary (weather, first calendar event) after you get up.
 
 ### Never
 - Sleep tracking, sleep sounds, bedtime stories.
@@ -247,15 +251,19 @@ anything typed. People can turn this off in Settings.
 | `alarms.total` (gauge) | How many alarms people keep |
 | `alarm.ring_added` (`kind`: soft / loud / custom) | Whether people use extra rings, and which |
 | `morning.changed` (`kind`: skip / time) | How often people skip or move just the next morning |
-| `check.added` (`kind`: tag / code / game) | Which wake-up checks people pick |
-| `check.finished` (`how`: checks / math) | How often the checks get done, and how often people need the way out |
+| `check.added` (`kind`: tag / code / game / shortcut) | Which wake-up checks people pick |
+| `check.finished` (`how`: checks / math / shortcut) | How often the checks get done, and how often people need the way out |
 | `morning.result` (`outcome`: firstRing / fine / lastRing / fainted) | How mornings go, and whether Squawk helps people get up earlier |
-| `morning.up` (`from`: app / button) | How mornings end early: opening the app or tapping "I'm up" |
+| `morning.up` (`from`: app / button / shortcut) | How mornings end early: opening the app, tapping "I'm up" or the "Turn off Squawk" Shortcut |
 | `pro.shown` (`from`: the Pro feature tapped, or settings) | Which Pro things make people curious |
 | `pro.started` (`plan`: yearly / monthly) | Who subscribes, and to which plan |
 | `pro.restored` (`found`: yes / no) | Whether restoring works |
 | `outfit.changed` (`outfit`) | Whether outfits and streak rewards get used |
 | `pro.icon_changed` (`icon`) | Whether the Pro app icons get used |
+| `summary.enabled` (`part`: weather / calendar) | How many people turn each half of the morning summary on |
+| `summary.declined` (`part`: weather / calendar / offer) | Which permission people say no to, and how often "Not now" wins |
+| `summary.shown` (`weather`: yes / no, `event`: yes / none / off) | How often the Today card has something to show |
+| `summary.weather_failed` (`reason`: timeout / error) | Whether the weather loads fast enough in the morning |
 
 More get added here as phases land (rings, checks, mornings, Pro).
 

@@ -30,6 +30,9 @@ final class KeyboardSession: NSObject, UITextViewDelegate {
         model = KeyboardModel(composer: Composer(language: language, layout: Layout.qwerty(width: 390)),
                               store: settingsStore, wordStore: MemoryWordStore(learned), personal: personal)
         model.target = target
+        // Practice is in English for now (features/languages): the speed test, drills
+        // and practice words are English sentences.
+        model.followsLanguages = false
         // Practice measures typing and records each word's touches: no next words.
         model.offersNextWords = false
         keyboard = AstrotypeUI.KeyboardView(model: model)

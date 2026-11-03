@@ -10,7 +10,7 @@ import Testing
 
     static func guesses(after previous: String, personal: PersonalIndex = PersonalIndex(),
                         learned: LearnedWords = LearnedWords(), count: Int = 3) -> [String] {
-        NextWords.guesses(after: previous, ngrams: english.ngrams, personal: personal, learned: learned, count: count)
+        NextWords.guesses(after: previous, models: english.ngramModels, personal: personal, learned: learned, count: count)
     }
 
     /// A text field the composer types into, the way `KeyboardModel` applies effects:
@@ -254,5 +254,49 @@ import Testing
         #expect(outcome.words[1].wasNextWord)
         #expect(outcome.nextWords >= 1)
         #expect(Replay.Report([outcome]).summary.contains("a tap away"))
+    }
+
+    // MARK: Two languages
+
+    /// With English and Spanish both on, the language that knows the word before
+    /// decides, and accents come back from the dictionary ("dificil" is written "difícil").
+    @Test func spanishGuessesComeWithTheirAccents() throws {
+        var settings = Replay.settings
+        settings.guessCount = 5
+        var composer = Composer(language: try Language.bundled(["en", "es"]), layout: Synth.layout, settings: settings)
+        composer.setContext(before: "Muchas ")
+        guard case .next(let afterMuchas, _, _) = composer.state.bar else {
+            Issue.record("expected next words, got \(composer.state.bar)")
+            return
+        }
+        #expect(afterMuchas.contains("gracias"))
+        composer.setContext(before: "Muy ")
+        guard case .next(let afterEl, _, _) = composer.state.bar else {
+            Issue.record("expected next words, got \(composer.state.bar)")
+            return
+        }
+        #expect(afterEl.first == "bien")
+        #expect(afterEl.contains("difícil"))
+        #expect(!afterEl.contains("dificil"))
+        composer.setContext(before: "going ")
+        guard case .next(let afterGoing, _, _) = composer.state.bar else {
+            Issue.record("expected next words, got \(composer.state.bar)")
+            return
+        }
+        #expect(afterGoing.first == "to")
+    }
+
+    /// A language turned on while the bar shows next words: they follow it.
+    @Test func switchingLanguagesChangesTheGuesses() throws {
+        var composer = Composer(language: Self.english, layout: Synth.layout, settings: Replay.settings)
+        composer.setContext(before: "Muy ")
+        #expect(composer.state.bar == .idle)
+        _ = composer.setLanguage(try Language.bundled(["en", "es"]))
+        composer.setContext(before: "Muy ")
+        guard case .next(let words, _, _) = composer.state.bar else {
+            Issue.record("expected next words, got \(composer.state.bar)")
+            return
+        }
+        #expect(words.first == "bien")
     }
 }

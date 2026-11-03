@@ -162,6 +162,9 @@ public struct Composer: Sendable {
     public private(set) var candidates: [Candidate] = []
     /// When autospace would commit the open word, if nothing else happens first.
     public private(set) var autospaceDue: TimeInterval?
+    /// The language (or languages, "en+es") the dictionary is in; nil when built from a
+    /// bare dictionary.
+    public private(set) var languageCode: String?
 
     private var open: [Int: Open] = [:]
     private var casing: Casing = .lower
@@ -200,6 +203,7 @@ public struct Composer: Sendable {
         self.layout = layout
         self.settings = settings
         self.matcher = Matcher(language: language, layout: layout, learned: learned)
+        self.languageCode = language.code
         matcher.strictness = settings.strictness
         matcher.splitStrictness = settings.splitStrictness
         refreshState()
@@ -274,6 +278,28 @@ public struct Composer: Sendable {
         pieces.append(piece)
         pieces.sort { $0.start < $1.start }
         return reguess(time: time)
+    }
+
+    /// The touch `id` held a key and picked another letter from it (the accent
+    /// callout: "ñ" from n). The touch becomes a tap of that letter, kept as typed: the
+    /// guesses must have it where it was picked.
+    public mutating func pick(_ letter: Character, touch id: Int, time: TimeInterval) -> [Effect] {
+        guard let touch = open.removeValue(forKey: id) else { return [] }
+        let point = touch.points.first ?? .zero
+        pieces.append(Piece(id: id, side: touch.side, start: touch.start, end: time, points: [point], times: [touch.start],
+                            keys: [Character(letter.lowercased())], isTap: true, raw: [point]))
+        pieces.sort { $0.start < $1.start }
+        return reguess(time: time)
+    }
+
+    /// The languages being typed in changed: the dictionary and word pairs swap, and an
+    /// open word is guessed again from them.
+    public mutating func setLanguage(_ language: Language, time: TimeInterval = 0) -> [Effect] {
+        matcher.dictionary = language.lexicon
+        matcher.ngramModels = language.ngramModels
+        languageCode = language.code
+        nextCache = nil
+        return hasOpenWord ? reguess(time: time) : []
     }
 
     public mutating func touchCancelled(id: Int, time: TimeInterval) -> [Effect] {
@@ -468,8 +494,9 @@ public struct Composer: Sendable {
             if let cache = nextCache, cache.previous == previous, cache.count == count {
                 words = cache.words
             } else {
-                words = NextWords.guesses(after: previous, ngrams: matcher.ngrams, personal: personal,
+                words = NextWords.guesses(after: previous, models: matcher.ngramModels, personal: personal,
                                           learned: matcher.learned, count: count)
+                    .map { matcher.dictionary.spellings(of: $0).first?.word ?? $0 }
                 nextCache = (previous, count, words)
             }
             next = words.map(casedNext)
@@ -619,7 +646,7 @@ public struct Composer: Sendable {
     /// strictness says, so the guesses are made again as final.
     private mutating func settleGuesses() {
         guard case .guesses(let words, 0) = state.bar, let first = words.first,
-              !matcher.isKnown(first.lowercased()), pieces.allSatisfy(\.isTap) else { return }
+              !matcher.isKnown(Lexicon.fold(first)), pieces.allSatisfy(\.isTap) else { return }
         candidates = matcher.candidates(for: pieces, limit: settings.guessCount, final: true)
         state.bar = candidates.isEmpty ? .idle : .guesses(candidates.map { cased($0.word) }, chosen: 0)
     }
@@ -637,8 +664,9 @@ public struct Composer: Sendable {
     /// keyboard did not know are guesses, so they never are.
     private func wordToLearn(_ word: String) -> String? {
         let lower = word.lowercased()
-        guard lower.count >= 2, lower.utf8.allSatisfy({ $0 >= 97 && $0 <= 122 }),
-              !matcher.dictionary.contains(lower) else { return nil }
+        let key = Lexicon.fold(lower)
+        guard lower.count >= 2, key.utf8.allSatisfy({ $0 >= 97 && $0 <= 122 }),
+              !matcher.dictionary.spellings(of: key).contains(where: { $0.word == lower }) else { return nil }
         if matcher.learned.contains(lower) { return lower }
         guard pieces.count >= 2, pieces.allSatisfy(\.isTap) else { return nil }
         return lower
@@ -694,8 +722,9 @@ public struct Composer: Sendable {
     /// first letter. A touch more than a key away from its letter is left out.
     static func settled(_ last: Committed, layout: Layout) -> SettledWord? {
         let word = last.word.lowercased()
-        guard PersonalModel.isLearnable(word) else { return nil }
-        let letters = Array(word)
+        guard PersonalModel.isLearnable(Lexicon.fold(word)) else { return nil }
+        // The keys the letters are on: "ñ" was typed on n.
+        let letters = Array(Lexicon.fold(word))
         let source: SettledWord.Source = last.picked ? .next : last.fixedFrom != nil ? .fixed
             : last.pieces.allSatisfy(\.isTap) ? .tapped : .swiped
         var touches: [SettledWord.Touch] = []
@@ -734,6 +763,10 @@ public struct Composer: Sendable {
     }
 
     static func startsSentence(_ before: String) -> Bool {
+        // "¿" or "¡" opening a sentence: the word after it is its first ("¿Qué").
+        if let last = before.last, Accents.openers.contains(last) {
+            return startsSentence(String(before.dropLast()))
+        }
         let trimmed = before.trimmingCharacters(in: .whitespaces)
         guard let last = before.last else { return true }
         guard last.isWhitespace || last.isNewline else { return false }

@@ -135,13 +135,13 @@ free trial that starts on first launch.
 
 | Basics (free) | Pro (subscription, two-week free trial) |
 |---|---|
-| Tap typing and one-finger swipe typing, one swipe per word, English | Two-thumb typing: taps and swipes from both thumbs, mixed in one word |
+| Tap typing and one-finger swipe typing, one swipe per word, in any one language (English or Spanish) | Two-thumb typing: taps and swipes from both thumbs, mixed in one word |
 | Suggestion bar, corrections, autospace | Snippets and hold-space shortcuts |
 | Space-bar cursor, backspace word delete, shift, numbers, symbols | Custom gestures and edge swipes |
 | Learned words, synced over iCloud | Themes and trails |
 | Speed test | Drills, history and the sharing card |
 | Default layout and height | Split, one-handed and custom layouts |
-| | Extra languages as they are added |
+| | Two languages at once, guessed from both with no switching (features/languages, 3 Nov 2026) |
 
 The free keyboard must be a complete, pleasant keyboard on its own, on par with Apple's.
 The speed test stays free so people can see what the trial gave them and come back to Pro.
@@ -222,7 +222,9 @@ items easy:
 - Split, one-handed and iPad layouts.
 - The handwriting pad from v1 as an input mode. Its engine and pad stay in the code,
   behind a flag, so they are not lost and not shipped.
-- More languages, starting with Spanish.
+- More languages after Spanish (Spanish shipped with `features/languages`, 3 Nov 2026;
+  languages are built into the app, about 2 MB each, not downloaded, since the keyboard
+  can only read downloads with Full Access).
 - Themes and milestones.
 - Own emoji page, next-word suggestions while nothing is being typed.
 
@@ -265,6 +267,7 @@ and `guess.*` rows below).
 | `sync.failed` | iCloud sync problems (goal: zero) |
 | `practice.shared` (`kind`) | How many words people share, practice or corrections (features/smart-matching) |
 | `personal.reset` | How often people wipe what the keyboard learned (features/smart-matching) |
+| `languages.enabled` (`set`: `en`, `es`, `en+es`) | Which languages people turn on, and how many want two at once (features/languages) |
 | `keyboard.memory_peak` (MB, per time the keyboard is shown) | Memory regressions before they hit the extension's limit (budget: 40 MB) |
 | `keyboard.memory_headroom` (MB, the least left) | How close the keyboard gets to iOS ending it |
 | `keyboard.ended_while_showing` | Keyboards ended while on screen: crashes, and the memory kills no crash report sees |

@@ -104,7 +104,7 @@ code (`AstrotypeKit/Theme`, `docs/building.md` rule 1). Screens only use these.
 | 6 | Speed test | A sentence to type with the typed part turning mint, a timer, the keyboard. | [06](design/screens/06-speed.png) |
 | 7 | Speed test result | A bolt in a sun, the words per minute, fixes, versus Apple's, confetti on a new best. | [07](design/screens/07-result.png) |
 | 8 | Drill | One habit per drill. Word cards, the keys of the next word outlined in the thumb's color. | [08](design/screens/08-drill.png) |
-| 9 | Settings | Status tiles (keyboard, sync, Pro), then a page per area: Typing (two thumbs, autospace, real words, split words, gestures), Appearance (height with a live preview, guesses bar, trails, haptics, underline, wide-screen layout), Your words, Privacy and sharing, About. On wide screens the main page is a sidebar. From `features/settings` (3 Nov 2026). | [main](features/settings/design/screens/01-settings.png), [typing](features/settings/design/screens/02-typing.png), [appearance](features/settings/design/screens/03-appearance.png), [wide](features/settings/design/screens/08-settings-wide.png) |
+| 9 | Settings | Status tiles (keyboard, sync, Pro), then a page per area: Typing (two thumbs, autospace, real words, split words, gestures), Appearance (height with a live preview, guesses bar, trails, haptics, underline, wide-screen layout), Languages (a switch per language, features/languages), Your words, Privacy and sharing, About. On wide screens the main page is a sidebar. From `features/settings` (3 Nov 2026). | [main](features/settings/design/screens/01-settings.png), [typing](features/settings/design/screens/02-typing.png), [appearance](features/settings/design/screens/03-appearance.png), [wide](features/settings/design/screens/08-settings-wide.png) |
 | 10 | Astrotype Pro | A gold star tile with the two trails, four perks, yearly and monthly, "Start 14 days free". | [10](design/screens/10-pro.png) |
 | 11 | Trial over | The keyboard faded, with z's. What is resting, what still works, the person's own best speed as the reason to keep Pro. | [11](design/screens/11-trial-over.png) |
 | 12 | Typing in Messages | The keyboard in another app. Bar in "Fix" mode after a commit, the open word underlined in the field. | [12](design/screens/12-messages.png), [dark](design/screens/12-messages-dark.png), [small](design/screens/12-messages-small.png), [wide](design/screens/12-messages-wide.png) |
@@ -182,11 +182,14 @@ This is the product, so it gets its own section.
 - **Free mode:** one active thumb at a time. A second touch does not type; the bar says
   "Two thumbs is in Astrotype Pro" for 1.6 s. Nothing shakes, nothing is lost.
 - **Not in the mockup, in the build:** slide on space to move the cursor, the numbers
-  page, edge swipes, snippets, long-press accents, the globe key switching keyboards.
+  page, edge swipes, snippets, the globe key switching keyboards. Held keys show their
+  accents in a row above the key (á on a, ñ on n, ¿ on ?, when Spanish is on); slide
+  along and lift to type one (features/languages, 3 Nov 2026).
 
 ## Flows
 
-- **First launch** (PRODUCT 5.1): Hello → Turn on the keyboard → Keep your words
+- **First launch** (PRODUCT 5.1): Hello → Turn on the keyboard → (only on a phone set
+  to both English and Spanish: Which languages do you type in?) → Keep your words
   everywhere → Try it (five words) → Home. Everyone starts on the Pro trial, so Try it
   teaches two thumbs from the first word.
 - **Typing a word** (5.2): pieces → open word in the bar and the field → space, pause or

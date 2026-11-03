@@ -18,7 +18,7 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
     `AppModel` from `AppEnvironment.live()`, shows the setup screens then `HomeView`),
     `App/` (`AppModel`, the only thing views talk to; `AppEnvironment`, the one place
     real services are named; `LiveMetrics` on `Telemetry`), `Onboarding/`
-    (`TurnOnView`, `SyncView`, `TryItView`, and `SetupPage`, their shared shape),
+    (`TurnOnView`, `LanguagesSetupView` (only on a phone set to two languages), `SyncView`, `TryItView`, and `SetupPage`, their shared shape),
     `HelloView`, `HomeView`, `Settings/` (`SettingsView`, the main page with its
     `SettingsPage`s, and `SettingsPages`, one view per page), `LearnedWordsView`, `SharingView` ("What
     gets shared": the words waiting to go up, drawn on the keys), `PracticeView`,
@@ -124,7 +124,7 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
 - `features/`: the bigger features after the v2 build, one folder each with a
   `FEATURE.md` (product, design, build and its phases, notes as they ship):
   `smart-matching` (context, personal learning, consented sharing, the harness),
-  `languages` (Spanish and the next languages, both at once).
+  `languages` (Spanish and the next languages, both at once; built).
 - `design/`: the mockup (`mockups/astrotype.html`, the keyboard in it works), the
   screen captures the design doc links, the icon's SVGs (`icon/`) and
   `appstore/make-screenshots.mjs`, which renders the store screenshots from the mockup

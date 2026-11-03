@@ -201,8 +201,9 @@ final class KeyboardViewController: UIInputViewController {
             constraint.isActive = true
             heightConstraint = constraint
         }
-        // The keyboard fills whatever iOS grants, edge to edge (iOS adds the margins
-        // around it): the keys shrink or grow to the height, and the guesses stay.
+        // The keyboard view takes whatever iOS grants, edge to edge (iOS adds the margins
+        // around it): the keys sit at the bottom where Apple's are, and shrink if iOS
+        // grants less than asked.
         let granted = view.bounds.height
         keyboard.frame = CGRect(x: 0, y: 0, width: width, height: granted > 0 ? granted : height)
         checks.sized(granted: granted, wanted: height, width: width, screenWidth: view.window?.windowScene?.screen.bounds.width ?? 0)

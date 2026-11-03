@@ -7,12 +7,14 @@ import Testing
         let layout = Layout.qwerty(width: 390)
         let q = layout.frame(of: .letter("q"))!
         #expect(q.width == 37)
-        #expect(q.height == 50.75)
+        #expect(q.height == 51.75)
         #expect(layout.gap == 2)
-        #expect(layout.height == 209)
-        // No padding of our own: the keys reach the top and the bottom.
+        // Apple's rows span 213 pt, and Apple's bottom row sits 7 pt higher than ours would.
+        #expect(layout.height == 220)
+        #expect(layout.bottomInset == 7)
+        // No padding of our own at the top: the top row starts where Apple's does.
         #expect(q.minY == 0)
-        #expect(layout.frame(of: .space)!.maxY == layout.height)
+        #expect(layout.frame(of: .space)!.maxY == 213)
         #expect(layout.placements.filter { $0.row == 0 }.count == 10)
         #expect(layout.placements.filter { $0.row == 1 }.count == 9)
         #expect(layout.placements.filter { $0.row == 2 }.count == 9)
@@ -35,8 +37,8 @@ import Testing
     @Test func wideKeysAreCapped() {
         let layout = Layout.qwerty(width: 744)
         #expect(layout.frame(of: .letter("q"))!.width == 64)
-        #expect(layout.keyHeight == 51)
-        #expect(layout.height == 210)
+        #expect(layout.keyHeight == 50.5)
+        #expect(layout.height == 212)
     }
 
     @Test func hitTestingIsForgiving() {
@@ -52,6 +54,32 @@ import Testing
         #expect(layout.key(at: CGPoint(x: 100, y: -1)) == nil)
         #expect(layout.key(at: CGPoint(x: 100, y: layout.height + 1)) == nil)
         #expect(layout.key(at: CGPoint(x: 195, y: layout.height - 20)) == .space)
+        // Under the bottom row, still the bottom row.
+        #expect(layout.key(at: CGPoint(x: 195, y: layout.height - 1)) == .space)
+    }
+
+    @Test func theKeyboardHeightMovesTheTopRowOnly() {
+        let apple = Layout.qwerty(width: 390)
+        let taller = Layout.qwerty(width: 390, scale: 1.2)
+        let shorter = Layout.qwerty(width: 390, scale: 0.8)
+        #expect(taller.keyHeight > apple.keyHeight)
+        #expect(shorter.keyHeight < apple.keyHeight)
+        #expect(abs(taller.height - 263) < 0.001)
+        #expect(abs(shorter.height - 177) < 0.001)
+        // Measured from the bottom, the bottom row stays put.
+        for layout in [taller, shorter] {
+            #expect(abs(layout.height - layout.frame(of: .space)!.maxY - 7) < 0.001)
+            #expect(layout.frame(of: .letter("q"))!.minY == 0)
+        }
+    }
+
+    @Test func theSplitSitsWhereApplesDoes() {
+        let full = Layout.qwerty(width: 1000)
+        let split = Layout.qwerty(width: 1000, split: true)
+        #expect(full.bottomInset == 4)
+        #expect(split.bottomInset == 8)
+        #expect(split.keyHeight == full.keyHeight)
+        #expect(abs(split.height - full.height - 4) < 0.001)
     }
 
     @Test func sidesFollowTheHalves() {
@@ -123,7 +151,7 @@ import Testing
         let layout = Layout.qwerty(width: 1000, split: true)
         #expect(layout.split)
         #expect(layout.isWide)
-        #expect(layout.height == Layout.qwerty(width: 1000).height)
+        #expect(layout.keyHeight == Layout.qwerty(width: 1000).keyHeight)
         for letter in "qwertasdfgzxcv" {
             #expect(layout.frame(of: .letter(letter))!.maxX < 500, "\(letter)")
         }
@@ -218,17 +246,17 @@ import Testing
         #expect(shorter.height == 180)
         #expect(shorter.keyHeight < natural.keyHeight)
         #expect(shorter.frame(of: .letter("q"))!.minY == 0)
-        #expect(shorter.frame(of: .space)!.maxY == 180)
+        #expect(abs(shorter.frame(of: .space)!.maxY - 176) < 0.001)
         #expect(shorter.frame(of: .letter("q"))!.width == natural.frame(of: .letter("q"))!.width)
         let taller = Layout.qwerty(width: 390, height: 240)
         #expect(taller.height == 240)
         #expect(taller.keyHeight > Layout.qwerty(width: 390).keyHeight)
         #expect(taller.frame(of: .letter("q"))!.minY == 0)
-        #expect(abs(taller.frame(of: .space)!.maxY - 240) < 0.001)
+        #expect(abs(taller.frame(of: .space)!.maxY - 233) < 0.001)
         // Far more room than keys want: they stop growing and sit at the bottom.
         let huge = Layout.qwerty(width: 390, height: 600)
         #expect(huge.keyHeight == 64)
-        #expect(abs(huge.frame(of: .space)!.maxY - 600) < 0.001)
+        #expect(abs(huge.frame(of: .space)!.maxY - 593) < 0.001)
         // Very little room still keeps four rows.
         let tiny = Layout.qwerty(width: 390, height: 140)
         #expect(tiny.keyHeight >= 28)

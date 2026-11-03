@@ -7,9 +7,11 @@ import UIKit
 /// view of a text view, so both run the same engine and the same views. Switches
 /// between the letters, numbers and symbols pages, and shows the settings panel.
 ///
-/// The keys fill the height they are given, with no padding (iOS pads the keyboard).
-/// The guesses sit beside the keys where the layout leaves a column for them (the middle
-/// of a split keyboard, the sides of a wide one), else in a bar on top, which the
+/// The keys sit where Apple's do, at the person's keyboard height
+/// (`KeyboardSettings.keyboardHeight`), at the bottom of the room they are given, with
+/// no padding at the sides or the top (iOS pads the keyboard). The guesses sit beside
+/// the keys where the layout leaves a column for them (the middle of a split keyboard,
+/// the sides of a wide one), else in a bar on top that adds to the height, which the
 /// person can turn off (`KeyboardSettings.showsBar`).
 ///
 ///     let keyboard = KeyboardView(model: model)
@@ -31,7 +33,7 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         didSet { if page != oldValue { surface.layout = pageLayout(width: model.layout.width, height: keysHeight) } }
     }
 
-    /// The height the keys fill: the view's, less the bar when it is on top.
+    /// The height the keys fill: what they want, or less when the view is shorter.
     private var keysHeight: CGFloat?
     /// Where the guesses are now.
     private var place: BarPlace = .top
@@ -84,12 +86,15 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
 
     public var enableInputClicksWhenVisible: Bool { true }
 
-    /// The height to ask the host for at a width: the keys at Apple's size, plus the
-    /// bar when it sits on top.
+    /// The height to ask the host for at a width: the keys where Apple's are (at the
+    /// person's height), plus the bar when it sits on top.
     public func height(forWidth width: CGFloat) -> CGFloat {
-        let keys = Layout.qwerty(width: width, split: model.splitOnWide, extraLetters: extraLetters)
+        let keys = Layout.qwerty(width: width, split: model.splitOnWide, extraLetters: extraLetters, scale: scale)
         return barPlace(for: keys) == .top ? Self.barHeight + keys.height : keys.height
     }
+
+    /// The person's keyboard height against Apple's.
+    private var scale: CGFloat { model.keyboardSettings.heightScale }
 
     /// The height to ask for at the current width.
     public var height: CGFloat { height(forWidth: model.layout.width) }
@@ -107,19 +112,20 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         CGSize(width: UIView.noIntrinsicMetric, height: height)
     }
 
-    /// Lays the guesses and the keys out for the view's size: the keys fill whatever
-    /// height the host granted (shrinking or growing), less the bar when it is on top.
-    /// `height` stays the height to ask for, which hosts pass to the system.
+    /// Lays the guesses and the keys out for the view's size: the keys take the height
+    /// they want at the bottom (so they line up with Apple's), or shrink when the host
+    /// granted less, with the bar right above them when it is on top. `height` stays the
+    /// height to ask for, which hosts pass to the system.
     public override func layoutSubviews() {
         super.layoutSubviews()
         let width = bounds.width
         guard width > 0 else { return }
         let split = model.splitOnWide
-        let natural = Layout.qwerty(width: width, split: split, extraLetters: extraLetters)
+        let natural = Layout.qwerty(width: width, split: split, extraLetters: extraLetters, scale: scale)
         let place = barPlace(for: natural)
         let barOnTop = place == .top
         let room = bounds.height - (barOnTop ? Self.barHeight : 0)
-        let fill: CGFloat? = room > 0 ? room : nil
+        let fill: CGFloat? = room > 0 ? min(room, natural.height) : nil
         if model.layout.width != width || model.layout.split != natural.split || model.layout.extraLetters != natural.extraLetters
             || fill != keysHeight || place != self.place {
             keysHeight = fill
@@ -154,6 +160,7 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         }
         if let panel {
             panel.frame = surface.frame
+            panel.granted = (bounds.height, wanted)
             bringSubviewToFront(panel)
         }
     }
@@ -181,7 +188,8 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         surface.backspaceSwipeEnabled = model.keyboardSettings.backspaceSwipe
         panel?.allowsSplit = model.entitlement.allows(.splitLayout)
         if model.layout.split != (model.splitOnWide && model.layout.isWide)
-            || model.layout.extraLetters != (model.layout.split && extraLetters) || barPlace(for: model.layout) != place { setNeedsLayout() }
+            || model.layout.extraLetters != (model.layout.split && extraLetters) || barPlace(for: model.layout) != place
+            || height != asked { setNeedsLayout() }
     }
 
     private func play(_ haptic: Composer.Haptic) {
@@ -203,6 +211,7 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         panel.onChange = { [weak self] settings in self?.model.keyboardSettings = settings }
         panel.onDone = { [weak self] in self?.hideSettings() }
         panel.frame = surface.frame
+        panel.granted = (bounds.height, height)
         addSubview(panel)
         self.panel = panel
     }

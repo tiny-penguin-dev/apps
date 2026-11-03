@@ -109,7 +109,8 @@ code (`AstrotypeKit/Theme`, `docs/building.md` rule 1). Screens only use these.
 Not drawn yet (simple, same style): the numbers and symbols pages, the in-keyboard
 settings panel (gear under the `123` hold menu, for when Full Access is off; the title
 and Done stay at the top and the rows scroll below in three rounded groups, typing,
-look and learning, so every row fits on every phone; Gabriel, 2 Nov 2026), learned
+look and learning, so every row fits on every phone; Gabriel, 2 Nov 2026; the look
+group starts with the keyboard height, 3 Nov 2026), learned
 words list, snippets editor, one-handed layouts, the milestone sheet. The split layout
 (an option on wide screens, Gabriel, 1 Nov 2026) is exactly Apple's: Q to T, A to G
 and Z to V on the left, Y to P, G to L and V to M on the right (G and V on both halves,
@@ -129,12 +130,18 @@ This is the product, so it gets its own section.
 - **Layout:** Apple's QWERTY proportions, so muscle memory carries over. Rows of 10, 9
   and 7 letters, shift and backspace on the third row, `123`, globe, space and return on
   the fourth. Space reads "Astrotype" when idle, like Apple's reads the language.
-- **Size:** the keys fill the height iOS gives the keyboard, with no padding of their
-  own (iOS adds its margins around the keyboard), so it sits where Apple's does and is
-  as tall as Apple's (210 pt on a wide screen, 209 on a phone). The keys are only 2 pt
-  apart, across and down, so they are bigger than Apple's and a tap rarely lands in a
-  gap (a tap that does goes to the nearest key). They grow or shrink to the height
-  granted (Gabriel, 2 Nov 2026).
+- **Size:** every key sits where Apple's does, so muscle memory carries over: the top
+  of our top row is the top of Apple's, and the bottom of our bottom row is the bottom
+  of Apple's (measured on iOS 26: rows spanning 213 pt on a phone with 7 pt under them,
+  208 pt on the iPhone Duo open with 4 pt under them, 8 pt when split). The keys are
+  only 2 pt apart, across and down, so they are bigger than Apple's and a tap rarely
+  lands in a gap (a tap that does, or one under the bottom row, goes to the nearest
+  key). No padding at the sides or the top: iOS adds its margins around the keyboard.
+  The guesses bar on top adds to the height rather than taking from the keys.
+  "Keyboard height" (in Settings and the in-keyboard settings, 80 to 120%, 100% by
+  default) makes the keys taller or shorter; the bottom row stays put and the top row
+  moves. If iOS grants less height than asked, the keys shrink to fit and the
+  in-keyboard settings say so (Gabriel, 3 Nov 2026).
 - **Where the guesses go:** where the keys leave a column of 96 pt or more (the middle
   of a split keyboard, the sides of a wide one) the guesses stack there, and the keys
   get the whole height. Otherwise (a phone) they are a bar above the keys, which

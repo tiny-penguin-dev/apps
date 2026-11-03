@@ -4,8 +4,8 @@ import UIKit
 
 /// The in-keyboard settings (DESIGN.md: under the "123" hold), for when Full Access is
 /// off and the app's Settings cannot reach the keyboard: autospace, its delay, how
-/// strictly it keeps to real words, trails, the guesses bar, the split, and learning
-/// from the person (with a forget that asks twice).
+/// strictly it keeps to real words, the keyboard's height, trails, the guesses bar, the
+/// split, and learning from the person (with a forget that asks twice).
 ///
 /// Shown over the keys. The title and Done stay at the top; the rows sit below in
 /// three rounded groups (typing, look, learning) that scroll when the keys' space is
@@ -20,6 +20,11 @@ public final class SettingsPanelView: UIView {
     /// switch stays put; the app's Pro screen is where to go.
     public var allowsSplit = true {
         didSet { render() }
+    }
+    /// The height iOS gave the keyboard and the height it asked for. When iOS gives
+    /// less, the keys shrink to fit, and the height row says so.
+    public var granted: (got: CGFloat, asked: CGFloat) = (0, 0) {
+        didSet { if granted != oldValue { render() } }
     }
 
     /// A row's least height, the tap target size.
@@ -40,6 +45,10 @@ public final class SettingsPanelView: UIView {
     private let strictLabel = UILabel()
     private let strictValue = UILabel()
     private let strictSlider = UISlider()
+    private let heightLabel = UILabel()
+    private let heightValue = UILabel()
+    private let heightSlider = UISlider()
+    private let heightNote = UILabel()
     private let trailsLabel = UILabel()
     private let trailsSwitch = UISwitch()
     private let barLabel = UILabel()
@@ -76,14 +85,14 @@ public final class SettingsPanelView: UIView {
         done.addAction(UIAction { [weak self] _ in self?.onDone?() }, for: .touchUpInside)
         addSubview(done)
 
-        for (label, text) in [(autospaceLabel, "Autospace"), (delayLabel, "Delay"), (strictLabel, "Real words"), (trailsLabel, "Trails"), (barLabel, "Guesses bar"), (splitLabel, "Split on wide screens"), (learnLabel, "Learn from my typing")] {
+        for (label, text) in [(autospaceLabel, "Autospace"), (delayLabel, "Delay"), (strictLabel, "Real words"), (heightLabel, "Height"), (trailsLabel, "Trails"), (barLabel, "Guesses bar"), (splitLabel, "Split on wide screens"), (learnLabel, "Learn from my typing")] {
             label.text = text
             label.font = Self.rowFont
             label.textColor = Theme.ui(.ink)
             label.adjustsFontForContentSizeCategory = true
             label.numberOfLines = 0
         }
-        for value in [delayValue, strictValue] {
+        for value in [delayValue, strictValue, heightValue] {
             value.font = Self.rowFont
             value.textColor = Theme.ui(.muted)
             value.textAlignment = .right
@@ -106,9 +115,17 @@ public final class SettingsPanelView: UIView {
         strictSlider.maximumValue = 1
         strictSlider.accessibilityLabel = "Real words"
         strictSlider.accessibilityHint = "How sure the keyboard must be of a real word before it puts one in for letters you tapped"
-        for slider in [delaySlider, strictSlider] {
+        heightSlider.minimumValue = Float(KeyboardSettings.heightRange.lowerBound)
+        heightSlider.maximumValue = Float(KeyboardSettings.heightRange.upperBound)
+        heightSlider.accessibilityLabel = "Keyboard height"
+        heightSlider.accessibilityHint = "How tall the keys are. 100 percent puts every key where Apple's keyboard has it"
+        for slider in [delaySlider, strictSlider, heightSlider] {
             slider.minimumTrackTintColor = Theme.ui(.accent)
         }
+        heightNote.font = Theme.uiFont(size: 13, weight: .regular, scaledWith: .footnote, upTo: 18)
+        heightNote.textColor = Theme.ui(.muted)
+        heightNote.adjustsFontForContentSizeCategory = true
+        heightNote.numberOfLines = 0
 
         autospaceSwitch.addAction(UIAction { [weak self] _ in
             guard let self else { return }
@@ -123,6 +140,12 @@ public final class SettingsPanelView: UIView {
         strictSlider.addAction(UIAction { [weak self] _ in
             guard let self else { return }
             self.settings.wordStrictness = (Double(self.strictSlider.value) * 100).rounded() / 100
+            self.onChange?(self.settings)
+        }, for: .valueChanged)
+        heightSlider.addAction(UIAction { [weak self] _ in
+            guard let self else { return }
+            // In 5% steps, so 100% (Apple's) is easy to land on.
+            self.settings.keyboardHeight = (Double(self.heightSlider.value) * 20).rounded() / 20
             self.onChange?(self.settings)
         }, for: .valueChanged)
         trailsSwitch.addAction(UIAction { [weak self] _ in
@@ -185,12 +208,16 @@ public final class SettingsPanelView: UIView {
     private func buildGroups() {
         delayRow = sliderRow(delayLabel, delaySlider, delayValue)
         let strictRow = sliderRow(strictLabel, strictSlider, strictValue)
+        let heightRow = UIStackView(arrangedSubviews: [sliderRow(heightLabel, heightSlider, heightValue), heightNote])
+        heightRow.axis = .vertical
+        heightRow.isLayoutMarginsRelativeArrangement = true
+        heightRow.directionalLayoutMargins = NSDirectionalEdgeInsets(top: 0, leading: 0, bottom: Theme.Space.xs, trailing: 0)
 
         groups.axis = .vertical
         groups.spacing = Theme.Space.m
         groups.translatesAutoresizingMaskIntoConstraints = false
         groups.addArrangedSubview(group([switchRow(autospaceLabel, autospaceSwitch), delayRow, strictRow]))
-        groups.addArrangedSubview(group([switchRow(trailsLabel, trailsSwitch), switchRow(barLabel, barSwitch), switchRow(splitLabel, splitSwitch)]))
+        groups.addArrangedSubview(group([heightRow, switchRow(trailsLabel, trailsSwitch), switchRow(barLabel, barSwitch), switchRow(splitLabel, splitSwitch)]))
         groups.addArrangedSubview(group([switchRow(learnLabel, learnSwitch), row([forget])]))
         // The two sliders start at the same place. Only once both rows sit in the same
         // card: a constraint between views with no common ancestor throws.
@@ -289,6 +316,12 @@ public final class SettingsPanelView: UIView {
         learnSwitch.isOn = settings.learnsFromYou
         strictSlider.value = Float(settings.wordStrictness)
         strictValue.text = "\(Int((settings.wordStrictness * 100).rounded()))%"
+        heightSlider.value = Float(settings.heightScale)
+        heightValue.text = "\(Int((settings.heightScale * 100).rounded()))%"
+        heightSlider.accessibilityValue = "\(Int((settings.heightScale * 100).rounded())) percent"
+        let short = granted.got > 0 && granted.got < granted.asked - 0.5
+        heightNote.text = short ? "iOS gave the keyboard \(Int(granted.got)) of the \(Int(granted.asked.rounded())) pt it asked for, so the keys are shorter." : nil
+        heightNote.isHidden = !short
         if forget.isEnabled {
             forget.configuration?.attributedTitle = Self.rowTitle(forgetArmed ? "Tap again to forget" : "Forget what it learned")
         }

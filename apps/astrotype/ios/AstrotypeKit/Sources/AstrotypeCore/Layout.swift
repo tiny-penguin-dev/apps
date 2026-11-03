@@ -13,7 +13,10 @@ public enum Key: Hashable, Sendable {
     case symbols
     /// Back to the letters ("ABC").
     case letters
+    /// The next keyboard, only where iOS draws no globe of its own (Home button phones).
     case globe
+    /// The emoji page (features/emoji).
+    case emoji
     case space
     case returnKey
 
@@ -29,7 +32,7 @@ public enum Key: Hashable, Sendable {
         return nil
     }
 
-    /// Shift, backspace, the page keys, the globe and return: drawn darker.
+    /// Shift, backspace, the page keys, the globe, emoji and return: drawn darker.
     public var isFunction: Bool {
         switch self {
         case .letter, .symbol, .space: false
@@ -81,6 +84,10 @@ public struct Layout: Sendable, Equatable {
     /// On a split keyboard, each half also has the next key past Apple's: Y H B on the
     /// left, T F C on the right (an option, Gabriel, 2 Nov 2026).
     public let extraLetters: Bool
+    /// The bottom row has a globe key before the emoji key, for phones where iOS draws
+    /// no globe under the keyboard (`needsInputModeSwitchKey`, the Home button phones).
+    /// Without it the emoji key sits where the globe was, as on Apple's keyboard.
+    public let globe: Bool
     /// The keyboard's height: the keys and, under the bottom row, `bottomInset`. No
     /// padding at the sides or the top (iOS pads the keyboard itself). The bar is not
     /// part of it.
@@ -131,9 +138,10 @@ public struct Layout: Sendable, Equatable {
     /// `scale` makes the keys taller or shorter than Apple's (the person's keyboard
     /// height; the bottom row stays put). `height` makes the keys fill that height,
     /// less `bottomInset` (the room the system granted): they shrink to fit or grow up
-    /// to a limit, and past the limit they sit at the bottom.
+    /// to a limit, and past the limit they sit at the bottom. `globe` adds the globe key
+    /// before the emoji key, which shortens space.
     public static func qwerty(width: CGFloat, page: Page = .letters, split: Bool = false, extraLetters: Bool = false,
-                              scale: CGFloat = 1, height fill: CGFloat? = nil) -> Layout {
+                              globe: Bool = false, scale: CGFloat = 1, height fill: CGFloat? = nil) -> Layout {
         let gap = keyGap
         let wide = width >= wideWidth
         let split = split && wide
@@ -229,11 +237,13 @@ public struct Layout: Sendable, Equatable {
                 add(.backspace, row: 2, x: x, width: wideKey)
             }
             add(page == .letters ? .numbers : .letters, row: 3, x: 0, width: fnKey)
-            add(.globe, row: 3, x: fnKey + gap, width: fnKey)
-            add(.space, row: 3, x: 2 * (fnKey + gap), width: leftEnd - 2 * (fnKey + gap))
+            var spaceX = fnKey + gap
+            if globe { add(.globe, row: 3, x: spaceX, width: fnKey); spaceX += fnKey + gap }
+            add(.emoji, row: 3, x: spaceX, width: fnKey); spaceX += fnKey + gap
+            add(.space, row: 3, x: spaceX, width: leftEnd - spaceX)
             add(.space, row: 3, x: rightStart, width: width - rightStart - returnKey - gap)
             add(.returnKey, row: 3, x: width - returnKey, width: returnKey)
-            return Layout(width: width, page: page, split: true, extraLetters: extra, height: height,
+            return Layout(width: width, page: page, split: true, extraLetters: extra, globe: globe, height: height,
                           keyHeight: keyHeight, gap: gap, bottomInset: below, placements: placements, top: top, rowGap: rowGap)
         }
 
@@ -264,14 +274,16 @@ public struct Layout: Sendable, Equatable {
             add(.backspace, row: 2, x: left + rowWidth - edgeKey, width: edgeKey)
         }
 
-        let space = rowWidth - 2 * fnKey - returnKey - 3 * gap
+        let fnKeys: CGFloat = globe ? 3 : 2
+        let space = rowWidth - fnKeys * fnKey - returnKey - (fnKeys + 1) * gap
         x = left
         add(page == .letters ? .numbers : .letters, row: 3, x: x, width: fnKey); x += fnKey + gap
-        add(.globe, row: 3, x: x, width: fnKey); x += fnKey + gap
+        if globe { add(.globe, row: 3, x: x, width: fnKey); x += fnKey + gap }
+        add(.emoji, row: 3, x: x, width: fnKey); x += fnKey + gap
         add(.space, row: 3, x: x, width: space); x += space + gap
         add(.returnKey, row: 3, x: x, width: returnKey)
 
-        return Layout(width: width, page: page, split: false, extraLetters: false, height: height,
+        return Layout(width: width, page: page, split: false, extraLetters: false, globe: globe, height: height,
                       keyHeight: keyHeight, gap: gap, bottomInset: below, placements: placements, top: top, rowGap: rowGap)
     }
 

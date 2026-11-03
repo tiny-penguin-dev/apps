@@ -286,6 +286,30 @@ public final class KeyboardModel {
         apply(composer.press(character: character, time: now))
     }
 
+    // MARK: Emoji
+
+    /// Where the emoji history is kept (the keyboard's own file); nil keeps it in
+    /// memory only. Setting it loads what it holds.
+    public var emojiStore: EmojiStore? {
+        didSet { emojiHistory = emojiStore?.load() ?? EmojiHistory() }
+    }
+    /// Frequently used and the skin tones picked (features/emoji).
+    public private(set) var emojiHistory = EmojiHistory()
+
+    /// An emoji tapped on the emoji page: `form` is what goes in (a skin tone form, or
+    /// the emoji itself), `base` the emoji it belongs to. Counts for Frequently used.
+    public func type(emoji form: String, base: String) {
+        apply(composer.insert(emoji: form, time: now))
+        emojiHistory.record(base, at: Date())
+        emojiStore?.save(emojiHistory)
+    }
+
+    /// A skin tone picked for `base`, remembered for next time.
+    public func setTone(_ form: String, for base: String) {
+        emojiHistory.setTone(form, for: base)
+        emojiStore?.save(emojiHistory)
+    }
+
     public func choose(guess index: Int) {
         if case .fix(_, let chosen) = composer.state.bar, chosen != index { onFix?() }
         apply(composer.choose(guess: index, time: now))

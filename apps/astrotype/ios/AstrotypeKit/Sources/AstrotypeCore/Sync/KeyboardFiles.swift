@@ -24,6 +24,8 @@ public enum KeyboardFiles {
     public static let pro = "pro.json"
     /// What the keyboard learned from the person's typing (`PersonalModel`).
     public static let personal = "personal.json"
+    /// Frequently used emoji and the skin tones picked (`EmojiHistory`); own file only.
+    public static let emoji = "emoji.json"
     /// This install's random ID, the personal model's shard (`InstallID`); own file only.
     public static let install = "install.json"
     /// Shared words waiting for the app to send (`SharedWordStore`): practice words and,

@@ -19,6 +19,9 @@ import Testing
 
     /// BUILD.md Phase 2: a candidate list takes under 5 ms on a phone. Here, in a debug
     /// build on the CI machine, the bound is loose; the phone's number goes in BUILD.md.
+    /// About 9 ms alone, but 20 to 24 ms on CI with the other suites running beside it
+    /// (3 Nov 2026, which stopped every TestFlight upload), so the bound only catches a
+    /// matcher that got several times slower.
     @Test func candidatesAreFast() {
         let matcher = Matcher(dictionary: Synth.lexicon, layout: Synth.layout)
         var pieces: [[Piece]] = []
@@ -30,8 +33,11 @@ import Testing
         _ = matcher.candidates(for: pieces[0]) // warm up
         let mean = Self.fastestMean(of: pieces, matcher)
         print("matcher: \(String(format: "%.2f", mean)) ms per word (debug, \(pieces.count) words)")
-        #expect(mean < 20, "mean \(mean) ms")
+        #expect(mean < Self.debugBound, "mean \(mean) ms")
     }
+
+    /// The most milliseconds per word a debug build may take on CI (see above).
+    static let debugBound = 40.0
 
     /// Milliseconds per word for the pieces, the fastest of three passes: the suites run
     /// in parallel on CI, and a pass that shared the machine with a busy one measured

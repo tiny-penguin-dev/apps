@@ -83,7 +83,7 @@ private struct TypingSettings: View {
             SettingsSlider("Split words", value: $model.keyboardSettings.splitStrictness, in: 0...1, step: 0.01,
                            low: "Never", high: "Whenever it's sure", valueText: percent(model.keyboardSettings.splitStrictness))
         }
-        GroupFootnote("Real words: how sure the keyboard must be before it swaps letters you tapped for a word. Split words: how sure before it puts a space into letters that read as two words, like textseparately.")
+        GroupFootnote("Real words: how sure the keyboard must be before it swaps letters you tapped for a word. Split words: how sure before it puts a space into letters that read as two words, like textseparately, or takes out a space autospace put inside a word, like some thing.")
 
         SectionLabel("Gestures").padding(.top, Theme.Space.m)
         SettingsGroup {

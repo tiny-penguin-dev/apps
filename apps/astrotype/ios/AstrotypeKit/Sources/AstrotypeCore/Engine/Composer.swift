@@ -48,7 +48,8 @@ public struct Composer: Sendable {
         /// letters that spell none (`Matcher.strictness`).
         public var strictness = 0.8
         /// How sure the keyboard must be that pecked letters are two words with the
-        /// space missed before it writes them split (`Matcher.splitStrictness`).
+        /// space missed before it writes them split (`Matcher.splitStrictness`), and
+        /// that a word autospace wrote apart is one with the next before it joins them.
         public var splitStrictness = 0.8
         /// After a word, offer the likely next ones on the bar (features/next-word).
         /// Needs the language's word pairs or the person's; the host turns it off where
@@ -154,6 +155,8 @@ public struct Composer: Sendable {
         var picked = false
         /// The person typed this word with "Not it?" in place of the swipe's guess.
         var missed = false
+        /// When autospace wrote the space after it; nil when anything else did.
+        var autospaced: TimeInterval?
     }
 
     enum Casing: Sendable, Equatable {
@@ -207,6 +210,16 @@ public struct Composer: Sendable {
     /// guess from the bar), so a space pressed now is not a second one, and punctuation
     /// goes before it. Anything else typed clears it.
     private var autoSpaced = false
+    /// The space before the cursor went in right after a word, by autospace, the bar
+    /// or the space key, and nothing was typed since: closing punctuation goes before
+    /// it ("word ." becomes "word. "). Unlike `autoSpaced`, a space pressed after
+    /// autospace keeps it (Gabriel, 3 Nov 2026: a space then the dot).
+    private var wordSpace = false
+    /// The last word, when autospace wrote the space after it and the open word came
+    /// straight after: the two may be one word with a pause in it (`Matcher.join`).
+    private var joinable: Committed?
+    /// How soon after autospace the next word must start to be joined to the word before.
+    static let joinWindow: TimeInterval = 1.5
     /// When space was last pressed with a space after a word to show for it (the word
     /// it committed, or the autospace it stood for). A second press soon after makes
     /// that space a period, like Apple's keyboard.
@@ -292,11 +305,15 @@ public struct Composer: Sendable {
             // A new word: its case is decided now, and one-shot shift is spent.
             casing = effectiveShift == .locked ? .upper : effectiveShift == .on ? .capital : .lower
             if shift == .on { shift = .off }
+            joinable = committed.flatMap { last in
+                last.autospaced.map { time - $0 <= Self.joinWindow } == true && contextBefore.hasSuffix(last.word + last.trailing) ? last : nil
+            }
             if committed != nil { effects += settle() }
             state.bar = .idle
         }
         open[id] = Open(side: side, start: time, points: [point], times: [time], startKey: letter)
         autoSpaced = false
+        wordSpace = false
         lastSpace = nil
         autospaceDue = nil
         effects.append(.haptic(.key))
@@ -376,6 +393,8 @@ public struct Composer: Sendable {
         guard let due = autospaceDue, time >= due, open.isEmpty, !pieces.isEmpty, correction == nil else { return [] }
         let effects = commit(trailing: " ", time: time)
         autoSpaced = true
+        wordSpace = true
+        committed?.autospaced = time
         return effects
     }
 
@@ -388,6 +407,7 @@ public struct Composer: Sendable {
         let previousSpace = lastSpace
         if key != .shift {
             autoSpaced = false
+            wordSpace = false
             lastSpace = nil
         }
         switch key {
@@ -399,6 +419,7 @@ public struct Composer: Sendable {
         case .space:
             if hasOpenWord {
                 effects += commit(trailing: " ", time: time)
+                wordSpace = settings.spacesWords
                 lastSpace = time
             } else if settings.spacesWords, let previousSpace, time - previousSpace < Self.doubleSpaceWindow {
                 // A double tap: the space after the word becomes a period and a space.
@@ -406,8 +427,9 @@ public struct Composer: Sendable {
                 effects += leaveFix()
             } else if spaced {
                 // The keyboard already put a space here: one space between words, and
-                // nothing else.
+                // nothing else. Punctuation still goes before it.
                 effects += leaveFix()
+                wordSpace = true
                 lastSpace = time
             } else {
                 effects.append(.insert(" "))
@@ -458,16 +480,18 @@ public struct Composer: Sendable {
             return [.haptic(.key)]
         }
         var effects: [Effect] = [.haptic(.key)]
-        let spaced = autoSpaced
+        let spaced = wordSpace
         autoSpaced = false
+        wordSpace = false
         lastSpace = nil
         if hasOpenWord {
             effects += commit(trailing: text, time: time)
         } else if spaced, text.count == 1, let mark = text.first, Self.closingPunctuation.contains(mark) {
-            // "word ." becomes "word. ": the mark goes before the space autospace wrote.
+            // "word ." becomes "word. ": the mark goes before the space written after the word.
             effects += [.deleteBackward(1), .insert(text + " ")]
             effects += leaveFix()
             autoSpaced = true
+            wordSpace = true
         } else {
             effects.append(.insert(text))
             effects += leaveFix()
@@ -482,6 +506,7 @@ public struct Composer: Sendable {
     public mutating func insert(emoji: String, time: TimeInterval) -> [Effect] {
         var effects: [Effect] = [.haptic(.key)]
         autoSpaced = false
+        wordSpace = false
         lastSpace = nil
         if hasOpenWord {
             effects += commit(trailing: " " + emoji, time: time)
@@ -505,6 +530,7 @@ public struct Composer: Sendable {
             state.bar = .guesses(words, chosen: index)
             let effects = commit(trailing: settings.spacesWords ? " " : "", time: time, byHand: true)
             autoSpaced = settings.spacesWords
+            wordSpace = settings.spacesWords
             return effects
         case .fix(let words, let chosen):
             guard words.indices.contains(index), index != chosen, var last = committed else { return [] }
@@ -555,6 +581,7 @@ public struct Composer: Sendable {
         effects += [.insert(gap + word + " "), .haptic(.commit)]
         if let learn { effects.append(.learn(learn)) }
         autoSpaced = true
+        wordSpace = true
         lastSpace = nil
         state.bar = .idle
         refreshState()
@@ -612,6 +639,8 @@ public struct Composer: Sendable {
             candidates = []
             autospaceDue = nil
             autoSpaced = true
+            wordSpace = true
+            joinable = nil
             effects = [.commit(word), .insert(" "), .haptic(.commit)]
         } else if var last = committed {
             let word = Self.cased(meant, as: last.casing)
@@ -679,7 +708,10 @@ public struct Composer: Sendable {
     public mutating func setContext(before: String?) {
         contextBefore = before ?? ""
         // The cursor moved, or the app changed the text: that space is gone from under it.
-        if let before, !before.hasSuffix(" ") { autoSpaced = false }
+        if let before, !before.hasSuffix(" ") {
+            autoSpaced = false
+            wordSpace = false
+        }
         matcher.context = WordContext.words(before: contextBefore)
         relock()
         if pieces.isEmpty, open.isEmpty { offerNextWords() }
@@ -764,6 +796,8 @@ public struct Composer: Sendable {
         candidates = []
         autospaceDue = nil
         autoSpaced = false
+        wordSpace = false
+        joinable = nil
         state.bar = .idle
         refreshState()
         return effects
@@ -782,6 +816,8 @@ public struct Composer: Sendable {
         state.bar = .idle
         autospaceDue = nil
         autoSpaced = false
+        wordSpace = false
+        joinable = nil
         if !pieces.isEmpty {
             pieces = []
             candidates = []
@@ -804,6 +840,8 @@ public struct Composer: Sendable {
     public mutating func cursorWillMove() -> [Effect] {
         cancelCorrection()
         autoSpaced = false
+        wordSpace = false
+        joinable = nil
         guard hasOpenWord else {
             let effects = settle()
             state.bar = .idle
@@ -865,6 +903,9 @@ public struct Composer: Sendable {
             return [.clearMark, .insert(trailing)]
         }
         let word = words[chosen]
+        let before = joinable
+        joinable = nil
+        if !byHand, let before, let joined = join(word, to: before, trailing: trailing) { return joined }
         let learn = wordToLearn(word)
         reopenedLearned = nil
         committed = Committed(word: word, trailing: trailing, pieces: pieces, guesses: words, casing: casing,
@@ -875,6 +916,39 @@ public struct Composer: Sendable {
         state.bar = words.count > 1 ? .fix(words, chosen: chosen) : .idle
         refreshState()
         var effects: [Effect] = [.commit(word)] + (trailing.isEmpty ? [] : [.insert(trailing)]) + [.haptic(.commit)]
+        if let learn { effects.append(.learn(learn)) }
+        return effects
+    }
+
+    /// The open word going in after `before`, which autospace wrote with a space after
+    /// it, as one word with it when that reads clearly better (`Matcher.join`): "some"
+    /// and "thing" become "something", cased as the first was, and the two words as
+    /// written wait behind it in the bar. Nil leaves them apart.
+    private mutating func join(_ word: String, to before: Committed, trailing: String) -> [Effect]? {
+        guard contextBefore.hasSuffix(before.word + before.trailing) else { return nil }
+        var matcher = matcher
+        // The words before the first one are the context.
+        matcher.context = WordContext.words(before: String(contextBefore.dropLast(before.word.count + before.trailing.count)))
+        guard let whole = matcher.join(before.pieces, pieces, written: (before.word, word)) else { return nil }
+        let joined = Self.cased(matcher.dictionary.spellings(of: whole.word).first?.word ?? whole.word, as: before.casing)
+        let apart = before.word + " " + word
+        let all = (before.pieces + pieces).sorted { $0.start < $1.start }
+        pieces = all
+        let learn = wordToLearn(joined)
+        reopenedLearned = nil
+        committed = Committed(word: joined, trailing: trailing, pieces: all, guesses: [joined, apart], casing: before.casing,
+                              previous: before.previous, firstGuess: joined, learned: learn)
+        pieces = []
+        candidates = []
+        autospaceDue = nil
+        state.bar = .fix([joined, apart], chosen: 0)
+        refreshState()
+        var effects: [Effect] = [
+            .commit(word),
+            .deleteBackward(before.word.count + before.trailing.count + word.count),
+            .insert(joined + trailing),
+            .haptic(.commit),
+        ]
         if let learn { effects.append(.learn(learn)) }
         return effects
     }

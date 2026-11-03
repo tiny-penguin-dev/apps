@@ -531,6 +531,56 @@ public struct Matcher: Sendable {
         return Self.obvious(splits, margin: splitMargin)
     }
 
+    // MARK: Wrong spaces
+
+    /// What taking out a space autospace wrote costs, in score units, on top of
+    /// `splitMargin`: the pause was there, so two words stay two unless one word reads
+    /// clearly better. Tuned on word pairs (WrongSpaceTests): "some thing", "with out"
+    /// and "to day" join; "may be", "set up", "in to" and "every day" stay apart.
+    public var joinCost = 0.05
+
+    /// Two words autospace wrote apart, `written` from the `first` pieces and the word
+    /// from the `second` typed right after, that are one word with a pause in it
+    /// ("some" then "thing" for "something", Gabriel 3 Nov 2026): the one word, when it
+    /// is obvious. The reverse of `split`, as sure as `splitStrictness` says (never at
+    /// 0). The word must be a real word at least as common as half of a split may be,
+    /// neither half may be one letter ("a" + "way" may well be "a way"), and it must
+    /// beat the two words as written, each scored for its own pieces and the second
+    /// after the first, by `joinCost` and `splitMargin`. The matcher's context is the
+    /// words before the first one.
+    func join(_ first: [Piece], _ second: [Piece], written: (String, String)) -> Candidate? {
+        let a = Lexicon.fold(written.0.lowercased()), b = Lexicon.fold(written.1.lowercased())
+        guard splitStrictness > 0, a.count >= 2, b.count >= 2, !first.isEmpty, !second.isEmpty,
+              first.allSatisfy({ !$0.keys.isEmpty }), second.allSatisfy({ !$0.keys.isEmpty }) else { return nil }
+        let all = (first + second).sorted { $0.start < $1.start }
+        guard let whole = bestWord(all), !whole.word.contains(" "), whole.word != a + " " + b,
+              whole.word.count >= 4, isKnown(whole.word),
+              (dictionary.logPrior(of: whole.word) ?? ownPrior(whole.word)) >= splitLongPrior else { return nil }
+        // The two words as they went in: the first for its pieces after the words
+        // before it, the second for its own after the first, together (each must
+        // happen); a half that is no real word scores as letters do.
+        let letters = priorWeight * Double(unknownPrior)
+        let firstScore = score(of: a, for: first) ?? letters
+        var after = self
+        after.context.append(a)
+        let secondScore = after.score(of: b, for: second) ?? letters
+        let apart = Candidate(word: a + " " + b, score: firstScore + secondScore)
+        let joined = Candidate(word: whole.word, score: whole.score - joinCost)
+        guard joined.score > apart.score + splitMargin, confidence(of: joined, over: apart) >= 1 - splitStrictness else { return nil }
+        return joined
+    }
+
+    /// How `word` scores for `pieces` on their own: as tapped letters (only when they
+    /// spell it), or as a swipe's match. Nil when the pieces do not give it.
+    private func score(of word: String, for pieces: [Piece]) -> Double? {
+        if pieces.allSatisfy(\.isTap) {
+            guard let typed = bestWord(pieces), typed.word == word else { return nil }
+            return typed.score
+        }
+        let ordered = pieces.sorted { $0.start < $1.start }
+        return matches(Self.orderings(of: ordered, swapWindow: swapWindow))[word]
+    }
+
     /// The one real word some pieces make on their own, for half of a split: tapped
     /// letters exactly as they are, or the best word for a swipe (and what goes with it).
     private func bestWord(_ pieces: [Piece]) -> Candidate? {

@@ -56,7 +56,8 @@ public struct KeyboardSettings: Codable, Sendable, Equatable {
     public var wordStrictness = 0.8
     /// How sure the keyboard must be that pecked letters are two words with the space
     /// missed ("textseparately") before it writes them split, 0 to 1
-    /// (`Matcher.splitStrictness`). At 0 it never splits.
+    /// (`Matcher.splitStrictness`), and that two words autospace wrote apart are one
+    /// ("some thing", `Matcher.join`) before it joins them. At 0 it does neither.
     public var splitStrictness = 0.8
     /// How tall the keys are against Apple's, 0.8 to 1.2. At 1 every key sits where
     /// Apple's does; other heights move the top row and keep the bottom row in place.

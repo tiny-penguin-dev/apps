@@ -115,14 +115,16 @@ import Testing
     }
 
     /// The bar is worked out after every word, so it has to be quick: "the" has the
-    /// most pairs of any word.
+    /// most pairs of any word. About 1.5 ms in a debug build on its own; CI runs the
+    /// suites side by side, which can make it several times slower, so the bound has
+    /// room (the same reason as `MatcherTests.debugBound`).
     @Test func guessesAreFast() {
         _ = Self.guesses(after: "the")
         let start = Date()
         for _ in 0..<200 { _ = Self.guesses(after: "the") }
         let ms = Date().timeIntervalSince(start) / 200 * 1000
         print("next words: \(String(format: "%.3f", ms)) ms after \"the\" (debug)")
-        #expect(ms < 5, "mean \(ms) ms")
+        #expect(ms < 15, "mean \(ms) ms")
     }
 
     // MARK: The bar

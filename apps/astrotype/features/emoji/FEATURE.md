@@ -52,8 +52,7 @@ go as proposed until he says otherwise)
 - **Scope:**
   - *This version:* the emoji key, the page, categories, frequently used, skin tones,
     in other apps and in the app's own practice fields.
-  - *Later:* searching emoji by name (needs a text field inside the keyboard and the
-    emoji names, about 200 KB per language), emoji suggestions in the guesses bar while
+  - *Later:* searching emoji by name (built as `features/emoji-search`), emoji suggestions in the guesses bar while
     typing ("pizza" offers 🍕), syncing frequently used with iCloud, a long-press menu of
     keyboards on our globe key (Home button phones).
   - *Never:* stickers, GIFs or Memoji (third-party keyboards can't reach them), or
@@ -182,3 +181,9 @@ go as proposed until he says otherwise)
   section) with `TonePicker`; `KeyboardView.showsGlobe` comes from
   `needsInputModeSwitchKey`. Section headers use Apple's capitalised names
   ("Smileys & People").
+- 3 Nov 2026, after Gabriel tried it: the section titles came out as a column of
+  their own beside each section (a horizontal layout puts a leading header before the
+  items), which took too much room. Gabriel: drop them and leave a gap. Sections now
+  have no titles, a 28 pt gap between them, and the strip's highlighted icon says
+  where you are. Cells stay the same size (he likes them a bit smaller than Apple's).
+  The category names are still the strip buttons' VoiceOver labels.

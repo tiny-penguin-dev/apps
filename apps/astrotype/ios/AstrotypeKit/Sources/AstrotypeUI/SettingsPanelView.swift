@@ -401,10 +401,18 @@ final class QuickTile: UIControl {
         name.font = Theme.uiFont(size: 12, weight: .heavy, scaledWith: .caption1, upTo: 17)
         name.adjustsFontForContentSizeCategory = true
         name.textAlignment = .center
-        name.numberOfLines = 2
+        // Two words may take two lines; one word stays on one line and shrinks a little
+        // rather than breaking mid-word ("Autospa / ce").
+        name.numberOfLines = title.contains(" ") ? 2 : 1
+        name.lineBreakMode = .byWordWrapping
+        name.adjustsFontSizeToFitWidth = true
+        name.minimumScaleFactor = 0.7
+        name.allowsDefaultTighteningForTruncation = true
+        // Fill, not center: a centred multi-line label in a narrow tile gets squeezed to a
+        // letter wide, so each letter went on its own line (Gabriel, 3 Nov 2026).
         let stack = UIStackView(arrangedSubviews: [icon, name])
         stack.axis = .vertical
-        stack.alignment = .center
+        stack.alignment = .fill
         stack.spacing = 4
         stack.isUserInteractionEnabled = false
         stack.translatesAutoresizingMaskIntoConstraints = false

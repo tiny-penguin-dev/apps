@@ -13,7 +13,8 @@ public enum Key: Hashable, Sendable {
     case symbols
     /// Back to the letters ("ABC").
     case letters
-    /// The next keyboard, only where iOS draws no globe of its own (Home button phones).
+    /// The next keyboard, only where iOS draws no globe of its own (Home button phones,
+    /// the iPhone Duo): on this row only when the guesses bar isn't on top to hold it.
     case globe
     /// The emoji page (features/emoji).
     case emoji
@@ -130,7 +131,8 @@ public struct Layout: Sendable, Equatable {
     /// left, T F C on the right (an option, Gabriel, 2 Nov 2026).
     public let extraLetters: Bool
     /// The bottom row has a globe key before the emoji key, for phones where iOS draws
-    /// no globe under the keyboard (`needsInputModeSwitchKey`, the Home button phones).
+    /// no globe under the keyboard (`needsInputModeSwitchKey`) and the guesses bar is
+    /// off or a column; with the bar on top the globe sits in it (features/space-bar).
     /// Without it the emoji key sits where the globe was, as on Apple's keyboard.
     public let globe: Bool
     /// The keyboard's height: the keys and, under the bottom row, `bottomInset`. No
@@ -362,14 +364,24 @@ public struct Layout: Sendable, Equatable {
                       keyHeight: keyHeight, gap: gap, bottomInset: below, placements: placements, top: top, rowGap: rowGap)
     }
 
+    /// How far into return the space bar reaches: a tap that just catches return's
+    /// left edge types a space, as thumbs aiming for space land a little right
+    /// (Gabriel, 3 Nov 2026). Only the touch area moves; both keys look the same.
+    public static let spaceReach: CGFloat = 12
+
     /// The key under a point. Forgiving like Apple's keyboard: the gaps between keys,
-    /// the edges of a row and the room under the bottom row count for the nearest key.
-    /// Nil above or below the keyboard.
+    /// the edges of a row and the room under the bottom row count for the nearest key,
+    /// by distance to its edge, so a wide key gets all of its own room. Return gives
+    /// up `spaceReach` beside space. Nil above or below the keyboard.
     public func key(at point: CGPoint) -> Key? {
         guard point.y >= 0, point.y <= height else { return nil }
         let rowIndex = min(3, max(0, Int((point.y - top + rowGap / 2) / (keyHeight + rowGap))))
         let row = placements.filter { $0.row == rowIndex }
-        guard let nearest = row.min(by: { abs($0.frame.midX - point.x) < abs($1.frame.midX - point.x) }) else { return nil }
+        func distance(_ frame: CGRect) -> CGFloat { max(0, frame.minX - point.x, point.x - frame.maxX) }
+        guard let nearest = row.min(by: { distance($0.frame) < distance($1.frame) }) else { return nil }
+        if nearest.key == .returnKey, row.contains(where: { $0.key == .space && distance($0.frame) <= Self.spaceReach }) {
+            return .space
+        }
         return nearest.key
     }
 

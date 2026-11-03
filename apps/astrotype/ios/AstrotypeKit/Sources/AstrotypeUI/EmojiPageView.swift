@@ -2,9 +2,10 @@
 import AstrotypeCore
 import UIKit
 
-/// The emoji page (features/emoji/FEATURE.md): Frequently used, then the catalog's
-/// categories, five rows high and scrolling sideways, over a strip with `ABC`, one
-/// button per category and delete. It takes the room of the guesses bar and the keys
+/// The emoji page (features/emoji/FEATURE.md): a "Search emoji" field on top
+/// (features/emoji-search), then Frequently used and the catalog's categories, four
+/// rows high and scrolling sideways, over a strip with `ABC`, one button per category
+/// and delete. It takes the room of the guesses bar and the keys
 /// together. Holding an emoji that has skin tones opens the `TonePicker`.
 ///
 /// Only the cells on screen are drawn (a collection view), since colour emoji glyphs
@@ -22,6 +23,8 @@ final class EmojiPageView: UIView, UICollectionViewDataSource, UICollectionViewD
     var onTone: ((_ form: String, _ base: String) -> Void)?
     var onABC: (() -> Void)?
     var onDelete: (() -> Void)?
+    /// The search field was tapped.
+    var onSearch: (() -> Void)?
     /// The form to show for an emoji: the tone the person picked, else itself.
     var tone: (String) -> String = { $0 }
     /// Frequently used, as forms. Set when the page opens; it doesn't change while open,
@@ -30,13 +33,21 @@ final class EmojiPageView: UIView, UICollectionViewDataSource, UICollectionViewD
         didSet { if frequent != oldValue { collection.reloadSections(IndexSet(integer: 0)) } }
     }
 
-    static let rows = 5
-    static let headerHeight: CGFloat = 20
+    static let rows = 4
+    /// The search field's row over the grid.
+    static let searchRoom = KeyboardView.barHeight
+    /// The room the old section titles took, which still sets the emoji size (see
+    /// `layoutSubviews`). Sections have no titles (they took a column's width); a gap
+    /// and the highlighted category on the strip tell them apart.
+    static let topRoom: CGFloat = 20
+    /// The gap between sections, on top of each section's 6 pt insets.
+    static let sectionGap: CGFloat = 16
     static let stripHeight: CGFloat = 44
 
     private let catalog: EmojiCatalog
     private let collection: UICollectionView
     private let strip = UIView()
+    private let search = SearchField(placeholder: "Search emoji")
     private let abc = EmojiStripKey(title: "ABC")
     private let delete = EmojiStripKey(symbol: "delete.left")
     private var categoryButtons: [UIButton] = []
@@ -57,13 +68,13 @@ final class EmojiPageView: UIView, UICollectionViewDataSource, UICollectionViewD
         collection.dataSource = self
         collection.delegate = self
         collection.register(EmojiCell.self, forCellWithReuseIdentifier: EmojiCell.id)
-        collection.register(EmojiHeader.self, forSupplementaryViewOfKind: UICollectionView.elementKindSectionHeader,
-                            withReuseIdentifier: EmojiHeader.id)
         collection.collectionViewLayout = makeLayout()
         let hold = UILongPressGestureRecognizer(target: self, action: #selector(held(_:)))
         hold.minimumPressDuration = 0.4
         collection.addGestureRecognizer(hold)
         addSubview(collection)
+        search.addAction(UIAction { [weak self] _ in self?.closePicker(); self?.onSearch?() }, for: .touchUpInside)
+        addSubview(search)
 
         addSubview(strip)
         abc.accessibilityLabel = "Letters"
@@ -93,14 +104,20 @@ final class EmojiPageView: UIView, UICollectionViewDataSource, UICollectionViewD
 
     override func layoutSubviews() {
         super.layoutSubviews()
-        let gridHeight = bounds.height - Self.stripHeight
-        collection.frame = CGRect(x: 0, y: 0, width: bounds.width, height: gridHeight)
-        let size = max(24, ((gridHeight - Self.headerHeight - 4) / CGFloat(Self.rows)).rounded(.down))
+        let stripTop = bounds.height - Self.stripHeight
+        search.frame = CGRect(x: 8, y: (Self.searchRoom - SearchField.height) / 2 + 2, width: bounds.width - 16,
+                              height: SearchField.height)
+        let gridHeight = stripTop - Self.searchRoom
+        collection.frame = CGRect(x: 0, y: Self.searchRoom, width: bounds.width, height: gridHeight)
+        // Four rows fit under the field, but the emoji keep the size five rows had
+        // before it (Gabriel likes them a little smaller than Apple's).
+        let fiveRows = (stripTop - Self.topRoom - 4) / 5
+        let size = max(24, min((gridHeight - 4) / CGFloat(Self.rows), fiveRows).rounded(.down))
         if size != cellSize {
             cellSize = size
             collection.collectionViewLayout.invalidateLayout()
         }
-        strip.frame = CGRect(x: 0, y: gridHeight, width: bounds.width, height: Self.stripHeight)
+        strip.frame = CGRect(x: 0, y: stripTop, width: bounds.width, height: Self.stripHeight)
         let keyWidth: CGFloat = 52, keyHeight: CGFloat = 36, y = (Self.stripHeight - keyHeight) / 2
         abc.frame = CGRect(x: 4, y: y, width: keyWidth, height: keyHeight)
         delete.frame = CGRect(x: bounds.width - 4 - keyWidth, y: y, width: keyWidth, height: keyHeight)
@@ -149,9 +166,10 @@ final class EmojiPageView: UIView, UICollectionViewDataSource, UICollectionViewD
     private func makeLayout() -> UICollectionViewCompositionalLayout {
         let configuration = UICollectionViewCompositionalLayoutConfiguration()
         configuration.scrollDirection = .horizontal
-        configuration.interSectionSpacing = 12
-        return UICollectionViewCompositionalLayout(sectionProvider: { [weak self] _, _ in
+        configuration.interSectionSpacing = Self.sectionGap
+        return UICollectionViewCompositionalLayout(sectionProvider: { [weak self] _, environment in
             let size = self?.cellSize ?? 37
+            let top = max(0, ((environment.container.contentSize.height - size * CGFloat(Self.rows)) / 2).rounded(.down))
             let item = NSCollectionLayoutItem(layoutSize: NSCollectionLayoutSize(widthDimension: .absolute(size),
                                                                                 heightDimension: .absolute(size)))
             let group = NSCollectionLayoutGroup.vertical(
@@ -159,12 +177,7 @@ final class EmojiPageView: UIView, UICollectionViewDataSource, UICollectionViewD
                                                    heightDimension: .absolute(size * CGFloat(Self.rows))),
                 repeatingSubitem: item, count: Self.rows)
             let section = NSCollectionLayoutSection(group: group)
-            section.contentInsets = NSDirectionalEdgeInsets(top: 0, leading: 6, bottom: 0, trailing: 6)
-            let header = NSCollectionLayoutBoundarySupplementaryItem(
-                layoutSize: NSCollectionLayoutSize(widthDimension: .estimated(160),
-                                                   heightDimension: .absolute(Self.headerHeight)),
-                elementKind: UICollectionView.elementKindSectionHeader, alignment: .topLeading)
-            section.boundarySupplementaryItems = [header]
+            section.contentInsets = NSDirectionalEdgeInsets(top: top, leading: 6, bottom: 0, trailing: 6)
             return section
         }, configuration: configuration)
     }
@@ -186,14 +199,6 @@ final class EmojiPageView: UIView, UICollectionViewDataSource, UICollectionViewD
         return cell
     }
 
-    func collectionView(_ collectionView: UICollectionView, viewForSupplementaryElementOfKind kind: String,
-                        at indexPath: IndexPath) -> UICollectionReusableView {
-        let header = collectionView.dequeueReusableSupplementaryView(ofKind: kind, withReuseIdentifier: EmojiHeader.id,
-                                                                     for: indexPath) as! EmojiHeader
-        header.label.text = Self.title(for: category(of: indexPath.section)).uppercased()
-        return header
-    }
-
     // MARK: Touches
 
     func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
@@ -206,7 +211,7 @@ final class EmojiPageView: UIView, UICollectionViewDataSource, UICollectionViewD
 
     func scrollViewDidScroll(_ scrollView: UIScrollView) {
         closePicker()
-        let point = CGPoint(x: scrollView.contentOffset.x + 24, y: Self.headerHeight + cellSize / 2)
+        let point = CGPoint(x: scrollView.contentOffset.x + 24, y: collection.bounds.midY)
         if let path = collection.indexPathForItem(at: point) { markCurrent(path.section) }
     }
 
@@ -359,33 +364,6 @@ extension EmojiPageView {
         let item = form(at: path)
         guard !item.tones.isEmpty else { return }
         openPicker(base: item.base, tones: item.tones, current: item.form, over: cell)
-    }
-}
-
-/// A section's name over its columns.
-private final class EmojiHeader: UICollectionReusableView {
-    static let id = "header"
-    let label = UILabel()
-
-    override init(frame: CGRect) {
-        super.init(frame: frame)
-        label.font = Theme.uiFont(size: 11, weight: .heavy)
-        label.textColor = Theme.ui(.muted)
-        addSubview(label)
-        accessibilityTraits = .header
-    }
-
-    required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
-
-    override func layoutSubviews() {
-        super.layoutSubviews()
-        label.frame = bounds.insetBy(dx: 4, dy: 0)
-    }
-
-    override func preferredLayoutAttributesFitting(_ attributes: UICollectionViewLayoutAttributes) -> UICollectionViewLayoutAttributes {
-        let fitted = super.preferredLayoutAttributesFitting(attributes)
-        fitted.size.width = ceil(label.intrinsicContentSize.width) + 8
-        return fitted
     }
 }
 

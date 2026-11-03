@@ -278,3 +278,22 @@ when it beats the best one-word reading by `splitMargin`, so two-thumb words ("s
 "thing", "hel" + "lo") stay whole with the split behind them in the bar. One swipe is
 never split into two words. Cost: three searches instead of one on a word of several
 touches with a swipe, about 3 ms per lift in release (23 ms in a debug build).
+
+**Wrong spaces (2026-11-03).** The reverse, for autospace (Gabriel: a short wait types
+better but puts spaces inside words). When autospace wrote the space after a word and
+the next word starts within 1.5 s, that word, as it goes in by space, punctuation or
+autospace, may take the space back out: "some" … "thing" becomes "something"
+(`Matcher.join`, `Composer.join`). All the touches of both must make one real word
+(log prior -10 or better, four letters or more), neither half may be one letter
+("a way"), and the word must beat the two as written (each scored for its own touches,
+the second after the first, the two scores added) by 0.15. Tuned on word pairs in
+`WrongSpaceTests`: "with out", "to day", "be cause", "key board" join; "it may be",
+"to set up", "go in to", "every day", "and so on", "give me an" stay apart. The two
+words wait behind it in the bar's fixes. A space the person pressed, or a word picked
+from the bar, is never taken out. The "Split words" slider covers both directions (0%
+never joins either).
+
+Punctuation after a word goes before the space after it ("word ." becomes "word. ")
+whether autospace, the bar or the space key wrote that space, and also when space was
+pressed again right after autospace (it adds nothing there): that last case left
+"word ." before (Gabriel, 3 Nov 2026).

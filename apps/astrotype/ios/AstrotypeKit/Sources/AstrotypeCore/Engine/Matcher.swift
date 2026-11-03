@@ -142,6 +142,12 @@ public struct Matcher: Sendable {
     public var maxEditCost = 1.4
     /// Two pieces that landed this close together are tried in both orders.
     public var swapWindow: TimeInterval = 0.12
+    /// Score per squared key width between where a tap landed and the centre of the
+    /// key its letter is on, as for pecked letters (`EditCosts.distance`).
+    public var tapWeight = 0.25
+    /// What a letter taken a whole `swapWindow` after its finger had moved on costs,
+    /// when both thumbs swipe at once (`together`): less for less.
+    public var latePenalty = 0.2
     /// How many trie states a search may expand before it stops.
     public var budget = 40_000
 
@@ -271,7 +277,12 @@ public struct Matcher: Sendable {
         // word fits at all), as sure as `splitStrictness` asks; otherwise it waits in
         // the bar behind the first guess.
         let joined = out.first ?? Candidate(word: "", score: priorWeight * Double(unknownPrior))
-        let sure = splitStrictness > 0 && split.score > joined.score + splitMargin
+        // The two halves are one common word the pieces also fit ("after" then "noon" is
+        // "afternoon"): two thumbs type a word in halves, so the word goes first. A
+        // rare run-together ("alot") still splits.
+        let together = split.word.replacingOccurrences(of: " ", with: "")
+        let oneWord = out.contains { $0.word == together } && (dictionary.logPrior(of: together) ?? -.infinity) >= compoundPrior
+        let sure = !oneWord && splitStrictness > 0 && split.score > joined.score + splitMargin
             && confidence(of: split, over: joined) >= 1 - splitStrictness
         guard !out.isEmpty else { return [split] }
         let rest = Array(out.prefix(limit - 1))
@@ -315,8 +326,23 @@ public struct Matcher: Sendable {
     /// Every word the pieces fit (in any of the orderings), with its best score.
     private func matches(_ orderings: [[Piece]]) -> [String: Double] {
         var best: [String: Double] = [:]
+        // Thumbs that were down at the same time: their letters, in the order the
+        // fingers reached them. That reading covers the other orders and a tap inside
+        // a swipe, so only the touch-down order is read one piece after another.
+        var orderings = orderings
+        if let pieces = orderings.first, Self.overlap(pieces) {
+            orderings = [pieces]
+            for (word, score) in together(pieces, in: dictionary, prior: nil) {
+                best[word] = max(best[word] ?? -.infinity, score)
+            }
+            if learnedLexicon.nodeCount > 1 {
+                for (word, score) in together(pieces, in: learnedLexicon, prior: ownPrior) {
+                    best[word] = max(best[word] ?? -.infinity, score)
+                }
+            }
+        }
         for ordering in orderings {
-            for segments in segmentations(of: ordering) {
+            for segments in segmentations(of: ordering).prefix(orderings.count == 1 && Self.overlap(ordering) ? 1 : 2) {
                 for (word, score) in search(segments, in: dictionary, prior: nil) {
                     best[word] = max(best[word] ?? -.infinity, score)
                 }
@@ -406,21 +432,33 @@ public struct Matcher: Sendable {
     /// under one key, so "seconds" (ending on s) is not "second" (ending on d).
     public var shapeEnds: CGFloat = 0.7
 
-    /// The guesses with the words of remembered shapes (`PersonalIndex.shapes`) that a
-    /// lone swipe comes close to put first (features/missed-words Phase B): the person
-    /// told the keyboard what this swipe means.
+    /// The guesses with the words of remembered shapes (`PersonalIndex.shapes`) that the
+    /// pieces come close to put first (features/missed-words Phase B): the person told
+    /// the keyboard what this swipe means. A shape of two thumbs matches the same number
+    /// of touches, each against its own in touch-down order, on the same keyboard
+    /// (split or whole).
     func remembered(_ ranked: [Candidate], for pieces: [Piece]) -> [Candidate] {
-        guard !personal.shapes.isEmpty, pieces.count == 1, let swipe = pieces.first, !swipe.isTap, !layout.split,
-              layout.width > 0, layout.height > 0, swipe.points.count > 1 else { return ranked }
+        guard !personal.shapes.isEmpty, (1...PersonalModel.maxShapePieces).contains(pieces.count),
+              pieces.contains(where: { !$0.isTap }), layout.width > 0, layout.height > 0 else { return ranked }
         let unit = layout.distanceUnit
-        let actual = Geometry.resample(swipe.points, count: PersonalModel.shapePoints)
-        guard let start = actual.first, let end = actual.last else { return ranked }
+        let actual = pieces.sorted { $0.start < $1.start }.map { Geometry.resample($0.points, count: PersonalModel.shapePoints) }
         var near: [String: Double] = [:]
-        for shape in personal.shapes {
-            let points = shape.points.map { CGPoint(x: $0.x * layout.width, y: $0.y * layout.height) }
-            guard let first = points.first, let last = points.last,
-                  Geometry.distance(first, start) < unit * shapeEnds, Geometry.distance(last, end) < unit * shapeEnds else { continue }
-            let distance = Double(Geometry.dtw(actual, points, band: 4) / unit)
+        for shape in personal.shapes where shape.split == layout.split {
+            let stored = shape.pieces
+            guard stored.count == actual.count else { continue }
+            var total = 0.0
+            var close = true
+            for (mine, kept) in zip(actual, stored) {
+                let points = kept.map { CGPoint(x: $0.x * layout.width, y: $0.y * layout.height) }
+                guard let first = points.first, let last = points.last, let start = mine.first, let end = mine.last,
+                      Geometry.distance(first, start) < unit * shapeEnds, Geometry.distance(last, end) < unit * shapeEnds else {
+                    close = false
+                    break
+                }
+                total += Double(Geometry.dtw(mine, points, band: 4) / unit)
+            }
+            guard close else { continue }
+            let distance = total / Double(actual.count)
             if distance < shapeRadius { near[shape.word] = min(near[shape.word] ?? .infinity, distance) }
         }
         guard !near.isEmpty else { return ranked }
@@ -446,6 +484,10 @@ public struct Matcher: Sendable {
     /// like "ep" and "xt" that would split almost anything.
     public var splitLongPrior: Float = -10
     public var splitShortPrior: Float = -7
+    /// The rarest (log prior) the halves of a split run together may be and still be
+    /// written as one word ("afternoon" at -6.9 and "everyday" at -7.5 are; "alot" at
+    /// -8.7 is not).
+    public var compoundPrior: Float = -8
     /// How much better the best split must score than the next one to be offered: two
     /// readings that close are not an obvious missed space.
     public var splitMargin = 0.1
@@ -487,6 +529,56 @@ public struct Matcher: Sendable {
                                     score: min(first.score, second.score) + pairBonus(first.word, p1, second.word, p2) - splitCost))
         }
         return Self.obvious(splits, margin: splitMargin)
+    }
+
+    // MARK: Wrong spaces
+
+    /// What taking out a space autospace wrote costs, in score units, on top of
+    /// `splitMargin`: the pause was there, so two words stay two unless one word reads
+    /// clearly better. Tuned on word pairs (WrongSpaceTests): "some thing", "with out"
+    /// and "to day" join; "may be", "set up", "in to" and "every day" stay apart.
+    public var joinCost = 0.05
+
+    /// Two words autospace wrote apart, `written` from the `first` pieces and the word
+    /// from the `second` typed right after, that are one word with a pause in it
+    /// ("some" then "thing" for "something", Gabriel 3 Nov 2026): the one word, when it
+    /// is obvious. The reverse of `split`, as sure as `splitStrictness` says (never at
+    /// 0). The word must be a real word at least as common as half of a split may be,
+    /// neither half may be one letter ("a" + "way" may well be "a way"), and it must
+    /// beat the two words as written, each scored for its own pieces and the second
+    /// after the first, by `joinCost` and `splitMargin`. The matcher's context is the
+    /// words before the first one.
+    func join(_ first: [Piece], _ second: [Piece], written: (String, String)) -> Candidate? {
+        let a = Lexicon.fold(written.0.lowercased()), b = Lexicon.fold(written.1.lowercased())
+        guard splitStrictness > 0, a.count >= 2, b.count >= 2, !first.isEmpty, !second.isEmpty,
+              first.allSatisfy({ !$0.keys.isEmpty }), second.allSatisfy({ !$0.keys.isEmpty }) else { return nil }
+        let all = (first + second).sorted { $0.start < $1.start }
+        guard let whole = bestWord(all), !whole.word.contains(" "), whole.word != a + " " + b,
+              whole.word.count >= 4, isKnown(whole.word),
+              (dictionary.logPrior(of: whole.word) ?? ownPrior(whole.word)) >= splitLongPrior else { return nil }
+        // The two words as they went in: the first for its pieces after the words
+        // before it, the second for its own after the first, together (each must
+        // happen); a half that is no real word scores as letters do.
+        let letters = priorWeight * Double(unknownPrior)
+        let firstScore = score(of: a, for: first) ?? letters
+        var after = self
+        after.context.append(a)
+        let secondScore = after.score(of: b, for: second) ?? letters
+        let apart = Candidate(word: a + " " + b, score: firstScore + secondScore)
+        let joined = Candidate(word: whole.word, score: whole.score - joinCost)
+        guard joined.score > apart.score + splitMargin, confidence(of: joined, over: apart) >= 1 - splitStrictness else { return nil }
+        return joined
+    }
+
+    /// How `word` scores for `pieces` on their own: as tapped letters (only when they
+    /// spell it), or as a swipe's match. Nil when the pieces do not give it.
+    private func score(of word: String, for pieces: [Piece]) -> Double? {
+        if pieces.allSatisfy(\.isTap) {
+            guard let typed = bestWord(pieces), typed.word == word else { return nil }
+            return typed.score
+        }
+        let ordered = pieces.sorted { $0.start < $1.start }
+        return matches(Self.orderings(of: ordered, swapWindow: swapWindow))[word]
     }
 
     /// The one real word some pieces make on their own, for half of a split: tapped
@@ -610,20 +702,38 @@ public struct Matcher: Sendable {
     }
     // MARK: Orderings and segments
 
-    /// The touch-down order, plus each way of swapping two pieces that landed within
-    /// the swap window (at most four orderings).
-    static func orderings(of pieces: [Piece], swapWindow: TimeInterval) -> [[Piece]] {
-        var out = [pieces]
-        guard pieces.count > 1 else { return out }
-        for i in 0..<(pieces.count - 1) where pieces[i + 1].start - pieces[i].start < swapWindow {
-            for ordering in out {
-                var swapped = ordering
-                swapped.swapAt(i, i + 1)
-                out.append(swapped)
+    /// The touch-down order first, then the other orders the pieces may have been meant
+    /// in, likeliest first, at most `limit`. Two thumbs that land close together land
+    /// in either order, so a piece may come before any that landed less than
+    /// `swapWindow` before it, however many there are ("the" tapped t-e with one thumb
+    /// and h with the other, all within a blink). An order is as unlikely as the time
+    /// its swapped pieces landed apart, added up.
+    static func orderings(of pieces: [Piece], swapWindow: TimeInterval, limit: Int = 8) -> [[Piece]] {
+        guard pieces.count > 1, limit > 1 else { return [pieces] }
+        var found: [(cost: TimeInterval, order: [Int])] = []
+        var order: [Int] = []
+        var used = [Bool](repeating: false, count: pieces.count)
+        var visits = 0
+        // Depth first: the next piece is any unused one that landed within the window
+        // of the earliest unused one; the cost is how long after it that one landed.
+        func extend(_ cost: TimeInterval) {
+            visits += 1
+            guard visits < 2000 else { return }
+            guard order.count < pieces.count else { found.append((cost, order)); return }
+            guard let earliest = used.firstIndex(of: false) else { return }
+            for next in earliest..<pieces.count where !used[next] {
+                let late = pieces[next].start - pieces[earliest].start
+                guard late < swapWindow else { break }
+                used[next] = true
+                order.append(next)
+                extend(cost + late)
+                order.removeLast()
+                used[next] = false
             }
-            if out.count >= 4 { break }
         }
-        return Array(out.prefix(4))
+        extend(0)
+        found.sort { $0.cost == $1.cost ? $0.order.lexicographicallyPrecedes($1.order) : $0.cost < $1.cost }
+        return found.prefix(limit).map { $0.order.map { pieces[$0] } }
     }
 
     /// A stretch of one piece that the word's letters are matched against.
@@ -898,14 +1008,15 @@ public struct Matcher: Sendable {
 
     private func score(word: String, prior: Float, counts: [Int], segments: [Segment]) -> Double {
         let letters = Array(word)
-        let unit = Double(layout.distanceUnit)
         // The letters each swipe contributed, across all of its segments.
         var swipes: [(points: [CGPoint], letters: [Character])] = []
+        var taps: [(point: CGPoint, letter: Character)] = []
         var sources: [Int: Int] = [:]
         var offset = 0
         for (i, segment) in segments.enumerated() {
             let count = counts[i]
             defer { offset += count }
+            if segment.isTap, count > 0, let point = segment.points.first { taps.append((point, letters[offset])) }
             guard !segment.isTap, count > 0 else { continue }
             if let slot = sources[segment.source] {
                 swipes[slot].letters += letters[offset..<(offset + count)]
@@ -914,9 +1025,19 @@ public struct Matcher: Sendable {
                 swipes.append((segment.points, Array(letters[offset..<(offset + count)])))
             }
         }
+        return score(word: word, prior: prior, swipes: swipes, taps: taps)
+    }
+
+    /// A word's score from the letters each swipe gave it: how far each swipe strayed
+    /// from the path through its letters, and what the word is worth on its own.
+    func score(word: String, prior: Float, swipes: [(points: [CGPoint], letters: [Character])],
+               taps: [(point: CGPoint, letter: Character)] = []) -> Double {
+        let unit = Double(layout.distanceUnit)
         var distance = 0.0
         var weight = 0
-        for swipe in swipes where swipe.letters.count > 1 && swipe.points.count > 1 {
+        // A swipe that gave one letter is scored too, against a path that stays on it:
+        // otherwise a word that drops the rest of a swipe pays nothing for it.
+        for swipe in swipes where !swipe.letters.isEmpty && swipe.points.count > 1 {
             let count = swipe.letters.count
             // On a split keyboard a middle letter is on both halves: the swipe's own.
             let side = layout.side(at: swipe.points[0])
@@ -928,7 +1049,15 @@ public struct Matcher: Sendable {
             weight += count
         }
         let path = weight > 0 ? distance / Double(weight) : 0
-        return -pathWeight * path + priorWeight * Double(prior) + contextWeight * contextBonus(for: word, prior: prior)
+        // Where each tap landed against the key its letter is on: a tap at the edge of
+        // "g" reads as "f" more easily than one in the middle.
+        var missed = 0.0
+        for tap in taps {
+            guard let frame = layout.frame(of: .letter(tap.letter), on: layout.side(at: tap.point)) else { continue }
+            let d = Double(Geometry.distance(tap.point, CGPoint(x: frame.midX, y: frame.midY))) / unit
+            missed += tapWeight * d * d
+        }
+        return -pathWeight * path - missed + priorWeight * Double(prior) + contextWeight * contextBonus(for: word, prior: prior)
             + personalBonus(for: word, prior: prior) + learned.weight(of: word)
     }
 

@@ -188,6 +188,31 @@ public struct SettingsLink: View {
     }
 }
 
+/// A row that only shows a value on the right, like a reading on the Debug page. The
+/// value can take a colour to say it is high (`Theme.sun`) or over (`Theme.danger`).
+/// VoiceOver reads the title, subtitle and value as one.
+public struct SettingsValue: View {
+    var title: String
+    var subtitle: String?
+    var value: String
+    var valueColor: Color
+
+    public init(_ title: String, subtitle: String? = nil, value: String, valueColor: Color = Theme.muted) {
+        self.title = title
+        self.subtitle = subtitle
+        self.value = value
+        self.valueColor = valueColor
+    }
+
+    public var body: some View {
+        SettingsRow(title, subtitle: subtitle) {
+            Text(value).font(.system(.body, design: .rounded, weight: .semibold))
+                .foregroundStyle(valueColor).monospacedDigit()
+        }
+        .accessibilityElement(children: .combine)
+    }
+}
+
 /// A slider row: an optional title with the value on the right, then the slider between
 /// two end labels. Without a title it indents under the row above (autospace's wait).
 public struct SettingsSlider: View {

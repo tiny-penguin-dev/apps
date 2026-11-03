@@ -124,7 +124,9 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
 - `features/`: the bigger features after the v2 build, one folder each with a
   `FEATURE.md` (product, design, build and its phases, notes as they ship):
   `smart-matching` (context, personal learning, consented sharing, the harness),
-  `languages` (Spanish and the next languages, both at once; built).
+  `languages` (Spanish and the next languages, both at once; built),
+  `missed-words` (the bar's "Not it?": type the word meant, learn from the swipe, keep
+  it for debugging; planned, being built).
 - `design/`: the mockup (`mockups/astrotype.html`, the keyboard in it works), the
   screen captures the design doc links, the icon's SVGs (`icon/`) and
   `appstore/make-screenshots.mjs`, which renders the store screenshots from the mockup

@@ -365,11 +365,13 @@ public final class KeyboardModel {
         apply(composer.choose(guess: index, time: now))
     }
 
-    /// The FIX chip beside the next words: the last word becomes the reading it shows.
-    public func chooseFix() {
-        guard composer.state.bar.fixChoice != nil else { return }
+    /// Another reading of the last word, picked from the bar's fix row while next words
+    /// show (features/guesses-bar): `reading` indexes `Bar.next`'s `fix`.
+    public func chooseFix(reading: Int) {
+        guard case .next(_, let fix, let chosen) = composer.state.bar,
+              fix.indices.contains(reading), reading != chosen else { return }
         onFix?()
-        apply(composer.chooseFix())
+        apply(composer.chooseFix(reading: reading))
     }
 
     /// A slide on the space bar: the open word goes in, then the cursor moves.

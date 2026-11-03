@@ -115,14 +115,16 @@ import Testing
     }
 
     /// The bar is worked out after every word, so it has to be quick: "the" has the
-    /// most pairs of any word.
+    /// most pairs of any word. About 1.5 ms in a debug build on its own; CI runs the
+    /// suites side by side, which can make it several times slower, so the bound has
+    /// room (the same reason as `MatcherTests.debugBound`).
     @Test func guessesAreFast() {
         _ = Self.guesses(after: "the")
         let start = Date()
         for _ in 0..<200 { _ = Self.guesses(after: "the") }
         let ms = Date().timeIntervalSince(start) / 200 * 1000
         print("next words: \(String(format: "%.3f", ms)) ms after \"the\" (debug)")
-        #expect(ms < 5, "mean \(ms) ms")
+        #expect(ms < 15, "mean \(ms) ms")
     }
 
     // MARK: The bar
@@ -143,7 +145,7 @@ import Testing
         #expect(field.text == "I \(next) ")
     }
 
-    @Test func aWordWithOtherReadingsKeepsAFixChip() {
+    @Test func aWordWithOtherReadingsKeepsItsFixes() {
         var field = Field(autoCapitalize: false)
         field.swipe("pot")
         field.press(.space)
@@ -152,8 +154,8 @@ import Testing
             Issue.record("expected next words, got \(field.composer.state.bar)")
             return
         }
-        // One next word fewer, to leave room for the chip.
-        #expect(words.count == 2)
+        // All three next words: the readings wait behind the pencil (features/guesses-bar).
+        #expect(words.count == 3)
         #expect(fix[chosen] == "put")
         let offered = field.composer.state.bar.fixChoice ?? ""
         #expect(!offered.isEmpty && offered != "put")
@@ -164,6 +166,15 @@ import Testing
         #expect(!field.next.isEmpty)
         field.apply(field.composer.chooseFix())
         #expect(field.text == "put ")
+        // A reading picked from the pencil's row goes in; the one in the field does nothing.
+        guard case .next(_, let readings, let now) = field.composer.state.bar, readings.count > 1 else {
+            Issue.record("expected readings, got \(field.composer.state.bar)")
+            return
+        }
+        #expect(field.composer.chooseFix(reading: now).isEmpty)
+        let other = readings.indices.last { $0 != now } ?? now
+        field.apply(field.composer.chooseFix(reading: other))
+        #expect(field.text == "\(readings[other]) ")
     }
 
     @Test func aTouchClearsTheNextWords() {

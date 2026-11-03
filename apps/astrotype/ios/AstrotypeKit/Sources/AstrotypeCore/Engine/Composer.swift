@@ -13,7 +13,7 @@ import Foundation
 ///     composer.press(character: ",", time: t)       // punctuation commits too
 ///     composer.press(text: ".com", time: t)          // and a key that types a string
 ///     composer.choose(guess: 1)                     // from the bar
-///     composer.chooseFix()                          // the FIX chip beside next words
+///     composer.chooseFix(reading: 2)                // another reading of the last word, from the pencil
 ///     composer.beginCorrection()                    // "Not it?": the keys type the word meant
 ///     composer.saveCorrection(time: t)              // it replaces the swiped word
 ///     composer.state.openWord                       // "something"
@@ -76,9 +76,8 @@ public struct Composer: Sendable {
         case fix([String], chosen: Int)
         /// No open word: the likely next words (`NextWords`), cased for where they go,
         /// tapped with `choose(guess:)`. When the last word has other readings, `fix`
-        /// holds them as `.fix` would (`chosen` in the field) and the bar shows the best
-        /// other one as a chip first (`fixChoice`, tapped with `chooseFix()`), with one
-        /// next word fewer (features/next-word, option A).
+        /// holds them as `.fix` would (`chosen` in the field); the bar offers them behind
+        /// its pencil, tapped with `chooseFix(reading:)` (features/guesses-bar).
         case next([String], fix: [String], chosen: Int)
 
         /// The reading the FIX chip offers: the first one that is not in the field.
@@ -529,12 +528,14 @@ public struct Composer: Sendable {
         }
     }
 
-    /// The FIX chip beside the next words: the last word becomes the reading it shows
-    /// (`Bar.fixChoice`); tapped again, it goes back. The next words follow the new
+    /// Another reading of the last word while next words show (`Bar.next`'s `fix`):
+    /// the word in the field becomes `fix[reading]`, by default the best other one
+    /// (`Bar.fixChoice`), so calling it twice goes back. The next words follow the new
     /// word once the host passes the context back.
-    public mutating func chooseFix() -> [Effect] {
+    public mutating func chooseFix(reading: Int? = nil) -> [Effect] {
         guard case .next(_, let fix, let chosen) = state.bar,
-              let index = fix.indices.first(where: { $0 != chosen }) else { return [] }
+              let index = reading ?? fix.indices.first(where: { $0 != chosen }),
+              fix.indices.contains(index), index != chosen else { return [] }
         state.bar = .fix(fix, chosen: chosen)
         let effects = choose(guess: index)
         if case .fix(let words, let now) = state.bar { state.bar = .next([], fix: words, chosen: now) }
@@ -696,7 +697,7 @@ public struct Composer: Sendable {
         case .fix(let words, let chosen): fix = (words, chosen)
         case .next(_, let words, let chosen): fix = words.count > 1 ? (words, chosen) : nil
         }
-        let count = settings.guessCount - (fix == nil ? 0 : 1)
+        let count = settings.guessCount
         var next: [String] = []
         if settings.nextWords, count > 0, let previous = matcher.context.last {
             let words: [String]

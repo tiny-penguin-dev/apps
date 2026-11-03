@@ -137,7 +137,8 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
   `missed-words` (the bar's "Not it?": type the word meant, learn from the swipe, keep
   it for debugging; built),
   `field-types` (the keyboard following email, web, search and number fields),
-  `next-word` (the likely next words on the bar after each word, with the FIX chip).
+  `next-word` (the likely next words on the bar after each word, with the FIX chip),
+  `guesses-bar` (the bar redesigned: words centred, buttons at the ends; planned).
 - `design/`: the mockup (`mockups/astrotype.html`, the keyboard in it works), the
   screen captures the design doc links, the icon's SVGs (`icon/`) and
   `appstore/make-screenshots.mjs`, which renders the store screenshots from the mockup

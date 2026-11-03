@@ -31,6 +31,11 @@ Squawk is in the **Build** stage. Read `PRODUCT.md`, `DESIGN.md` and `BUILD.md` 
   only cancels or adds the AlarmKit alarms that changed (it remembers what it made in
   UserDefaults). "I'm up" on the ringing screen runs
   `SquawkUpIntent`.
+- "Turn off Squawk" (`Alarms/TurnOffSquawkIntent.swift`): the Shortcuts action, also
+  the "Run a Shortcut" wake-up check. It runs in the background and calls
+  `AlarmsModel.turnOffFromShortcut()`; `Alarm.shortcutTurnOff` decides what it may do.
+  It ends a morning with no checks or only Shortcut checks, and only ticks off the
+  Shortcut check when there are others. It never skips another check.
 - Wake-up checks: `ios/Squawk/Checks/` (`TagReader` reads an NFC sticker's id with
   CoreNFC, `CodeScanner` wraps VisionKit's barcode scanner), `Screens/CheckFlowView.swift`
   (tag, code, penguin game, math way out) and `Screens/ChecksSetup.swift`. An alarm with

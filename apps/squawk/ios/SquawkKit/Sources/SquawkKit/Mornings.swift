@@ -163,6 +163,19 @@ extension Alarm {
         return true
     }
 
+    // MARK: "Turn off Squawk" Shortcut
+
+    /// What the "Turn off Squawk" action does to this alarm right now. It can't skip a
+    /// wake-up check: it only turns the morning off when the alarm has no checks, or
+    /// when its checks are all "Run a Shortcut". With other checks too, it counts as the
+    /// Shortcut check, and the rest are done in the app.
+    public func shortcutTurnOff(at now: Date, calendar: Calendar = .current) -> ShortcutTurnOff {
+        guard let day = morningInProgress(at: now, calendar: calendar) else { return .notRinging }
+        guard hasChecks else { return .up(day) }
+        guard checks.contains(where: { $0.kind == .shortcut }) else { return .needsOtherCheck }
+        return checks.allSatisfy { $0.kind == .shortcut } ? .up(day) : .shortcutDone(day)
+    }
+
     // MARK: Adding rings
 
     /// Adds a soft ring 10 minutes before the first one.
@@ -201,4 +214,16 @@ extension Ring {
         if let name, !name.isEmpty { return "\(time) · \(name)" }
         return "\(time) · \(sound.name)"
     }
+}
+
+/// What running the "Turn off Squawk" action means for one alarm.
+public enum ShortcutTurnOff: Equatable, Sendable {
+    /// No morning of this alarm is going on.
+    case notRinging
+    /// This morning is over: cancel the rest of it.
+    case up(LocalDate)
+    /// The Shortcut check of this morning is done, but other checks are left.
+    case shortcutDone(LocalDate)
+    /// The alarm has checks and none of them is a Shortcut, so it keeps ringing.
+    case needsOtherCheck
 }

@@ -9,6 +9,8 @@ protocol RingScheduler: AnyObject {
     func requestAccess() async -> Bool
     /// Replaces every scheduled ring with this plan. Returns how many failed.
     func replaceAll(with plan: [PlannedRing]) async -> Int
+    /// Silences every Squawk ring that's going off right now.
+    func stopRinging()
 }
 
 enum AlarmAccess: Equatable {
@@ -21,4 +23,5 @@ final class PreviewScheduler: RingScheduler {
     var access: AlarmAccess = .allowed
     func requestAccess() async -> Bool { true }
     func replaceAll(with plan: [PlannedRing]) async -> Int { 0 }
+    func stopRinging() {}
 }

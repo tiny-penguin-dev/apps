@@ -5,7 +5,7 @@ morning sounds like music instead of an alarm.
 
 ## Product
 
-Status: Draft
+Status: Approved 2026-11-03 (Gabriel)
 
 ### The problem
 
@@ -89,8 +89,10 @@ the music to start at a set time, like 10 minutes before the alarm:
 | `music.failed` (`reason`) | When music couldn't start (no Apple Music, no access, offline) |
 | `music.home_guide_finished` | Whether the Home app walkthrough is used and finished |
 
-### Open questions for Gabriel
+### Decisions
 
-1. Is opening Squawk on "I'm up" OK when music is on? It's the only way to start music.
-2. Apple Music only for now, with Spotify later?
-3. Pro, like the other Home things? (This draft says yes.)
+Approved by Gabriel (3 Nov 2026), with the draft's answers:
+
+1. With music on, "I'm up" opens Squawk, since music can only start from the app.
+2. Apple Music only for now. Spotify waits for later.
+3. Pro, like the other Home things.

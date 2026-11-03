@@ -57,6 +57,9 @@ final class KeyboardViewController: UIInputViewController {
         let target = ProxyTarget(controller: self)
         target.underlines = { [weak model] in model?.keyboardSettings.underlinesWord ?? false }
         model.target = target
+        // Frequently used emoji and skin tones, in the extension's own files (they don't
+        // sync, features/emoji).
+        model.emojiStore = FileEmojiStore(url: KeyboardFiles.own(KeyboardFiles.emoji))
         self.target = target
         if let health { model.onSettled = { [weak health] word in health?.settled(word) } }
 
@@ -76,6 +79,18 @@ final class KeyboardViewController: UIInputViewController {
         // The guesses bar going on or off, or the split, changes the height to ask for.
         keyboard.onHeightChange = { [weak self] _ in self?.view.setNeedsLayout() }
         view.addSubview(keyboard)
+        // Pinned with constraints, not placed by frame: iOS works the keyboard's height
+        // out from the constraints inside its view, and ignored the height constraint
+        // below while the keys were frame-based. It took it only when the settings panel
+        // (built with constraints) was added (Gabriel, 3 Nov 2026: "Opened at 224 of the
+        // 264 pt asked, still 224 after asking again", then it grew when 123 was held).
+        keyboard.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            keyboard.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            keyboard.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            keyboard.topAnchor.constraint(equalTo: view.topAnchor),
+            keyboard.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+        ])
         self.keyboard = keyboard
 
         if fullAccess {
@@ -87,6 +102,11 @@ final class KeyboardViewController: UIInputViewController {
                 model.onCorrection = { word in store.save([word]) }
             }
         }
+        // Misses from "Not it?" are kept for "Words it missed" (features/missed-words):
+        // in the App Group where the app can list them, else in our own files.
+        let misses = SharedWordStore(folder: (fullAccess ? KeyboardFiles.shared(KeyboardFiles.misses) : nil)
+            ?? KeyboardFiles.own(KeyboardFiles.misses), limit: 200)
+        model.onMiss = { word in misses.save([word]) }
         startEntitlement(model: model, fullAccess: fullAccess)
 
         if Flags.extensionReadout {
@@ -167,11 +187,14 @@ final class KeyboardViewController: UIInputViewController {
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         heightRetries = 0
+        // Our globe key only where iOS draws none (Home button phones); elsewhere the
+        // emoji key takes its place, as on Apple's keyboard (features/emoji).
+        keyboard?.showsGlobe = needsInputModeSwitchKey
         applyHeight(fresh: true)
         health?.appeared()
         askedAppearance = nil
         followKeyboardAppearance()
-        keyboard?.model.learningAllowed = fieldAllowsLearning
+        keyboard?.model.field = field
         keyboard?.model.contextChanged()
     }
 
@@ -187,7 +210,7 @@ final class KeyboardViewController: UIInputViewController {
         // menu opened, and asking again right away was not enough). So ask now, and
         // again after the slide has ended, as long as the height is still off.
         applyHeight(fresh: true)
-        view.setNeedsLayout()
+        nudgeLayout()
         let this = appearance
         for delay in [0.15, 0.4, 0.8, 1.5] {
             Task { @MainActor [weak self] in
@@ -209,22 +232,51 @@ final class KeyboardViewController: UIInputViewController {
         health?.sample()
     }
 
-    /// Whether this field may teach the keyboard (features/smart-matching): never a
-    /// password, an address, a code or a number, nor a field that turned
-    /// autocorrection off.
-    private var fieldAllowsLearning: Bool {
+    /// The field as the app describes it (features/field-types): its keyboard type,
+    /// content, return key, capitals and corrections, read into `Field`, which decides
+    /// the bottom row, the return key, exact taps, autospace and whether to learn.
+    private var field: Field {
         let proxy = textDocumentProxy
-        if proxy.isSecureTextEntry == true || proxy.autocorrectionType == .no { return false }
-        switch proxy.keyboardType ?? .default {
-        case .URL, .emailAddress, .numberPad, .phonePad, .namePhonePad, .decimalPad, .asciiCapableNumberPad, .numbersAndPunctuation:
-            return false
-        default:
-            break
+        let keyboard: Field.KeyboardType = switch proxy.keyboardType ?? .default {
+        case .emailAddress: .email
+        case .URL: .url
+        case .webSearch: .webSearch
+        case .twitter: .twitter
+        case .numberPad, .decimalPad, .asciiCapableNumberPad, .numbersAndPunctuation: .numbers
+        case .phonePad, .namePhonePad: .phone
+        default: .default
         }
-        let quiet: Set<UITextContentType> = [.username, .password, .newPassword, .oneTimeCode, .emailAddress, .URL,
-                                             .creditCardNumber, .telephoneNumber, .postalCode]
-        if let type = proxy.textContentType.flatMap({ $0 }), quiet.contains(type) { return false }
-        return true
+        let type = proxy.textContentType.flatMap { $0 }
+        let codes: Set<UITextContentType> = [.oneTimeCode, .creditCardNumber, .telephoneNumber, .postalCode]
+        let content: Field.Content =
+            type == .emailAddress ? .email
+            : type == .URL ? .url
+            : type == .username ? .username
+            : type == .password || type == .newPassword ? .password
+            : type.map(codes.contains) == true ? .code
+            : .other
+        let returnKey: Field.ReturnKey = switch proxy.returnKeyType ?? .default {
+        case .go: .go
+        case .google, .yahoo, .search: .search
+        case .join: .join
+        case .next: .next
+        case .route: .route
+        case .send: .send
+        case .done: .done
+        case .emergencyCall: .emergencyCall
+        case .continue: .continue
+        default: .return
+        }
+        let capitals: Field.Capitals = switch proxy.autocapitalizationType ?? .sentences {
+        case .none: .none
+        case .words: .words
+        case .allCharacters: .all
+        default: .sentences
+        }
+        return Field(keyboard: keyboard, content: content, returnKey: returnKey, capitals: capitals,
+                     corrects: proxy.autocorrectionType != .no,
+                     returnNeedsText: proxy.enablesReturnKeyAutomatically ?? false,
+                     secure: proxy.isSecureTextEntry ?? false)
     }
 
     /// Light or dark as the app asked for its keyboard, like Apple's keyboard does, and
@@ -260,12 +312,12 @@ final class KeyboardViewController: UIInputViewController {
         super.viewWillLayoutSubviews()
         let width = view.bounds.width
         guard width > 0, let keyboard else { return }
+        keyboard.showsGlobe = needsInputModeSwitchKey
         let height = applyHeight(fresh: false) ?? keyboard.height(forWidth: width)
-        // The keyboard view takes whatever iOS grants, edge to edge (iOS adds the margins
-        // around it): the keys sit at the bottom where Apple's are, and shrink if iOS
-        // grants less than asked.
+        // The keyboard view takes whatever iOS grants, edge to edge (pinned in
+        // `viewDidLoad`; iOS adds the margins around it): the keys sit at the bottom where
+        // Apple's are, and shrink if iOS grants less than asked.
         let granted = view.bounds.height
-        keyboard.frame = CGRect(x: 0, y: 0, width: width, height: granted > 0 ? granted : height)
         checks.sized(granted: granted, wanted: height, width: width, screenWidth: view.window?.windowScene?.screen.bounds.width ?? 0)
         askAgainIfShort(granted: granted, wanted: height)
         if isVisible, openedAt == nil, granted > 0 { openedAt = (granted, height) }
@@ -279,7 +331,7 @@ final class KeyboardViewController: UIInputViewController {
         let asked = keyboard.height(forWidth: view.bounds.width)
         if abs(got - asked) > 0.5 {
             applyHeight(fresh: true)
-            view.setNeedsLayout()
+            nudgeLayout()
         }
         guard last, let openedAt, abs(openedAt.got - openedAt.asked) > 0.5 else { return }
         keyboard.heightStory = "Opened at \(Int(openedAt.got)) of the \(Int(openedAt.asked.rounded())) pt asked, "
@@ -306,6 +358,28 @@ final class KeyboardViewController: UIInputViewController {
         return height
     }
 
+    /// Does what opening the settings panel did, the one thing that made iOS take the
+    /// height: a change to the constraints inside the view. Tells the keys their size
+    /// changed and adds and removes an empty view held by constraints.
+    private func nudgeLayout() {
+        keyboard?.invalidateIntrinsicContentSize()
+        let probe = UIView()
+        probe.isHidden = true
+        probe.isUserInteractionEnabled = false
+        probe.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(probe)
+        NSLayoutConstraint.activate([
+            probe.topAnchor.constraint(equalTo: view.topAnchor),
+            probe.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            probe.widthAnchor.constraint(equalToConstant: 0),
+            probe.heightAnchor.constraint(equalToConstant: 0),
+        ])
+        view.setNeedsUpdateConstraints()
+        view.setNeedsLayout()
+        view.layoutIfNeeded()
+        probe.removeFromSuperview()
+    }
+
     /// When the keyboard is on screen but shorter or taller than it asked for, asks
     /// again on the next turn, a few times at most per appearance (iOS may simply not
     /// give more, and then the keys shrink to fit).
@@ -322,7 +396,7 @@ final class KeyboardViewController: UIInputViewController {
     override func textDidChange(_ textInput: UITextInput?) {
         super.textDidChange(textInput)
         followKeyboardAppearance()
-        keyboard?.model.learningAllowed = fieldAllowsLearning
+        keyboard?.model.field = field
         keyboard?.model.contextChanged()
         edits += 1
         if edits % 5 == 0 {
@@ -372,6 +446,7 @@ final class ProxyTarget: TextTarget {
         proxy.insertText(text)
     }
     func deleteBackward() { proxy.deleteBackward() }
+    var hasText: Bool { proxy.hasText }
 
     func mark(_ text: String) {
         guard text != open else { return }

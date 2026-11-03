@@ -7,8 +7,8 @@ import UIKit
 /// without Full Access (where the app's Settings can't reach the keyboard) can still
 /// change them. Four quick tiles (autospace, the guesses bar, haptics, trails, and the
 /// split on a wide screen) and four sliders (height, real words, split words, and
-/// autospace's wait), and a tile per language (features/languages: any one free, two
-/// at once Pro). The rest lives in the app.
+/// autospace's wait), and a Languages row that opens the list of languages
+/// (features/languages: any one free, two at once Pro). The rest lives in the app.
 ///
 /// Shown over the keys. The title and Done stay at the top; the tiles and sliders sit
 /// below and scroll when the keys' space is shorter than them.
@@ -50,6 +50,7 @@ public final class SettingsPanelView: UIView {
     private static let headerHeight: CGFloat = 48
 
     private let title = UILabel()
+    private let back = UIButton(configuration: .plain())
     private let done = UIButton(configuration: .filled())
     private let scroll = PanelScrollView()
     private let column = UIStackView()
@@ -67,12 +68,19 @@ public final class SettingsPanelView: UIView {
     private let split = SliderRow(title: "Split words", range: 0...1, label: "Split words")
     private let wait = SliderRow(title: "Wait", range: KeyboardSettings.delayRange, label: "Autospace wait")
     private let note = UILabel()
-    /// One tile per bundled language, named in itself ("Español").
-    private let languageTiles: [(code: String, tile: QuickTile)] = Language.bundledCodes.map {
-        ($0, QuickTile(title: Language.names[$0] ?? $0, symbol: "character.bubble"))
+    /// The Languages row: the ones on, and a chevron to the list.
+    private let languagesLink = LinkRow(title: "Languages", symbol: "character.bubble")
+    /// The list of languages, shown in place of the settings when the row is tapped.
+    private let languageScroll = PanelScrollView()
+    private let languageList = UIStackView()
+    /// One row per bundled language, named in itself ("Español").
+    private let languageRows: [(code: String, row: CheckRow)] = Language.bundledCodes.map {
+        ($0, CheckRow(title: Language.names[$0] ?? $0, subtitle: Language.englishNames[$0]))
     }
-    private let languageRow = UIStackView()
     private let languageNote = UILabel()
+    private var showingLanguages = false {
+        didSet { if showingLanguages != oldValue { showPage() } }
+    }
     private let more = UILabel()
     private var flashedIndicators = false
 
@@ -99,6 +107,16 @@ public final class SettingsPanelView: UIView {
         done.addAction(UIAction { [weak self] _ in self?.onDone?() }, for: .touchUpInside)
         addSubview(done)
 
+        var backConfig = UIButton.Configuration.plain()
+        backConfig.image = UIImage(systemName: "chevron.left", withConfiguration: UIImage.SymbolConfiguration(pointSize: 17, weight: .bold))
+        backConfig.baseForegroundColor = Theme.ui(.accent)
+        backConfig.contentInsets = NSDirectionalEdgeInsets(top: 8, leading: 4, bottom: 8, trailing: 8)
+        back.configuration = backConfig
+        back.accessibilityLabel = "Back to keyboard settings"
+        back.addAction(UIAction { [weak self] _ in self?.showingLanguages = false }, for: .touchUpInside)
+        back.isHidden = true
+        addSubview(back)
+
         wire(autospaceTile) { $0.autospace.toggle() }
         wire(barTile) { $0.showsBar.toggle() }
         wire(hapticsTile) { $0.haptics.toggle() }
@@ -106,8 +124,9 @@ public final class SettingsPanelView: UIView {
         wire(splitTile) { $0.splitOnWide.toggle() }
         wire(nextTile) { $0.nextWords.toggle() }
         nextTile.accessibilityHint = "Likely next words in the bar after each word"
-        for (code, tile) in languageTiles {
-            tile.addAction(UIAction { [weak self] _ in self?.toggleLanguage(code) }, for: .touchUpInside)
+        languagesLink.addAction(UIAction { [weak self] _ in self?.showingLanguages = true }, for: .touchUpInside)
+        for (code, row) in languageRows {
+            row.addAction(UIAction { [weak self] _ in self?.toggleLanguage(code) }, for: .touchUpInside)
         }
 
         height.onChange = { [weak self] value in
@@ -187,11 +206,27 @@ public final class SettingsPanelView: UIView {
         column.axis = .vertical
         column.spacing = Theme.Space.s
         column.translatesAutoresizingMaskIntoConstraints = false
-        languageRow.axis = .horizontal
-        languageRow.spacing = Theme.Space.s
-        languageRow.distribution = .fillEqually
-        for (_, tile) in languageTiles { languageRow.addArrangedSubview(tile) }
-        for view in [tileGrid, languageRow, languageNote, sliders, note, more] { column.addArrangedSubview(view) }
+        let languagesCard = card([languagesLink])
+        for view in [tileGrid, languagesCard, sliders, note, more] { column.addArrangedSubview(view) }
+
+        // The languages page: a card of rows, the free note under it.
+        languageList.axis = .vertical
+        languageList.spacing = Theme.Space.s
+        languageList.translatesAutoresizingMaskIntoConstraints = false
+        languageList.addArrangedSubview(card(languageRows.map(\.row)))
+        languageList.addArrangedSubview(languageNote)
+        languageScroll.showsHorizontalScrollIndicator = false
+        languageScroll.alwaysBounceVertical = true
+        languageScroll.delaysContentTouches = false
+        languageScroll.isHidden = true
+        languageScroll.addSubview(languageList)
+        addSubview(languageScroll)
+        NSLayoutConstraint.activate([
+            languageList.topAnchor.constraint(equalTo: languageScroll.contentLayoutGuide.topAnchor),
+            languageList.bottomAnchor.constraint(equalTo: languageScroll.contentLayoutGuide.bottomAnchor, constant: -Theme.Space.m),
+            languageList.leadingAnchor.constraint(equalTo: languageScroll.frameLayoutGuide.leadingAnchor, constant: Theme.Space.m),
+            languageList.trailingAnchor.constraint(equalTo: languageScroll.frameLayoutGuide.trailingAnchor, constant: -Theme.Space.m),
+        ])
 
         scroll.showsHorizontalScrollIndicator = false
         scroll.alwaysBounceVertical = true
@@ -210,6 +245,36 @@ public final class SettingsPanelView: UIView {
         ])
     }
 
+    /// Rows in a rounded `key` card, with a hairline between them.
+    private func card(_ rows: [UIView]) -> UIView {
+        let stack = UIStackView()
+        stack.axis = .vertical
+        stack.backgroundColor = Theme.ui(.key)
+        stack.layer.cornerRadius = Theme.Radius.sm
+        stack.layer.cornerCurve = .continuous
+        stack.clipsToBounds = true
+        for (index, row) in rows.enumerated() {
+            if index > 0 {
+                let line = UIView()
+                line.backgroundColor = Theme.ui(.kb)
+                line.heightAnchor.constraint(equalToConstant: 0.5).isActive = true
+                stack.addArrangedSubview(line)
+            }
+            stack.addArrangedSubview(row)
+        }
+        return stack
+    }
+
+    /// The settings, or the list of languages in their place.
+    private func showPage() {
+        scroll.isHidden = showingLanguages
+        languageScroll.isHidden = !showingLanguages
+        back.isHidden = !showingLanguages
+        title.text = showingLanguages ? "Languages" : "Keyboard settings"
+        setNeedsLayout()
+        UIAccessibility.post(notification: .screenChanged, argument: title)
+    }
+
     /// One row of tiles, or rows of two at the accessibility text sizes.
     private func layoutTiles() {
         for row in tileGrid.arrangedSubviews { row.removeFromSuperview() }
@@ -226,8 +291,8 @@ public final class SettingsPanelView: UIView {
 
     // MARK: State
 
-    /// A language tile tapped: on, it goes off unless it is the last one; off, it
-    /// joins the other (or, free, takes its place).
+    /// A language tapped: on, it goes off unless it is the last one; off, it joins the
+    /// others (or, free, takes the place of the one that was on).
     private func toggleLanguage(_ code: String) {
         var chosen = settings.activeLanguages(preferred: preferredLanguages, allowsTwo: allowsTwoLanguages)
         if chosen.contains(code) {
@@ -241,10 +306,10 @@ public final class SettingsPanelView: UIView {
 
     private func render() {
         let active = settings.activeLanguages(preferred: preferredLanguages, allowsTwo: allowsTwoLanguages)
-        for (code, tile) in languageTiles {
-            tile.isOn = active.contains(code)
-            tile.accessibilityHint = Language.englishNames[code]
+        for (code, row) in languageRows {
+            row.isOn = active.contains(code)
         }
+        languagesLink.value = active.map { Language.names[$0] ?? $0 }.joined(separator: ", ")
         languageNote.isHidden = allowsTwoLanguages
         autospaceTile.isOn = settings.autospace
         barTile.isOn = settings.showsBar
@@ -282,9 +347,13 @@ public final class SettingsPanelView: UIView {
         let doneSize = CGSize(width: max(80, done.bounds.width), height: 34)
         done.frame = CGRect(x: bounds.maxX - side - doneSize.width, y: (header - doneSize.height) / 2,
                             width: doneSize.width, height: doneSize.height)
-        title.frame = CGRect(x: side + Theme.Space.xs, y: 0,
-                             width: max(0, done.frame.minX - side - Theme.Space.s), height: header)
-        scroll.frame = CGRect(x: 0, y: header, width: bounds.width, height: max(0, bounds.height - header))
+        back.sizeToFit()
+        back.frame = CGRect(x: side - 4, y: (header - 44) / 2, width: max(44, back.bounds.width), height: 44)
+        let titleX = showingLanguages ? back.frame.maxX : side + Theme.Space.xs
+        title.frame = CGRect(x: titleX, y: 0, width: max(0, done.frame.minX - titleX - Theme.Space.s), height: header)
+        let body = CGRect(x: 0, y: header, width: bounds.width, height: max(0, bounds.height - header))
+        scroll.frame = body
+        languageScroll.frame = body
     }
 
     public override func didMoveToWindow() {
@@ -363,6 +432,117 @@ final class QuickTile: UIControl {
         accessibilityLabel = subtitle.map { "\(title), \($0)" } ?? title
         accessibilityValue = isOn ? "On" : "Off"
         if isEnabled { accessibilityTraits.remove(.notEnabled) } else { accessibilityTraits.insert(.notEnabled) }
+    }
+}
+
+/// A row that opens a page: a symbol, a name, the current value and a chevron.
+private final class LinkRow: UIControl {
+    var value: String? {
+        didSet { detail.text = value; accessibilityValue = value }
+    }
+    private let name = UILabel()
+    private let detail = UILabel()
+
+    init(title: String, symbol: String) {
+        super.init(frame: .zero)
+        let font = Theme.uiFont(size: 15, weight: .semibold, scaledWith: .body, upTo: 22)
+        let icon = UIImageView(image: UIImage(systemName: symbol, withConfiguration: UIImage.SymbolConfiguration(pointSize: 15, weight: .bold)))
+        icon.tintColor = Theme.ui(.ink)
+        icon.setContentHuggingPriority(.required, for: .horizontal)
+        name.text = title
+        name.font = font
+        name.textColor = Theme.ui(.ink)
+        name.adjustsFontForContentSizeCategory = true
+        name.setContentHuggingPriority(.defaultHigh, for: .horizontal)
+        name.setContentCompressionResistancePriority(.required, for: .horizontal)
+        detail.font = font
+        detail.textColor = Theme.ui(.muted)
+        detail.textAlignment = .right
+        detail.adjustsFontForContentSizeCategory = true
+        detail.lineBreakMode = .byTruncatingTail
+        detail.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        let chevron = UIImageView(image: UIImage(systemName: "chevron.right", withConfiguration: UIImage.SymbolConfiguration(pointSize: 13, weight: .bold)))
+        chevron.tintColor = Theme.ui(.muted)
+        chevron.setContentHuggingPriority(.required, for: .horizontal)
+        let row = UIStackView(arrangedSubviews: [icon, name, detail, chevron])
+        row.axis = .horizontal
+        row.alignment = .center
+        row.spacing = Theme.Space.s
+        row.isUserInteractionEnabled = false
+        row.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(row)
+        NSLayoutConstraint.activate([
+            row.topAnchor.constraint(equalTo: topAnchor, constant: Theme.Space.xs),
+            row.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -Theme.Space.xs),
+            row.leadingAnchor.constraint(equalTo: leadingAnchor, constant: Theme.Space.m),
+            row.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -Theme.Space.m),
+            heightAnchor.constraint(greaterThanOrEqualToConstant: 44),
+        ])
+        isAccessibilityElement = true
+        accessibilityLabel = title
+        accessibilityTraits = .button
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
+
+    override var isHighlighted: Bool {
+        didSet { backgroundColor = isHighlighted ? Theme.ui(.keyPressed) : .clear }
+    }
+}
+
+/// A row to pick: a name, a quieter second name, and a tick when it is on.
+private final class CheckRow: UIControl {
+    var isOn = false {
+        didSet {
+            tick.isHidden = !isOn
+            accessibilityTraits = isOn ? [.button, .selected] : .button
+        }
+    }
+    private let tick = UIImageView(image: UIImage(systemName: "checkmark", withConfiguration: UIImage.SymbolConfiguration(pointSize: 15, weight: .black)))
+
+    init(title: String, subtitle: String?) {
+        super.init(frame: .zero)
+        let name = UILabel()
+        name.text = title
+        name.font = Theme.uiFont(size: 15, weight: .semibold, scaledWith: .body, upTo: 22)
+        name.textColor = Theme.ui(.ink)
+        name.adjustsFontForContentSizeCategory = true
+        let second = UILabel()
+        second.text = subtitle
+        second.font = Theme.uiFont(size: 13, weight: .regular, scaledWith: .footnote, upTo: 18)
+        second.textColor = Theme.ui(.muted)
+        second.adjustsFontForContentSizeCategory = true
+        second.isHidden = subtitle == nil || subtitle == title
+        let names = UIStackView(arrangedSubviews: [name, second])
+        names.axis = .vertical
+        names.spacing = 1
+        tick.tintColor = Theme.ui(.accent)
+        tick.setContentHuggingPriority(.required, for: .horizontal)
+        let row = UIStackView(arrangedSubviews: [names, tick])
+        row.axis = .horizontal
+        row.alignment = .center
+        row.spacing = Theme.Space.m
+        row.isUserInteractionEnabled = false
+        row.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(row)
+        NSLayoutConstraint.activate([
+            row.topAnchor.constraint(equalTo: topAnchor, constant: Theme.Space.s),
+            row.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -Theme.Space.s),
+            row.leadingAnchor.constraint(equalTo: leadingAnchor, constant: Theme.Space.m),
+            row.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -Theme.Space.m),
+            heightAnchor.constraint(greaterThanOrEqualToConstant: 44),
+        ])
+        isAccessibilityElement = true
+        accessibilityLabel = title
+        accessibilityHint = subtitle
+        accessibilityTraits = .button
+        tick.isHidden = true
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
+
+    override var isHighlighted: Bool {
+        didSet { backgroundColor = isHighlighted ? Theme.ui(.keyPressed) : .clear }
     }
 }
 

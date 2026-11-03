@@ -24,11 +24,16 @@ public enum KeyboardFiles {
     public static let pro = "pro.json"
     /// What the keyboard learned from the person's typing (`PersonalModel`).
     public static let personal = "personal.json"
+    /// Frequently used emoji and the skin tones picked (`EmojiHistory`); own file only.
+    public static let emoji = "emoji.json"
     /// This install's random ID, the personal model's shard (`InstallID`); own file only.
     public static let install = "install.json"
     /// Shared words waiting for the app to send (`SharedWordStore`): practice words and,
     /// with Full Access, the keyboard's corrections.
     public static let sharing = "Sharing"
+    /// Words the keyboard missed, typed with "Not it?" (`SharedWordStore`, the last 200):
+    /// kept for "Words it missed" whether or not they are shared (features/missed-words).
+    public static let misses = "Missed"
 
     /// A file in this process's own Application Support folder.
     public static func own(_ name: String, fileManager: FileManager = .default) -> URL {

@@ -11,10 +11,13 @@ import Foundation
 ///     composer.tick(time: t)                        // autospace
 ///     composer.press(.space, time: t)               // or .backspace, .shift, .returnKey
 ///     composer.press(character: ",", time: t)       // punctuation commits too
+///     composer.press(text: ".com", time: t)          // and a key that types a string
 ///     composer.choose(guess: 1)                     // from the bar
 ///     composer.chooseFix()                          // the FIX chip beside next words
+///     composer.beginCorrection()                    // "Not it?": the keys type the word meant
+///     composer.saveCorrection(time: t)              // it replaces the swiped word
 ///     composer.state.openWord                       // "something"
-///     composer.state.bar                            // .idle | .guesses | .fix | .next
+///     composer.state.bar                            // .idle | .guesses | .fix | .next | .correcting
 ///
 /// The open word is shown as marked text (underlined in the field) until it commits,
 /// so the host turns `.mark` into `setMarkedText` and `.commit` into `unmarkText`.
@@ -26,6 +29,16 @@ public struct Composer: Sendable {
         public var tapThreshold: CGFloat = 18
         /// Capitalise the first word of a sentence.
         public var autoCapitalize = true
+        /// Which capitals the field asks for (`Field.capitals`): sentence starts by
+        /// default, none in an address, each word or every letter where the app says.
+        /// `autoCapitalize` off turns all of them off.
+        public var capitals: Field.Capitals = .sentences
+        /// Taps go in exactly as tapped: the letters tapped are the first guess, and
+        /// nothing else replaces them unless picked from the bar (`Field.exactTaps`).
+        public var exactTaps = false
+        /// Words get a space after them: a guess from the bar, and a double space makes
+        /// a period. Off in an address or a number (`Field.spacesWords`).
+        public var spacesWords = true
         /// How many guesses the bar shows.
         public var guessCount = 3
         /// Both thumbs may type at once (Pro, PRODUCT.md §6). Off, a second finger down
@@ -69,6 +82,9 @@ public struct Composer: Sendable {
             guard case .next(_, let fix, let chosen) = self else { return nil }
             return fix.indices.first { $0 != chosen }.map { fix[$0] }
         }
+        /// "Not it?" was tapped (features/missed-words): the word meant, as typed so
+        /// far. The keys type here, not into the text, until it is saved or cancelled.
+        case correcting(String)
     }
 
     public enum Shift: Sendable, Equatable {
@@ -110,6 +126,9 @@ public struct Composer: Sendable {
         public var shift: Shift = .off
         /// Whether letters type as capitals right now (shift, caps lock or a sentence start).
         public var isShifted = false
+        /// Whether the bar offers "Not it?": a swiped word is open, or just went in and
+        /// can still be fixed (features/missed-words).
+        public var canCorrect = false
     }
 
     /// The last word written, kept so backspace can reopen it and the bar can fix it.
@@ -130,6 +149,8 @@ public struct Composer: Sendable {
         var learned: String?
         /// A next-word guess tapped on the bar, not typed: nothing to reopen.
         var picked = false
+        /// The person typed this word with "Not it?" in place of the swipe's guess.
+        var missed = false
     }
 
     enum Casing: Sendable, Equatable {
@@ -188,6 +209,9 @@ public struct Composer: Sendable {
     /// The last next-word guesses, lowercase, by the word they follow and how many: the
     /// context is passed back after every change, mostly unchanged.
     private var nextCache: (previous: String, count: Int, words: [String])?
+    /// The word meant, while "Not it?" is open, and the bar to go back to on cancel.
+    private var correction: String?
+    private var barBeforeCorrection: Bar = .idle
 
     public init(dictionary: Lexicon, learned: LearnedWords = LearnedWords(), layout: Layout, settings: Settings = Settings()) {
         self.layout = layout
@@ -243,6 +267,11 @@ public struct Composer: Sendable {
     public mutating func touchDown(id: Int, at point: CGPoint, time: TimeInterval) -> [Effect] {
         let side = layout.side(at: point)
         guard let letter = layout.key(at: Self.corrected(point, side: side, layout: layout, personal: personal))?.character else { return [] }
+        if correction != nil {
+            // Typing the word meant: the touch is only kept to see whether it is a tap.
+            open[id] = Open(side: side, start: time, points: [point], times: [time], startKey: letter)
+            return [.haptic(.key)]
+        }
         // Free mode: one active thumb at a time. The second touch is not a piece and
         // does not disturb the first; the bar says why (DESIGN.md "Free mode").
         if !settings.twoThumbs, !open.isEmpty { return [.notice(.twoThumbsIsPro)] }
@@ -275,6 +304,11 @@ public struct Composer: Sendable {
         touch.times.append(time)
         let piece = Self.piece(from: touch, id: id, end: time, layout: layout, tapThreshold: settings.tapThreshold, personal: personal)
         guard !piece.keys.isEmpty else { return [] }
+        if correction != nil {
+            // Taps type their letter exactly; a swipe types nothing here.
+            if piece.isTap { typeCorrection(piece.keys[0]) }
+            return []
+        }
         pieces.append(piece)
         pieces.sort { $0.start < $1.start }
         return reguess(time: time)
@@ -285,6 +319,10 @@ public struct Composer: Sendable {
     /// guesses must have it where it was picked.
     public mutating func pick(_ letter: Character, touch id: Int, time: TimeInterval) -> [Effect] {
         guard let touch = open.removeValue(forKey: id) else { return [] }
+        if correction != nil {
+            typeCorrection(Character(letter.lowercased()))
+            return []
+        }
         let point = touch.points.first ?? .zero
         pieces.append(Piece(id: id, side: touch.side, start: touch.start, end: time, points: [point], times: [touch.start],
                             keys: [Character(letter.lowercased())], isTap: true, raw: [point]))
@@ -299,18 +337,18 @@ public struct Composer: Sendable {
         matcher.ngramModels = language.ngramModels
         languageCode = language.code
         nextCache = nil
-        return hasOpenWord ? reguess(time: time) : []
+        return hasOpenWord && correction == nil ? reguess(time: time) : []
     }
 
     public mutating func touchCancelled(id: Int, time: TimeInterval) -> [Effect] {
         open[id] = nil
-        if open.isEmpty, autospaceApplies { autospaceDue = settings.autospaceDelay.map { time + $0 } }
+        if open.isEmpty, autospaceApplies, correction == nil { autospaceDue = settings.autospaceDelay.map { time + $0 } }
         return []
     }
 
     /// Time passed: commits the open word by autospace when it is due.
     public mutating func tick(time: TimeInterval) -> [Effect] {
-        guard let due = autospaceDue, time >= due, open.isEmpty, !pieces.isEmpty else { return [] }
+        guard let due = autospaceDue, time >= due, open.isEmpty, !pieces.isEmpty, correction == nil else { return [] }
         let effects = commit(trailing: " ", time: time)
         autoSpaced = true
         return effects
@@ -319,6 +357,7 @@ public struct Composer: Sendable {
     // MARK: Keys
 
     public mutating func press(_ key: Key, time: TimeInterval) -> [Effect] {
+        if correction != nil { return pressWhileCorrecting(key, time: time) }
         var effects: [Effect] = [.haptic(.key)]
         let spaced = autoSpaced
         let previousSpace = lastSpace
@@ -336,7 +375,7 @@ public struct Composer: Sendable {
             if hasOpenWord {
                 effects += commit(trailing: " ", time: time)
                 lastSpace = time
-            } else if let previousSpace, time - previousSpace < Self.doubleSpaceWindow {
+            } else if settings.spacesWords, let previousSpace, time - previousSpace < Self.doubleSpaceWindow {
                 // A double tap: the space after the word becomes a period and a space.
                 effects += [.deleteBackward(1), .insert(". ")]
                 effects += leaveFix()
@@ -369,7 +408,9 @@ public struct Composer: Sendable {
             lastShiftPress = time
         case .symbol(let c):
             return press(character: c, time: time)
-        case .numbers, .symbols, .letters, .globe:
+        case .text(let text):
+            return press(text: text, time: time)
+        case .numbers, .symbols, .letters, .globe, .emoji:
             return [] // The host handles these: the pages and the next keyboard.
         }
         refreshState()
@@ -379,19 +420,48 @@ public struct Composer: Sendable {
     /// Punctuation or any other character typed as itself. Commits the open word first,
     /// with the character right after it (no space before a comma).
     public mutating func press(character: Character, time: TimeInterval) -> [Effect] {
+        press(text: String(character), time: time)
+    }
+
+    /// A key that types a string (".com"), or one character: the same as
+    /// `press(character:)`, the open word going in first with the text right after it.
+    public mutating func press(text: String, time: TimeInterval) -> [Effect] {
+        if correction != nil {
+            // Only what can be part of a word: "don't", "e-mail".
+            guard text.count == 1, let character = text.first, character == "'" || character == "-" || character == "’" else { return [] }
+            typeCorrection(character == "’" ? "'" : character)
+            return [.haptic(.key)]
+        }
         var effects: [Effect] = [.haptic(.key)]
         let spaced = autoSpaced
         autoSpaced = false
         lastSpace = nil
         if hasOpenWord {
-            effects += commit(trailing: String(character), time: time)
-        } else if spaced, Self.closingPunctuation.contains(character) {
+            effects += commit(trailing: text, time: time)
+        } else if spaced, text.count == 1, let mark = text.first, Self.closingPunctuation.contains(mark) {
             // "word ." becomes "word. ": the mark goes before the space autospace wrote.
-            effects += [.deleteBackward(1), .insert(String(character) + " ")]
+            effects += [.deleteBackward(1), .insert(text + " ")]
             effects += leaveFix()
             autoSpaced = true
         } else {
-            effects.append(.insert(String(character)))
+            effects.append(.insert(text))
+            effects += leaveFix()
+        }
+        refreshState()
+        return effects
+    }
+
+    /// An emoji from the emoji page. An open word goes in first with a space after it,
+    /// as space would write it, then the emoji; no space follows the emoji, so another
+    /// can come right after (features/emoji).
+    public mutating func insert(emoji: String, time: TimeInterval) -> [Effect] {
+        var effects: [Effect] = [.haptic(.key)]
+        autoSpaced = false
+        lastSpace = nil
+        if hasOpenWord {
+            effects += commit(trailing: " " + emoji, time: time)
+        } else {
+            effects.append(.insert(emoji))
             effects += leaveFix()
         }
         refreshState()
@@ -408,8 +478,8 @@ public struct Composer: Sendable {
         case .guesses(let words, _):
             guard words.indices.contains(index) else { return [] }
             state.bar = .guesses(words, chosen: index)
-            let effects = commit(trailing: " ", time: time, byHand: true)
-            autoSpaced = true
+            let effects = commit(trailing: settings.spacesWords ? " " : "", time: time, byHand: true)
+            autoSpaced = settings.spacesWords
             return effects
         case .fix(let words, let chosen):
             guard words.indices.contains(index), index != chosen, var last = committed else { return [] }
@@ -428,7 +498,7 @@ public struct Composer: Sendable {
         case .next(let words, _, _):
             guard words.indices.contains(index) else { return [] }
             return writeNext(words[index])
-        case .idle:
+        case .idle, .correcting:
             return []
         }
     }
@@ -464,6 +534,118 @@ public struct Composer: Sendable {
         return effects
     }
 
+    // MARK: Not it?
+
+    /// "Not it?" from the bar: the keys now type the word meant into the bar, until
+    /// `saveCorrection` writes it or `cancelCorrection` goes back (features/missed-words).
+    public mutating func beginCorrection() {
+        guard state.canCorrect else { return }
+        barBeforeCorrection = state.bar
+        correction = ""
+        autospaceDue = nil
+        state.bar = .correcting("")
+        refreshState()
+    }
+
+    /// Back to the bar as it was, nothing changed.
+    public mutating func cancelCorrection(time: TimeInterval = 0) {
+        guard correction != nil else { return }
+        correction = nil
+        open = [:]
+        state.bar = barBeforeCorrection
+        if hasOpenWord { autospaceDue = settings.autospaceDelay.map { time + $0 } }
+        refreshState()
+    }
+
+    /// The word meant goes in place of the swiped word (open, or just written), cased
+    /// as it was, and is learned when the dictionary does not have it. The word settles
+    /// as a miss, for the host to keep and share (`SettledWord.missed`). Empty cancels.
+    public mutating func saveCorrection(time: TimeInterval) -> [Effect] {
+        guard let typed = correction else { return [] }
+        let meant = typed.lowercased()
+        guard !meant.isEmpty else {
+            cancelCorrection(time: time)
+            return []
+        }
+        correction = nil
+        open = [:]
+        var effects: [Effect]
+        let learn = correctionToLearn(meant)
+        if hasOpenWord {
+            var words: [String] = []
+            var chosen = 0
+            if case .guesses(let shown, let index) = barBeforeCorrection { words = shown; chosen = index }
+            let word = cased(meant)
+            let original = words.indices.contains(chosen) ? words[chosen] : nil
+            committed = Committed(word: word, trailing: " ", pieces: pieces, guesses: words, casing: casing,
+                                  previous: matcher.context.last,
+                                  fixedFrom: original.flatMap { $0.lowercased() == meant ? nil : $0 },
+                                  firstGuess: words.first, learned: learn, missed: true)
+            pieces = []
+            candidates = []
+            autospaceDue = nil
+            autoSpaced = true
+            effects = [.commit(word), .insert(" "), .haptic(.commit)]
+        } else if var last = committed {
+            let word = Self.cased(meant, as: last.casing)
+            let original = last.fixedFrom ?? last.word
+            effects = [.deleteBackward(last.word.count + last.trailing.count), .insert(word + last.trailing), .haptic(.commit)]
+            last.word = word
+            last.fixedFrom = original.lowercased() == meant ? nil : original
+            last.missed = true
+            if let learn { last.learned = learn }
+            committed = last
+        } else {
+            state.bar = .idle
+            refreshState()
+            return []
+        }
+        if let learn { effects.append(.learn(learn)) }
+        state.bar = .idle
+        refreshState()
+        return effects
+    }
+
+    /// A letter typed into the "Not it?" field.
+    private mutating func typeCorrection(_ letter: Character) {
+        guard var typed = correction, typed.count < 40 else { return }
+        typed.append(Character(letter.lowercased()))
+        correction = typed
+        state.bar = .correcting(typed)
+    }
+
+    /// The keys while the "Not it?" field is open: backspace edits it, space and
+    /// return save it, letters sent as presses type into it; nothing reaches the text.
+    private mutating func pressWhileCorrecting(_ key: Key, time: TimeInterval) -> [Effect] {
+        switch key {
+        case .letter(let c):
+            typeCorrection(c)
+        case .backspace:
+            guard var typed = correction, !typed.isEmpty else { return [.haptic(.key)] }
+            typed.removeLast()
+            correction = typed
+            state.bar = .correcting(typed)
+        case .space, .returnKey:
+            return saveCorrection(time: time)
+        case .text(let text):
+            return press(text: text, time: time)
+        case .symbol(let c):
+            return press(character: c, time: time)
+        case .shift, .numbers, .symbols, .letters, .globe, .emoji:
+            return []
+        }
+        return [.haptic(.key)]
+    }
+
+    /// The word meant, to learn: any word the dictionary does not have, as the person
+    /// spelled it out for it (like a pecked word, `wordToLearn`).
+    private func correctionToLearn(_ word: String) -> String? {
+        let key = Lexicon.fold(word)
+        guard word.count >= 2, key.utf8.allSatisfy({ $0 >= 97 && $0 <= 122 }),
+              !matcher.dictionary.spellings(of: key).contains(where: { $0.word == word }) else { return nil }
+        return word
+    }
+
     /// The text before the cursor, after the host applied the effects or the field
     /// changed on its own. Sentence starts capitalise from it, and the matcher reads
     /// the words before the open one from it.
@@ -482,7 +664,7 @@ public struct Composer: Sendable {
     private mutating func offerNextWords() {
         let fix: (words: [String], chosen: Int)?
         switch state.bar {
-        case .guesses: return
+        case .guesses, .correcting: return
         case .idle: fix = nil
         case .fix(let words, let chosen): fix = (words, chosen)
         case .next(_, let words, let chosen): fix = words.count > 1 ? (words, chosen) : nil
@@ -521,6 +703,7 @@ public struct Composer: Sendable {
     /// The learned words changed under us (a boost or forget from the bar, a sync): the
     /// open word is guessed again, and a forgotten reading leaves the fix bar.
     public mutating func learnedDidChange(time: TimeInterval) -> [Effect] {
+        guard correction == nil else { return [] }
         if hasOpenWord { return reguess(time: time) }
         if case .fix(let words, let chosen) = state.bar {
             let kept = words.enumerated()
@@ -545,6 +728,7 @@ public struct Composer: Sendable {
     /// the field changed under us (the cursor moved, the app cleared the text).
     @discardableResult
     public mutating func reset() -> [Effect] {
+        correction = nil
         let effects = settle()
         reopenedLearned = nil
         pieces = []
@@ -560,6 +744,11 @@ public struct Composer: Sendable {
     /// Swipe left on backspace: drop the open word, or delete back through the last word
     /// and the spaces after it.
     public mutating func deleteWord(time: TimeInterval) -> [Effect] {
+        if correction != nil {
+            correction = ""
+            state.bar = .correcting("")
+            return [.haptic(.key)]
+        }
         let learned = committed?.learned
         committed = nil
         state.bar = .idle
@@ -585,6 +774,7 @@ public struct Composer: Sendable {
     /// The cursor is about to move (a slide on the space bar): the open word goes in as
     /// it stands, with nothing after it, and the fix bar closes.
     public mutating func cursorWillMove() -> [Effect] {
+        cancelCorrection()
         autoSpaced = false
         guard hasOpenWord else {
             let effects = settle()
@@ -603,17 +793,37 @@ public struct Composer: Sendable {
     // MARK: Words
 
     private mutating func reguess(time: TimeInterval) -> [Effect] {
-        candidates = matcher.candidates(for: pieces, limit: settings.guessCount, final: false)
+        let words = guesses(final: false)
         committed = nil
         autospaceDue = open.isEmpty && autospaceApplies ? settings.autospaceDelay.map { time + $0 } : nil
-        guard let first = candidates.first else {
+        guard let first = words.first else {
             state.bar = .idle
             refreshState()
             return [.clearMark]
         }
-        state.bar = .guesses(candidates.map { cased($0.word) }, chosen: 0)
+        state.bar = .guesses(words, chosen: 0)
         refreshState()
-        return [.mark(cased(first.word))]
+        return [.mark(first)]
+    }
+
+    /// The open word's guesses, cased, best first; sets `candidates`. With `exactTaps`
+    /// and only taps, the letters as tapped come first, then the matcher's other readings.
+    private mutating func guesses(final: Bool) -> [String] {
+        candidates = matcher.candidates(for: pieces, limit: settings.guessCount, final: final)
+        var words = candidates.map { cased($0.word) }
+        if let tapped = tappedLetters {
+            let typed = cased(tapped)
+            words.removeAll { $0 == typed }
+            words = Array(([typed] + words).prefix(max(1, settings.guessCount)))
+        }
+        return words
+    }
+
+    /// The open word's letters exactly as tapped, when taps are typed exactly and
+    /// every piece is a tap.
+    private var tappedLetters: String? {
+        guard settings.exactTaps, !pieces.isEmpty, pieces.allSatisfy(\.isTap) else { return nil }
+        return String(pieces.sorted { $0.start < $1.start }.flatMap(\.keys))
     }
 
     private mutating func commit(trailing: String, time: TimeInterval, byHand: Bool = false) -> [Effect] {
@@ -636,7 +846,7 @@ public struct Composer: Sendable {
         autospaceDue = nil
         state.bar = words.count > 1 ? .fix(words, chosen: chosen) : .idle
         refreshState()
-        var effects: [Effect] = [.commit(word), .insert(trailing), .haptic(.commit)]
+        var effects: [Effect] = [.commit(word)] + (trailing.isEmpty ? [] : [.insert(trailing)]) + [.haptic(.commit)]
         if let learn { effects.append(.learn(learn)) }
         return effects
     }
@@ -645,10 +855,10 @@ public struct Composer: Sendable {
     /// word could still follow them ("bri" for "bring") must now make a word, as
     /// strictness says, so the guesses are made again as final.
     private mutating func settleGuesses() {
-        guard case .guesses(let words, 0) = state.bar, let first = words.first,
+        guard tappedLetters == nil, case .guesses(let words, 0) = state.bar, let first = words.first,
               !matcher.isKnown(Lexicon.fold(first)), pieces.allSatisfy(\.isTap) else { return }
-        candidates = matcher.candidates(for: pieces, limit: settings.guessCount, final: true)
-        state.bar = candidates.isEmpty ? .idle : .guesses(candidates.map { cased($0.word) }, chosen: 0)
+        let settled = guesses(final: true)
+        state.bar = settled.isEmpty ? .idle : .guesses(settled, chosen: 0)
     }
 
     /// The reopened word was learned on its commit and is now gone: forget it.
@@ -663,6 +873,7 @@ public struct Composer: Sendable {
     /// in, however it was typed, so the words they write often rise. Swiped words the
     /// keyboard did not know are guesses, so they never are.
     private func wordToLearn(_ word: String) -> String? {
+        guard !settings.exactTaps else { return nil }
         let lower = word.lowercased()
         let key = Lexicon.fold(lower)
         guard lower.count >= 2, key.utf8.allSatisfy({ $0 >= 97 && $0 <= 122 }),
@@ -690,8 +901,7 @@ public struct Composer: Sendable {
             reopenedLearned = last.learned
             pieces = last.pieces
             casing = last.casing
-            candidates = matcher.candidates(for: pieces, limit: settings.guessCount, final: false)
-            let words = candidates.map { cased($0.word) }
+            let words = guesses(final: false)
             let chosen = words.firstIndex(of: last.word) ?? 0
             let shown = words.isEmpty ? [last.word] : words
             state.bar = .guesses(shown, chosen: chosen)
@@ -743,12 +953,23 @@ public struct Composer: Sendable {
             touch(letters[0], swipe, weight: 0.3)
         }
         let strokes = pieces.map { SettledWord.Stroke(side: $0.side, points: $0.raw ?? $0.points, times: $0.times) }
+        // A miss swiped in one stroke is remembered for the word (features/missed-words
+        // Phase B), as the matcher saw it, in fractions of the keys' width and height.
+        var shape: [CGPoint]?
+        if last.missed, last.fixedFrom != nil, pieces.count == 1, let swipe = pieces.first, !swipe.isTap,
+           !layout.split, layout.width > 0, layout.height > 0 {
+            shape = Geometry.resample(swipe.points, count: PersonalModel.shapePoints)
+                .map { CGPoint(x: $0.x / layout.width, y: $0.y / layout.height) }
+        }
         return SettledWord(word: word, previous: last.previous, source: source,
                            fixedFrom: last.fixedFrom?.lowercased(), firstGuess: last.firstGuess?.lowercased(),
-                           pecked: !last.picked && last.pieces.allSatisfy(\.isTap), touches: touches, strokes: strokes)
+                           pecked: !last.picked && last.pieces.allSatisfy(\.isTap), touches: touches, strokes: strokes,
+                           missed: last.missed && last.fixedFrom != nil, shape: shape)
     }
 
-    private func cased(_ word: String) -> String {
+    private func cased(_ word: String) -> String { Self.cased(word, as: casing) }
+
+    private static func cased(_ word: String, as casing: Casing) -> String {
         switch casing {
         case .lower: word
         case .upper: word.uppercased()
@@ -759,7 +980,17 @@ public struct Composer: Sendable {
     private var effectiveShift: Shift {
         if shift != .off { return shift }
         guard settings.autoCapitalize, pieces.isEmpty, open.isEmpty else { return .off }
-        return Self.startsSentence(contextBefore) ? .on : .off
+        switch settings.capitals {
+        case .none: return .off
+        case .all: return .locked
+        case .words: return Self.startsWord(contextBefore) ? .on : .off
+        case .sentences: return Self.startsSentence(contextBefore) ? .on : .off
+        }
+    }
+
+    static func startsWord(_ before: String) -> Bool {
+        guard let last = before.last else { return true }
+        return last.isWhitespace || last.isNewline
     }
 
     static func startsSentence(_ before: String) -> Bool {
@@ -781,6 +1012,10 @@ public struct Composer: Sendable {
         } else {
             state.openWord = nil
         }
+        // "Not it?" for a swiped word only: pecked letters were typed as meant.
+        let swiped = { (pieces: [Piece]) in pieces.contains { !$0.isTap } }
+        state.canCorrect = correction == nil && open.isEmpty
+            && (hasOpenWord ? swiped(pieces) : committed.map { !$0.missed && swiped($0.pieces) } ?? false)
     }
 
     // MARK: Pieces

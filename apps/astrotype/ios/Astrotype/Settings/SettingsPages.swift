@@ -192,14 +192,17 @@ private struct WordsSettings: View {
         SettingsGroup {
             SettingsLink("Learned words", subtitle: learnedSubtitle, symbol: "book.closed", tint: Theme.mint,
                          value: "\(model.learnedWords.recent.count)") { path.append(.learnedWords) }
+            SettingsLink("Words it missed", subtitle: missedSubtitle, symbol: "pencil", tint: Theme.mint,
+                         value: "\(model.missedWords.count)") { path.append(.missedWords) }
             SettingsToggle("Learns from you", subtitle: personalSubtitle, symbol: "brain", tint: Theme.mint,
                            isOn: $model.learnsFromYou)
         }
+        .onAppear { model.reloadMissed() }
         GroupFootnote("Your word pairs and where your thumbs land, kept on this phone. With Full Access they follow you to your other devices.")
 
         SettingsGroup {
             Button { confirmingForget = true } label: {
-                SettingsRow("Forget what it learned", subtitle: "Word pairs and thumb spots, on every device. Learned words stay.",
+                SettingsRow("Forget what it learned", subtitle: "Word pairs, thumb spots and fixed swipes, on every device. Learned words stay.",
                             titleColor: Theme.danger)
             }
             .buttonStyle(.plain)
@@ -208,8 +211,12 @@ private struct WordsSettings: View {
         .confirmationDialog("Forget what the keyboard learned from you?", isPresented: $confirmingForget, titleVisibility: .visible) {
             Button("Forget everything", role: .destructive) { model.forgetPersonal() }
         } message: {
-            Text("Your word pairs and thumb positions go, on this phone and your other devices. Your learned words stay.")
+            Text("Your word pairs, thumb positions and the swipes you fixed go, on this phone and your other devices. Your learned words stay.")
         }
+    }
+
+    private var missedSubtitle: String {
+        model.missedWords.isEmpty ? "Swipes you fixed with Not it? in the bar" : "Swipes you fixed, and what it wrote"
     }
 
     private var learnedSubtitle: String {

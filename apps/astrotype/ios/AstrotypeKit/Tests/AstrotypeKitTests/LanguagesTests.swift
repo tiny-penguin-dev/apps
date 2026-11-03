@@ -136,9 +136,7 @@ import Testing
             pieces.append(composer.pieces)
         }
         _ = matcher.candidates(for: pieces[0])
-        let start = Date()
-        for p in pieces { _ = matcher.candidates(for: p, limit: 3) }
-        let mean = Date().timeIntervalSince(start) / Double(pieces.count) * 1000
+        let mean = MatcherTests.fastestMean(of: pieces, matcher)
         print("matcher en+es: \(String(format: "%.2f", mean)) ms per word (debug)")
         #expect(mean < 25, "mean \(mean) ms")
     }

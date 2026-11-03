@@ -16,6 +16,12 @@ public protocol TextTarget: AnyObject {
     func unmark()
     /// Move the cursor by `offset` characters (negative is left).
     func moveCursor(by offset: Int)
+    /// Whether the field has any text (for a return key that waits for some).
+    var hasText: Bool { get }
+}
+
+extension TextTarget {
+    public var hasText: Bool { !(textBeforeCursor ?? "").isEmpty }
 }
 
 /// The keyboard's model, one per host (BUILD.md "The engine runs in both processes"):
@@ -47,6 +53,10 @@ public final class KeyboardModel {
     /// corrections from other apps" on and the field allows it. The host keeps it for
     /// the app (it needs Full Access to reach it).
     public var onCorrection: ((SharedWord) -> Void)?
+    /// A word the keyboard missed, typed with "Not it?" (features/missed-words), in a
+    /// field that allows learning. The host keeps it for "Words it missed"; it is also
+    /// given to `onCorrection` when corrections are shared.
+    public var onMiss: ((SharedWord) -> Void)?
     /// A word went in and was left alone, in a field that allows learning, for the
     /// host to count how often the first guess was right (`GuessTally`). Only counts
     /// leave the host.
@@ -89,11 +99,12 @@ public final class KeyboardModel {
     /// Where what the keyboard learns from the person is kept; nil learns nothing
     /// (the app's practice field reads the model but never writes it).
     public var personalStore: PersonalStore?
-    /// Whether the field being typed in may teach the keyboard: the host turns it off
-    /// for addresses, codes and fields that ask for no autocorrection.
-    public var learningAllowed = true {
+    /// The field being typed in (features/field-types), which the host reads from the
+    /// app's traits each time the keyboard appears or the field changes. It decides the
+    /// bottom row, the return key, capitals, exact taps, autospace and learning.
+    public var field: Field = .text {
         didSet {
-            guard learningAllowed != oldValue else { return }
+            guard field != oldValue else { return }
             applyComposerSettings()
             composer.setContext(before: target?.textBeforeCursor)
             onChange?()
@@ -111,12 +122,22 @@ public final class KeyboardModel {
         }
     }
 
-    /// The engine's settings from the person's: next words only where the field
-    /// learns (no guesses in passwords, codes and addresses, features/next-word).
+    /// The engine's settings from the person's and the field's: next words only where
+    /// the field learns (no guesses in passwords, codes and addresses, features/next-word).
     private func applyComposerSettings() {
-        var settings = keyboardSettings.composerSettings(from: composer.settings)
+        var settings = field.composerSettings(keyboardSettings.composerSettings(from: composer.settings))
         settings.nextWords = settings.nextWords && learningAllowed && offersNextWords
         composer.settings = settings
+    }
+
+    /// Whether the field being typed in may teach the keyboard: never an address, a
+    /// code, a number or a field that asks for no autocorrection (`Field.learns`).
+    public var learningAllowed: Bool { field.learns }
+
+    /// Whether return does anything now: a field that waits for text (the app's
+    /// `enablesReturnKeyAutomatically`) has it off until there is some.
+    public var returnEnabled: Bool {
+        !field.returnNeedsText || composer.hasOpenWord || (target?.hasText ?? false)
     }
 
     /// What the keyboard learned from the person's typing (features/smart-matching).
@@ -230,9 +251,11 @@ public final class KeyboardModel {
 
     private func learn(from word: SettledWord) {
         if learningAllowed { onSettled?(word) }
-        if keyboardSettings.shareCorrections, learningAllowed, let onCorrection,
+        let share = keyboardSettings.shareCorrections && onCorrection != nil
+        if learningAllowed, share || (word.missed && onMiss != nil),
            let correction = SharedWord.correction(word, layout: composer.layout, now: Date()) {
-            onCorrection(correction)
+            if correction.isMiss { onMiss?(correction) }
+            if share { onCorrection?(correction) }
         }
         guard personalStore != nil, personal.learn(word, allowed: learningAllowed, now: Date()) else { return }
         composer.personal = personal.index
@@ -306,6 +329,35 @@ public final class KeyboardModel {
         apply(composer.press(character: character, time: now))
     }
 
+    /// A key that types a string (".com").
+    public func press(text: String) {
+        apply(composer.press(text: text, time: now))
+    }
+
+    // MARK: Emoji
+
+    /// Where the emoji history is kept (the keyboard's own file); nil keeps it in
+    /// memory only. Setting it loads what it holds.
+    public var emojiStore: EmojiStore? {
+        didSet { emojiHistory = emojiStore?.load() ?? EmojiHistory() }
+    }
+    /// Frequently used and the skin tones picked (features/emoji).
+    public private(set) var emojiHistory = EmojiHistory()
+
+    /// An emoji tapped on the emoji page: `form` is what goes in (a skin tone form, or
+    /// the emoji itself), `base` the emoji it belongs to. Counts for Frequently used.
+    public func type(emoji form: String, base: String) {
+        apply(composer.insert(emoji: form, time: now))
+        emojiHistory.record(base, at: Date())
+        emojiStore?.save(emojiHistory)
+    }
+
+    /// A skin tone picked for `base`, remembered for next time.
+    public func setTone(_ form: String, for base: String) {
+        emojiHistory.setTone(form, for: base)
+        emojiStore?.save(emojiHistory)
+    }
+
     /// A guess tapped on the bar: a guess for the open word, another reading of the
     /// last word (FIX), or a next word.
     public func choose(guess index: Int) {
@@ -327,6 +379,25 @@ public final class KeyboardModel {
         target?.moveCursor(by: offset)
         composer.setContext(before: target?.textBeforeCursor)
         onChange?()
+    }
+
+    /// "Not it?" on the bar: the keys type the word meant into the bar.
+    public func beginCorrection() {
+        composer.beginCorrection()
+        autospace?.cancel()
+        onChange?()
+    }
+
+    /// The ✕ in the "Not it?" field.
+    public func cancelCorrection() {
+        composer.cancelCorrection(time: now)
+        scheduleAutospace()
+        onChange?()
+    }
+
+    /// Save in the "Not it?" field: the word meant replaces the swiped one.
+    public func saveCorrection() {
+        apply(composer.saveCorrection(time: now))
     }
 
     /// A swipe left on backspace.
@@ -356,7 +427,7 @@ public final class KeyboardModel {
         switch composer.state.bar {
         case .guesses(let words, _), .fix(let words, _), .next(let words, _, _):
             words.indices.contains(index) ? words[index].lowercased() : nil
-        case .idle:
+        case .idle, .correcting:
             nil
         }
     }
@@ -398,6 +469,7 @@ public final class KeyboardModel {
             case .haptic(let haptic):
                 onHaptic?(haptic)
             case .learn(let word):
+                guard learningAllowed else { continue }
                 var words = composer.learned
                 words.learn(word, at: Date())
                 composer.learned = words

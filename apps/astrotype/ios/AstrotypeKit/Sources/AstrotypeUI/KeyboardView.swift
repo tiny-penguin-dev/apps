@@ -5,7 +5,8 @@ import UIKit
 /// The whole keyboard: the bar and the key surface, driven by a `KeyboardModel`. The
 /// extension puts it in its input view; the app's practice field uses it as the input
 /// view of a text view, so both run the same engine and the same views. Switches
-/// between the letters, numbers and symbols pages, and shows the settings panel.
+/// between the letters, numbers and symbols pages and the emoji page (which takes the
+/// bar's room too, features/emoji), and shows the settings panel.
 ///
 /// The keys sit where Apple's do, at the person's keyboard height
 /// (`KeyboardSettings.keyboardHeight`), at the bottom of the room they are given, with
@@ -26,6 +27,11 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
     public let surface = KeySurfaceView()
     /// Keys the engine leaves to the host: the globe.
     public var onSystemKey: ((Key) -> Void)?
+    /// Whether the bottom row has a globe key before the emoji key: the extension sets
+    /// it from `needsInputModeSwitchKey` (true only where iOS draws no globe of its own).
+    public var showsGlobe = false {
+        didSet { if showsGlobe != oldValue { setNeedsLayout() } }
+    }
     /// The keyboard's height changed with its width (a wide screen has taller keys).
     public var onHeightChange: ((CGFloat) -> Void)?
 
@@ -74,6 +80,9 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         bar.onChooseFix = { [weak self] in self?.model.chooseFix() }
         bar.onBoost = { [weak self] index in self?.model.boost(guess: index) }
         bar.onForget = { [weak self] index in self?.model.forget(guess: index) }
+        bar.onNotIt = { [weak self] in self?.model.beginCorrection() }
+        bar.onCancelCorrection = { [weak self] in self?.model.cancelCorrection() }
+        bar.onSaveCorrection = { [weak self] in self?.model.saveCorrection() }
         model.onChange = { [weak self] in self?.render() }
         model.onHaptic = { [weak self] haptic in self?.play(haptic) }
         model.onNotice = { [weak self] notice in
@@ -92,7 +101,8 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
     /// The height to ask the host for at a width: the keys where Apple's are (at the
     /// person's height), plus the bar when it sits on top.
     public func height(forWidth width: CGFloat) -> CGFloat {
-        let keys = Layout.qwerty(width: width, split: model.splitOnWide, extraLetters: extraLetters, scale: scale)
+        let keys = Layout.qwerty(width: width, split: model.splitOnWide, extraLetters: extraLetters, globe: showsGlobe, scale: scale,
+                                 bottom: model.field.bottomRow)
         return barPlace(for: keys) == .top ? Self.barHeight + keys.height : keys.height
     }
 
@@ -124,16 +134,19 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         let width = bounds.width
         guard width > 0 else { return }
         let split = model.splitOnWide
-        let natural = Layout.qwerty(width: width, split: split, extraLetters: extraLetters, scale: scale)
+        let bottom = model.field.bottomRow
+        let natural = Layout.qwerty(width: width, split: split, extraLetters: extraLetters, globe: showsGlobe, scale: scale,
+                                    bottom: bottom)
         let place = barPlace(for: natural)
         let barOnTop = place == .top
         let room = bounds.height - (barOnTop ? Self.barHeight : 0)
         let fill: CGFloat? = room > 0 ? min(room, natural.height) : nil
         if model.layout.width != width || model.layout.split != natural.split || model.layout.extraLetters != natural.extraLetters
-            || fill != keysHeight || place != self.place {
+            || model.layout.globe != showsGlobe || model.layout.bottomRow != bottom || fill != keysHeight || place != self.place {
             keysHeight = fill
             self.place = place
-            model.layout = Layout.qwerty(width: width, split: split, extraLetters: extraLetters, height: fill)
+            model.layout = Layout.qwerty(width: width, split: split, extraLetters: extraLetters, globe: showsGlobe, height: fill,
+                                         bottom: bottom)
             surface.layout = pageLayout(width: width, height: fill)
         }
         let wanted = height
@@ -161,15 +174,28 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
             bar.isHidden = true
             surface.frame = CGRect(x: 0, y: top, width: width, height: keys)
         }
+        if let emojiPage {
+            // The bar's room and the keys', so the keyboard keeps its height.
+            let top = place == .top ? bar.frame.minY : surface.frame.minY
+            emojiPage.frame = CGRect(x: 0, y: top, width: width, height: surface.frame.maxY - top)
+            bar.isHidden = true
+            surface.isHidden = true
+        } else {
+            surface.isHidden = false
+        }
         if let panel {
-            panel.frame = surface.frame
+            // Over the keys and the guesses bar both: the bar has nothing to say while
+            // the settings are open (Gabriel, 3 Nov 2026).
+            bar.isHidden = true
+            panel.frame = CGRect(x: 0, y: top, width: width, height: max(0, bounds.height - top))
             panel.granted = (bounds.height, wanted)
             bringSubviewToFront(panel)
         }
     }
 
     private func pageLayout(width: CGFloat, height: CGFloat?) -> Layout {
-        Layout.qwerty(width: width, page: page, split: model.splitOnWide, extraLetters: extraLetters, height: height)
+        Layout.qwerty(width: width, page: page, split: model.splitOnWide, extraLetters: extraLetters, globe: showsGlobe,
+                      height: height, bottom: model.field.bottomRow)
     }
 
     /// The split's extra letters, as set.
@@ -185,8 +211,26 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         didSet { panel?.heightStory = heightStory }
     }
 
+    /// The field the keys were last set up for: a new one opens on its page.
+    private var shownField: Field?
+
     private func render() {
+        let wasCorrecting = { if case .correcting = self.bar.bar { true } else { false } }()
+        bar.canCorrect = model.state.canCorrect
+        if shownField != model.field {
+            shownField = model.field
+            page = model.field.startPage
+            setNeedsLayout()
+        }
+        surface.returnKey = model.field.returnKey
+        surface.returnEnabled = model.returnEnabled
         bar.bar = model.state.bar
+        // Saved from "Not it?": the commit squeeze (DESIGN.md "Commit").
+        if wasCorrecting, case .idle = model.state.bar, !model.state.canCorrect {
+            UIView.animate(withDuration: 0.12, animations: { self.bar.transform = CGAffineTransform(scaleX: 0.97, y: 0.97) }) { _ in
+                UIView.animate(withDuration: 0.15) { self.bar.transform = .identity }
+            }
+        }
         if usesDefaultNote {
             bar.note = model.entitlement.allows(.twoThumbs) ? "Both thumbs, one word" : "One finger at a time"
         }
@@ -200,6 +244,7 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         panel?.allowsTwoLanguages = model.entitlement.allows(.twoLanguages)
         if model.layout.split != (model.splitOnWide && model.layout.isWide)
             || model.layout.extraLetters != (model.layout.split && extraLetters) || barPlace(for: model.layout) != place
+            || model.layout.bottomRow != model.field.bottomRow
             || height != asked { setNeedsLayout() }
     }
 
@@ -229,11 +274,56 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         panel.heightStory = heightStory
         addSubview(panel)
         self.panel = panel
+        setNeedsLayout()
     }
 
     public func hideSettings() {
         panel?.removeFromSuperview()
         panel = nil
+        setNeedsLayout()
+    }
+
+    // MARK: Emoji page
+
+    private var emojiPage: EmojiPageView?
+    /// Read when the page first opens, then kept: the list is the same all session.
+    private var emojiCatalog: EmojiCatalog?
+
+    /// Whether the emoji page is showing.
+    public var showsEmoji: Bool { emojiPage != nil }
+
+    /// Show the emoji page in place of the bar and the keys.
+    public func showEmoji() {
+        guard emojiPage == nil else { return }
+        if emojiCatalog == nil {
+            let os = ProcessInfo.processInfo.operatingSystemVersion
+            emojiCatalog = (try? EmojiCatalog.bundled(upTo: EmojiCatalog.version(forOS: os.majorVersion, os.minorVersion)))
+                ?? EmojiCatalog(sections: [])
+        }
+        let page = EmojiPageView(catalog: emojiCatalog!)
+        page.tone = { [weak self] base in self?.model.emojiHistory.tone(for: base) ?? base }
+        page.frequent = model.emojiHistory.frequent(now: Date())
+        page.onEmoji = { [weak self] form, base in self?.model.type(emoji: form, base: base) }
+        page.onTone = { [weak self] form, base in self?.model.setTone(form, for: base) }
+        page.onDelete = { [weak self] in self?.model.press(.backspace) }
+        page.onABC = { [weak self] in self?.hideEmoji() }
+        addSubview(page)
+        emojiPage = page
+        hideSettings()
+        setNeedsLayout()
+        layoutIfNeeded()
+        UIAccessibility.post(notification: .screenChanged, argument: page)
+    }
+
+    /// Back to the letters.
+    public func hideEmoji() {
+        guard let emojiPage else { return }
+        emojiPage.removeFromSuperview()
+        self.emojiPage = nil
+        page = .letters
+        setNeedsLayout()
+        layoutIfNeeded()
+        UIAccessibility.post(notification: .screenChanged, argument: surface)
     }
 
     // MARK: KeySurfaceDelegate
@@ -258,6 +348,8 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         switch key {
         case .globe:
             onSystemKey?(key)
+        case .emoji:
+            showEmoji()
         case .numbers:
             page = .numbers
         case .symbols:
@@ -268,8 +360,12 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
             model.press(character: c)
         case .space:
             model.press(.space)
-            // Like Apple's keyboard, a space on the numbers page goes back to the letters.
-            page = .letters
+            // Like Apple's keyboard, a space on the numbers page goes back to the
+            // letters, except in a number field, which lives on the numbers page.
+            if model.field.startPage == .letters { page = .letters }
+        case .returnKey:
+            // A return key that waits for text does nothing until there is some.
+            if model.returnEnabled { model.press(.returnKey) }
         default:
             model.press(key)
         }
@@ -296,7 +392,7 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         // (a number, a symbol, space, return, backspace, off the keys) goes back.
         switch key {
         case .symbols, .letters, .numbers: break
-        default: page = .letters
+        default: page = model.field.startPage
         }
     }
 

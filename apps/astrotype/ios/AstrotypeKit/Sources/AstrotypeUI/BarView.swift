@@ -2,10 +2,12 @@
 import AstrotypeCore
 import UIKit
 
-/// The guesses, in their four states (DESIGN.md "The bar"): an idle note, the guesses
+/// The guesses, in their states (DESIGN.md "The bar"): an idle note, the guesses
 /// for the open word with the chosen one in a pill, FIX with the other readings of
-/// the word just written, or the likely next words with the best other reading of the
-/// last word as a FIX chip in front (features/next-word). Holding a guess and sliding up boosts it, down forgets it
+/// the word just written, the likely next words with the best other reading of the
+/// last word as a FIX chip in front (features/next-word), or the "Not it?" field where
+/// the word meant is typed (features/missed-words). After a swiped word a "Not it?"
+/// button sits at the end. Holding a guess and sliding up boosts it, down forgets it
 /// (DESIGN.md "Learning"). A bar above the keys (`axis` horizontal) or a column beside
 /// them (vertical: the middle of a split keyboard, the side of a wide one); in a column,
 /// touches between the guesses fall through to the keys under it.
@@ -14,10 +16,21 @@ import UIKit
 ///     bar.onChoose = { index in model.choose(guess: index) }
 ///     bar.onChooseFix = { model.chooseFix() }
 ///     bar.onBoost = { index in model.boost(guess: index) }
+///     bar.canCorrect = model.state.canCorrect
+///     bar.onNotIt = { model.beginCorrection() }
 public final class BarView: UIView {
     public var onChoose: ((Int) -> Void)?
     /// The FIX chip beside the next words was tapped.
     public var onChooseFix: (() -> Void)?
+    /// "Not it?", and the field's ✕ and Save.
+    public var onNotIt: (() -> Void)?
+    public var onCancelCorrection: (() -> Void)?
+    public var onSaveCorrection: (() -> Void)?
+
+    /// Whether to offer "Not it?" (`Composer.State.canCorrect`).
+    public var canCorrect = false {
+        didSet { if canCorrect != oldValue { render() } }
+    }
     public var onBoost: ((Int) -> Void)?
     public var onForget: ((Int) -> Void)?
 
@@ -84,6 +97,10 @@ public final class BarView: UIView {
 
     private let label = UILabel()
     private let fixLabel = UILabel()
+    private let notItButton = UIButton(configuration: .plain())
+    private let cancelButton = UIButton(configuration: .plain())
+    private let saveButton = UIButton(configuration: .plain())
+    private let fieldLabel = UILabel()
     private let stack = UIStackView()
     private var indices: [Int] = []
     private var holdStart: CGPoint?
@@ -113,6 +130,38 @@ public final class BarView: UIView {
         fixLabel.text = "FIX"
         fixLabel.accessibilityLabel = "Fix the last word"
         addSubview(fixLabel)
+
+        var notIt = UIButton.Configuration.plain()
+        notIt.image = UIImage(systemName: "pencil", withConfiguration: UIImage.SymbolConfiguration(pointSize: 12, weight: .bold))
+        notIt.imagePadding = Theme.Space.xs
+        notIt.contentInsets = NSDirectionalEdgeInsets(top: 6, leading: Theme.Space.s, bottom: 6, trailing: Theme.Space.s)
+        notIt.baseForegroundColor = Theme.ui(.muted)
+        notIt.attributedTitle = AttributedString("Not it?", attributes: AttributeContainer([
+            .font: Theme.uiFont(size: 13, weight: .bold, scaledWith: .footnote, upTo: 15),
+        ]))
+        notItButton.configuration = notIt
+        notItButton.accessibilityLabel = "Not it? Type the word you meant"
+        notItButton.addAction(UIAction { [weak self] _ in self?.onNotIt?() }, for: .touchUpInside)
+        addSubview(notItButton)
+
+        var cancel = UIButton.Configuration.plain()
+        cancel.image = UIImage(systemName: "xmark", withConfiguration: UIImage.SymbolConfiguration(pointSize: 14, weight: .bold))
+        cancel.baseForegroundColor = Theme.ui(.muted)
+        cancelButton.configuration = cancel
+        cancelButton.accessibilityLabel = "Cancel"
+        cancelButton.addAction(UIAction { [weak self] _ in self?.onCancelCorrection?() }, for: .touchUpInside)
+        addSubview(cancelButton)
+
+        saveButton.addAction(UIAction { [weak self] _ in self?.onSaveCorrection?() }, for: .touchUpInside)
+        saveButton.accessibilityLabel = "Save"
+        addSubview(saveButton)
+
+        fieldLabel.adjustsFontForContentSizeCategory = true
+        fieldLabel.lineBreakMode = .byTruncatingHead
+        fieldLabel.textAlignment = .center
+        fieldLabel.isAccessibilityElement = true
+        fieldLabel.accessibilityTraits = .staticText
+        addSubview(fieldLabel)
 
         stack.axis = .horizontal
         stack.alignment = .center
@@ -145,7 +194,20 @@ public final class BarView: UIView {
             layoutColumn()
             return
         }
-        let inset = bounds.insetBy(dx: Theme.Space.s, dy: 0)
+        var inset = bounds.insetBy(dx: Theme.Space.s, dy: 0)
+        if case .correcting = bar {
+            let save = saveButton.sizeThatFits(inset.size)
+            cancelButton.frame = CGRect(x: inset.minX, y: 0, width: 40, height: inset.height)
+            saveButton.frame = CGRect(x: inset.maxX - save.width, y: (inset.height - save.height) / 2, width: save.width, height: save.height)
+            fieldLabel.frame = CGRect(x: cancelButton.frame.maxX + Theme.Space.s, y: 0,
+                                      width: saveButton.frame.minX - cancelButton.frame.maxX - Theme.Space.m, height: inset.height)
+            return
+        }
+        if !notItButton.isHidden {
+            let size = notItButton.sizeThatFits(inset.size)
+            notItButton.frame = CGRect(x: inset.maxX - size.width, y: (inset.height - size.height) / 2, width: size.width, height: size.height)
+            inset = inset.divided(atDistance: size.width + Theme.Space.xs, from: .maxXEdge).remainder
+        }
         label.frame = inset
         if case .fix = bar {
             fixLabel.sizeToFit()
@@ -160,6 +222,24 @@ public final class BarView: UIView {
     /// A column: FIX on top when fixing, the guesses stacked and centred under it.
     private func layoutColumn() {
         var area = bounds.insetBy(dx: Theme.Space.xs, dy: Theme.Space.s)
+        if case .correcting = bar {
+            // The word, then Save, then ✕, stacked in the middle of the column.
+            let line = fieldLabel.sizeThatFits(area.size).height
+            let save = saveButton.sizeThatFits(area.size)
+            let total = line + Theme.Space.s + save.height + Theme.Space.s + 40
+            var y = area.midY - total / 2
+            fieldLabel.frame = CGRect(x: area.minX, y: y, width: area.width, height: line)
+            y += line + Theme.Space.s
+            saveButton.frame = CGRect(x: area.midX - save.width / 2, y: y, width: save.width, height: save.height)
+            y += save.height + Theme.Space.s
+            cancelButton.frame = CGRect(x: area.midX - 20, y: y, width: 40, height: 40)
+            return
+        }
+        if !notItButton.isHidden {
+            let size = notItButton.sizeThatFits(area.size)
+            notItButton.frame = CGRect(x: area.midX - size.width / 2, y: area.maxY - size.height, width: size.width, height: size.height)
+            area = area.divided(atDistance: size.height + Theme.Space.s, from: .maxYEdge).remainder
+        }
         label.frame = area
         if case .fix = bar {
             fixLabel.sizeToFit()
@@ -176,6 +256,20 @@ public final class BarView: UIView {
     private func render() {
         stack.arrangedSubviews.forEach { $0.removeFromSuperview() }
         indices = []
+        let correcting: String?
+        if case .correcting(let typed) = bar { correcting = typed } else { correcting = nil }
+        notItButton.isHidden = !canCorrect || notice != nil || correcting != nil
+        cancelButton.isHidden = correcting == nil
+        saveButton.isHidden = correcting == nil
+        fieldLabel.isHidden = correcting == nil
+        if let correcting, notice == nil {
+            renderField(correcting)
+            label.isHidden = true
+            fixLabel.isHidden = true
+            stack.isHidden = true
+            setNeedsLayout()
+            return
+        }
         if let notice {
             label.text = notice
             label.isHidden = false
@@ -216,6 +310,8 @@ public final class BarView: UIView {
                 add(word, index: i, chosen: false)
                 stack.arrangedSubviews.last?.accessibilityHint = "Writes the next word"
             }
+        case .correcting:
+            break
         }
         setNeedsLayout()
     }
@@ -258,6 +354,33 @@ public final class BarView: UIView {
             line.heightAnchor.constraint(equalToConstant: 22),
         ])
         stack.addArrangedSubview(line)
+    }
+
+    /// The "Not it?" field: the word typed so far with a caret, or the question while
+    /// empty, and Save, dimmed until there is a letter.
+    private func renderField(_ typed: String) {
+        let font = guessFont(chosen: true)
+        if typed.isEmpty {
+            fieldLabel.attributedText = NSAttributedString(string: "What did you mean?", attributes: [
+                .font: Theme.uiFont(size: 15, weight: .semibold, scaledWith: .body, upTo: 17),
+                .foregroundColor: Theme.ui(.muted),
+            ])
+        } else {
+            let text = NSMutableAttributedString(string: typed, attributes: [.font: font, .foregroundColor: Theme.ui(.ink)])
+            text.append(NSAttributedString(string: "|", attributes: [.font: font, .foregroundColor: Theme.ui(.accent)]))
+            fieldLabel.attributedText = text
+        }
+        fieldLabel.accessibilityLabel = "What did you mean?"
+        fieldLabel.accessibilityValue = typed
+        var save = UIButton.Configuration.filled()
+        save.cornerStyle = .capsule
+        save.baseBackgroundColor = Theme.ui(.accent)
+        save.baseForegroundColor = Theme.ui(.accentInk)
+        save.contentInsets = NSDirectionalEdgeInsets(top: 6, leading: Theme.Space.l, bottom: 6, trailing: Theme.Space.l)
+        save.attributedTitle = AttributedString("Save", attributes: AttributeContainer([.font: font]))
+        saveButton.configuration = save
+        saveButton.isEnabled = !typed.isEmpty
+        saveButton.alpha = typed.isEmpty ? 0.45 : 1
     }
 
     private func add(_ word: String, index: Int, chosen: Bool) {

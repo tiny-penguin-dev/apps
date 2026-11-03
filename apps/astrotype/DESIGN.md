@@ -66,6 +66,7 @@ code (`AstrotypeKit/Theme`, `docs/building.md` rule 1). Screens only use these.
 | `ice` | `#D9EDF3` | `#1D3240` | chips, step numbers |
 | `key` / `keyDark` | `#FFFFFF` / `#C9D6DE` | `#2A3A4A` / `#1C2834` | letter keys / function keys |
 | `kb` | `#DCE6EC` | `#131E29` | keyboard background |
+| `returnAction` | `#007AFF` | `#0A84FF` | a return key that acts ("go", "search"), Apple's blue |
 
 - Type: `title` 30 pt black, `heading` 20 pt heavy, `body` 16 pt, `small` 13 pt, `big`
   64 pt tabular (the speed number), `key` 21 pt bold. All SF Pro Rounded, all Dynamic
@@ -112,8 +113,10 @@ code (`AstrotypeKit/Theme`, `docs/building.md` rule 1). Screens only use these.
 
 Not drawn yet (simple, same style): the numbers and symbols pages, the in-keyboard
 settings panel (under a held `123`: four quick tiles, autospace, guesses bar, haptics
-and trails, plus split on a wide screen, and four sliders, height, real words, split
-words and autospace's wait; the rest is in the app; `features/settings`, 3 Nov 2026,
+and trails, plus split on a wide screen, a Languages row that opens the list of
+languages with a tick on each one that's on, and four sliders, height, real words, split
+words and autospace's wait; it covers the guesses bar too, which has nothing to say
+while it's open (Gabriel, 3 Nov 2026); the rest is in the app; `features/settings`, 3 Nov 2026,
 [panel](features/settings/design/screens/09-panel.png)), learned
 words list, snippets editor, one-handed layouts, the milestone sheet. The split layout
 (an option on wide screens, Gabriel, 1 Nov 2026) is exactly Apple's: Q to T, A to G
@@ -129,11 +132,13 @@ This is the product, so it gets its own section.
 
 - **Keycaps:** Apple's (iOS 26): white keys on light grey in light mode, #464646 keys
   on the system glass in dark, SF Pro regular letters, Apple's glyphs for shift, delete,
-  globe and return, 8.5 pt corners. Only the thumb flashes and trails are ours (Gabriel,
+  globe, emoji and return, 8.5 pt corners. Only the thumb flashes and trails are ours (Gabriel,
   2 Nov 2026).
 - **Layout:** Apple's QWERTY proportions, so muscle memory carries over. Rows of 10, 9
-  and 7 letters, shift and backspace on the third row, `123`, globe, space and return on
-  the fourth. Space reads "Astrotype" when idle, like Apple's reads the language.
+  and 7 letters, shift and backspace on the third row, `123`, emoji, space and return on
+  the fourth, as on Apple's (iOS draws its globe under the keyboard). On a Home button
+  phone, where iOS draws none, our globe sits before the emoji key and space is shorter
+  (`features/emoji`, 3 Nov 2026). Space reads "Astrotype" when idle, like Apple's reads the language.
 - **Size:** every key sits where Apple's does, so muscle memory carries over: the top
   of our top row is the top of Apple's, and the bottom of our bottom row is the bottom
   of Apple's (measured on iOS 26: rows spanning 213 pt on a phone with 7 pt under them,
@@ -168,6 +173,12 @@ This is the product, so it gets its own section.
     learn, or in the app's practice fields. Any tap or swipe on the keys clears it.
     New guesses rise in over 0.25 s (at once with Reduce Motion). From
     features/next-word, where the before and after screenshots are.
+  - *Not it?* (features/missed-words): after a swiped word (open, FIX, next words or
+    idle right after it), a small "Not it?" with a pencil at the end of the bar (under the guesses
+    in a column). Tapped, the bar becomes a field: ✕, the word typed so far ("What did
+    you mean?" while empty), and a Save pill. Taps type exact letters into it,
+    backspace edits, space or return saves; Save replaces the swiped word and squeezes
+    the bar like a commit.
 - **Pieces:** a touch is a tap if it lifts within 18 pt of where it landed and crossed no
   other key, otherwise a swipe. Taps flash the key in the thumb's color and leave a ring
   that pings out. Swipes draw a 9 pt rounded trail in the thumb's color that fades over a
@@ -193,6 +204,26 @@ This is the product, so it gets its own section.
   capitalised automatically.
 - **Free mode:** one active thumb at a time. A second touch does not type; the bar says
   "Two thumbs is in Astrotype Pro" for 1.6 s. Nothing shakes, nothing is lost.
+- **Emoji page** (`features/emoji`, [mockup](features/emoji/design/mockups/emoji.html),
+  [screens](features/emoji/design/screens/03-emoji.png)): the emoji key swaps the bar and
+  the keys for a sideways grid, five rows high: Frequently used, then Apple's eight
+  categories with their names above them. A strip below has `ABC`, a button per
+  category (the one in view highlighted) and delete. Tapping types the emoji (an open
+  word goes in first, with its space; nothing after the emoji). Holding a hand or a
+  person opens the skin tones; the pick is kept for that emoji.
+- **Field types** (features/field-types, 3 Nov 2026): the keyboard follows the field,
+  like Apple's. 123, the globe or emoji key and return keep their place (where both
+  the globe and emoji are shown, the field's row keeps only the globe); the field's keys take
+  space's room on the letters page: @ and . in an email or username field, . / and
+  .com (no space) in a web address, . in a web search, @ and # in a social post (on a
+  split keyboard the keys share out between the halves). A number field opens on the
+  123 page. Return shows the app's word ("go", "search", "send", "done"...) in lower
+  case, on Apple's blue for an action and grey for "next", and is dimmed while a field
+  that waits for text is empty. In addresses, numbers and codes taps are typed
+  exactly, with no autospace, no space after a guess, no ". " on a double space and
+  no capitals; swipes are still guessed. A field with corrections off types taps
+  exactly but keeps autospace. Capitals follow the field (none, words, sentences, all).
+  Mockup: `features/field-types/design/mockups/field-types.html`.
 - **Not in the mockup, in the build:** slide on space to move the cursor, the numbers
   page, edge swipes, snippets, the globe key switching keyboards. Held keys show their
   accents in a row above the key (á on a, ñ on n, ¿ on ?, when Spanish is on); slide

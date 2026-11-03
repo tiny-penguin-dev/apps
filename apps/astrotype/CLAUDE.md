@@ -20,7 +20,7 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
     real services are named; `LiveMetrics` on `Telemetry`), `Onboarding/`
     (`TurnOnView`, `LanguagesSetupView` (only on a phone set to two languages), `SyncView`, `TryItView`, and `SetupPage`, their shared shape),
     `HelloView`, `HomeView`, `Settings/` (`SettingsView`, the main page with its
-    `SettingsPage`s, and `SettingsPages`, one view per page), `LearnedWordsView`, `SharingView` ("What
+    `SettingsPage`s, and `SettingsPages`, one view per page), `LearnedWordsView`, `MissedWordsView` ("Words it missed", features/missed-words), `SharingView` ("What
     gets shared": the words waiting to go up, drawn on the keys), `PracticeView`,
     `ProView` (the subscription screen, StoreKit's `SubscriptionStoreView`),
     `TrialOverView` (the sheet, once), `MilestoneView` (the sheet, once each),
@@ -33,7 +33,8 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
     `Try/`, `Train/` and `Shared/` are v1: the handwriting pad, training recorder and
     the CloudKit sample upload, reachable from Settings behind the flag.
   - `AstrotypeKeyboard/`: the keyboard extension (`com.tinypenguin.astrotype.keyboard`).
-    `KeyboardViewController` hosts the shared `KeyboardView`, types through
+    `KeyboardViewController` hosts the shared `KeyboardView`, reads the field into a
+    `Field` (features/field-types), types through
     `ProxyTarget` (the text document proxy), picks the stores (own files, mirrored to
     the App Group with Full Access), starts an `EntitlementController` (Pro from
     StoreKit, the trial from the App Group or its own first run) and, with Full
@@ -43,7 +44,9 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
     writes the StoreKit, memory and size readings into the bar's idle note while
     `Flags.extensionReadout` is on.
   - `AstrotypeKit/`: the local package, three targets:
-    - `AstrotypeCore`: Core and Services. `Layout` (key geometry), `Language` (one
+    - `AstrotypeCore`: Core and Services. `Layout` (key geometry, with the field's
+      `BottomRow`), `Field` (what the app says about the field and what the keyboard
+      makes of it: bottom row, return key, exact taps, spacing, capitals, learning), `Language` (one
       language's files from `Resources/<code>/`: `Lexicon`, the trie from
       `lexicon.tsv`, and `NgramModel`, the word pairs from `bigrams.bin`; English and
       Spanish, `Language.bundled(["en", "es"])` for both at once; accented words sit
@@ -57,7 +60,10 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
       composer emits when a word is final, and `PersonalLearner`, the model as a
       keyboard holds it), `NgramModel` (the word-pair binary, read and built), `Replay`
       (the harness: a practice recording through the engine, first-guess accuracy),
-      `Piece`, `Geometry`, `Accents` (what a held key offers), `LearnedWords`, `KeyboardSettings` (the in-keyboard settings
+      `Piece`, `Geometry`, `Accents` (what a held key offers), `LearnedWords`, `Emoji`
+      (`EmojiCatalog`, the emoji by category from `Resources/emoji/emoji.tsv`, built by
+      `ml/emoji/build_emoji.py`, cut to what the running iOS draws; `EmojiHistory` and its
+      `EmojiStore`, Frequently used and the skin tones in `emoji.json`), `KeyboardSettings` (the in-keyboard settings
       and their `SettingsStore`). `Sync/` holds the data layer: `Stores` (`JSONFile`,
       `WordStore` and file, memory and mirrored stores for words, settings and the
       personal model, `InstallID`),
@@ -88,7 +94,8 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
       keyboard's views: `KeyboardView` (bar plus keys, the pages, the settings panel;
       owns a `KeyboardModel`), `BarView`, `KeySurfaceView` (touch stream, flashes,
       trails, rings, and the gestures: space slide, backspace swipe and hold, "123"
-      hold, the slide from "123" to a number or symbol, and a held letter's accents, `AccentCallout`), `SettingsPanelView`, `KeyboardModel` (applies the composer's effects to a
+      hold, the slide from "123" to a number or symbol, and a held letter's accents, `AccentCallout`), `SettingsPanelView`,
+      `EmojiPageView` (the emoji page and its `TonePicker`), `KeyboardModel` (applies the composer's effects to a
       `TextTarget`, runs the autospace timer, keeps the settings and the learned words, loads the languages that are on,
       learns, boosts and forgets, and feeds each settled word to the personal model; `TextViewTarget` for a `UITextView`),
       `SyncController` (a model's words and settings in step with a `CloudSync`),
@@ -96,11 +103,11 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
       the trial, for the extension).
       UIKit and SwiftUI, guarded
       with `#if canImport(UIKit)` so `swift test` still builds the package on macOS.
-    - `AstrotypeKitTests`: Swift Testing. `ComposerTests`, `NextWordTests`, `LanguagesTests` (Spanish, accents, both at once, picked accents, which languages are on), `PersonalModelTests`, `SharedWordTests`, `TuningTests`, `MatcherTests` (the 50-word
+    - `AstrotypeKitTests`: Swift Testing. `ComposerTests`, `NextWordTests`, `FieldTests`, `LanguagesTests` (Spanish, accents, both at once, picked accents, which languages are on), `PersonalModelTests`, `SharedWordTests`, `TuningTests`, `MatcherTests` (the 50-word
       fixture in `Fixtures/swipes.json`, through `Synth`'s straight-line swipes, and
-      `ContextMatcherTests`), `WordContextTests`, `NgramModelTests`, `ReplayTests`
+      `ContextMatcherTests`), `WordContextTests`, `NgramModelTests`, `ReplayTests`, `MissedWordTests` (the bar's "Not it?")
       (recordings made from `Synth` strokes replay to the live result),
-      `GeometryTests`, `LayoutTests`, `KeyboardSettingsTests`, `AppCoreTests` (the
+      `GeometryTests`, `LayoutTests`, `EmojiTests`, `KeyboardSettingsTests`, `AppCoreTests` (the
       `App/` pieces), `ProTests` (`Entitlement`, the trial and Pro files, the memory
       store), `PracticeTests` (the speed test, streak and milestones, the drills on the
       engine, recordings), `SyncTests` (stores, snapshots, `Syncer`, `Backup`), and
@@ -126,6 +133,10 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
   `FEATURE.md` (product, design, build and its phases, notes as they ship):
   `smart-matching` (context, personal learning, consented sharing, the harness),
   `languages` (Spanish and the next languages, both at once; built),
+  `emoji` (the emoji key and page, skin tones; built 3 Nov 2026),
+  `missed-words` (the bar's "Not it?": type the word meant, learn from the swipe, keep
+  it for debugging; built),
+  `field-types` (the keyboard following email, web, search and number fields),
   `next-word` (the likely next words on the bar after each word, with the FIX chip).
 - `design/`: the mockup (`mockups/astrotype.html`, the keyboard in it works), the
   screen captures the design doc links, the icon's SVGs (`icon/`) and

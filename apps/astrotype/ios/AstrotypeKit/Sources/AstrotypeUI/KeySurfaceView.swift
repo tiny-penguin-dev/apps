@@ -57,6 +57,26 @@ public final class KeySurfaceView: UIView {
         }
     }
 
+    /// What the return key says for the field (features/field-types): the arrow, or
+    /// the app's word on grey, or on blue for an action.
+    public var returnKey: Field.ReturnKey = .return {
+        didSet {
+            guard returnKey != oldValue else { return }
+            keyViews[.returnKey]?.forEach { $0.returnKey = returnKey }
+            refreshAccessibilityLabels()
+        }
+    }
+
+    /// Whether return does anything now: a field that waits for text has it dimmed
+    /// until there is some, and touches on it do nothing.
+    public var returnEnabled = true {
+        didSet {
+            guard returnEnabled != oldValue else { return }
+            keyViews[.returnKey]?.forEach { $0.enabled = returnEnabled }
+            refreshAccessibilityLabels()
+        }
+    }
+
     /// What the space bar says when idle.
     public var spaceLabel = "Astrotype" {
         didSet { keyViews[.space]?.forEach { $0.label.text = spaceLabel } }
@@ -142,6 +162,10 @@ public final class KeySurfaceView: UIView {
             let keyView = KeyView(key: placement.key, spaceLabel: spaceLabel)
             keyView.frame = placement.frame
             keyView.shifted = shifted
+            if placement.key == .returnKey {
+                keyView.returnKey = returnKey
+                keyView.enabled = returnEnabled
+            }
             addSubview(keyView)
             keyViews[placement.key, default: []].append(keyView)
         }
@@ -177,6 +201,9 @@ public final class KeySurfaceView: UIView {
     private func refreshAccessibilityLabels() {
         for element in keyElements {
             element.accessibilityLabel = spokenName(of: element.key)
+            if element.key == .returnKey {
+                element.accessibilityTraits = returnEnabled ? .keyboardKey : [.keyboardKey, .notEnabled]
+            }
         }
     }
 
@@ -190,8 +217,10 @@ public final class KeySurfaceView: UIView {
         case .symbols: "More symbols"
         case .letters: "Letters"
         case .globe: "Next keyboard"
+        case .emoji: "Emoji"
         case .space: "Space"
-        case .returnKey: "Return"
+        case .returnKey: returnKey.spokenName
+        case .text(let text): text == ".com" ? "dot com" : text
         }
     }
 
@@ -226,7 +255,7 @@ public final class KeySurfaceView: UIView {
     public override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
         for touch in touches {
             let point = touch.location(in: self)
-            guard let key = layout.key(at: point) else { continue }
+            guard let key = layout.key(at: point), key != .returnKey || returnEnabled else { continue }
             let side = layout.side(at: point)
             let id = nextID
             nextID += 1
@@ -689,6 +718,19 @@ final class KeyView: UIView {
             if key == .shift { icon.image = symbol }
         }
     }
+    /// For the return key: what it says, and whether it is blue.
+    var returnKey: Field.ReturnKey = .return {
+        didSet {
+            label.text = text
+            icon.image = symbol
+            backgroundColor = restColor
+            label.textColor = inkColor
+        }
+    }
+    /// Dimmed when it does nothing (return, waiting for text).
+    var enabled = true {
+        didSet { alpha = enabled ? 1 : 0.4 }
+    }
 
     private let spaceLabel: String
 
@@ -725,8 +767,9 @@ final class KeyView: UIView {
         icon.frame = bounds
     }
 
-    private var restColor: UIColor { Theme.ui(key.isFunction ? .keyDark : .key) }
-    private var inkColor: UIColor { Theme.ui(key == .space ? .muted : .keyInk) }
+    private var isAction: Bool { key == .returnKey && returnKey.isAction }
+    private var restColor: UIColor { Theme.ui(isAction ? .returnAction : key.isFunction ? .keyDark : .key) }
+    private var inkColor: UIColor { isAction ? .white : Theme.ui(key == .space ? .muted : .keyInk) }
 
     private var fontSize: CGFloat {
         switch key {
@@ -743,7 +786,8 @@ final class KeyView: UIView {
         case .shift: name = shifted ? "shift.fill" : "shift"
         case .backspace: name = "delete.left"
         case .globe: name = "globe"
-        case .returnKey: name = "return.left"
+        case .emoji: name = "face.smiling"
+        case .returnKey where returnKey.label == nil: name = "return.left"
         default: return nil
         }
         return UIImage(systemName: name, withConfiguration: UIImage.SymbolConfiguration(pointSize: 18, weight: .regular))
@@ -757,7 +801,9 @@ final class KeyView: UIView {
         case .symbols: "#+="
         case .letters: "ABC"
         case .space: spaceLabel
-        case .shift, .backspace, .globe, .returnKey: ""
+        case .text(let text): text
+        case .returnKey: returnKey.label ?? ""
+        case .shift, .backspace, .globe, .emoji: ""
         }
     }
 

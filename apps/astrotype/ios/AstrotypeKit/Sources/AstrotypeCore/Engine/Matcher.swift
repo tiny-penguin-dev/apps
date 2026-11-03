@@ -255,7 +255,7 @@ public struct Matcher: Sendable {
             return resolve(typed, points: orderings[index].map { $0.points.first }, limit: limit, pecked: true)
         }
 
-        let out = Self.ranked(matches(orderings))
+        let out = remembered(Self.ranked(matches(orderings)), for: ordered)
         let split = split(ordered)
         guard let split else {
             if out.isEmpty {
@@ -392,6 +392,45 @@ public struct Matcher: Sendable {
     /// How sure the keyboard is of `word` rather than `other`, 0 to 1, from their scores.
     func confidence(of word: Candidate, over other: Candidate) -> Double {
         1 / (1 + exp(-(word.score - other.score) / confidenceScale))
+    }
+
+    // MARK: Remembered shapes
+
+    /// How close a swipe must come to one the person fixed with "Not it?" to give that
+    /// word, in key widths of mean distance (`Geometry.dtw`).
+    public var shapeRadius = 0.5
+    /// How far a remembered word goes ahead of the best guess, at a perfect match; less
+    /// as the swipe strays, down to just ahead at the edge of `shapeRadius`.
+    public var shapeLift = 0.3
+    /// How far a swipe may start or end from where a remembered one did, in key widths:
+    /// under one key, so "seconds" (ending on s) is not "second" (ending on d).
+    public var shapeEnds: CGFloat = 0.7
+
+    /// The guesses with the words of remembered shapes (`PersonalIndex.shapes`) that a
+    /// lone swipe comes close to put first (features/missed-words Phase B): the person
+    /// told the keyboard what this swipe means.
+    func remembered(_ ranked: [Candidate], for pieces: [Piece]) -> [Candidate] {
+        guard !personal.shapes.isEmpty, pieces.count == 1, let swipe = pieces.first, !swipe.isTap, !layout.split,
+              layout.width > 0, layout.height > 0, swipe.points.count > 1 else { return ranked }
+        let unit = layout.distanceUnit
+        let actual = Geometry.resample(swipe.points, count: PersonalModel.shapePoints)
+        guard let start = actual.first, let end = actual.last else { return ranked }
+        var near: [String: Double] = [:]
+        for shape in personal.shapes {
+            let points = shape.points.map { CGPoint(x: $0.x * layout.width, y: $0.y * layout.height) }
+            guard let first = points.first, let last = points.last,
+                  Geometry.distance(first, start) < unit * shapeEnds, Geometry.distance(last, end) < unit * shapeEnds else { continue }
+            let distance = Double(Geometry.dtw(actual, points, band: 4) / unit)
+            if distance < shapeRadius { near[shape.word] = min(near[shape.word] ?? .infinity, distance) }
+        }
+        guard !near.isEmpty else { return ranked }
+        var scores: [String: Double] = [:]
+        for candidate in ranked { scores[candidate.word] = max(scores[candidate.word] ?? -.infinity, candidate.score) }
+        let top = ranked.first?.score ?? priorWeight * Double(unknownPrior)
+        for (word, distance) in near {
+            scores[word] = max(scores[word] ?? -.infinity, top + 0.01 + shapeLift * (1 - distance / shapeRadius))
+        }
+        return Self.ranked(scores)
     }
 
     // MARK: Missed spaces

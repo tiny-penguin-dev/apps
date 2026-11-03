@@ -66,4 +66,58 @@ import Testing
         let old = try JSONDecoder().decode(KeyboardSettings.self, from: Data("{}".utf8))
         #expect(old.splitStrictness == 0.8)
     }
+
+    // MARK: Between swipes and taps
+
+    static func play(_ strokes: [Synth.Stroke]) -> [String] {
+        var composer = Composer(language: ContextMatcherTests.english, layout: Synth.layout, settings: Replay.settings)
+        Synth.play(&composer, strokes)
+        if case .guesses(let words, _) = composer.state.bar { return words.map { $0.lowercased() } }
+        return []
+    }
+
+    /// `first` swiped, then `second` swiped (or tapped) before autospace.
+    static func strokes(_ first: String, _ second: String, tapped: Bool = false) -> [Synth.Stroke] {
+        var out: [Synth.Stroke] = [.swipe(first, id: 1, from: 0, to: 0.3)]
+        if tapped {
+            for (i, letter) in second.enumerated() { out.append(.tap(letter, id: 2 + i, at: 0.45 + 0.15 * Double(i))) }
+        } else {
+            out.append(.swipe(second, id: 2, from: 0.45, to: 0.75))
+        }
+        return out
+    }
+
+    @Test(arguments: [("text", "separately"), ("about", "time"), ("ice", "cream"), ("good", "morning"), ("in", "the")])
+    func twoSwipesGoInSplit(first: String, second: String) {
+        #expect(Self.play(Self.strokes(first, second)).first == "\(first) \(second)")
+    }
+
+    @Test func aSwipeThenTapsGoInSplit() {
+        #expect(Self.play(Self.strokes("going", "to", tapped: true)).first == "going to")
+        #expect(Self.play(Self.strokes("look", "at", tapped: true)).first == "look at")
+    }
+
+    @Test func tapsThenASwipeGoInSplit() {
+        var strokes: [Synth.Stroke] = [.tap("a", id: 2, at: 0)]
+        strokes.append(.swipe("lot", id: 1, from: 0.25, to: 0.55))
+        #expect(Self.play(strokes).first == "a lot")
+    }
+
+    @Test func oneWordInTwoTouchesStaysOneWord() {
+        // Two-thumb typing: a word made of two swipes, or a swipe and taps, still wins.
+        #expect(Self.play(Self.strokes("some", "thing")).first == "something")
+        #expect(Self.play(Self.strokes("with", "out")).first == "without")
+        #expect(Self.play(Self.strokes("hel", "lo")).first == "hello")
+        #expect(Self.play(Self.strokes("lo", "ve", tapped: true)).first == "love")
+        // The split is still there to pick.
+        #expect(Self.play(Self.strokes("some", "thing")).contains("some thing"))
+    }
+
+    @Test func atZeroSwipesAreNeverSplit() {
+        var settings = Replay.settings
+        settings.splitStrictness = 0
+        var composer = Composer(language: ContextMatcherTests.english, layout: Synth.layout, settings: settings)
+        Synth.play(&composer, Self.strokes("text", "separately"))
+        #expect(composer.state.openWord?.contains(" ") == false)
+    }
 }

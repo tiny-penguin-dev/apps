@@ -2,9 +2,10 @@
 import AstrotypeCore
 import UIKit
 
-/// The emoji page (features/emoji/FEATURE.md): Frequently used, then the catalog's
-/// categories, five rows high and scrolling sideways, over a strip with `ABC`, one
-/// button per category and delete. It takes the room of the guesses bar and the keys
+/// The emoji page (features/emoji/FEATURE.md): a "Search emoji" field on top
+/// (features/emoji-search), then Frequently used and the catalog's categories, four
+/// rows high and scrolling sideways, over a strip with `ABC`, one button per category
+/// and delete. It takes the room of the guesses bar and the keys
 /// together. Holding an emoji that has skin tones opens the `TonePicker`.
 ///
 /// Only the cells on screen are drawn (a collection view), since colour emoji glyphs
@@ -22,6 +23,8 @@ final class EmojiPageView: UIView, UICollectionViewDataSource, UICollectionViewD
     var onTone: ((_ form: String, _ base: String) -> Void)?
     var onABC: (() -> Void)?
     var onDelete: (() -> Void)?
+    /// The search field was tapped.
+    var onSearch: (() -> Void)?
     /// The form to show for an emoji: the tone the person picked, else itself.
     var tone: (String) -> String = { $0 }
     /// Frequently used, as forms. Set when the page opens; it doesn't change while open,
@@ -30,9 +33,12 @@ final class EmojiPageView: UIView, UICollectionViewDataSource, UICollectionViewD
         didSet { if frequent != oldValue { collection.reloadSections(IndexSet(integer: 0)) } }
     }
 
-    static let rows = 5
-    /// Room left over the grid. Sections have no titles (they took a column's width);
-    /// a gap and the highlighted category on the strip tell them apart.
+    static let rows = 4
+    /// The search field's row over the grid.
+    static let searchRoom = KeyboardView.barHeight
+    /// The room the old section titles took, which still sets the emoji size (see
+    /// `layoutSubviews`). Sections have no titles (they took a column's width); a gap
+    /// and the highlighted category on the strip tell them apart.
     static let topRoom: CGFloat = 20
     /// The gap between sections, on top of each section's 6 pt insets.
     static let sectionGap: CGFloat = 16
@@ -41,6 +47,7 @@ final class EmojiPageView: UIView, UICollectionViewDataSource, UICollectionViewD
     private let catalog: EmojiCatalog
     private let collection: UICollectionView
     private let strip = UIView()
+    private let search = SearchField(placeholder: "Search emoji")
     private let abc = EmojiStripKey(title: "ABC")
     private let delete = EmojiStripKey(symbol: "delete.left")
     private var categoryButtons: [UIButton] = []
@@ -66,6 +73,8 @@ final class EmojiPageView: UIView, UICollectionViewDataSource, UICollectionViewD
         hold.minimumPressDuration = 0.4
         collection.addGestureRecognizer(hold)
         addSubview(collection)
+        search.addAction(UIAction { [weak self] _ in self?.closePicker(); self?.onSearch?() }, for: .touchUpInside)
+        addSubview(search)
 
         addSubview(strip)
         abc.accessibilityLabel = "Letters"
@@ -95,14 +104,20 @@ final class EmojiPageView: UIView, UICollectionViewDataSource, UICollectionViewD
 
     override func layoutSubviews() {
         super.layoutSubviews()
-        let gridHeight = bounds.height - Self.stripHeight
-        collection.frame = CGRect(x: 0, y: 0, width: bounds.width, height: gridHeight)
-        let size = max(24, ((gridHeight - Self.topRoom - 4) / CGFloat(Self.rows)).rounded(.down))
+        let stripTop = bounds.height - Self.stripHeight
+        search.frame = CGRect(x: 8, y: (Self.searchRoom - SearchField.height) / 2 + 2, width: bounds.width - 16,
+                              height: SearchField.height)
+        let gridHeight = stripTop - Self.searchRoom
+        collection.frame = CGRect(x: 0, y: Self.searchRoom, width: bounds.width, height: gridHeight)
+        // Four rows fit under the field, but the emoji keep the size five rows had
+        // before it (Gabriel likes them a little smaller than Apple's).
+        let fiveRows = (stripTop - Self.topRoom - 4) / 5
+        let size = max(24, min((gridHeight - 4) / CGFloat(Self.rows), fiveRows).rounded(.down))
         if size != cellSize {
             cellSize = size
             collection.collectionViewLayout.invalidateLayout()
         }
-        strip.frame = CGRect(x: 0, y: gridHeight, width: bounds.width, height: Self.stripHeight)
+        strip.frame = CGRect(x: 0, y: stripTop, width: bounds.width, height: Self.stripHeight)
         let keyWidth: CGFloat = 52, keyHeight: CGFloat = 36, y = (Self.stripHeight - keyHeight) / 2
         abc.frame = CGRect(x: 4, y: y, width: keyWidth, height: keyHeight)
         delete.frame = CGRect(x: bounds.width - 4 - keyWidth, y: y, width: keyWidth, height: keyHeight)

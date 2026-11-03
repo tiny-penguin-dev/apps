@@ -102,13 +102,26 @@ public final class KeyboardModel {
     /// The field being typed in (features/field-types), which the host reads from the
     /// app's traits each time the keyboard appears or the field changes. It decides the
     /// bottom row, the return key, capitals, exact taps, autospace and learning.
-    public var field: Field = .text {
+    /// While emoji search is open the keys type into the search field instead
+    /// (`Field.emojiSearch`); what the host sets meanwhile is kept for when it closes.
+    public var field: Field {
+        get { search == nil ? hostField : .emojiSearch }
+        set { hostField = newValue }
+    }
+    private var hostField: Field = .text {
         didSet {
-            guard field != oldValue else { return }
+            guard hostField != oldValue, search == nil else { return }
             applyComposerSettings()
-            composer.setContext(before: target?.textBeforeCursor)
+            composer.setContext(before: output?.textBeforeCursor)
             onChange?()
         }
+    }
+
+    /// Where the engine's effects go: the search field while emoji search is open,
+    /// else the host's target.
+    private var output: TextTarget? {
+        if let search { return search }
+        return target
     }
 
     /// Whether the bar may offer next words here at all: the app's practice fields turn
@@ -117,7 +130,7 @@ public final class KeyboardModel {
         didSet {
             guard offersNextWords != oldValue else { return }
             applyComposerSettings()
-            composer.setContext(before: target?.textBeforeCursor)
+            composer.setContext(before: output?.textBeforeCursor)
             onChange?()
         }
     }
@@ -137,7 +150,7 @@ public final class KeyboardModel {
     /// Whether return does anything now: a field that waits for text (the app's
     /// `enablesReturnKeyAutomatically`) has it off until there is some.
     public var returnEnabled: Bool {
-        !field.returnNeedsText || composer.hasOpenWord || (target?.hasText ?? false)
+        !field.returnNeedsText || composer.hasOpenWord || (output?.hasText ?? false)
     }
 
     /// What the keyboard learned from the person's typing (features/smart-matching).
@@ -358,6 +371,58 @@ public final class KeyboardModel {
         emojiStore?.save(emojiHistory)
     }
 
+    // MARK: Emoji search
+
+    /// The search field while emoji search is open (features/emoji-search).
+    public private(set) var search: SearchTarget?
+
+    /// What is in the search field, the open word included.
+    public var searchQuery: String { search?.query ?? "" }
+
+    /// Emoji search opens: an open word goes into the app first (as the cursor moving
+    /// would write it), then the keys type into the search field, learning nothing.
+    public func beginEmojiSearch() {
+        guard search == nil else { return }
+        apply(composer.cursorWillMove())
+        for case .settled(let word) in composer.reset() { learn(from: word) }
+        autospace?.cancel()
+        search = SearchTarget()
+        applyComposerSettings()
+        composer.setContext(before: nil)
+        onChange?()
+    }
+
+    /// Emoji search closes: what was typed there is dropped (never learned), and the
+    /// keys type into the app again.
+    public func endEmojiSearch() {
+        guard search != nil else { return }
+        autospace?.cancel()
+        _ = composer.reset()
+        search = nil
+        applyComposerSettings()
+        composer.setContext(before: output?.textBeforeCursor)
+        onChange?()
+    }
+
+    /// The × in the search field: empty again, any open word dropped.
+    public func clearSearch() {
+        guard let search else { return }
+        autospace?.cancel()
+        _ = composer.reset()
+        search.clear()
+        composer.setContext(before: search.textBeforeCursor)
+        onChange?()
+    }
+
+    /// A search result tapped: it goes into the app (not the search field), and counts
+    /// for Frequently used like one from the page.
+    public func typeFromSearch(emoji form: String, base: String) {
+        target?.insert(form)
+        onHaptic?(.key)
+        emojiHistory.record(base, at: Date())
+        emojiStore?.save(emojiHistory)
+    }
+
     /// A guess tapped on the bar: a guess for the open word, another reading of the
     /// last word (FIX), or a next word.
     public func choose(guess index: Int) {
@@ -378,8 +443,8 @@ public final class KeyboardModel {
     public func moveCursor(by offset: Int) {
         guard offset != 0 else { return }
         apply(composer.cursorWillMove())
-        target?.moveCursor(by: offset)
-        composer.setContext(before: target?.textBeforeCursor)
+        output?.moveCursor(by: offset)
+        composer.setContext(before: output?.textBeforeCursor)
         onChange?()
     }
 
@@ -436,7 +501,7 @@ public final class KeyboardModel {
 
     /// The field changed (the host's `textDidChange`): re-read the context.
     public func contextChanged() {
-        composer.setContext(before: target?.textBeforeCursor)
+        composer.setContext(before: output?.textBeforeCursor)
         onChange?()
     }
 
@@ -444,7 +509,7 @@ public final class KeyboardModel {
     public func reset() {
         autospace?.cancel()
         for case .settled(let word) in composer.reset() { learn(from: word) }
-        composer.setContext(before: target?.textBeforeCursor)
+        composer.setContext(before: output?.textBeforeCursor)
         onChange?()
     }
 
@@ -456,18 +521,18 @@ public final class KeyboardModel {
         for effect in effects {
             switch effect {
             case .insert(let text):
-                target?.insert(text)
+                output?.insert(text)
             case .deleteBackward(let count):
-                for _ in 0..<count { target?.deleteBackward() }
+                for _ in 0..<count { output?.deleteBackward() }
             case .mark(let text):
-                target?.mark(text)
+                output?.mark(text)
             case .commit(let text):
-                target?.mark(text)
-                target?.unmark()
+                output?.mark(text)
+                output?.unmark()
                 onCommit?(text)
             case .clearMark:
-                target?.mark("")
-                target?.unmark()
+                output?.mark("")
+                output?.unmark()
             case .haptic(let haptic):
                 onHaptic?(haptic)
             case .learn(let word):
@@ -489,7 +554,7 @@ public final class KeyboardModel {
                 learn(from: word)
             }
         }
-        composer.setContext(before: target?.textBeforeCursor)
+        composer.setContext(before: output?.textBeforeCursor)
         scheduleAutospace()
         onChange?()
     }
@@ -504,6 +569,50 @@ public final class KeyboardModel {
             guard !Task.isCancelled, let self else { return }
             self.apply(self.composer.tick(time: self.now))
         }
+    }
+}
+
+/// The emoji search field as the engine types into it (features/emoji-search): plain
+/// text in memory, with the open word kept apart as marked text, like a real field's.
+@MainActor
+public final class SearchTarget: TextTarget {
+    /// The words written so far.
+    public private(set) var text = ""
+    /// The open word, still being guessed.
+    public private(set) var marked = ""
+    /// The longest search kept; more is dropped.
+    static let longest = 60
+
+    public init() {}
+
+    /// Everything in the field, the open word included.
+    public var query: String { text + marked }
+
+    public var textBeforeCursor: String? { text }
+    public var hasText: Bool { !query.isEmpty }
+
+    public func insert(_ text: String) {
+        self.text = String((self.text + text).prefix(Self.longest))
+    }
+
+    public func deleteBackward() {
+        if !marked.isEmpty { marked.removeLast() } else if !text.isEmpty { text.removeLast() }
+    }
+
+    public func mark(_ text: String) { marked = text }
+
+    public func unmark() {
+        insert(marked)
+        marked = ""
+    }
+
+    /// The cursor stays at the end: the search field has no cursor to move.
+    public func moveCursor(by offset: Int) {}
+
+    /// The × in the field.
+    public func clear() {
+        text = ""
+        marked = ""
     }
 }
 

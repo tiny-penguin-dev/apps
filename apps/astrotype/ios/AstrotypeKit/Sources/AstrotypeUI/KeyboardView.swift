@@ -107,6 +107,7 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
     public func height(forWidth width: CGFloat) -> CGFloat {
         let keys = Layout.qwerty(width: width, split: model.splitOnWide, extraLetters: extraLetters, globe: showsGlobe, scale: scale,
                                  bottom: model.field.bottomRow)
+        if searchView != nil { return EmojiSearchView.height + keys.height }
         return barPlace(for: keys) == .top ? Self.barHeight + keys.height : keys.height
     }
 
@@ -143,7 +144,9 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
                                     bottom: bottom)
         let place = barPlace(for: natural)
         let barOnTop = place == .top
-        let room = bounds.height - (barOnTop ? Self.barHeight : 0)
+        // Emoji search puts its field and results over the keys instead of the bar.
+        let above = searchView != nil ? EmojiSearchView.height : barOnTop ? Self.barHeight : 0
+        let room = bounds.height - above
         let fill: CGFloat? = room > 0 ? min(room, natural.height) : nil
         if model.layout.width != width || model.layout.split != natural.split || model.layout.extraLetters != natural.extraLetters
             || model.layout.globe != showsGlobe || model.layout.bottomRow != bottom || fill != keysHeight || place != self.place {
@@ -177,6 +180,15 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         case .hidden:
             bar.isHidden = true
             surface.frame = CGRect(x: 0, y: top, width: width, height: keys)
+        }
+        if let searchView {
+            // One row taller than the bar (features/emoji-search), wherever the guesses
+            // usually go.
+            bar.isHidden = true
+            surface.frame = CGRect(x: 0, y: bounds.height - keys, width: width, height: keys)
+            searchView.frame = CGRect(x: 0, y: max(0, surface.frame.minY - EmojiSearchView.height), width: width,
+                                      height: EmojiSearchView.height)
+            bringSubviewToFront(searchView)
         }
         if let emojiPage {
             // The bar's room and the keys', so the keyboard keeps its height.
@@ -246,6 +258,7 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         if usesDefaultNote {
             bar.note = model.entitlement.allows(.twoThumbs) ? "Both thumbs, one word" : "One finger at a time"
         }
+        if let searchView { showSearchResults(in: searchView) }
         surface.shifted = model.state.isShifted
         surface.showsTrails = model.keyboardSettings.trails
         surface.showsFlashes = model.keyboardSettings.trails
@@ -323,6 +336,7 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         page.onTone = { [weak self] form, base in self?.model.setTone(form, for: base) }
         page.onDelete = { [weak self] in self?.model.press(.backspace) }
         page.onABC = { [weak self] in self?.hideEmoji() }
+        page.onSearch = { [weak self] in self?.startEmojiSearch() }
         addSubview(page)
         emojiPage = page
         hideSettings()
@@ -340,6 +354,76 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         setNeedsLayout()
         layoutIfNeeded()
         UIAccessibility.post(notification: .screenChanged, argument: surface)
+    }
+
+    // MARK: Emoji search
+
+    private var searchView: EmojiSearchView?
+    /// Built when search first opens, for the languages then: names load only if used.
+    private var emojiSearch: (languages: [String], search: EmojiSearch)?
+
+    /// Whether emoji search is open.
+    public var showsEmojiSearch: Bool { searchView != nil }
+
+    /// "Search emoji" on the emoji page: the letters come back with the search field
+    /// and a row of results above them, and the keys type into the field.
+    public func startEmojiSearch() {
+        guard searchView == nil else { return }
+        emojiPage?.removeFromSuperview()
+        emojiPage = nil
+        model.beginEmojiSearch()
+        let view = EmojiSearchView()
+        view.onEmoji = { [weak self] form, base in self?.model.typeFromSearch(emoji: form, base: base) }
+        view.onClear = { [weak self] in self?.model.clearSearch() }
+        addSubview(view)
+        searchView = view
+        page = .letters
+        showSearchResults(in: view, force: true)
+        setNeedsLayout()
+        layoutIfNeeded()
+        UIAccessibility.post(notification: .screenChanged, argument: view.field)
+    }
+
+    /// Search closes: back to the emoji page (the smiley key, done), or to the letters.
+    public func endEmojiSearch(toEmojiPage: Bool) {
+        guard let searchView else { return }
+        searchView.removeFromSuperview()
+        self.searchView = nil
+        model.endEmojiSearch()
+        if toEmojiPage {
+            showEmoji()
+        } else {
+            setNeedsLayout()
+            layoutIfNeeded()
+        }
+    }
+
+    /// The search last shown, so a render that changed nothing (a finger moving) doesn't
+    /// search again.
+    private var shownSearch: String?
+
+    private func showSearchResults(in view: EmojiSearchView, force: Bool = false) {
+        let query = model.searchQuery
+        guard force || query != shownSearch else { return }
+        shownSearch = query
+        guard !query.trimmingCharacters(in: .whitespaces).isEmpty else {
+            let frequent = model.emojiHistory.frequent(now: Date())
+            view.show(query: query, results: frequent.map { (form: $0, base: emojiCatalog?.emoji(for: $0)?.text ?? $0) })
+            return
+        }
+        let languages = model.activeLanguages
+        if emojiSearch?.languages != languages, let catalog = emojiCatalog {
+            emojiSearch = (languages, EmojiSearch(catalog: catalog, names: languages.compactMap(EmojiNames.bundled)))
+        }
+        let history = model.emojiHistory
+        let found = emojiSearch?.search.results(for: query, history: history) ?? []
+        view.show(query: query, results: found.map { (form: $0.hasTones ? history.tone(for: $0.text) : $0.text, base: $0.text) })
+    }
+
+    public override func didMoveToWindow() {
+        super.didMoveToWindow()
+        // The keyboard went away mid-search: it comes back typing into the app.
+        if window == nil { endEmojiSearch(toEmojiPage: false) }
     }
 
     // MARK: KeySurfaceDelegate
@@ -365,7 +449,7 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         case .globe:
             onSystemKey?(key)
         case .emoji:
-            showEmoji()
+            if searchView != nil { endEmojiSearch(toEmojiPage: true) } else { showEmoji() }
         case .numbers:
             page = .numbers
         case .symbols:
@@ -379,6 +463,9 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
             // Like Apple's keyboard, a space on the numbers page goes back to the
             // letters, except in a number field, which lives on the numbers page.
             if model.field.startPage == .letters { page = .letters }
+        case .returnKey where searchView != nil:
+            // "done" closes the search, back to the page.
+            endEmojiSearch(toEmojiPage: true)
         case .returnKey:
             // A return key that waits for text does nothing until there is some.
             if model.returnEnabled { model.press(.returnKey) }

@@ -83,7 +83,7 @@ public struct Field: Sendable, Equatable {
 
     public init(keyboard: KeyboardType = .default, content: Content = .other, returnKey: ReturnKey = .return,
                 capitals: Capitals = .sentences, corrects: Bool = true, returnNeedsText: Bool = false,
-                secure: Bool = false) {
+                secure: Bool = false, learns: Bool = true) {
         let kind: Kind = switch (keyboard, content) {
         case (.email, _), (_, .email), (_, .username): .email
         case (.url, _), (_, .url): .url
@@ -100,8 +100,13 @@ public struct Field: Sendable, Equatable {
         self.corrects = corrects
         self.returnNeedsText = returnNeedsText
         self.exactTaps = !corrects || code || [.email, .url, .numbers].contains(kind)
-        self.learns = !exactTaps
+        self.learns = !exactTaps && learns
     }
+
+    /// The emoji search field (features/emoji-search): words are guessed as anywhere,
+    /// but nothing typed there is learned, capitalised or offered next words, and
+    /// return says "done".
+    public static let emojiSearch = Field(returnKey: .done, capitals: .none, learns: false)
 
     /// Words get a space after them (autospace, a guess from the bar, a double space
     /// for a period): not in an address or a number.

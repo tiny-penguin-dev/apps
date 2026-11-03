@@ -22,6 +22,9 @@ public struct SyntheticTyping: Sendable {
         /// Each word is runs from both thumbs. `wobble` is how far each touch lands off
         /// its turn, in seconds (one standard deviation): 0 keeps them in order.
         case two(wobble: TimeInterval)
+        /// Each word is one swipe per thumb, both moving at once: each thumb reaches
+        /// its letters when the word gets to them, about every 90 ms, `wobble` off.
+        case together(wobble: TimeInterval)
     }
 
     public var thumbs: Thumbs = .one
@@ -54,8 +57,8 @@ public struct SyntheticTyping: Sendable {
         var time = 1.0
         var id = 1
         for word in words {
-            if case .two(let wobble) = thumbs {
-                time = typeWithTwoThumbs(word, wobble: wobble, at: time, id: &id, unit: unit, into: &recorder)
+            if thumbs != .one {
+                time = typeWithTwoThumbs(word, at: time, id: &id, unit: unit, into: &recorder)
                 time += 0.25
                 recorder.committed(word, time: time)
                 time += 0.3
@@ -88,8 +91,12 @@ public struct SyntheticTyping: Sendable {
     }
 
     /// One word from both thumbs, from `start`; returns when the last touch lifts.
-    private mutating func typeWithTwoThumbs(_ word: String, wobble: TimeInterval, at start: TimeInterval, id: inout Int,
+    private mutating func typeWithTwoThumbs(_ word: String, at start: TimeInterval, id: inout Int,
                                             unit: CGRect, into recorder: inout TouchRecorder) -> TimeInterval {
+        if case .together(let wobble) = thumbs {
+            return typeTogether(word, wobble: wobble, at: start, id: &id, unit: unit, into: &recorder)
+        }
+        guard case .two(let wobble) = thumbs else { return start }
         var runs: [(letters: [Character], side: Side)] = []
         for letter in word where layout.frame(of: .letter(letter)) != nil {
             let side = layout.side(of: .letter(letter))
@@ -121,11 +128,12 @@ public struct SyntheticTyping: Sendable {
             }
             let duration = aims.count == 1 ? 0.08 : 0.12 + 0.06 * Double(aims.count)
             // The next thumb lands a little before the last one lifts (or, about one time
-            // in four, just after), give or take the wobble.
+            // in four, just after), but not sooner than 70 ms after it landed (about
+            // 170 words a minute), give or take the wobble.
             var down = start
             if let previous {
                 let overlap = -0.05 + 0.19 * Double.random(in: 0..<1, using: &generator)
-                down = max(previous.start + 0.02, previous.end - overlap) + gaussian() * wobble
+                down = max(previous.start + 0.07, previous.end - overlap) + gaussian() * wobble
             }
             let path = aims.count == 1 ? aims : Geometry.walk(aims, step: 6)
             for (i, point) in path.enumerated() {
@@ -138,6 +146,70 @@ public struct SyntheticTyping: Sendable {
             id += 1
         }
         // As the screen reports them: in time order, a touch's own events in theirs.
+        events.sort { $0.time == $1.time ? $0.id < $1.id : $0.time < $1.time }
+        for event in events {
+            recorder.touch(event.phase, id: event.id, x: event.point.x, y: event.point.y, time: event.time)
+        }
+        return lifted
+    }
+
+    /// One word with both thumbs swiping at once, from `start`; returns the last lift.
+    private mutating func typeTogether(_ word: String, wobble: TimeInterval, at start: TimeInterval, id: inout Int,
+                                       unit: CGRect, into recorder: inout TouchRecorder) -> TimeInterval {
+        let letters = Array(word).filter { layout.frame(of: .letter($0)) != nil }
+        var events: [(time: TimeInterval, phase: TouchRecorder.Phase, id: Int, point: CGPoint)] = []
+        var lifted = start
+        let end = start + 0.09 * Double(letters.count)
+        // Each thumb's letters, one swipe each, but a letter again on the same key is a
+        // new touch (a thumb does not swipe from a key to itself).
+        var strokes: [(side: Side, letters: [Int])] = []
+        for side in [Side.left, .right] {
+            for i in letters.indices where layout.side(of: .letter(letters[i])) == side {
+                if let last = strokes.last, last.side == side, letters[last.letters.last!] != letters[i] {
+                    strokes[strokes.count - 1].letters.append(i)
+                } else {
+                    strokes.append((side, [i]))
+                }
+            }
+        }
+        for (stroke, (side, mine)) in strokes.enumerated() {
+            // A stroke followed by another from the same thumb lifts right after its last letter.
+            let followed = strokes.indices.contains(stroke + 1) && strokes[stroke + 1].side == side
+            let habit = side == .left ? left : right
+            var aims: [CGPoint] = []
+            var reached: [TimeInterval] = []
+            for i in mine {
+                let frame = layout.frame(of: .letter(letters[i]))!
+                var aim = CGPoint(x: frame.midX + (habit.dx + gaussian() * noise) * unit.width,
+                                  y: frame.midY + (habit.dy + gaussian() * noise * 0.8) * unit.height)
+                while layout.key(at: aim)?.character == nil {
+                    aim = CGPoint(x: (aim.x + frame.midX) / 2, y: (aim.y + frame.midY) / 2)
+                }
+                aims.append(aim)
+                // When the word gets to this letter, give or take; never before the last.
+                reached.append(max(reached.last.map { $0 + 0.03 } ?? 0, start + 0.09 * Double(i) + gaussian() * wobble))
+            }
+            // The thumb waits on its last key until the word is done, then lifts.
+            let lift = followed ? reached[reached.count - 1] + 0.05
+                : max(reached[reached.count - 1] + 0.08, end + 0.1 * Double.random(in: 0..<1, using: &generator))
+            if aims.count == 1 {
+                events.append((reached[0], .began, id, aims[0]))
+                events.append((reached[0] + 0.08, .ended, id, aims[0]))
+                lifted = max(lifted, reached[0] + 0.08)
+            } else {
+                events.append((reached[0], .began, id, aims[0]))
+                for k in 1..<aims.count {
+                    let leg = Geometry.walk([aims[k - 1], aims[k]], step: 6).dropFirst()
+                    for (j, point) in leg.enumerated() {
+                        let t = reached[k - 1] + (reached[k] - reached[k - 1]) * Double(j + 1) / Double(leg.count)
+                        events.append((t, .moved, id, point))
+                    }
+                }
+                events.append((lift, .ended, id, aims[aims.count - 1]))
+                lifted = max(lifted, lift)
+            }
+            id += 1
+        }
         events.sort { $0.time == $1.time ? $0.id < $1.id : $0.time < $1.time }
         for event in events {
             recorder.touch(event.phase, id: event.id, x: event.point.x, y: event.point.y, time: event.time)

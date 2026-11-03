@@ -202,7 +202,13 @@ import Testing
         }
         #expect(Matcher.orderings(of: [piece("t", at: 0), piece("h", at: 0.5)], swapWindow: 0.12).count == 1)
         #expect(Matcher.orderings(of: [piece("t", at: 0), piece("h", at: 0.05)], swapWindow: 0.12).count == 2)
-        #expect(Matcher.orderings(of: [piece("t", at: 0), piece("h", at: 0.05), piece("e", at: 0.1)], swapWindow: 0.12).count == 4)
+        // Three within the window: any order, the touch-down order first.
+        let three = Matcher.orderings(of: [piece("t", at: 0), piece("h", at: 0.05), piece("e", at: 0.1)], swapWindow: 0.12)
+        #expect(three.count == 6)
+        #expect(three.first.map { String($0.flatMap(\.keys)) } == "the")
+        // At most `limit`, likeliest first: the ones that swap the closest pieces.
+        let many = (0..<5).map { piece(Character(UnicodeScalar(97 + $0)!), at: Double($0) * 0.02) }
+        #expect(Matcher.orderings(of: many, swapWindow: 0.12, limit: 8).count == 8)
     }
 }
 

@@ -48,6 +48,61 @@ import Testing
         let neat = Self.measure(.two(wobble: 0), noise: 0.2)
         let fast = Self.measure(.two(wobble: 0.04), noise: 0.2)
         print(Self.line("two thumbs, neat", neat) + " · " + Self.line("two thumbs, fast", fast))
-        #expect(fast.rate >= 0.0, "\(fast.misses)")
+        #expect(fast.rate >= neat.rate - 0.03, "\(fast.misses)")
+    }
+
+    /// Both thumbs swiping at once ("girls": the right thumb g-i-l while the left swipes
+    /// r-s), the way Gabriel types: 45% before the matcher read the swipes together.
+    @Test func bothThumbsSwipingAtOnce() {
+        let together = Self.measure(.together(wobble: 0.03), noise: 0.2)
+        print(Self.line("both swiping at once", together))
+        #expect(together.rate >= 0.93, "\(together.misses)")
+    }
+
+    /// Two-thumb words take no longer than one swipe's bound (`candidatesAreFast`).
+    @Test func twoThumbWordsAreFast() {
+        let matcher = Matcher(language: ContextMatcherTests.english, layout: Synth.layout)
+        var pieces: [[Piece]] = []
+        for thumbs in [SyntheticTyping.Thumbs.two(wobble: 0.04), .together(wobble: 0.03)] {
+            var typing = SyntheticTyping(layout: Synth.layout, noise: 0.2, thumbs: thumbs, seed: 8)
+            for word in Self.words.prefix(40) { pieces.append(Self.pieces(of: typing.record([word]))) }
+        }
+        _ = matcher.candidates(for: pieces[0])
+        let mean = MatcherTests.fastestMean(of: pieces, matcher)
+        print("matcher, two thumbs: \(String(format: "%.2f", mean)) ms per word (debug, \(pieces.count) words)")
+        #expect(mean < 20, "mean \(mean) ms")
+    }
+
+    /// The pieces of the one word in a recording, as the keyboard made them.
+    static func pieces(of recording: PracticeRecording) -> [Piece] {
+        let layout = Layout.qwerty(width: recording.layoutWidth, split: recording.split, height: recording.layoutHeight)
+        var composer = Composer(language: ContextMatcherTests.english, layout: layout, settings: Replay.settings)
+        var events: [(time: TimeInterval, order: Int, id: Int, point: CGPoint)] = []
+        for touch in recording.touches {
+            for (i, p) in touch.points.enumerated() {
+                let order = i == 0 ? 2 : i == touch.points.count - 1 ? 0 : 1
+                events.append((p[2], order, touch.id, CGPoint(x: p[0] * layout.width, y: p[1] * layout.height)))
+            }
+        }
+        events.sort { $0.time == $1.time ? $0.order < $1.order : $0.time < $1.time }
+        for event in events {
+            switch event.order {
+            case 2: _ = composer.touchDown(id: event.id, at: event.point, time: event.time)
+            case 1: _ = composer.touchMoved(id: event.id, to: event.point, time: event.time)
+            default: _ = composer.touchUp(id: event.id, at: event.point, time: event.time)
+            }
+        }
+        return composer.pieces
+    }
+
+    /// The words Gabriel swiped with both thumbs at once on the Duo (3 Nov 2026), as
+    /// the keyboard recorded them.
+    @Test func gabrielsSwipesTogether() throws {
+        for (file, word) in [("together-girls-1", "girls"), ("together-girls-2", "girls"), ("together-find", "find")] {
+            let url = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("Fixtures/\(file).json")
+            let shared = try JSONDecoder().decode(SharedWord.self, from: Data(contentsOf: url))
+            let outcome = try Replay.run(shared, language: ContextMatcherTests.english)
+            #expect(outcome.words.first?.guesses.first == word, "\(file): \(outcome.words.first?.guesses ?? [])")
+        }
     }
 }

@@ -142,6 +142,9 @@ public struct Matcher: Sendable {
     public var maxEditCost = 1.4
     /// Two pieces that landed this close together are tried in both orders.
     public var swapWindow: TimeInterval = 0.12
+    /// What a letter taken a whole `swapWindow` after its finger had moved on costs,
+    /// when both thumbs swipe at once (`together`): less for less.
+    public var latePenalty = 0.2
     /// How many trie states a search may expand before it stops.
     public var budget = 40_000
 
@@ -315,8 +318,23 @@ public struct Matcher: Sendable {
     /// Every word the pieces fit (in any of the orderings), with its best score.
     private func matches(_ orderings: [[Piece]]) -> [String: Double] {
         var best: [String: Double] = [:]
+        // Thumbs that were down at the same time: their letters, in the order the
+        // fingers reached them. That reading covers the other orders and a tap inside
+        // a swipe, so only the touch-down order is read one piece after another.
+        var orderings = orderings
+        if let pieces = orderings.first, Self.overlap(pieces) {
+            orderings = [pieces]
+            for (word, score) in together(pieces, in: dictionary, prior: nil) {
+                best[word] = max(best[word] ?? -.infinity, score)
+            }
+            if learnedLexicon.nodeCount > 1 {
+                for (word, score) in together(pieces, in: learnedLexicon, prior: ownPrior) {
+                    best[word] = max(best[word] ?? -.infinity, score)
+                }
+            }
+        }
         for ordering in orderings {
-            for segments in segmentations(of: ordering) {
+            for segments in segmentations(of: ordering).prefix(orderings.count == 1 && Self.overlap(ordering) ? 1 : 2) {
                 for (word, score) in search(segments, in: dictionary, prior: nil) {
                     best[word] = max(best[word] ?? -.infinity, score)
                 }
@@ -610,20 +628,38 @@ public struct Matcher: Sendable {
     }
     // MARK: Orderings and segments
 
-    /// The touch-down order, plus each way of swapping two pieces that landed within
-    /// the swap window (at most four orderings).
-    static func orderings(of pieces: [Piece], swapWindow: TimeInterval) -> [[Piece]] {
-        var out = [pieces]
-        guard pieces.count > 1 else { return out }
-        for i in 0..<(pieces.count - 1) where pieces[i + 1].start - pieces[i].start < swapWindow {
-            for ordering in out {
-                var swapped = ordering
-                swapped.swapAt(i, i + 1)
-                out.append(swapped)
+    /// The touch-down order first, then the other orders the pieces may have been meant
+    /// in, likeliest first, at most `limit`. Two thumbs that land close together land
+    /// in either order, so a piece may come before any that landed less than
+    /// `swapWindow` before it, however many there are ("the" tapped t-e with one thumb
+    /// and h with the other, all within a blink). An order is as unlikely as the time
+    /// its swapped pieces landed apart, added up.
+    static func orderings(of pieces: [Piece], swapWindow: TimeInterval, limit: Int = 8) -> [[Piece]] {
+        guard pieces.count > 1, limit > 1 else { return [pieces] }
+        var found: [(cost: TimeInterval, order: [Int])] = []
+        var order: [Int] = []
+        var used = [Bool](repeating: false, count: pieces.count)
+        var visits = 0
+        // Depth first: the next piece is any unused one that landed within the window
+        // of the earliest unused one; the cost is how long after it that one landed.
+        func extend(_ cost: TimeInterval) {
+            visits += 1
+            guard visits < 2000 else { return }
+            guard order.count < pieces.count else { found.append((cost, order)); return }
+            guard let earliest = used.firstIndex(of: false) else { return }
+            for next in earliest..<pieces.count where !used[next] {
+                let late = pieces[next].start - pieces[earliest].start
+                guard late < swapWindow else { break }
+                used[next] = true
+                order.append(next)
+                extend(cost + late)
+                order.removeLast()
+                used[next] = false
             }
-            if out.count >= 4 { break }
         }
-        return Array(out.prefix(4))
+        extend(0)
+        found.sort { $0.cost == $1.cost ? $0.order.lexicographicallyPrecedes($1.order) : $0.cost < $1.cost }
+        return found.prefix(limit).map { $0.order.map { pieces[$0] } }
     }
 
     /// A stretch of one piece that the word's letters are matched against.
@@ -898,7 +934,6 @@ public struct Matcher: Sendable {
 
     private func score(word: String, prior: Float, counts: [Int], segments: [Segment]) -> Double {
         let letters = Array(word)
-        let unit = Double(layout.distanceUnit)
         // The letters each swipe contributed, across all of its segments.
         var swipes: [(points: [CGPoint], letters: [Character])] = []
         var sources: [Int: Int] = [:]
@@ -914,9 +949,18 @@ public struct Matcher: Sendable {
                 swipes.append((segment.points, Array(letters[offset..<(offset + count)])))
             }
         }
+        return score(word: word, prior: prior, swipes: swipes)
+    }
+
+    /// A word's score from the letters each swipe gave it: how far each swipe strayed
+    /// from the path through its letters, and what the word is worth on its own.
+    func score(word: String, prior: Float, swipes: [(points: [CGPoint], letters: [Character])]) -> Double {
+        let unit = Double(layout.distanceUnit)
         var distance = 0.0
         var weight = 0
-        for swipe in swipes where swipe.letters.count > 1 && swipe.points.count > 1 {
+        // A swipe that gave one letter is scored too, against a path that stays on it:
+        // otherwise a word that drops the rest of a swipe pays nothing for it.
+        for swipe in swipes where !swipe.letters.isEmpty && swipe.points.count > 1 {
             let count = swipe.letters.count
             // On a split keyboard a middle letter is on both halves: the swipe's own.
             let side = layout.side(at: swipe.points[0])

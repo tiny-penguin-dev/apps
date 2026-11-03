@@ -138,7 +138,7 @@ import Testing
         _ = matcher.candidates(for: pieces[0])
         let mean = MatcherTests.fastestMean(of: pieces, matcher)
         print("matcher en+es: \(String(format: "%.2f", mean)) ms per word (debug)")
-        #expect(mean < 25, "mean \(mean) ms")
+        #expect(mean < MatcherTests.debugBound, "mean \(mean) ms")
     }
 
     @Test func combinedWeighsEachLanguageTheSame() {

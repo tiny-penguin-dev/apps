@@ -131,11 +131,13 @@ This is the product, so it gets its own section.
 
 - **Keycaps:** Apple's (iOS 26): white keys on light grey in light mode, #464646 keys
   on the system glass in dark, SF Pro regular letters, Apple's glyphs for shift, delete,
-  globe and return, 8.5 pt corners. Only the thumb flashes and trails are ours (Gabriel,
+  globe, emoji and return, 8.5 pt corners. Only the thumb flashes and trails are ours (Gabriel,
   2 Nov 2026).
 - **Layout:** Apple's QWERTY proportions, so muscle memory carries over. Rows of 10, 9
-  and 7 letters, shift and backspace on the third row, `123`, globe, space and return on
-  the fourth. Space reads "Astrotype" when idle, like Apple's reads the language.
+  and 7 letters, shift and backspace on the third row, `123`, emoji, space and return on
+  the fourth, as on Apple's (iOS draws its globe under the keyboard). On a Home button
+  phone, where iOS draws none, our globe sits before the emoji key and space is shorter
+  (`features/emoji`, 3 Nov 2026). Space reads "Astrotype" when idle, like Apple's reads the language.
 - **Size:** every key sits where Apple's does, so muscle memory carries over: the top
   of our top row is the top of Apple's, and the bottom of our bottom row is the bottom
   of Apple's (measured on iOS 26: rows spanning 213 pt on a phone with 7 pt under them,
@@ -183,6 +185,13 @@ This is the product, so it gets its own section.
   capitalised automatically.
 - **Free mode:** one active thumb at a time. A second touch does not type; the bar says
   "Two thumbs is in Astrotype Pro" for 1.6 s. Nothing shakes, nothing is lost.
+- **Emoji page** (`features/emoji`, [mockup](features/emoji/design/mockups/emoji.html),
+  [screens](features/emoji/design/screens/03-emoji.png)): the emoji key swaps the bar and
+  the keys for a sideways grid, five rows high: Frequently used, then Apple's eight
+  categories with their names above them. A strip below has `ABC`, a button per
+  category (the one in view highlighted) and delete. Tapping types the emoji (an open
+  word goes in first, with its space; nothing after the emoji). Holding a hand or a
+  person opens the skin tones; the pick is kept for that emoji.
 - **Not in the mockup, in the build:** slide on space to move the cursor, the numbers
   page, edge swipes, snippets, the globe key switching keyboards. Held keys show their
   accents in a row above the key (á on a, ñ on n, ¿ on ?, when Spanish is on); slide

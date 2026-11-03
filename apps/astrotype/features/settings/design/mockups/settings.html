@@ -52,9 +52,7 @@ body{background:var(--stage);color:var(--ink);font-family:var(--font);
 .phone.wide .h1{font-size:36px}
 .sub{color:var(--muted);font-size:13px;line-height:1.4;margin:0}
 .spacer{flex:1}
-.cols{display:flex;flex-direction:column;gap:8px}
 .col{display:flex;flex-direction:column;gap:8px;min-width:0}
-.phone.wide .cols{display:grid;grid-template-columns:1fr 1fr;gap:0 24px;align-items:start}
 
 /* SectionLabel */
 .sec{font-size:13px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:14px 0 0 6px;display:flex;align-items:center;gap:6px}
@@ -164,6 +162,11 @@ input[type=range]{flex:1;min-width:0;accent-color:var(--accent);height:28px}
 /* before screen */
 .oc{background:var(--card);border-radius:var(--r-md);padding:12px 14px;display:flex;align-items:center;gap:12px}
 .oc .t b{font-size:16px;font-weight:800;display:block}.oc .t span{color:var(--muted);font-size:13px;line-height:1.35}
+.splitview{flex:1;display:grid;grid-template-columns:320px 1fr;min-height:0}
+.splitview .scroll{padding:0 24px 40px}
+.splitview .side{border-right:1px solid var(--line)}
+.splitview .side .statusgrid{grid-template-columns:1fr}
+.r.sel{background:color-mix(in srgb,var(--accent) 14%,transparent)}
 .tag{position:absolute;top:58px;right:22px;z-index:4;font-size:11px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;background:var(--ink);color:var(--bg);padding:4px 8px;border-radius:6px}
 @media (prefers-reduced-motion: reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
 </style>
@@ -171,9 +174,12 @@ input[type=range]{flex:1;min-width:0;accent-color:var(--accent);height:28px}
 <div class="stage">
   <nav class="picker" aria-label="Screens">
     <h1>Settings</h1>
-    <p>The new Settings in the app, and the short list under a held 123 in the keyboard. Switches and sliders work. "Today" shows how it looks now, for comparison.</p>
+    <p>The new Settings in the app: a short main page that opens Typing, Appearance, Your words and Privacy, each on its own page, and the short list under a held 123 in the keyboard. Switches and sliders work. "Today" shows how it looks now, for comparison.</p>
     <small>New</small>
     <button data-go="settings">Settings</button>
+    <button data-go="typing">Typing</button>
+    <button data-go="appearance">Appearance</button>
+    <button data-go="words">Your words</button>
     <button data-go="privacy">Privacy and sharing</button>
     <button data-go="panel">Keyboard: hold 123</button>
     <small>Today</small>
@@ -192,7 +198,7 @@ input[type=range]{flex:1;min-width:0;accent-color:var(--accent);height:28px}
 </div>
 
 <script>
-const S={autospace:true,delay:0.9,strict:80,height:100,bar:true,underline:false,trails:true,haptics:true,
+const S={autospace:true,delay:0.9,strict:80,splitW:80,height:100,bar:true,underline:false,trails:true,haptics:true,
   spaceSlide:true,bsSwipe:true,split:false,extra:false,learn:true,usage:true,practice:false,corrections:false,panelOpen:true,forget:0};
 
 const I={ /* glyphs drawn as tiny SVGs, so the mockup has no icon font */
@@ -239,82 +245,108 @@ function mini(){
   </div>`;
 }
 
-const screens={
-settings(){
-  const typing=`<div class="sec">Typing</div>
+/* ---------- Settings pages: one short main page, then a page per area ---------- */
+const PAGES={
+  typing:{title:"Typing",icon:"thumbs",color:"coral",sub:()=>"Autospace, real words, split words, gestures"},
+  appearance:{title:"Appearance",icon:"height",color:"teal",sub:()=>`Height ${S.height}%, guesses bar, trails, split`},
+  words:{title:"Your words",icon:"book",color:"mint",sub:()=>`214 learned · learning ${S.learn?"on":"off"}`},
+  privacy:{title:"Privacy and sharing",icon:"lock",color:"navy",sub:()=>S.practice?"Sending practice sessions":"Nothing you type is sent"},
+};
+function hubRow(key,sel){const p=PAGES[key];return row({icon:p.icon,color:p.color,title:p.title,sub:p.sub(),go:key,cls:sel===key?"sel":""})}
+function hub(sel){
+  return `<h1 class="h1">Settings</h1>
+    <div class="statusgrid">
+      <button class="stat"><b>Keyboard</b><span><i class="dot"></i>On</span></button>
+      <button class="stat"><b>iCloud sync</b><span><i class="dot"></i>Synced 2 min ago</span></button>
+      <button class="stat"><b>Pro trial</b><span><i class="dot warn"></i>11 days left</span></button>
+    </div>
+    <div class="sec">Keyboard</div>
+    <div class="group">${hubRow("typing",sel)}${hubRow("appearance",sel)}${hubRow("words",sel)}</div>
+    <div class="sec">Account</div>
+    <div class="group">
+      ${hubRow("privacy",sel)}
+      ${row({icon:"star",color:"sun",title:"Astrotype Pro",sub:"Trial · 11 days left",go:sel||"settings"})}
+      ${row({icon:"restore",color:"ice",title:"Restore purchases",end:'<button class="btn">Restore</button>'})}
+      ${row({icon:"info",color:"ice",title:"About",sub:"Version 2.0 (214)",go:sel||"settings"})}
+    </div>`;
+}
+const pageBody={
+  typing:()=>`<h1 class="h1">Typing</h1>
+    <div class="sec">Words</div>
     <div class="group">
       ${row({icon:"thumbs",color:"coral",title:"Two-thumb typing",sub:"Taps and swipes from both thumbs, in one word",end:'<span class="pro">PRO</span>'})}
       ${row({icon:"space",color:"teal",title:"Autospace",sub:"Puts a swiped word in after a pause",end:tg("autospace","Autospace")})}
       <div class="sl indent ${S.autospace?"":"dim"}" id="delayRow"><div class="ends">Quick<input type="range" id="delay" min="0.1" max="1.5" step="0.1" value="${S.delay}" aria-label="Autospace wait">Relaxed<span class="val" style="color:var(--ink);width:40px;text-align:right" id="delayV">${S.delay.toFixed(1)} s</span></div></div>
       <div class="sl"><div class="top"><b>Real words</b><span class="val" id="strictV">${S.strict}%</span></div>
         <div class="ends">As tapped<input type="range" id="strict" min="0" max="100" value="${S.strict}" aria-label="Real words">Words only</div></div>
+      <div class="sl"><div class="top"><b>Split words</b><span class="val" id="splitWV">${S.splitW}%</span></div>
+        <div class="ends">Never<input type="range" id="splitW" min="0" max="100" value="${S.splitW}" aria-label="Split words">Whenever it's sure</div></div>
     </div>
-    <p class="foot">Real words: how sure the keyboard must be before it swaps letters you tapped for a word. At 100% it only types real words.</p>`;
-  const keyboard=`<div class="sec">Keyboard</div>
+    <p class="foot">Real words: how sure the keyboard must be before it swaps letters you tapped for a word. Split words: how sure before it puts a space into letters that read as two words, like textseparately.</p>
+    <div class="sec">Gestures</div>
+    <div class="group">
+      ${row({icon:"cursor",color:"teal",title:"Slide on space",sub:"Move the cursor",end:tg("spaceSlide","Slide on space")})}
+      ${row({icon:"del",color:"coral",title:"Swipe left on ⌫",sub:"Delete the last word",end:tg("bsSwipe","Swipe left on delete")})}
+    </div>`,
+  appearance:()=>`<h1 class="h1">Appearance</h1>
+    <div class="sec">Size</div>
     <div class="group">
       <div class="preview" id="preview">${mini()}</div>
       <div class="sl"><div class="top"><b>Height</b><span class="val" id="heightV">${S.height}%</span></div>
         <div class="ends">Shorter<input type="range" id="height" min="80" max="120" step="5" value="${S.height}" aria-label="Keyboard height">Taller</div></div>
       ${row({icon:"bar",color:"teal",title:"Guesses bar",sub:"Above the keys on a phone",end:tg("bar","Guesses bar")})}
+    </div>
+    <p class="foot">At 100% every key sits where Apple's does. The guesses bar adds to the height.</p>
+    <div class="sec">Look and feel</div>
+    <div class="group">
       ${row({icon:"trails",color:"coral",title:"Trails and flashes",sub:"Off saves battery",end:tg("trails","Trails and flashes")})}
-      ${row({icon:"haptics",color:"navy",title:"Haptics",end:tg("haptics","Haptics")})}
+      ${row({icon:"haptics",color:"navy",title:"Haptics",sub:"A soft tap on each key",end:tg("haptics","Haptics")})}
       ${row({icon:"underline",color:"navy",title:"Underline the open word",sub:"In other apps",end:tg("underline","Underline the open word")})}
     </div>
-    <p class="foot">At 100% every key sits where Apple's does. The guesses bar adds to the height.</p>`;
-  const gestures=`<div class="sec">Gestures</div>
-    <div class="group">
-      ${row({icon:"cursor",color:"teal",title:"Slide on space",sub:"Move the cursor",end:tg("spaceSlide","Slide on space")})}
-      ${row({icon:"del",color:"coral",title:"Swipe left on ⌫",sub:"Delete the last word",end:tg("bsSwipe","Swipe left on delete")})}
-    </div>`;
-  const wideGroup=`<div class="sec">Wide screens <span class="pro">PRO</span></div>
+    <div class="sec">Wide screens <span class="pro">PRO</span></div>
     <div class="group">
       ${row({icon:"split",color:"sun",title:"Layout",sub:"On the iPhone Duo's inner screen"})}
       <div class="seg" role="group" aria-label="Layout on wide screens"><button aria-pressed="${!S.split}" data-split="0">Full</button><button aria-pressed="${S.split}" data-split="1">Split</button></div>
       ${S.split?row({title:"Extra letters on split",sub:"Y H B on the left, T F C on the right, for swiping across",end:tg("extra","Extra letters on split")}):""}
-    </div>`;
-  const words=`<div class="sec">Your words</div>
+    </div>`,
+  words:()=>`<h1 class="h1">Your words</h1>
     <div class="group">
-      ${row({icon:"book",color:"mint",title:"Learned words",go:"settings",end:'<span class="val">214</span>'})}
+      ${row({icon:"book",color:"mint",title:"Learned words",go:"words",end:'<span class="val">214</span>'})}
       ${row({icon:"brain",color:"mint",title:"Learns from you",sub:S.learn?"1,208 word pairs, thumbs mapped":"Off. Learns nothing, uses nothing.",end:tg("learn","Learns from you")})}
-      <button class="r danger" id="forget"><div class="t"><b>${S.forget===0?"Forget what it learned":S.forget===1?"Tap again to forget":"Forgotten"}</b><span>Word pairs and thumb spots, on every device. Learned words stay.</span></div></button>
-    </div>`;
-  const more=`<div class="sec">More</div>
+    </div>
+    <p class="foot">Your word pairs and where your thumbs land, kept on this phone and synced to your other devices with Full Access.</p>
     <div class="group">
-      ${row({icon:"lock",color:"navy",title:"Privacy and sharing",sub:S.practice?"Sending practice sessions":"Nothing you type is sent",go:"privacy"})}
-      ${row({icon:"star",color:"sun",title:"Astrotype Pro",sub:"Trial · 11 days left",go:"settings"})}
-      ${row({icon:"restore",color:"ice",title:"Restore purchases",end:'<button class="btn">Restore</button>'})}
-      ${row({icon:"info",color:"ice",title:"About",sub:"Version 2.0 (214) · word pairs from Tatoeba",go:"settings"})}
-    </div>`;
-  return `${status()}<div class="screen">
-    <div class="nav"><button class="back" data-go="settings">‹ Home</button></div>
-    <div class="scroll">
-      <h1 class="h1">Settings</h1>
-      <div class="statusgrid">
-        <button class="stat"><b>Keyboard</b><span><i class="dot"></i>On</span></button>
-        <button class="stat"><b>iCloud sync</b><span><i class="dot"></i>Synced 2 min ago</span></button>
-        <button class="stat"><b>Pro trial</b><span><i class="dot warn"></i>11 days left</span></button>
-      </div>
-      <div class="cols"><div class="col">${typing}${keyboard}</div><div class="col">${gestures}${wideGroup}${words}${more}</div></div>
-    </div></div>`;
-},
-privacy(){
-  return `${status()}<div class="screen">
-    <div class="nav"><button class="back" data-go="settings">‹ Settings</button></div>
-    <div class="scroll" style="max-width:${wide()?"560px":"none"};margin:0 auto;width:100%">
-      <h1 class="h1">Privacy and sharing</h1>
-      <p class="sub" style="font-size:15px;margin:0 6px">Nothing you type in other apps is ever sent. These are the few things you can choose to share.</p>
-      <div class="sec">Crash reports</div>
-      <div class="group">${row({icon:"chart",color:"navy",title:"Share anonymous usage data",sub:"Crashes and counts, like how many people turn the keyboard on",end:tg("usage","Share anonymous usage data")})}</div>
-      <div class="sec">Help tune the keyboard</div>
-      <div class="group">
-        ${row({icon:"send",color:"teal",title:"Send practice sessions",sub:"Words from speed tests and drills, with your thumb paths",end:tg("practice","Send practice sessions")})}
-        ${row({icon:"fix",color:"coral",title:"Include corrections",sub:S.practice?"The word you wrote and the one you meant":"Turn on practice sessions first",end:tg("corrections","Include corrections",!S.practice)})}
-        ${row({icon:"eye",color:"mint",title:"What gets shared",sub:"3 words waiting. See them before they go.",go:"privacy"})}
-        ${row({icon:"words",color:"mint",title:"Practice words",sub:"Common words, one at a time, no timer",go:"privacy"})}
-      </div>
-      <p class="foot">Sent one word at a time with no name attached, so nobody can read a sentence back.</p>
-    </div></div>`;
-},
+      <button class="r danger" id="forget"><div class="t"><b>${S.forget===0?"Forget what it learned":S.forget===1?"Tap again to forget":"Forgotten"}</b><span>Word pairs and thumb spots, on every device. Learned words stay.</span></div></button>
+    </div>`,
+  privacy:()=>`<h1 class="h1">Privacy and sharing</h1>
+    <p class="sub" style="font-size:15px;margin:0 6px">Nothing you type in other apps is ever sent. These are the few things you can choose to share.</p>
+    <div class="sec">Crash reports</div>
+    <div class="group">${row({icon:"chart",color:"navy",title:"Share anonymous usage data",sub:"Crashes and counts, like how many people turn the keyboard on",end:tg("usage","Share anonymous usage data")})}</div>
+    <div class="sec">Help tune the keyboard</div>
+    <div class="group">
+      ${row({icon:"send",color:"teal",title:"Send practice sessions",sub:"Words from speed tests and drills, with your thumb paths",end:tg("practice","Send practice sessions")})}
+      ${row({icon:"fix",color:"coral",title:"Include corrections",sub:S.practice?"The word you wrote and the one you meant":"Turn on practice sessions first",end:tg("corrections","Include corrections",!S.practice)})}
+      ${row({icon:"eye",color:"mint",title:"What gets shared",sub:"3 words waiting. See them before they go.",go:"privacy"})}
+      ${row({icon:"words",color:"mint",title:"Practice words",sub:"Common words, one at a time, no timer",go:"privacy"})}
+    </div>
+    <p class="foot">Sent one word at a time with no name attached, so nobody can read a sentence back.</p>`
+};
+/* Phone: the main page, or one page with a back button. Wide: the main page as a sidebar, the chosen page beside it. */
+function shell(name){
+  if(wide()){
+    const sel=name==="settings"?"typing":name;
+    return `${status()}<div class="screen"><div class="nav"><button class="back" data-go="settings">‹ Home</button></div>
+      <div class="splitview"><div class="scroll side">${hub(sel)}</div><div class="scroll main">${pageBody[sel]()}</div></div></div>`;
+  }
+  if(name==="settings")return `${status()}<div class="screen"><div class="nav"><button class="back" data-go="settings">‹ Home</button></div><div class="scroll">${hub()}</div></div>`;
+  return `${status()}<div class="screen"><div class="nav"><button class="back" data-go="settings">‹ Settings</button></div><div class="scroll">${pageBody[name]()}</div></div>`;
+}
+const screens={
+settings(){return shell("settings")},
+typing(){return shell("typing")},
+appearance(){return shell("appearance")},
+words(){return shell("words")},
+privacy(){return shell("privacy")},
 panel(){
   const tiles=[["autospace","Autospace","space"],["bar","Guesses bar","bar"],["haptics","Haptics","haptics"],["trails","Trails","trails"]];
   if(wide())tiles.push(["split","Split","split"]);
@@ -331,6 +363,7 @@ panel(){
           <div class="pcard">
             <div class="prow"><b>Height</b><input type="range" id="height" min="80" max="120" step="5" value="${S.height}" aria-label="Keyboard height"><span class="val" id="heightV">${S.height}%</span></div>
             <div class="prow"><b>Real words</b><input type="range" id="strict" min="0" max="100" value="${S.strict}" aria-label="Real words"><span class="val" id="strictV">${S.strict}%</span></div>
+            <div class="prow"><b>Split words</b><input type="range" id="splitW" min="0" max="100" value="${S.splitW}" aria-label="Split words"><span class="val" id="splitWV">${S.splitW}%</span></div>
             <div class="prow ${S.autospace?"":"dim"}" id="delayRow"><b>Wait</b><input type="range" id="delay" min="0.1" max="1.5" step="0.1" value="${S.delay}" aria-label="Autospace wait"><span class="val" id="delayV">${S.delay.toFixed(1)} s</span></div>
           </div>
           <div class="pfoot">More in the Astrotype app</div>
@@ -409,6 +442,7 @@ function wire(){
   const bind=(id,key,fmt,live)=>{const el=phone.querySelector("#"+id);if(!el)return;el.oninput=()=>{S[key]=+el.value;phone.querySelector("#"+id+"V").textContent=fmt(S[key]);live&&live()}};
   bind("delay","delay",v=>v.toFixed(1)+" s");
   bind("strict","strict",v=>v+"%");
+  bind("splitW","splitW",v=>v+"%");
   bind("height","height",v=>v+"%",()=>{const p=phone.querySelector("#preview");if(p)p.innerHTML=mini()});
   const f=phone.querySelector("#forget");if(f)f.onclick=()=>{if(S.forget<2){S.forget++;rerender()}};
   const d=phone.querySelector("#done");if(d)d.onclick=()=>{S.panelOpen=false;rerender()};

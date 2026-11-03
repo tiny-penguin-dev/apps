@@ -1,12 +1,14 @@
 # Astrotype: Settings redesign
 
-Settings gets tidier and nicer to look at: rows grouped into a few cards with short
-labels, the rarely touched privacy rows on their own screen, a live keyboard preview
-for the height, and a short list of core switches under a held `123` in the keyboard.
+Settings gets tidier and nicer to look at, and ready to grow: a short main page that
+opens one page per area (Typing, Appearance, Your words, Privacy and sharing), rows
+grouped into cards with short labels, a live keyboard preview for the height, and a
+short list of core switches under a held `123` in the keyboard.
 
 Gabriel, 3 Nov 2026: "Improve the settings screen. I want it to be a bit more organized
 and look better. It's okay to keep most of the settings in the main app but have some
-core ones in the keyboard by holding 123."
+core ones in the keyboard by holding 123." Then: "These settings are going to grow a
+lot. Separate features from appearance in different pages."
 
 ## Product
 
@@ -22,15 +24,26 @@ Status: Draft
   and for people without Full Access, where the app's Settings can't reach the keyboard.
 - **Basics or powerful:** basics. Nothing new to learn, only easier to find.
 - **How it works:**
-  - *App Settings:* three status tiles at the top (keyboard, iCloud sync, Pro), then
-    groups: Typing, Keyboard, Gestures, Wide screens, Your words, More. Long
-    explanations become one short footnote under a group. Privacy and sharing (five
-    rows) moves to its own screen under More, next to Pro, Restore and About.
+  - *Settings (main page):* three status tiles at the top (keyboard, iCloud sync, Pro),
+    then two short groups of links. Keyboard: Typing, Appearance, Your words. Account:
+    Privacy and sharing, Astrotype Pro, Restore purchases, About. Each link says what's
+    inside or its current state ("Height 100%, guesses bar, trails, split").
+  - *One page per area:* Typing is what the keyboard does (two thumbs, autospace, real
+    words, gestures). Appearance is how it looks and feels (height, guesses bar, trails,
+    haptics, underline, the wide-screen layout). Your words is learned words and
+    learning. Privacy and sharing holds the five sharing rows. New settings go on the
+    page they belong to, so the main page stays the same length as the app grows; a page
+    that gets long splits into its own sections or sub-pages the same way.
+  - Long explanations become one short footnote under a group.
   - *In the keyboard (hold `123`):* the core few. Four quick tiles (Autospace, Guesses
-    bar, Haptics, Trails, plus Split on a wide screen) and three sliders (Height, Real
-    words, Wait). A line at the bottom says the rest is in the app.
-- **What it changes:** `SettingsView` (screen 9), a new Privacy and sharing screen, and
-  `SettingsPanelView`. No setting is added or removed, and no stored value changes.
+    bar, Haptics, Trails, plus Split on a wide screen) and four sliders (Height, Real
+    words, Split words, Wait). A line at the bottom says the rest is in the app.
+- **Split words** (`KeyboardSettings.splitStrictness`, 0 to 100%, 80% by default) is
+  being added in its own PR from the auto-split thread, right under Real words in
+  today's screens. This redesign moves it with Real words: on the Typing page and in
+  the panel. Slider ends "Never" and "Whenever it's sure".
+- **What it changes:** `SettingsView` (screen 9) becomes the main page, four new pages
+  (Typing, Appearance, Your words, Privacy and sharing), and `SettingsPanelView`. No setting is added or removed, and no stored value changes.
   "Learn from my typing" and "Forget" leave the keyboard panel (see open questions).
 - **Scope:** this version: the layout and look above. Later: search in Settings.
   Never: a setting that only exists in the keyboard.
@@ -56,28 +69,35 @@ Status: Draft
 
   | Screen | Before | After |
   |---|---|---|
-  | Settings | [today](design/screens/10-before-settings.png) | [top](design/screens/01-settings.png), [lower](design/screens/02-settings-lower.png), [dark](design/screens/03-settings-dark.png) |
-  | Keyboard panel (hold `123`) | [today](design/screens/11-before-panel.png) | [new](design/screens/07-panel.png), [dark](design/screens/08-panel-dark.png) |
+  | Settings | [today](design/screens/12-before-settings.png) | [main page](design/screens/01-settings.png) |
+  | Keyboard panel (hold `123`) | [today](design/screens/13-before-panel.png) | [new](design/screens/09-panel.png), [dark](design/screens/10-panel-dark.png) |
 
-  Settings, top to bottom:
+  *Settings, the main page* ([01](design/screens/01-settings.png)):
   - *Status tiles:* Keyboard (On / Not on yet, taps to the setup screen), iCloud sync
     (last synced, or Set up), Pro trial (days left, or Pro). A dot in mint when fine,
     sun yellow when it wants a look.
-  - *Typing:* Two-thumb typing (PRO), Autospace with its wait slider right under it
-    (dimmed when off), Real words with its value. Footnote explains Real words.
-  - *Keyboard:* a live preview of the keyboard at the chosen height, with or without the
-    guesses bar, then Height, Guesses bar, Trails and flashes, Haptics, Underline the
-    open word. Footnote: "At 100% every key sits where Apple's does."
-  - *Gestures:* Slide on space, Swipe left on ⌫.
-  - *Wide screens* (PRO in the section label): Full / Split, and Extra letters when split.
-  - *Your words:* Learned words (count, opens the list), Learns from you (with the
-    summary as its subtitle), Forget what it learned (red, asks to confirm as today).
-  - *More:* Privacy and sharing ›, Astrotype Pro ›, Restore purchases, About ›.
-  - Full Access note and Tatoeba credit move into the sync tile's screen and About.
-- **New screens:** Privacy and sharing ([06](design/screens/06-privacy.png)): one line
-  up top ("Nothing you type in other apps is ever sent"), then Share anonymous usage
-  data, and a "Help tune the keyboard" group: Send practice sessions, Include
-  corrections (dimmed until practice is on), What gets shared ›, Practice words ›.
+  - *Keyboard:* Typing ›, Appearance ›, Your words ›, each with a one-line summary.
+  - *Account:* Privacy and sharing ›, Astrotype Pro ›, Restore purchases, About ›.
+  - The Full Access note moves to the sync tile's screen, the Tatoeba credit to About.
+- **New screens:**
+  - *Typing* ([02](design/screens/02-typing.png)): Words group (Two-thumb typing PRO,
+    Autospace with its wait slider right under it and dimmed when off, Real words and
+    Split words with their values and one footnote for both), then Gestures (Slide on space, Swipe left on ⌫).
+  - *Appearance* ([03](design/screens/03-appearance.png),
+    [dark](design/screens/04-appearance-dark.png)): Size (a live preview of the keyboard
+    at the chosen height, with or without the guesses bar, then Height and Guesses bar),
+    Look and feel (Trails and flashes, Haptics, Underline the open word), Wide screens
+    with PRO in the label (Full / Split, Extra letters when split).
+  - *Your words* ([05](design/screens/05-words.png)): Learned words (count, opens the
+    list), Learns from you (the summary as its subtitle), and Forget what it learned in
+    its own card, red, asking to confirm as today.
+  - *Privacy and sharing* ([06](design/screens/06-privacy.png)): one line up top
+    ("Nothing you type in other apps is ever sent"), Share anonymous usage data, and a
+    "Help tune the keyboard" group: Send practice sessions, Include corrections (dimmed
+    until practice is on), What gets shared ›, Practice words ›.
+  - Where a new setting goes: if it changes what a touch does, Typing; if it changes
+    what you see or feel, Appearance; if it's about what the keyboard remembers, Your
+    words. A page that passes about a dozen rows gets a sub-page for its rarer group.
 - **Motion and copy:** toggles and screens keep the `spring`. The preview keys grow and
   shrink with a spring as the height slider moves. Quick tiles squeeze to 95% on press
   and fill with `accent` when on. Copy is shorter: every subtitle fits on one or two
@@ -86,7 +106,7 @@ Status: Draft
   `Slider`, `Chip`, `ProBadge`, `PrimaryButton.small`. Adds four components, named the
   same in the mockup CSS and the code:
   - `Group`: one card with several rows and hairlines between them (replaces one card
-    per row in Settings).
+    per row in Settings). Link rows use the same `Row` with a chevron.
   - `IconTile`: a 30 pt rounded square with a glyph (SF Symbols in the app), colored by
     what the row is about: teal typing, coral the right-thumb things (trails, delete),
     mint your words, sun Pro, slate system rows.
@@ -94,24 +114,26 @@ Status: Draft
   - `KeyboardPreview`: a small keyboard drawn from `Layout` at the chosen height.
   One new color token, `danger` (`#E0526A` / `#FF7A8E`), the right-thumb coral made a
   little darker so red text passes contrast, for Forget.
-- **Sizes:** Small ([04](design/screens/04-settings-small.png)) is the phone layout
-  with a little less height; the status tiles wrap their second line. Wide
-  ([05](design/screens/05-settings-wide.png), [panel](design/screens/09-panel-wide.png))
-  puts Settings in two columns (Typing and Keyboard left, the rest right) and adds the
-  Split tile to the panel. On resize the columns reflow and the scroll position stays
-  on the same group. The panel fits the keyboard's height without scrolling at 100% on
-  every phone; at 80% or with large text it scrolls, as today.
+- **Sizes:** Small ([07](design/screens/07-settings-small.png)) is the phone layout
+  with a little less height. Wide ([08](design/screens/08-settings-wide.png),
+  [panel](design/screens/11-panel-wide.png)) shows the main page as a sidebar and the
+  chosen page beside it (Typing to start), like Apple's Settings on iPad, and adds the
+  Split tile to the panel. On resize (folding the Duo) the open page stays open: wide
+  to phone pushes it over the main page with a back button, phone to wide puts the
+  sidebar back beside it. The panel is about 300 pt tall with four sliders, a
+  little more than the keys' space without the guesses bar, so on a phone the last
+  slider may sit under a short scroll (it scrolls as today, with the indicator flashed).
 - **Accessibility:** icon tiles are decorative (the row's title is the label). Quick
   tiles are switches with their label as the name. The preview reads "Keyboard at 100%".
   At the largest text sizes rows wrap, the status tiles stack to one column, and the
   panel's four tiles become two rows of two.
 - **Open questions** for Gabriel
-  1. Icon tiles on every row (as in the mockup) or only on the group headers? They make
-     the list easier to scan but busier.
+  1. Icon tiles on every row (as in the mockup) or only on the main page's links? They
+     make the lists easier to scan but busier.
 
 ## Build
 
 Status: Not started
 
-- **Last step:** fold this into `PRODUCT.md` and `DESIGN.md` (screen 9 and the panel
-  note under "Not drawn yet").
+- **Last step:** fold this into `PRODUCT.md` and `DESIGN.md` (screen 9, the new pages
+  and the panel note under "Not drawn yet").

@@ -106,3 +106,16 @@ import Testing
         }
     }
 }
+
+/// A word typed in two halves, one thumb after the other, is the word, not two words
+/// with a missed space ("afternoon", not "after noon").
+@Suite struct TwoThumbCompoundTests {
+    @Test func aCompoundWordIsNotSplit() {
+        for (first, second, word) in [("after", "non", "afternoon"), ("everyda", "y", "everyday"), ("some", "one", "someone"), ("with", "out", "without")] {
+            var composer = ContextMatcherTests.composer()
+            let rest: Synth.Stroke = second.count == 1 ? .tap(second.first!, id: 2, at: 0.6) : .swipe(second, id: 2, from: 0.6, to: 1.0)
+            Synth.play(&composer, [.swipe(first, id: 1, from: 0, to: 0.5), rest])
+            #expect(composer.state.openWord == word, "\(first)|\(second): \(composer.state.bar)")
+        }
+    }
+}

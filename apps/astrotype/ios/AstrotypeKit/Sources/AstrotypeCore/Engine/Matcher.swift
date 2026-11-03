@@ -274,7 +274,12 @@ public struct Matcher: Sendable {
         // word fits at all), as sure as `splitStrictness` asks; otherwise it waits in
         // the bar behind the first guess.
         let joined = out.first ?? Candidate(word: "", score: priorWeight * Double(unknownPrior))
-        let sure = splitStrictness > 0 && split.score > joined.score + splitMargin
+        // The two halves are one common word the pieces also fit ("after" then "noon" is
+        // "afternoon"): two thumbs type a word in halves, so the word goes first. A
+        // rare run-together ("alot") still splits.
+        let together = split.word.replacingOccurrences(of: " ", with: "")
+        let oneWord = out.contains { $0.word == together } && (dictionary.logPrior(of: together) ?? -.infinity) >= compoundPrior
+        let sure = !oneWord && splitStrictness > 0 && split.score > joined.score + splitMargin
             && confidence(of: split, over: joined) >= 1 - splitStrictness
         guard !out.isEmpty else { return [split] }
         let rest = Array(out.prefix(limit - 1))
@@ -464,6 +469,10 @@ public struct Matcher: Sendable {
     /// like "ep" and "xt" that would split almost anything.
     public var splitLongPrior: Float = -10
     public var splitShortPrior: Float = -7
+    /// The rarest (log prior) the halves of a split run together may be and still be
+    /// written as one word ("afternoon" at -6.9 and "everyday" at -7.5 are; "alot" at
+    /// -8.7 is not).
+    public var compoundPrior: Float = -8
     /// How much better the best split must score than the next one to be offered: two
     /// readings that close are not an obvious missed space.
     public var splitMargin = 0.1

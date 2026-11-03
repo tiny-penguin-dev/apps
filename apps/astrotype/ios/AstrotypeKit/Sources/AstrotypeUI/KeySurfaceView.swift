@@ -18,6 +18,12 @@ public protocol KeySurfaceDelegate: AnyObject {
     func keySurfaceDidSwipeBackspace(_ surface: KeySurfaceView)
     /// A finger held the "123" key.
     func keySurfaceDidHoldNumbers(_ surface: KeySurfaceView)
+    /// A finger on "123" slid off it before the hold: show the numbers page under the
+    /// finger, so it can lift on a number or symbol (Apple's slide from 123).
+    func keySurfaceDidSlideOffNumbers(_ surface: KeySurfaceView)
+    /// That finger lifted, on `key` (nil off the keys), after its tap went out:
+    /// go back to the letters unless it lifted on a page key.
+    func keySurface(_ surface: KeySurfaceView, didEndNumbersSlideOn key: Key?)
     /// A finger held a letter and lifted on another letter from its callout ("ñ" from
     /// n): the touch `id` types that letter instead (features/languages).
     func keySurface(_ surface: KeySurfaceView, picked letter: Character, touch id: Int, time: TimeInterval)
@@ -28,8 +34,10 @@ public protocol KeySurfaceDelegate: AnyObject {
 /// up) so the engine can tell taps from swipes; the other keys report a tap, or one of
 /// the keyboard's gestures (DESIGN.md "The keyboard"): a slide on space moves the
 /// cursor, a swipe left from backspace deletes a word, backspace held repeats, "123"
-/// held opens the settings. Keys flash in the thumb's colour (teal left, coral right),
-/// taps leave a ring that pings out, swipes draw a trail that fades after lift.
+/// held opens the settings, and a slide off "123" shows the numbers page until the
+/// finger lifts, types the key it lifts on and goes back to the letters, like Apple's.
+/// Keys flash in the thumb's colour (teal left, coral right), taps leave a ring that
+/// pings out, swipes draw a trail that fades after lift.
 ///
 ///     let surface = KeySurfaceView()
 ///     surface.delegate = self
@@ -76,6 +84,8 @@ public final class KeySurfaceView: UIView {
     public static let cursorStep: CGFloat = 12
     /// How far left of backspace a swipe has to travel to delete a word.
     public static let wordSwipe: CGFloat = 40
+    /// How far a finger travels from "123" before the numbers page comes up under it.
+    public static let numbersSlide: CGFloat = 12
     static let holdDelay: TimeInterval = 0.45
     static let repeatInterval: TimeInterval = 0.09
 
@@ -95,6 +105,8 @@ public final class KeySurfaceView: UIView {
         var hold: Task<Void, Never>?
         /// The accents shown for a held key, when they are up.
         var callout: AccentCallout?
+        /// A slide from "123" put the numbers page up for this touch.
+        var slidFromNumbers = false
     }
 
     /// The views per key: space is placed twice on a split keyboard.
@@ -299,12 +311,25 @@ public final class KeySurfaceView: UIView {
                     delegate?.keySurfaceDidSwipeBackspace(self)
                 }
             default:
-                let now = layout.key(at: point)
+                var now = layout.key(at: point)
+                // A tap on "123" that drifts a little past its edge is still a tap.
+                if touchState.startKey == .numbers, !touchState.slidFromNumbers,
+                   hypot(point.x - touchState.startPoint.x, point.y - touchState.startPoint.y) < Self.numbersSlide {
+                    now = .numbers
+                }
                 if now != touchState.key {
                     if let was = touchState.key { unflash(was) }
+                    if touchState.startKey == .numbers { touchState.hold?.cancel() }
+                    if touchState.startKey == .numbers, layout.page == .letters, !touchState.gestured, !touchState.slidFromNumbers {
+                        // Off "123" before the hold: the numbers page comes up under the
+                        // finger (the delegate swaps `layout`).
+                        touchState.slidFromNumbers = true
+                        active[oid] = touchState
+                        delegate?.keySurfaceDidSlideOffNumbers(self)
+                        now = layout.key(at: point)
+                    }
                     if let now { flash(now, side: touchState.side) }
                     touchState.key = now
-                    if touchState.startKey == .numbers { touchState.hold?.cancel() }
                 }
             }
             active[oid] = touchState
@@ -341,6 +366,9 @@ public final class KeySurfaceView: UIView {
             } else if !touchState.gestured, let key = touchState.key {
                 delegate?.keySurface(self, didTap: key, side: touchState.side)
             }
+            if touchState.slidFromNumbers {
+                delegate?.keySurface(self, didEndNumbersSlideOn: touchState.key)
+            }
         }
     }
 
@@ -353,6 +381,9 @@ public final class KeySurfaceView: UIView {
             touchState.trail?.removeFromSuperlayer()
             if touchState.isLetter {
                 delegate?.keySurface(self, touchCancelled: touchState.id, time: touch.timestamp)
+            }
+            if touchState.slidFromNumbers {
+                delegate?.keySurface(self, didEndNumbersSlideOn: nil)
             }
         }
     }

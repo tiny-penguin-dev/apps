@@ -235,7 +235,9 @@ writes the open word with nothing after it, then the host moves the cursor, 12 p
 character) and `deleteWord` (a 40 pt swipe left from backspace drops the open word, or
 the previous word and the space after it). Backspace held repeats after 0.45 s every
 90 ms. Numbers and symbols are Apple's pages, same key size and height as the letters;
-a space on them goes back to the letters. "123" held for 0.45 s opens the settings
+a space on them goes back to the letters, and a finger that slides 12 pt off "123" (before
+the hold) puts the numbers page under it, types the key it lifts on and goes back to the
+letters (lifting on "#+=" or "ABC" keeps that page). "123" held for 0.45 s opens the settings
 panel over the keys: autospace, its delay (0.5 to 1.5 s) and trails, kept as
 `KeyboardSettings` in the extension's own `UserDefaults` (no App Group yet, so the app
 and the keyboard each have their own until Phase 5 moves them to the group and

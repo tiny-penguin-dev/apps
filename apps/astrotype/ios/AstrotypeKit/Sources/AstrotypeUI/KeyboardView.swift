@@ -279,6 +279,19 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         showSettings()
     }
 
+    public func keySurfaceDidSlideOffNumbers(_ surface: KeySurfaceView) {
+        page = .numbers
+    }
+
+    public func keySurface(_ surface: KeySurfaceView, didEndNumbersSlideOn key: Key?) {
+        // Lifting on "#+=" or "ABC" keeps the page that key chose; anything else
+        // (a number, a symbol, space, return, backspace, off the keys) goes back.
+        switch key {
+        case .symbols, .letters, .numbers: break
+        default: page = .letters
+        }
+    }
+
     public func keySurface(_ surface: KeySurfaceView, picked letter: Character, touch id: Int, time: TimeInterval) {
         model.pick(letter, touch: id, time: time)
     }

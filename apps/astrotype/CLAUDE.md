@@ -87,7 +87,7 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
       keyboard's views: `KeyboardView` (bar plus keys, the pages, the settings panel;
       owns a `KeyboardModel`), `BarView`, `KeySurfaceView` (touch stream, flashes,
       trails, rings, and the gestures: space slide, backspace swipe and hold, "123"
-      hold, and a held letter's accents, `AccentCallout`), `SettingsPanelView`, `KeyboardModel` (applies the composer's effects to a
+      hold, the slide from "123" to a number or symbol, and a held letter's accents, `AccentCallout`), `SettingsPanelView`, `KeyboardModel` (applies the composer's effects to a
       `TextTarget`, runs the autospace timer, keeps the settings and the learned words, loads the languages that are on,
       learns, boosts and forgets, and feeds each settled word to the personal model; `TextViewTarget` for a `UITextView`),
       `SyncController` (a model's words and settings in step with a `CloudSync`),

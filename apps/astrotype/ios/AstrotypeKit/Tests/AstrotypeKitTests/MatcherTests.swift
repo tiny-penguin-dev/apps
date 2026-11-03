@@ -178,6 +178,16 @@ import Testing
         #expect(composer.state.openWord == "coffee")
     }
 
+    /// The tap need not land exactly while the swipe is over its place: a little early
+    /// (the finger still on "e") or a little late (already past "l") is still "hello".
+    @Test func aTapInsideASwipeMayBeALittleEarlyOrLate() {
+        for time in [0.22, 0.3, 0.5] {
+            var composer = Synth.composer()
+            Synth.play(&composer, [.swipe("helo", id: 1, from: 0, to: 0.6), .tap("l", id: 2, at: time)])
+            #expect(composer.state.openWord == "hello", "tap at \(time): \(composer.state.bar)")
+        }
+    }
+
     /// Two taps that land within the swap window are read in the order that spells a word.
     @Test func tapsThatLandTogetherAreTriedBothWays() {
         var composer = Synth.composer()
@@ -208,7 +218,13 @@ import Testing
         }
         #expect(Matcher.orderings(of: [piece("t", at: 0), piece("h", at: 0.5)], swapWindow: 0.12).count == 1)
         #expect(Matcher.orderings(of: [piece("t", at: 0), piece("h", at: 0.05)], swapWindow: 0.12).count == 2)
-        #expect(Matcher.orderings(of: [piece("t", at: 0), piece("h", at: 0.05), piece("e", at: 0.1)], swapWindow: 0.12).count == 4)
+        // Three within the window: any order, the touch-down order first.
+        let three = Matcher.orderings(of: [piece("t", at: 0), piece("h", at: 0.05), piece("e", at: 0.1)], swapWindow: 0.12)
+        #expect(three.count == 6)
+        #expect(three.first.map { String($0.flatMap(\.keys)) } == "the")
+        // At most `limit`, likeliest first: the ones that swap the closest pieces.
+        let many = (0..<5).map { piece(Character(UnicodeScalar(97 + $0)!), at: Double($0) * 0.02) }
+        #expect(Matcher.orderings(of: many, swapWindow: 0.12, limit: 8).count == 8)
     }
 }
 

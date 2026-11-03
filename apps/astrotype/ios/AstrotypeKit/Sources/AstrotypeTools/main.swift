@@ -19,7 +19,7 @@ usage:
       plays practice recordings and shared words through the engine and reports first-guess accuracy
   astrotype-tools tune <folder> [--language en|es|en+es] [--rounds N]
       searches the matcher's weights for the best first-guess rate on those items
-  astrotype-tools synth <out-folder> [--sessions N] [--noise σ] [--seed S]
+  astrotype-tools synth <out-folder> [--sessions N] [--noise σ] [--seed S] [--thumbs 1|2] [--wobble s]
       writes made-up shared words (noisy swipes of practice prompts) to measure against
   astrotype-tools prompts [--count N] [--seed S]
       the "Practice words" prompts
@@ -128,6 +128,8 @@ func synth(_ plain: [String], _ options: [String: String]) {
     let count = options["sessions"].flatMap(Int.init) ?? 100
     let noise = options["noise"].flatMap(Double.init) ?? 0.2
     let seed = options["seed"].flatMap(UInt64.init) ?? 1
+    // Both thumbs per word, landing `wobble` seconds off their turn (SyntheticTyping.Thumbs).
+    let thumbs: SyntheticTyping.Thumbs = options["thumbs"] == "2" ? .two(wobble: options["wobble"].flatMap(Double.init) ?? 0.04) : .one
     let folder = URL(fileURLWithPath: plain[0])
     try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
     var prompts = PracticeWords(language: language, seed: seed)
@@ -139,7 +141,7 @@ func synth(_ plain: [String], _ options: [String: String]) {
         let habit = Double(index % 5 - 2) * 0.08
         var typing = SyntheticTyping(layout: .qwerty(width: 390), noise: noise,
                                      left: KeyOffset(dx: habit, dy: 0.12), right: KeyOffset(dx: -habit, dy: 0.12),
-                                     seed: seed &+ UInt64(index))
+                                     thumbs: thumbs, seed: seed &+ UInt64(index))
         var text: [String] = []
         while text.count < 8 { text += prompts.next().split(separator: " ").map(String.init) }
         let recording = typing.record(text, kind: "synthetic")

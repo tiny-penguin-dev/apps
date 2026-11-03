@@ -56,7 +56,8 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
       Spanish, `Language.bundled(["en", "es"])` for both at once, a sentence keeping to the first language it shows (`Language.lock(for:)`, `Composer.lockedLanguage`, unless `mixesLanguages`); accented words sit
       under their plain letters, `Lexicon.fold`, and `Matcher` writes the accents back), `Flags`, and `Engine/`: `Composer` (touches in, effects out, pure,
       time passed in), `Matcher` (pieces to ranked candidates: trie search plus DTW,
-      two-thumb orderings and split swipes, the words before the open one from
+      two-thumb orderings and split swipes, both thumbs swiping at once in
+      `Matcher+Together` (letters woven by when each key was reached), the words before the open one from
       `WordContext` and the person's `PersonalIndex`), `NextWords` (the likely next words for
       the bar, from the word pairs and the person's own), `PersonalModel` (what the keyboard
       learns from the person: word and pair counts that fade, thumb offsets per key, one
@@ -112,7 +113,7 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
       with `#if canImport(UIKit)` so `swift test` still builds the package on macOS.
     - `AstrotypeKitTests`: Swift Testing. `ComposerTests`, `NextWordTests`, `FieldTests`, `LanguagesTests` (Spanish, accents, both at once, picked accents, which languages are on), `PersonalModelTests`, `SharedWordTests`, `TuningTests`, `MatcherTests` (the 50-word
       fixture in `Fixtures/swipes.json`, through `Synth`'s straight-line swipes, and
-      `ContextMatcherTests`), `WordContextTests`, `NgramModelTests`, `ReplayTests`, `MissedWordTests` (the bar's "Not it?")
+      `ContextMatcherTests`), `WordContextTests`, `NgramModelTests`, `ReplayTests`, `MissedWordTests` (the bar's "Not it?"), `TwoThumbTests` (two-thumb accuracy from `SyntheticTyping`'s `.two` and `.together`, Gabriel's real both-at-once swipes in `Fixtures/together-*.json`, compounds, tap places, two-thumb Not it?)
       (recordings made from `Synth` strokes replay to the live result),
       `GeometryTests`, `LayoutTests`, `EmojiTests`, `KeyboardSettingsTests`, `KeyboardDebugTests`, `AppCoreTests` (the
       `App/` pieces), `ProTests` (`Entitlement`, the trial and Pro files, the memory

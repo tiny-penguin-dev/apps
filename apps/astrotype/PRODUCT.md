@@ -136,7 +136,7 @@ free trial that starts on first launch.
 | Basics (free) | Pro (subscription, two-week free trial) |
 |---|---|
 | Tap typing and one-finger swipe typing, one swipe per word, English | Two-thumb typing: taps and swipes from both thumbs, mixed in one word |
-| Suggestion bar, corrections, autospace | Snippets and hold-space shortcuts |
+| Suggestion bar, corrections, next-word guesses, autospace | Snippets and hold-space shortcuts |
 | Space-bar cursor, backspace word delete, shift, numbers, symbols | Custom gestures and edge swipes |
 | Learned words, synced over iCloud | Themes and trails |
 | Speed test | Drills, history and the sharing card |
@@ -224,7 +224,7 @@ items easy:
   behind a flag, so they are not lost and not shipped.
 - More languages, starting with Spanish.
 - Themes and milestones.
-- Own emoji page, next-word suggestions while nothing is being typed.
+- Own emoji page.
 
 ### Never
 - Needing Full Access to type. It is only ever asked for sync.
@@ -270,6 +270,7 @@ and `guess.*` rows below).
 | `keyboard.ended_while_showing` | Keyboards ended while on screen: crashes, and the memory kills no crash report sees |
 | `guess.words`, `guess.first` (counts, `kind`: `swipe` / `tap`) | How many words went in, and how many as the keyboard's first guess (goal: 9 in 10, §9). Counted per time the keyboard is shown, never which words, and not in fields that don't learn (like passwords) |
 | `guess.first_share` (gauge: percent, `kind`) | The same share for one time the keyboard was shown, sent when it had at least 10 words, to read at a glance |
+| `nextword.picked` (count) | Words written by tapping a next-word guess, per time the keyboard is shown, beside `guess.words` (features/next-word) |
 
 More get added here as phases land.
 

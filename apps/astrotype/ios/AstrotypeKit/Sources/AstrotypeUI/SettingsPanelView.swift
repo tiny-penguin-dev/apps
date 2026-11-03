@@ -60,6 +60,8 @@ public final class SettingsPanelView: UIView {
     private let splitSwitch = UISwitch()
     private let learnLabel = UILabel()
     private let learnSwitch = UISwitch()
+    private let nextLabel = UILabel()
+    private let nextSwitch = UISwitch()
     private let forget = UIButton(configuration: .plain())
     /// The first tap on Forget arms it; the second forgets.
     private var forgetArmed = false
@@ -88,7 +90,7 @@ public final class SettingsPanelView: UIView {
         done.addAction(UIAction { [weak self] _ in self?.onDone?() }, for: .touchUpInside)
         addSubview(done)
 
-        for (label, text) in [(autospaceLabel, "Autospace"), (delayLabel, "Delay"), (strictLabel, "Real words"), (spacesLabel, "Split words"), (heightLabel, "Height"), (trailsLabel, "Trails"), (barLabel, "Guesses bar"), (splitLabel, "Split on wide screens"), (learnLabel, "Learn from my typing")] {
+        for (label, text) in [(autospaceLabel, "Autospace"), (delayLabel, "Delay"), (strictLabel, "Real words"), (spacesLabel, "Split words"), (heightLabel, "Height"), (trailsLabel, "Trails"), (barLabel, "Guesses bar"), (splitLabel, "Split on wide screens"), (learnLabel, "Learn from my typing"), (nextLabel, "Guess the next word")] {
             label.text = text
             label.font = Self.rowFont
             label.textColor = Theme.ui(.ink)
@@ -104,8 +106,9 @@ public final class SettingsPanelView: UIView {
         autospaceLabel.accessibilityHint = "Write a swiped word after a short pause"
         barLabel.accessibilityHint = "Show the guesses above the keys on a phone"
         learnLabel.accessibilityHint = "Your words, word pairs and where your thumbs land, kept on this phone"
+        nextLabel.accessibilityHint = "Likely next words in the bar after each word"
 
-        for (control, label) in [(autospaceSwitch, autospaceLabel), (trailsSwitch, trailsLabel), (barSwitch, barLabel), (splitSwitch, splitLabel), (learnSwitch, learnLabel)] {
+        for (control, label) in [(autospaceSwitch, autospaceLabel), (trailsSwitch, trailsLabel), (barSwitch, barLabel), (splitSwitch, splitLabel), (learnSwitch, learnLabel), (nextSwitch, nextLabel)] {
             control.onTintColor = Theme.ui(.accent)
             control.accessibilityLabel = label.text
             control.accessibilityHint = label.accessibilityHint
@@ -175,6 +178,11 @@ public final class SettingsPanelView: UIView {
             self.settings.splitOnWide = self.splitSwitch.isOn
             self.onChange?(self.settings)
         }, for: .valueChanged)
+        nextSwitch.addAction(UIAction { [weak self] _ in
+            guard let self else { return }
+            self.settings.nextWords = self.nextSwitch.isOn
+            self.onChange?(self.settings)
+        }, for: .valueChanged)
         learnSwitch.addAction(UIAction { [weak self] _ in
             guard let self else { return }
             self.settings.learnsFromYou = self.learnSwitch.isOn
@@ -229,7 +237,7 @@ public final class SettingsPanelView: UIView {
         groups.axis = .vertical
         groups.spacing = Theme.Space.m
         groups.translatesAutoresizingMaskIntoConstraints = false
-        groups.addArrangedSubview(group([switchRow(autospaceLabel, autospaceSwitch), delayRow, strictRow, spacesRow]))
+        groups.addArrangedSubview(group([switchRow(autospaceLabel, autospaceSwitch), delayRow, strictRow, spacesRow, switchRow(nextLabel, nextSwitch)]))
         groups.addArrangedSubview(group([heightRow, switchRow(trailsLabel, trailsSwitch), switchRow(barLabel, barSwitch), switchRow(splitLabel, splitSwitch)]))
         groups.addArrangedSubview(group([switchRow(learnLabel, learnSwitch), row([forget])]))
         // The two sliders start at the same place. Only once both rows sit in the same
@@ -328,6 +336,7 @@ public final class SettingsPanelView: UIView {
         delayValue.text = "\(String(format: "%.1f", settings.autospaceDelay)) s"
         delayRow.alpha = settings.autospace ? 1 : 0.45
         learnSwitch.isOn = settings.learnsFromYou
+        nextSwitch.isOn = settings.nextWords
         strictSlider.value = Float(settings.wordStrictness)
         strictValue.text = "\(Int((settings.wordStrictness * 100).rounded()))%"
         spacesSlider.value = Float(settings.splitStrictness)

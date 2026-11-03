@@ -62,6 +62,9 @@ public struct KeyboardSettings: Codable, Sendable, Equatable {
     /// Apple's does; other heights move the top row and keep the bottom row in place.
     /// The guesses bar adds to the height either way (Gabriel, 3 Nov 2026).
     public var keyboardHeight = 1.0
+    /// After each word, offer the likely next words on the bar; a tap writes one
+    /// (features/next-word). On by default.
+    public var nextWords = true
 
     /// `keyboardHeight` kept in its range, for `Layout.qwerty(scale:)`.
     public var heightScale: CGFloat {
@@ -90,6 +93,7 @@ public struct KeyboardSettings: Codable, Sendable, Equatable {
         wordStrictness = try c.decodeIfPresent(Double.self, forKey: .wordStrictness) ?? 0.8
         splitStrictness = try c.decodeIfPresent(Double.self, forKey: .splitStrictness) ?? 0.8
         keyboardHeight = try c.decodeIfPresent(Double.self, forKey: .keyboardHeight) ?? 1.0
+        nextWords = try c.decodeIfPresent(Bool.self, forKey: .nextWords) ?? true
     }
 
     /// `base` with these settings applied; the rest of the engine's settings stay.
@@ -98,6 +102,7 @@ public struct KeyboardSettings: Codable, Sendable, Equatable {
         out.autospaceDelay = autospace ? min(max(autospaceDelay, Self.delayRange.lowerBound), Self.delayRange.upperBound) : nil
         out.strictness = min(max(wordStrictness, 0), 1)
         out.splitStrictness = min(max(splitStrictness, 0), 1)
+        out.nextWords = nextWords
         return out
     }
 }

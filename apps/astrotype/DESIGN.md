@@ -146,12 +146,24 @@ This is the product, so it gets its own section.
   of a split keyboard, the sides of a wide one) the guesses stack there, and the keys
   get the whole height. Otherwise (a phone) they are a bar above the keys, which
   Settings ("Guesses bar") can turn off to give the keys its room.
-- **The bar** (or column) has three states:
+- **The bar** (or column) has four states:
   - *Idle:* a short note ("Both thumbs, one word") or, with nothing to say, empty.
   - *Open word:* up to three guesses, the first one in a white pill. That one is what
     space writes. Tapping any guess writes it.
   - *Fix:* right after a commit, the label FIX and the other readings of the last word.
     Tap one and it replaces the word just written. Any new tap or swipe clears it.
+    Shown like this only when there are no next words (below), or "Guess the next
+    word" is off.
+  - *Next:* with no word open, up to three likely next words, in the plain guess style
+    (no pill: space does not write them). A tap writes one with a space after it, and
+    the bar guesses the word after that. At a sentence start they are capitalised ("I",
+    "The"). When the last word has other readings, the best one comes first as a chip on
+    the `ice` fill, "FIX" then the word (at most 38% of the bar), a hairline, then two
+    next words; the chip swaps the word and, tapped again, swaps it back. In a column
+    the chip sits on top. Nothing after a comma, inside a word, in fields that do not
+    learn, or in the app's practice fields. Any tap or swipe on the keys clears it.
+    New guesses rise in over 0.25 s (at once with Reduce Motion). From
+    features/next-word, where the before and after screenshots are.
 - **Pieces:** a touch is a tap if it lifts within 18 pt of where it landed and crossed no
   other key, otherwise a swipe. Taps flash the key in the thumb's color and leave a ring
   that pings out. Swipes draw a 9 pt rounded trail in the thumb's color that fades over a

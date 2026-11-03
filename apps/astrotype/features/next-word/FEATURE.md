@@ -5,7 +5,7 @@ After each word, the bar offers the words most likely to come next, so a tap wri
 
 ## Product
 
-Status: Draft
+Status: Approved 2026-11-03 (Gabriel: "Build it", in the project thread)
 
 - **The problem:** every word costs a swipe or a few taps, even the ones anyone could
   guess: "to" after "going", "you" after "thank", "the" after "on". Apple's keyboard
@@ -57,8 +57,9 @@ Status: Draft
   - Offline, the harness reports how often the word typed was among the guesses
     (`astrotype-tools replay` and `synth`), on synthetic sessions now and real shared
     sessions later.
-- **Open questions** for Gabriel:
-  1. After a word goes in, what does the bar show? (asked in the thread)
+- **Decided:**
+  1. After a word goes in, what does the bar show? Option A (3 Nov 2026: Gabriel said
+     "Build it" with A recommended and no other picked).
      - **A. Fix chip, then next words** (recommended): one row. The best other reading
        of the last word sits on the left in a small tinted chip marked FIX, then two
        next-word guesses. With nothing to fix, three guesses.
@@ -75,7 +76,7 @@ Status: Draft
 
 ## Design
 
-Status: Draft
+Status: Approved 2026-11-03 (Gabriel: "Build it"; option A, the recommended one)
 
 - **Mockups:** `design/mockups/next-word.html`, built from the app's mockup with the
   real English pairs in it (Artifact link: https://claude.ai/artifact/8Geooiwsg8MLENpd4rzFhq). "Bar after a word" switches
@@ -115,33 +116,40 @@ Status: Draft
   |---|---|---|
   | ![](design/screens/12-messages-after-small.png) | ![](design/screens/12-messages-after-wide.png) | ![](design/screens/12-messages-after-dark.png) |
 
-- **Accessibility:** VoiceOver reads the bar as "Suggestions" as today; next words read
-  as "Next word: minutes", the chip as "Fix: twelve". Dynamic Type scales the bar text
+- **Accessibility:** VoiceOver reads the bar as "Suggestions" as today; a next word reads
+  as the word with the hint "Writes the next word", the chip as "Fix: twelve". Dynamic Type scales the bar text
   one step as the other bar states do.
-- **Open questions** for Gabriel: the bar option above.
+- **Decided:** option A, above.
 
 ## Build
 
-Status: Not started
+Status: Approved 2026-11-03 (built in the same PR, as Gabriel asked)
 
 - **Approach:** all ranking in `AstrotypeCore`, pure and tested; the composer owns the
   bar, so it gains the new state and the tap; `BarView` draws it.
 - **Core pieces:**
-  - `NextWords` (new, `Engine/`): `NextWords(language:).guesses(after context: [String],
-    personal: PersonalIndex, count: Int) -> [String]`. Scores each candidate as the
-    shipped pair probability mixed with the person's pair counts (the same caps the
-    matcher uses), drops contractions and words the person forgot. `NgramModel` gets a
-    `topNext(after:limit:)` that picks the best few without sorting the whole run (one
-    pass over the previous word's pairs, which are at most a few thousand), so it fits
-    in well under a millisecond.
-  - `Composer`: `Bar.next([String], fix: String?)` (option A; the shape follows the
-    answer), `choose(next:)` writes the word plus an auto space (the same path as a guess
-    from the bar, so "one space between words" and learning both hold), and
-    `Settings.nextWords` (on/off). The guesses are worked out once per commit, not per
-    touch, so typing speed is untouched.
+  - `NextWords` (new, `Engine/`): `NextWords.guesses(after: previous, ngrams:, personal:,
+    learned:, count:) -> [String]`. A candidate's chance is the shipped pair's
+    `P(word | previous)` mixed with the person's own share after that word,
+    `(1 − trust)·P + trust·mine`, `trust = total / (total + 5)` over the words the person
+    wrote after `previous`. Drops contractions and words forgotten from the bar.
+    `PersonalIndex.following` holds the person's pairs by the word before.
+    `NgramModel.topNext(after:limit:)` picks the best few in one pass over the previous
+    word's pairs (`likelyWords` now uses it).
+  - `Composer`: `Bar.next([String], fix: [String], chosen: Int)`, with `fixChoice` the
+    reading the chip offers; `choose(guess:)` on it writes the word and a space as if
+    typed (one space between words still holds, the word before settles, a word of the
+    person's counts a use); `chooseFix()` swaps the last word for the chip's reading
+    and back. The bar is worked out when the host passes the context back with no word
+    open, cached by the word before, so typing a word costs nothing extra. A picked word
+    settles as `SettledWord.Source.next` (weight 0.6, like a kept swipe guess) and cannot
+    be reopened by backspace (there are no touches to reopen).
   - `KeyboardSettings.nextWords`, defaulting on, synced like the rest.
-  - `KeyboardModel`: turns the setting and "guesses here" (the existing learns-here
-    check) into the composer's setting; counts picks for `nextword.picked`.
+  - `KeyboardModel`: the setting, `learningAllowed` (the learns-here check) and
+    `offersNextWords` (off in the app's practice fields, which measure typing) make the
+    composer's setting; `chooseFix()` for the chip.
+  - `GuessTally.next` counts picks per time the keyboard is shown, in the health file
+    the app already sends, as `nextword.picked`.
 - **Phases:**
   1. *Next words in the bar:* `NextWords`, the composer state and tap, `BarView`'s next
      state and fix chip, the setting in Settings and the panel. Done when: in Messages,
@@ -157,4 +165,22 @@ Status: Not started
   commit path gets a timing test of its own.
 - **Metrics:** `nextword.picked` with `Telemetry`, from the app.
 - **Last step:** fold this feature into the app's `PRODUCT.md` (out of Later) and
-  `DESIGN.md` (the bar's states, screen 12, the setting).
+  `DESIGN.md` (the bar's states, screen 12, the setting). Done in the build PR.
+
+### Notes
+
+**Built (2026-11-03), both phases in one PR.** As designed, with these details:
+
+- The guesses are the same three slots as the bar's other states, two when the FIX
+  chip is there. A forgotten word or reading leaves the bar at once.
+- Nothing is offered after a comma, inside a word, after a word neither the pairs nor
+  the person know, in fields that do not learn, or in the app's practice fields. After
+  a period with no space ("Done.") the pick adds the space first.
+- Speed: `NextWords` after "the" (the most pairs) takes about 1.8 ms in a debug build
+  on Linux, once per word; release is several times faster. `NextWordTests.guessesAreFast`
+  keeps it under 5 ms.
+- Measured: `astrotype-tools replay` now adds "a tap away" to its summary. On 509
+  synthetic practice words (`synth --sessions 60 --noise 0.22 --seed 3`) 15.1% were one
+  of the next-word guesses; practice prompts start many words cold, so real sentences
+  should do better (the model's own estimate is about 1 in 3). Real shared sessions
+  and `nextword.picked` will say.

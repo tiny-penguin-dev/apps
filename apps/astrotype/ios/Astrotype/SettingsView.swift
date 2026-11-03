@@ -74,6 +74,9 @@ struct SettingsView: View {
                         Text("Whenever it's sure").font(.sw(.small)).foregroundStyle(Theme.muted)
                     }
                 }
+                Row("Guess the next word", subtitle: "Likely next words in the bar after each word. A tap writes one.") {
+                    Toggle("Guess the next word", isOn: $model.keyboardSettings.nextWords).labelsHidden().tint(Theme.mint)
+                }
                 Row("Learned words", subtitle: learnedWordsSubtitle) {
                     Button("Open") { path.append(.learnedWords) }.buttonStyle(.small)
                 }

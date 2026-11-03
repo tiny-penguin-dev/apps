@@ -90,7 +90,7 @@ public struct KeyboardHealth: Codable, Sendable, Equatable {
     public mutating func settled(_ word: SettledWord) -> Bool {
         guard var last = sessions.last, !last.ended, last.guesses.add(word) else { return false }
         sessions[sessions.count - 1] = last
-        return last.guesses.words % 10 == 0
+        return (last.guesses.words + last.guesses.next) % 10 == 0
     }
 
     /// The sessions the app should send now: started after `sent`, and finished. One

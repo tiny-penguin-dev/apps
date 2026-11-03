@@ -30,6 +30,8 @@ final class KeyboardSession: NSObject, UITextViewDelegate {
         model = KeyboardModel(composer: Composer(language: language, layout: Layout.qwerty(width: 390)),
                               store: settingsStore, wordStore: MemoryWordStore(learned), personal: personal)
         model.target = target
+        // Practice measures typing and records each word's touches: no next words.
+        model.offersNextWords = false
         keyboard = AstrotypeUI.KeyboardView(model: model)
         keyboard.autoresizingMask = [.flexibleWidth]
         super.init()

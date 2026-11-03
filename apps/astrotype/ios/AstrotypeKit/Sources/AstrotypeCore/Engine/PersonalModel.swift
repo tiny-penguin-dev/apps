@@ -234,12 +234,16 @@ public struct SettledWord: Sendable, Equatable {
         case swiped
         /// Picked from the fix bar over the first guess: the strongest vote.
         case fixed
+        /// A next-word guess tapped on the bar before anything was typed
+        /// (features/next-word): a kept guess, so as weak a vote as a swiped one.
+        case next
 
         var weight: Float {
             switch self {
             case .tapped: 1
             case .swiped: 0.6
             case .fixed: 1.5
+            case .next: 0.6
             }
         }
     }
@@ -326,6 +330,9 @@ public struct PersonalIndex: Sendable, Equatable {
 
     public private(set) var words: [String: Float] = [:]
     public private(set) var pairs: [String: Float] = [:]
+    /// The same pairs by the word before: what the person writes after each word, for
+    /// the next-word guesses (features/next-word).
+    public private(set) var following: [String: [String: Float]] = [:]
     /// The sum of every word count, for comparing a word's share with the dictionary's.
     public private(set) var totalWords: Float = 0
     /// Per thumb, per letter: where the key's centre is for this person, in key units.
@@ -346,6 +353,10 @@ public struct PersonalIndex: Sendable, Equatable {
             }
         }
         totalWords = words.values.reduce(0, +)
+        for (pair, count) in pairs {
+            guard let space = pair.firstIndex(of: " ") else { continue }
+            following[String(pair[..<space]), default: [:]][String(pair[pair.index(after: space)...])] = count
+        }
         offsets = Self.offsets(from: touches)
     }
 

@@ -6,7 +6,7 @@ that swipe, and keeps it so we can see what went wrong.
 
 ## Product
 
-Status: Draft (Gabriel answered the open questions, 3 Nov 2026)
+Status: Approved 2026-11-03 (Gabriel: "Build it and merge automatically")
 
 - **The problem:** when a swipe comes out wrong and the word you meant isn't among the
   guesses, all you can do is delete it and peck the word out. The keyboard learns
@@ -33,8 +33,7 @@ Status: Draft (Gabriel answered the open questions, 3 Nov 2026)
   4. The keyboard learns from it right away:
      - a word it didn't know is added to your learned words;
      - the swipe is remembered as a shape for that word, so the next swipe that looks
-       like it gets that word first (on this phone, and your other devices with sync);
-     - the word gets the same boost as picking it in the bar.
+       like it gets that word first (on this phone, and your other devices with sync).
   5. The swipe is kept as a **missed word**: the word you meant, the word it wrote,
      and the path your thumb drew. Nothing else, never the text around it.
 - **Seeing and sharing misses:** Settings → Your words → **Words it missed**: a list
@@ -57,8 +56,8 @@ Status: Draft (Gabriel answered the open questions, 3 Nov 2026)
   - Settings → Your words: one new row.
   - "Forget what it learned" also forgets shapes and misses.
 - **Scope:**
-  - *This version:* the button, the field, fixing the text, learning (word, shape,
-    boost), the list, uploading with corrections.
+  - *This version:* the button, the field, fixing the text, learning (word and
+    shape), the list, uploading with corrections.
   - *Later:* "Not it?" for pecked words; exporting misses as a file; editing a miss in the app; a debug view that
     shows the matcher's top ten with scores for a miss (handy for us, not for people).
   - *Never:* anything typed around the word leaves the phone; misses sent without
@@ -79,19 +78,73 @@ Status: Draft (Gabriel answered the open questions, 3 Nov 2026)
 
 ## Design
 
-Status: Not started
+Status: Approved 2026-11-03 (Gabriel: "No need for design mockup"; built from the
+existing bar and Settings components)
+
+- **The bar, after a swiped word** (open word or FIX, and the idle bar right after a
+  swiped word went in with no other readings): the guesses as today, then a small
+  ghost button at the end, a pencil glyph and "Not it?" in `muted` 13 pt bold. In a
+  column (split or wide) it sits under the guesses. It goes away with the next touch,
+  like FIX. With "Guesses bar" off there is no bar, so no button.
+- **The field** (a new bar state): an ✕ on the left, then the word being typed in `ink`
+  with a teal caret, "What did you mean?" in `muted` while empty, then a **Save** pill
+  in `accent` (dimmed until there is a letter). Keys type into it: taps add their
+  letter exactly, a held key's accent adds that letter, backspace removes one, space
+  and return save, swipes and punctuation do nothing. The word is cased like the word
+  it replaces.
+- **Motion and copy:** Save gives the bar the commit squeeze and the commit haptic; ✕
+  goes straight back. Copy: "Not it?", "What did you mean?", "Save". VoiceOver reads
+  the button "Not it? Type the word you meant", and the field "What did you mean,
+  text field".
+- **Settings → Your words → Words it missed** (Phase C): a `Group` row with the count,
+  opening a list: each row is the word meant, "wrote: song" under it in `muted`, and
+  the swipe drawn on a small keyboard as on "What gets shared"; "Shared" or "On this
+  phone" on the right; swipe to delete. Empty: "Nothing missed yet. When a swipe gets a
+  word wrong, tap Not it? in the bar."
+- **Design system:** reuses `Theme` tokens, the bar's guess pill and the `Group`, `Row`
+  and keyboard-with-paths drawing from "What gets shared". Nothing new.
+- **Sizes:** the button and field fit the 320 pt bar (the field's word truncates at
+  the head); in a column the field stacks: word, then Save and ✕.
 
 ## Build
 
-Status: Not started
+Status: Approved 2026-11-03 (with the design, at Gabriel's request)
 
-Notes for later, so the plan fits the code:
-
-- Core (`AstrotypeCore`, tested): `MissedWord` (or a `SharedWord` with a new kind,
-  `word.miss`, so `CloudKitPracticeUploader`, `download_samples.py` and replay already read it) and a `MissStore` with a cap;
-  `ShapeMemory` (remembered swipes per word, scored by DTW against a new swipe, synced
-  with the personal model's shards); `Matcher` takes its guesses beside the dictionary.
-- The composer gets a field mode: taps go to a buffer, not the text target; Save emits
-  "replace the last word with X" and a `.miss` effect for `KeyboardModel` to store.
-- Phases: A, the button, field, text fix and miss store (with a test that a saved miss
-  replays); B, shape memory in the matcher; C, the Settings list and the upload.
+- **Approach:** a correction is a fix from the bar where the person typed the word.
+  The pieces already exist for fixes (`Composer.choose` on FIX, `SettledWord.fixedFrom`,
+  `SharedWord.correction`, the App Group sharing folder the app uploads), so this adds
+  a field mode to the composer and a kind of shared word, then shapes and a list.
+- **Core pieces** (`AstrotypeCore`, tested):
+  - `Composer.Bar.correcting(String)`, `State.canCorrect` (a swiped word is open or
+    just went in), `Composer.beginCorrection()`, `cancelCorrection()` and
+    `saveCorrection(time:)`. While correcting, touches and keys edit the field instead
+    of the text. Save writes the word in place of the open or last word (casing kept),
+    learns it when the dictionary doesn't have it (`.learn`), and leaves a `Committed`
+    marked `missed`, so it settles with `SettledWord.missed`.
+  - `SharedWord.missKind` (`"word.miss"`): `SharedWord.correction` gives that kind for a
+    missed word. `CloudKitPracticeUploader`, `download_samples.py` and `Replay` read it
+    as any shared word.
+  - `ShapeMemory` (Phase B): per word, up to three remembered swipes, resampled to 32
+    points in key widths, kept in the personal model's shard (synced and forgotten with
+    it). `Matcher` compares a swipe with them by DTW and adds the word as a guess when
+    one is close, scored like a clean swipe of it.
+- **Model and UI:** `KeyboardModel.beginCorrection/cancelCorrection/saveCorrection`,
+  `onMiss(SharedWord)`; the extension keeps misses in a `SharedWordStore` folder
+  (`KeyboardFiles.misses`, the App Group with Full Access, its own files otherwise,
+  limit 200) and puts them in the sharing folder too when "Include corrections" is on.
+  `BarView` draws the button and the field.
+- **Phases:**
+  - **A. Not it?** The button, the field, the text fix, learning the word, keeping and
+    sharing the miss. Done when: swipe a word wrong, tap Not it?, type it, Save, and
+    the text has the word; with sharing on the miss shows on "What gets shared"; a test
+    replays a saved miss.
+  - **B. Shapes.** `ShapeMemory` in the matcher. Done when: after one miss saved for a
+    swipe, the same swipe gives that word first (test), and `candidatesAreFast` holds.
+  - **C. Words it missed.** The Settings list. Done when: misses show with their
+    swipes, and delete works.
+- **Risks:** the shape match must stay inside the matcher's time budget (a handful of
+  DTWs per lift); a wrong miss saved must not stick forever (delete in the list, and
+  "Forget" clears it).
+- **Metrics:** `miss.saved` and `miss.shape_hit` go with the keyboard health counts the
+  app already sends (`KeyboardHealthRecorder`), in Phases A and B.
+- **Last step:** fold this into `PRODUCT.md` and `DESIGN.md`.

@@ -17,6 +17,9 @@ final class KeyboardViewController: UIInputViewController {
     private var sync: SyncController?
     private var entitlement: EntitlementController?
     private var heightConstraint: NSLayoutConstraint?
+    /// Fresh height constraints sent since the keyboard last appeared (`askAgainIfShort`).
+    private var heightRetries = 0
+    private var isVisible = false
     private let checks = ExtensionChecks()
     private var health: KeyboardHealthRecorder?
     private var edits = 0
@@ -43,6 +46,7 @@ final class KeyboardViewController: UIInputViewController {
         target.underlines = { [weak model] in model?.keyboardSettings.underlinesWord ?? false }
         model.target = target
         self.target = target
+        if let health { model.onSettled = { [weak health] word in health?.settled(word) } }
 
         let keyboard = KeyboardView(model: model)
         keyboard.backgroundColor = .clear
@@ -144,14 +148,27 @@ final class KeyboardViewController: UIInputViewController {
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
+        heightRetries = 0
+        applyHeight(fresh: true)
         health?.appeared()
         followKeyboardAppearance()
         keyboard?.model.learningAllowed = fieldAllowsLearning
         keyboard?.model.contextChanged()
     }
 
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        isVisible = true
+        // iOS only takes a new height once the keyboard is on screen; before that it can
+        // keep its own, and the keyboard opened short until something laid it out again
+        // (Gabriel, 3 Nov 2026: it grew when the 123 menu opened).
+        applyHeight(fresh: true)
+        view.setNeedsLayout()
+    }
+
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
+        isVisible = false
         keyboard?.model.savePersonalNow()
         health?.disappeared()
     }
@@ -192,21 +209,47 @@ final class KeyboardViewController: UIInputViewController {
         super.viewWillLayoutSubviews()
         let width = view.bounds.width
         guard width > 0, let keyboard else { return }
-        let height = keyboard.height(forWidth: width)
-        if let heightConstraint {
-            if heightConstraint.constant != height { heightConstraint.constant = height }
-        } else {
-            let constraint = view.heightAnchor.constraint(equalToConstant: height)
-            constraint.priority = UILayoutPriority(999)
-            constraint.isActive = true
-            heightConstraint = constraint
-        }
+        let height = applyHeight(fresh: false) ?? keyboard.height(forWidth: width)
         // The keyboard view takes whatever iOS grants, edge to edge (iOS adds the margins
         // around it): the keys sit at the bottom where Apple's are, and shrink if iOS
         // grants less than asked.
         let granted = view.bounds.height
         keyboard.frame = CGRect(x: 0, y: 0, width: width, height: granted > 0 ? granted : height)
         checks.sized(granted: granted, wanted: height, width: width, screenWidth: view.window?.windowScene?.screen.bounds.width ?? 0)
+        askAgainIfShort(granted: granted, wanted: height)
+    }
+
+    /// Asks iOS for the keyboard's height with a constraint on the view. `fresh` swaps in
+    /// a new constraint even when the height is the same, which iOS reads again where it
+    /// can ignore a constant that did not change. Returns the height asked for.
+    @discardableResult
+    private func applyHeight(fresh: Bool) -> CGFloat? {
+        let width = view.bounds.width
+        guard width > 0, let keyboard else { return nil }
+        let height = keyboard.height(forWidth: width)
+        if let heightConstraint, !fresh {
+            if heightConstraint.constant != height { heightConstraint.constant = height }
+        } else {
+            heightConstraint?.isActive = false
+            let constraint = view.heightAnchor.constraint(equalToConstant: height)
+            constraint.priority = UILayoutPriority(999)
+            constraint.isActive = true
+            heightConstraint = constraint
+        }
+        return height
+    }
+
+    /// When the keyboard is on screen but shorter or taller than it asked for, asks
+    /// again on the next turn, a few times at most per appearance (iOS may simply not
+    /// give more, and then the keys shrink to fit).
+    private func askAgainIfShort(granted: CGFloat, wanted: CGFloat) {
+        guard isVisible, granted > 0, abs(granted - wanted) > 0.5, heightRetries < 3 else { return }
+        heightRetries += 1
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            self.applyHeight(fresh: true)
+            self.view.setNeedsLayout()
+        }
     }
 
     override func textDidChange(_ textInput: UITextInput?) {

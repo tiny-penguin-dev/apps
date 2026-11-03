@@ -33,6 +33,9 @@ public struct Composer: Sendable {
         /// How sure the keyboard must be of a real word to write it in place of pecked
         /// letters that spell none (`Matcher.strictness`).
         public var strictness = 0.8
+        /// How sure the keyboard must be that pecked letters are two words with the
+        /// space missed before it writes them split (`Matcher.splitStrictness`).
+        public var splitStrictness = 0.8
         public init() {}
     }
 
@@ -103,6 +106,9 @@ public struct Composer: Sendable {
         var previous: String?
         /// The guess first written, when the bar swapped it for another.
         var fixedFrom: String?
+        /// The keyboard's first guess when the word went in, which the person may not
+        /// have taken (a later guess picked from the bar).
+        var firstGuess: String?
         /// The word was learned when it went in (`.learn`).
         var learned: String?
     }
@@ -122,7 +128,10 @@ public struct Composer: Sendable {
     }
 
     public var settings: Settings {
-        didSet { matcher.strictness = settings.strictness }
+        didSet {
+            matcher.strictness = settings.strictness
+            matcher.splitStrictness = settings.splitStrictness
+        }
     }
     public var layout: Layout {
         didSet { matcher.layout = layout }
@@ -160,6 +169,7 @@ public struct Composer: Sendable {
         self.settings = settings
         self.matcher = Matcher(dictionary: dictionary, layout: layout, learned: learned)
         matcher.strictness = settings.strictness
+        matcher.splitStrictness = settings.splitStrictness
         refreshState()
     }
 
@@ -169,6 +179,7 @@ public struct Composer: Sendable {
         self.settings = settings
         self.matcher = Matcher(language: language, layout: layout, learned: learned)
         matcher.strictness = settings.strictness
+        matcher.splitStrictness = settings.splitStrictness
         refreshState()
     }
 
@@ -481,7 +492,7 @@ public struct Composer: Sendable {
         let learn = wordToLearn(word)
         reopenedLearned = nil
         committed = Committed(word: word, trailing: trailing, pieces: pieces, guesses: words, casing: casing,
-                              previous: matcher.context.last, learned: learn)
+                              previous: matcher.context.last, firstGuess: words.first, learned: learn)
         pieces = []
         candidates = []
         autospaceDue = nil
@@ -592,7 +603,8 @@ public struct Composer: Sendable {
         }
         let strokes = pieces.map { SettledWord.Stroke(side: $0.side, points: $0.raw ?? $0.points, times: $0.times) }
         return SettledWord(word: word, previous: last.previous, source: source,
-                           fixedFrom: last.fixedFrom?.lowercased(), touches: touches, strokes: strokes)
+                           fixedFrom: last.fixedFrom?.lowercased(), firstGuess: last.firstGuess?.lowercased(),
+                           pecked: last.pieces.allSatisfy(\.isTap), touches: touches, strokes: strokes)
     }
 
     private func cased(_ word: String) -> String {

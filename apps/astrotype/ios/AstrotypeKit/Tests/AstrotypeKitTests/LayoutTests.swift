@@ -122,6 +122,26 @@ import Testing
         #expect(layout.placements.filter { $0.row == 2 }.count == 7)
     }
 
+    @Test func numbersThirdRowIsApples() {
+        let layout = Layout.qwerty(width: 390, page: .numbers)
+        let q = Layout.qwerty(width: 390).frame(of: .letter("q"))!
+        let p = Layout.qwerty(width: 390).frame(of: .letter("p"))!
+        // The page key and backspace at the row's ends, under 1 and 0.
+        #expect(layout.frame(of: .symbols)!.minX == q.minX)
+        #expect(abs(layout.frame(of: .backspace)!.maxX - p.maxX) < 0.001)
+        // The five marks are wider than a letter and keep clear of each other.
+        let marks = layout.placements.filter { $0.row == 2 && $0.key.symbolCharacter != nil }.map(\.frame)
+        #expect(marks.count == 5)
+        for (a, b) in zip(marks, marks.dropFirst()) {
+            #expect(a.width > q.width)
+            #expect(b.minX > a.maxX)
+        }
+        #expect(marks.first!.minX > layout.frame(of: .symbols)!.maxX)
+        #expect(marks.last!.maxX < layout.frame(of: .backspace)!.minX)
+        // The middle mark is in the middle, like Apple's "?".
+        #expect(abs(marks[2].midX - 195) < 2)
+    }
+
     @Test(arguments: [320.0, 390.0, 744.0] as [CGFloat])
     func everyPageFits(width: CGFloat) {
         for page in [Layout.Page.numbers, .symbols] {

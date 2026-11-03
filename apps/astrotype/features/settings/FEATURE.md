@@ -12,7 +12,7 @@ lot. Separate features from appearance in different pages."
 
 ## Product
 
-Status: Draft
+Status: Approved 2026-11-03 (Gabriel asked to merge it)
 
 - **The problem:** Settings is one long list of 30 rows, each its own card, most with a
   two-line explanation. It is hard to scan, the privacy rows sit between the things
@@ -59,7 +59,7 @@ Status: Draft
 
 ## Design
 
-Status: Draft
+Status: Approved 2026-11-03 (Gabriel asked to merge it)
 
 - **Mockups:** `design/mockups/settings.html` (Artifact link:
   https://claude.ai/artifact/XNKQVaSVP9u72y8NfVbaiC). It has the new screens and

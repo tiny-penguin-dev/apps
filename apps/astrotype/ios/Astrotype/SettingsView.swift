@@ -88,6 +88,20 @@ struct SettingsView: View {
                 }
 
                 SectionLabel("Layout").padding(.top, Theme.Space.s)
+                Row("Keyboard height", subtitle: "At 100% every key sits where Apple's keyboard has it, so your thumbs already know the way. The guesses bar adds to it.") {
+                    Text("\(Int((model.keyboardSettings.heightScale * 100).rounded()))%")
+                        .font(.sw(.heading)).monospacedDigit()
+                }
+                Card {
+                    HStack(spacing: Theme.Space.m) {
+                        Text("Shorter").font(.sw(.small)).foregroundStyle(Theme.muted)
+                        Slider(value: $model.keyboardSettings.keyboardHeight, in: KeyboardSettings.heightRange, step: 0.05)
+                            .tint(Theme.accent)
+                            .accessibilityLabel("Keyboard height")
+                            .accessibilityValue("\(Int((model.keyboardSettings.heightScale * 100).rounded())) percent")
+                        Text("Taller").font(.sw(.small)).foregroundStyle(Theme.muted)
+                    }
+                }
                 Row("Underline the word you're typing", subtitle: "In other apps. Off types it as plain text, which keeps spaces where they belong in every app.") {
                     Toggle("Underline the word you're typing", isOn: $model.keyboardSettings.underlinesWord).labelsHidden().tint(Theme.mint)
                 }

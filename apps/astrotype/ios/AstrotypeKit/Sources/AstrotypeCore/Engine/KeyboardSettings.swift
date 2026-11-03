@@ -10,6 +10,8 @@ import Foundation
 public struct KeyboardSettings: Codable, Sendable, Equatable {
     public static let version = 1
     public static let delayRange: ClosedRange<TimeInterval> = 0.1...1.5
+    /// How much taller or shorter than Apple's the keys can be made.
+    public static let heightRange: ClosedRange<Double> = 0.8...1.2
 
     public var version = KeyboardSettings.version
     /// Write a swiped word after a pause with no finger down (never a pecked one).
@@ -52,6 +54,15 @@ public struct KeyboardSettings: Codable, Sendable, Equatable {
     /// pecked letters that spell none, 0 to 1 (`Matcher.strictness`). At 1 it only
     /// ever writes real words.
     public var wordStrictness = 0.8
+    /// How tall the keys are against Apple's, 0.8 to 1.2. At 1 every key sits where
+    /// Apple's does; other heights move the top row and keep the bottom row in place.
+    /// The guesses bar adds to the height either way (Gabriel, 3 Nov 2026).
+    public var keyboardHeight = 1.0
+
+    /// `keyboardHeight` kept in its range, for `Layout.qwerty(scale:)`.
+    public var heightScale: CGFloat {
+        CGFloat(min(max(keyboardHeight, Self.heightRange.lowerBound), Self.heightRange.upperBound))
+    }
 
     public init() {}
 
@@ -73,6 +84,7 @@ public struct KeyboardSettings: Codable, Sendable, Equatable {
         forgetPersonalAt = try c.decodeIfPresent(Date.self, forKey: .forgetPersonalAt)
         shareCorrections = try c.decodeIfPresent(Bool.self, forKey: .shareCorrections) ?? false
         wordStrictness = try c.decodeIfPresent(Double.self, forKey: .wordStrictness) ?? 0.8
+        keyboardHeight = try c.decodeIfPresent(Double.self, forKey: .keyboardHeight) ?? 1.0
     }
 
     /// `base` with these settings applied; the rest of the engine's settings stay.

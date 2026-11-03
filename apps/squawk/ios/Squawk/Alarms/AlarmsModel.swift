@@ -23,12 +23,18 @@ final class AlarmsModel {
     private let scheduler: any RingScheduler
     /// Lights, scenes and blinds. Nil in previews.
     private let home: (any HomeController)?
+    /// "Open Squawk to keep your alarms" before a plan runs out. Nil in previews.
+    private let runOut: RunOutReminder?
 
-    init(store: any AlarmStore, morningsStore: any MorningsStore, scheduler: any RingScheduler, home: (any HomeController)? = nil) {
+    init(
+        store: any AlarmStore, morningsStore: any MorningsStore, scheduler: any RingScheduler,
+        home: (any HomeController)? = nil, runOut: RunOutReminder? = nil
+    ) {
         self.store = store
         self.morningsStore = morningsStore
         self.scheduler = scheduler
         self.home = home
+        self.runOut = runOut
         self.access = scheduler.access
         do {
             alarms = try store.load()
@@ -46,7 +52,8 @@ final class AlarmsModel {
     static func live() -> AlarmsModel {
         let store: any AlarmStore = (try? FileAlarmStore.standard()) ?? MemoryAlarmStore()
         let mornings: any MorningsStore = (try? FileMorningsStore.standard()) ?? MemoryMorningsStore()
-        return AlarmsModel(store: store, morningsStore: mornings, scheduler: AlarmKitScheduler.shared, home: HomeAccess.shared)
+        return AlarmsModel(store: store, morningsStore: mornings, scheduler: AlarmKitScheduler.shared,
+                           home: HomeAccess.shared, runOut: .shared)
     }
 
     static func preview(_ alarms: [Alarm] = [
@@ -66,6 +73,14 @@ final class AlarmsModel {
             Telemetry.count("alarm.created", ["kind": alarm.isOneTime ? "once" : "repeat"])
         }
         commit()
+        // A repeating alarm with a check is only planned a few mornings ahead, so ask
+        // to send the reminder that keeps it going, then plan it in.
+        if alarm.hasChecks, !alarm.isOneTime, let runOut {
+            Task {
+                await runOut.requestAccess()
+                await reschedule()
+            }
+        }
     }
 
     func delete(_ alarm: Alarm) {
@@ -298,6 +313,7 @@ final class AlarmsModel {
         }
         Telemetry.gauge("alarms.total", value: Double(alarms.count))
         WidgetBridge.publish(alarms: alarms, streak: log.streak)
+        await runOut?.set(AlarmPlanner.runOutReminder(alarms, now: Date()))
         await home?.sync { HomePlanner.plan(self.alarms, now: Date()) }
     }
 

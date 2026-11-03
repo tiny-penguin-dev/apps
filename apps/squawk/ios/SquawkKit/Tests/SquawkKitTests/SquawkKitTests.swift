@@ -239,6 +239,40 @@ private func onceDates(_ plan: [PlannedRing]) -> [Date] {
         #expect(dates.first == at(3, 6, 50))
     }
 
+    @Test func remindsTheEveningBeforeTheLastPlannedMorning() {
+        // Planned Mon to Fri; Friday's first ring is 6:50, so the reminder is Thursday 20:00.
+        let alarm = tagAlarm()
+        #expect(AlarmPlanner.runOutReminder([alarm], now: sundayNight, calendar: utc) == at(5, 20))
+        // Opening the app on Tuesday plans Wed to next Tue, which moves it out.
+        #expect(AlarmPlanner.runOutReminder([alarm], now: at(3, 9), calendar: utc) == at(9, 20))
+        // Off alarms don't count.
+        var off = alarm
+        off.isOn = false
+        #expect(AlarmPlanner.runOutReminder([off], now: sundayNight, calendar: utc) == nil)
+    }
+
+    @Test func reminderSkipsASkippedLastMorning() {
+        var alarm = tagAlarm()
+        alarm.setChange(.skip, on: LocalDate(year: 2026, month: 11, day: 6))
+        // Friday is skipped, so Thursday is the last morning that rings.
+        #expect(AlarmPlanner.runOutReminder([alarm], now: sundayNight, calendar: utc) == at(4, 20))
+    }
+
+    @Test func noReminderForAlarmsThatDontRunOut() {
+        let weekly = Alarm(days: Weekday.weekdays)
+        let once = Alarm(time: .sevenAM, date: LocalDate(year: 2026, month: 11, day: 20), checks: [WakeUpCheck(kind: .game)])
+        #expect(AlarmPlanner.runOutReminder([weekly, once], now: sundayNight, calendar: utc) == nil)
+    }
+
+    @Test func reminderForAChangedWeekdayAfterItsOneOffWeeks() {
+        // Skipping Monday rings Mondays as one-off alarms through Nov 30.
+        var alarm = Alarm(days: Weekday.weekdays)
+        alarm.setChange(.skip, on: monday)
+        #expect(AlarmPlanner.runOutReminder([alarm], now: sundayNight, calendar: utc) == at(29, 20))
+        // The earliest alarm to run out wins.
+        #expect(AlarmPlanner.runOutReminder([alarm, tagAlarm()], now: sundayNight, calendar: utc) == at(5, 20))
+    }
+
     @Test func stillInProgressWhileTheLastRingRepeats() {
         let alarm = tagAlarm(rings: [Ring()])
         #expect(alarm.morningInProgress(at: at(2, 7, 9), calendar: utc) == monday)

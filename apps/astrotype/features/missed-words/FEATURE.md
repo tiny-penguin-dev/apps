@@ -65,8 +65,7 @@ Status: Approved 2026-11-03 (Gabriel: "Build it and merge automatically")
 - **Free or Pro:** free. A keyboard that can't be taught sells nothing.
 - **What we measure** (anonymous, with "Share anonymous usage data", sent by the app
   like `guess.words`, never from the extension):
-  - `miss.saved` (count, by `known`: whether the word was in the dictionary): how often
-    swipes fail badly enough to need it. Falling over time means the matcher improves.
+  - `miss.saved` (count): how often swipes fail badly enough to need it. Falling over time means the matcher improves.
   - `miss.shape_hit` (count): later swipes that a remembered shape got right. Shows
     whether learning from misses works.
   - Nothing about which words.
@@ -148,3 +147,11 @@ Status: Approved 2026-11-03 (with the design, at Gabriel's request)
 - **Metrics:** `miss.saved` and `miss.shape_hit` go with the keyboard health counts the
   app already sends (`KeyboardHealthRecorder`), in Phases A and B.
 - **Last step:** fold this into `PRODUCT.md` and `DESIGN.md`.
+
+### Notes as it ships
+
+- **Phase A** (3 Nov 2026): `Composer.Bar.correcting`, `beginCorrection`,
+  `cancelCorrection`, `saveCorrection`; `SettledWord.missed`; `SharedWord.missKind`;
+  misses kept by the extension in `KeyboardFiles.misses` (App Group with Full Access);
+  `GuessTally.missed` sends `miss.saved` with the keyboard health counts.
+  `MissedWordTests`.

@@ -47,6 +47,10 @@ public final class KeyboardModel {
     /// corrections from other apps" on and the field allows it. The host keeps it for
     /// the app (it needs Full Access to reach it).
     public var onCorrection: ((SharedWord) -> Void)?
+    /// A word the keyboard missed, typed with "Not it?" (features/missed-words), in a
+    /// field that allows learning. The host keeps it for "Words it missed"; it is also
+    /// given to `onCorrection` when corrections are shared.
+    public var onMiss: ((SharedWord) -> Void)?
     /// A word went in and was left alone, in a field that allows learning, for the
     /// host to count how often the first guess was right (`GuessTally`). Only counts
     /// leave the host.
@@ -204,9 +208,11 @@ public final class KeyboardModel {
 
     private func learn(from word: SettledWord) {
         if learningAllowed { onSettled?(word) }
-        if keyboardSettings.shareCorrections, learningAllowed, let onCorrection,
+        let share = keyboardSettings.shareCorrections && onCorrection != nil
+        if learningAllowed, share || (word.missed && onMiss != nil),
            let correction = SharedWord.correction(word, layout: composer.layout, now: Date()) {
-            onCorrection(correction)
+            if correction.isMiss { onMiss?(correction) }
+            if share { onCorrection?(correction) }
         }
         guard personalStore != nil, personal.learn(word, allowed: learningAllowed, now: Date()) else { return }
         composer.personal = personal.index
@@ -294,6 +300,25 @@ public final class KeyboardModel {
         onChange?()
     }
 
+    /// "Not it?" on the bar: the keys type the word meant into the bar.
+    public func beginCorrection() {
+        composer.beginCorrection()
+        autospace?.cancel()
+        onChange?()
+    }
+
+    /// The ✕ in the "Not it?" field.
+    public func cancelCorrection() {
+        composer.cancelCorrection(time: now)
+        scheduleAutospace()
+        onChange?()
+    }
+
+    /// Save in the "Not it?" field: the word meant replaces the swiped one.
+    public func saveCorrection() {
+        apply(composer.saveCorrection(time: now))
+    }
+
     /// A swipe left on backspace.
     public func deleteWord() {
         apply(composer.deleteWord(time: now))
@@ -321,7 +346,7 @@ public final class KeyboardModel {
         switch composer.state.bar {
         case .guesses(let words, _), .fix(let words, _):
             words.indices.contains(index) ? words[index].lowercased() : nil
-        case .idle:
+        case .idle, .correcting:
             nil
         }
     }

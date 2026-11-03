@@ -97,7 +97,7 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
       with `#if canImport(UIKit)` so `swift test` still builds the package on macOS.
     - `AstrotypeKitTests`: Swift Testing. `ComposerTests`, `LanguagesTests` (Spanish, accents, both at once, picked accents, which languages are on), `PersonalModelTests`, `SharedWordTests`, `TuningTests`, `MatcherTests` (the 50-word
       fixture in `Fixtures/swipes.json`, through `Synth`'s straight-line swipes, and
-      `ContextMatcherTests`), `WordContextTests`, `NgramModelTests`, `ReplayTests`
+      `ContextMatcherTests`), `WordContextTests`, `NgramModelTests`, `ReplayTests`, `MissedWordTests` (the bar's "Not it?")
       (recordings made from `Synth` strokes replay to the live result),
       `GeometryTests`, `LayoutTests`, `KeyboardSettingsTests`, `AppCoreTests` (the
       `App/` pieces), `ProTests` (`Entitlement`, the trial and Pro files, the memory

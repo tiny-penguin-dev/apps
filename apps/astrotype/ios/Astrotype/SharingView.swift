@@ -75,6 +75,7 @@ struct SharingView: View {
     }
 
     private func subtitle(of word: SharedWord) -> String {
+        if word.isMiss { return "A word the keyboard missed (Not it?)" }
         if word.isCorrection { return "A fix you made in another app" }
         let kind = word.kind.hasPrefix("word.drill") ? "Drill" : "Speed test"
         return word.typed == nil ? kind : "\(kind) · the keyboard got it wrong"

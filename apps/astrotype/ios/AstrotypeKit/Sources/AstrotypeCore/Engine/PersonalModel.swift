@@ -29,7 +29,10 @@ public struct PersonalModel: Codable, Sendable, Equatable {
     public static let maxTouchWeight: Float = 120
     /// Remembered swipes (features/missed-words): points per shape, shapes per word,
     /// and words per shard, the oldest going first.
+    /// A shape of more than one touch (two thumbs) is this many points per touch, in
+    /// touch-down order, up to `maxShapePieces` touches.
     public static let shapePoints = 16
+    public static let maxShapePieces = 4
     public static let maxShapesPerWord = 3
     public static let maxShapeWords = 300
 
@@ -103,13 +106,17 @@ public struct PersonalModel: Codable, Sendable, Equatable {
     /// (features/missed-words): `shapePoints` points along it, as fractions of the
     /// keyboard's width and height, so it fits any phone's keys.
     public struct Shape: Codable, Sendable, Equatable {
-        /// x, y, x, y… rounded to 0.001.
+        /// x, y, x, y… rounded to 0.001: `shapePoints` per touch.
         public var xy: [Float]
         public var day: Int
+        /// Swiped on the split keyboard (the Duo open), whose keys sit elsewhere; nil
+        /// for the whole one.
+        public var split: Bool?
 
-        public init(points: [CGPoint], day: Int) {
+        public init(points: [CGPoint], day: Int, split: Bool = false) {
             xy = points.flatMap { [Float(($0.x * 1000).rounded() / 1000), Float(($0.y * 1000).rounded() / 1000)] }
             self.day = day
+            self.split = split ? true : nil
         }
 
         public var points: [CGPoint] {
@@ -185,9 +192,10 @@ public struct PersonalModel: Codable, Sendable, Equatable {
             stat.add(dx: Float(touch.dx), dy: Float(touch.dy), weight: touch.weight)
             shard.touches[key] = stat
         }
-        if let shape = word.shape, shape.count == Self.shapePoints {
+        if let shape = word.shape, !shape.isEmpty, shape.count % Self.shapePoints == 0,
+           shape.count <= Self.shapePoints * Self.maxShapePieces {
             var kept = shard.shapes[lower] ?? []
-            kept.append(Shape(points: shape, day: today))
+            kept.append(Shape(points: shape, day: today, split: word.shapeSplit))
             shard.shapes[lower] = Array(kept.suffix(Self.maxShapesPerWord))
             if shard.shapes.count > Self.maxShapeWords {
                 let newest = shard.shapes.sorted { ($0.value.last?.day ?? 0) > ($1.value.last?.day ?? 0) }.prefix(Self.maxShapeWords)
@@ -344,16 +352,19 @@ public struct SettledWord: Sendable, Equatable {
     public var touches: [Touch]
     /// The word's touches in touch-down order.
     public var strokes: [Stroke]
-    /// For a miss swiped in one stroke: the swipe as `PersonalModel.shapePoints` points,
-    /// fractions of the keyboard's width and height, to remember for the word.
+    /// For a miss with a swipe in it: each touch as `PersonalModel.shapePoints` points
+    /// (a tap's repeated), in touch-down order, fractions of the keyboard's width and
+    /// height, to remember for the word.
     public var shape: [CGPoint]?
+    /// The shape was swiped on the split keyboard.
+    public var shapeSplit: Bool
     /// The person typed this word with "Not it?" over the swipe's guess (`fixedFrom`):
     /// the keyboard missed it (features/missed-words).
     public var missed: Bool
 
     public init(word: String, previous: String?, source: Source, fixedFrom: String? = nil, firstGuess: String? = nil,
                 pecked: Bool? = nil, touches: [Touch] = [], strokes: [Stroke] = [], missed: Bool = false,
-                shape: [CGPoint]? = nil) {
+                shape: [CGPoint]? = nil, shapeSplit: Bool = false) {
         self.word = word
         self.previous = previous
         self.source = source
@@ -364,6 +375,7 @@ public struct SettledWord: Sendable, Equatable {
         self.strokes = strokes
         self.missed = missed
         self.shape = shape
+        self.shapeSplit = shapeSplit
     }
 }
 
@@ -392,8 +404,17 @@ public struct PersonalIndex: Sendable, Equatable {
 
     public struct RememberedShape: Sendable, Equatable {
         public var word: String
-        /// Fractions of the keyboard's width and height.
+        /// Fractions of the keyboard's width and height, `PersonalModel.shapePoints`
+        /// per touch.
         public var points: [CGPoint]
+        /// Swiped on the split keyboard.
+        public var split = false
+
+        /// Each touch's points, in touch-down order.
+        public var pieces: [[CGPoint]] {
+            stride(from: 0, to: points.count, by: PersonalModel.shapePoints)
+                .map { Array(points[$0..<min(points.count, $0 + PersonalModel.shapePoints)]) }
+        }
     }
 
     public init() {}
@@ -414,7 +435,7 @@ public struct PersonalIndex: Sendable, Equatable {
         offsets = Self.offsets(from: touches)
         for id in model.shards.keys.sorted() {
             for (word, kept) in model.shards[id]!.shapes.sorted(by: { $0.key < $1.key }) {
-                shapes += kept.map { RememberedShape(word: word, points: $0.points) }
+                shapes += kept.map { RememberedShape(word: word, points: $0.points, split: $0.split ?? false) }
             }
         }
     }

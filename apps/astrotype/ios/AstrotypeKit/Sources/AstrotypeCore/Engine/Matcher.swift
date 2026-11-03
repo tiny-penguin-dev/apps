@@ -432,21 +432,33 @@ public struct Matcher: Sendable {
     /// under one key, so "seconds" (ending on s) is not "second" (ending on d).
     public var shapeEnds: CGFloat = 0.7
 
-    /// The guesses with the words of remembered shapes (`PersonalIndex.shapes`) that a
-    /// lone swipe comes close to put first (features/missed-words Phase B): the person
-    /// told the keyboard what this swipe means.
+    /// The guesses with the words of remembered shapes (`PersonalIndex.shapes`) that the
+    /// pieces come close to put first (features/missed-words Phase B): the person told
+    /// the keyboard what this swipe means. A shape of two thumbs matches the same number
+    /// of touches, each against its own in touch-down order, on the same keyboard
+    /// (split or whole).
     func remembered(_ ranked: [Candidate], for pieces: [Piece]) -> [Candidate] {
-        guard !personal.shapes.isEmpty, pieces.count == 1, let swipe = pieces.first, !swipe.isTap, !layout.split,
-              layout.width > 0, layout.height > 0, swipe.points.count > 1 else { return ranked }
+        guard !personal.shapes.isEmpty, (1...PersonalModel.maxShapePieces).contains(pieces.count),
+              pieces.contains(where: { !$0.isTap }), layout.width > 0, layout.height > 0 else { return ranked }
         let unit = layout.distanceUnit
-        let actual = Geometry.resample(swipe.points, count: PersonalModel.shapePoints)
-        guard let start = actual.first, let end = actual.last else { return ranked }
+        let actual = pieces.sorted { $0.start < $1.start }.map { Geometry.resample($0.points, count: PersonalModel.shapePoints) }
         var near: [String: Double] = [:]
-        for shape in personal.shapes {
-            let points = shape.points.map { CGPoint(x: $0.x * layout.width, y: $0.y * layout.height) }
-            guard let first = points.first, let last = points.last,
-                  Geometry.distance(first, start) < unit * shapeEnds, Geometry.distance(last, end) < unit * shapeEnds else { continue }
-            let distance = Double(Geometry.dtw(actual, points, band: 4) / unit)
+        for shape in personal.shapes where shape.split == layout.split {
+            let stored = shape.pieces
+            guard stored.count == actual.count else { continue }
+            var total = 0.0
+            var close = true
+            for (mine, kept) in zip(actual, stored) {
+                let points = kept.map { CGPoint(x: $0.x * layout.width, y: $0.y * layout.height) }
+                guard let first = points.first, let last = points.last, let start = mine.first, let end = mine.last,
+                      Geometry.distance(first, start) < unit * shapeEnds, Geometry.distance(last, end) < unit * shapeEnds else {
+                    close = false
+                    break
+                }
+                total += Double(Geometry.dtw(mine, points, band: 4) / unit)
+            }
+            guard close else { continue }
+            let distance = total / Double(actual.count)
             if distance < shapeRadius { near[shape.word] = min(near[shape.word] ?? .infinity, distance) }
         }
         guard !near.isEmpty else { return ranked }

@@ -131,7 +131,8 @@ public struct PersonalModel: Codable, Sendable, Equatable {
     /// One word that settled (the person moved on without changing it): its count, its
     /// pair with the word before, and where the thumbs landed for its letters.
     public mutating func learn(_ word: SettledWord, device: String, at date: Date) {
-        let lower = word.word.lowercased()
+        // Keyed by plain letters, as the matcher asks ("mañana" counts as "manana").
+        let lower = Lexicon.fold(word.word)
         guard Self.isLearnable(lower) else { return }
         let today = Self.day(of: date)
         var shard = shards[device] ?? Shard(since: date)
@@ -287,16 +288,24 @@ public struct SettledWord: Sendable, Equatable {
     /// The first guess, when the person fixed the word to another one (Phase C's
     /// corrections read this).
     public var fixedFrom: String?
+    /// The keyboard's first guess when the word went in, lowercase, nil when it made
+    /// none. The word is the first guess when the person kept it: not fixed from the
+    /// bar, and not a later guess picked before it went in (`GuessTally`).
+    public var firstGuess: String?
+    /// Every touch was a tap: pecked out, not swiped.
+    public var pecked: Bool
     public var touches: [Touch]
     /// The word's touches in touch-down order.
     public var strokes: [Stroke]
 
-    public init(word: String, previous: String?, source: Source, fixedFrom: String? = nil, touches: [Touch] = [],
-                strokes: [Stroke] = []) {
+    public init(word: String, previous: String?, source: Source, fixedFrom: String? = nil, firstGuess: String? = nil,
+                pecked: Bool? = nil, touches: [Touch] = [], strokes: [Stroke] = []) {
         self.word = word
         self.previous = previous
         self.source = source
         self.fixedFrom = fixedFrom
+        self.firstGuess = firstGuess
+        self.pecked = pecked ?? (source == .tapped)
         self.touches = touches
         self.strokes = strokes
     }

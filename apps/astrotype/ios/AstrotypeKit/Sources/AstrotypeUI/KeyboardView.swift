@@ -73,6 +73,8 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         addSubview(bar)
         addSubview(surface)
         surface.delegate = self
+        // Held keys offer the accents of the languages being typed (features/languages).
+        surface.alternates = { [weak model] key in Accents.alternates(for: key, languages: model?.activeLanguages ?? []) }
         surface.layout = model.layout
         bar.onChoose = { [weak self] index in self?.model.choose(guess: index) }
         bar.onBoost = { [weak self] index in self?.model.boost(guess: index) }
@@ -192,6 +194,12 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
     /// What the bar says when idle, unless the host set its own note.
     public var usesDefaultNote = true
 
+    /// How the last opening went when iOS did not give the height asked for at first,
+    /// from the host, for the settings panel to show. Nil when it did.
+    public var heightStory: String? {
+        didSet { panel?.heightStory = heightStory }
+    }
+
     private func render() {
         bar.bar = model.state.bar
         if usesDefaultNote {
@@ -203,6 +211,8 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         surface.spaceSlideEnabled = model.keyboardSettings.spaceSlide
         surface.backspaceSwipeEnabled = model.keyboardSettings.backspaceSwipe
         panel?.allowsSplit = model.entitlement.allows(.splitLayout)
+        panel?.showsSplit = model.layout.isWide
+        panel?.allowsTwoLanguages = model.entitlement.allows(.twoLanguages)
         if model.layout.split != (model.splitOnWide && model.layout.isWide)
             || model.layout.extraLetters != (model.layout.split && extraLetters) || barPlace(for: model.layout) != place
             || height != asked { setNeedsLayout() }
@@ -224,10 +234,14 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         guard panel == nil else { return }
         let panel = SettingsPanelView(settings: model.keyboardSettings)
         panel.allowsSplit = model.entitlement.allows(.splitLayout)
+        panel.showsSplit = model.layout.isWide
+        panel.allowsTwoLanguages = model.entitlement.allows(.twoLanguages)
+        panel.preferredLanguages = model.preferredLanguages
         panel.onChange = { [weak self] settings in self?.model.keyboardSettings = settings }
         panel.onDone = { [weak self] in self?.hideSettings() }
         panel.frame = surface.frame
         panel.granted = (bounds.height, height)
+        panel.heightStory = heightStory
         addSubview(panel)
         self.panel = panel
     }
@@ -331,6 +345,23 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
 
     public func keySurfaceDidHoldNumbers(_ surface: KeySurfaceView) {
         showSettings()
+    }
+
+    public func keySurfaceDidSlideOffNumbers(_ surface: KeySurfaceView) {
+        page = .numbers
+    }
+
+    public func keySurface(_ surface: KeySurfaceView, didEndNumbersSlideOn key: Key?) {
+        // Lifting on "#+=" or "ABC" keeps the page that key chose; anything else
+        // (a number, a symbol, space, return, backspace, off the keys) goes back.
+        switch key {
+        case .symbols, .letters, .numbers: break
+        default: page = .letters
+        }
+    }
+
+    public func keySurface(_ surface: KeySurfaceView, picked letter: Character, touch id: Int, time: TimeInterval) {
+        model.pick(letter, touch: id, time: time)
     }
 }
 #endif

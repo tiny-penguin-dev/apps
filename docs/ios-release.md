@@ -46,6 +46,10 @@ workflow turns the App Groups capability on, but the group itself is made and li
 hand. Register `group.<bundle ID>` under Identifiers → App Groups, then on the app's App
 ID and each extension's App ID tick App Groups, click Configure, pick the group and save.
 
+WeatherKit: the workflow turns the capability on. If weather requests still fail on a
+TestFlight build, check developer.apple.com → Identifiers → the App ID → App Services and
+tick WeatherKit. It can take about 30 minutes to start working.
+
 ## Extensions (widgets)
 
 An extension is a second target in the app's project, embedded in the app, with its own

@@ -10,7 +10,7 @@ import AstrotypeCore
 @Observable
 final class AppModel {
     enum Screen: Equatable {
-        case hello, turnOn, sync, tryIt, home
+        case hello, turnOn, languages, sync, tryIt, home
     }
 
     private(set) var screen: Screen
@@ -140,7 +140,8 @@ final class AppModel {
     func next() {
         switch screen {
         case .hello: screen = .turnOn
-        case .turnOn: screen = .sync
+        case .turnOn: screen = asksLanguages ? .languages : .sync
+        case .languages: screen = .sync
         case .sync: screen = .tryIt
         case .tryIt: finishOnboarding()
         case .home: break
@@ -173,6 +174,51 @@ final class AppModel {
             }
         }
         screen = .home
+    }
+
+    // MARK: Languages
+
+    /// The phone's languages, most preferred first.
+    var preferredLanguages: [String] { Locale.preferredLanguages }
+
+    /// The languages the keyboard types in (features/languages): the chosen ones, or
+    /// the phone's, one on the free keyboard.
+    var activeLanguages: [String] {
+        keyboardSettings.activeLanguages(preferred: preferredLanguages, allowsTwo: entitlement.allows(.twoLanguages))
+    }
+
+    /// Setup asks which languages only when the phone lists more than one the keyboard
+    /// knows, and nobody chose yet.
+    var asksLanguages: Bool {
+        keyboardSettings.languages == nil && KeyboardSettings.phoneLanguages(preferredLanguages).count > 1
+    }
+
+    /// A language chosen but off because the keyboard is free (the trial ended with
+    /// two on): it comes back with Pro.
+    var languageOffWithoutPro: String? {
+        guard !entitlement.allows(.twoLanguages) else { return nil }
+        return keyboardSettings.chosenLanguages(preferred: preferredLanguages).first { !activeLanguages.contains($0) }
+    }
+
+    /// Turns a language on or off: on adds it (free, it takes the other's place), off
+    /// drops it unless it is the last one. Counted as `languages.enabled`.
+    func setLanguage(_ code: String, on: Bool) {
+        var chosen = activeLanguages
+        if on {
+            guard !chosen.contains(code) else { return }
+            chosen = entitlement.allows(.twoLanguages) ? chosen + [code] : [code]
+        } else {
+            guard chosen.count > 1 else { return }
+            chosen.removeAll { $0 == code }
+        }
+        setLanguages(chosen)
+    }
+
+    /// The languages from setup's question, or the page.
+    func setLanguages(_ codes: [String]) {
+        guard !codes.isEmpty, codes != keyboardSettings.languages else { return }
+        keyboardSettings.languages = codes
+        environment.metrics.count("languages.enabled", ["set": codes.sorted().joined(separator: "+")])
     }
 
     // MARK: Pro

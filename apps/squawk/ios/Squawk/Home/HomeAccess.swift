@@ -1,6 +1,7 @@
 @preconcurrency import HomeKit
 import Observation
 import SquawkKit
+import UIKit
 
 /// Squawk's view of your Home: whether it may use it, whether there's a Home hub, and
 /// the lights, plugs, blinds and scenes it can control (features/steps/FEATURE.md,
@@ -29,6 +30,10 @@ final class HomeAccess: NSObject {
     @ObservationIgnored private var manager: HMHomeManager?
     @ObservationIgnored private var waiting: [CheckedContinuation<Void, Never>] = []
     @ObservationIgnored let syncer = HomeSync()
+    /// The newest plan to sync. Kept when a sync couldn't finish in the background, and
+    /// run again the next time the app is active.
+    @ObservationIgnored private var latestPlan: (@MainActor () -> [PlannedHomeStep])?
+    @ObservationIgnored private var deferred = false
 
     /// Set once Squawk has been allowed, so the next launch connects without asking.
     private static let connectedKey = "home.connected"
@@ -38,6 +43,18 @@ final class HomeAccess: NSObject {
     override init() {
         super.init()
         if UserDefaults.standard.bool(forKey: Self.connectedKey) { connect() }
+        NotificationCenter.default.addObserver(
+            forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.syncDeferred() }
+        }
+    }
+
+    /// Runs a sync that HomeKit turned away while the app was in the background.
+    private func syncDeferred() {
+        guard deferred, let latestPlan else { return }
+        deferred = false
+        Task { await sync(latestPlan) }
     }
 
     /// Shows the iOS prompt the first time, then waits until HomeKit has loaded.
@@ -102,10 +119,16 @@ final class HomeAccess: NSObject {
 }
 
 extension HomeAccess: HomeController {
-    func sync(_ plan: [PlannedHomeStep]) async {
+    func sync(_ plan: @escaping @MainActor () -> [PlannedHomeStep]) async {
+        latestPlan = plan
         await loaded()
         guard status == .allowed, let home = currentHome() else { return }
-        await syncer.sync(plan, in: home)
+        // HomeKit only takes changes in the foreground. Keep the plan for later
+        // instead of leaving the lights on the old one.
+        guard HomeSync.canWrite else { deferred = true; return }
+        deferred = false
+        let finished = await syncer.sync(plan(), in: home)
+        if !finished { deferred = true }
     }
 
     func runUp(_ actions: [HomeAction]) async {
@@ -120,8 +143,9 @@ extension HomeAccess: HomeController {
 /// none.
 @MainActor
 protocol HomeController: AnyObject {
-    /// Makes the Home automations match these planned steps.
-    func sync(_ plan: [PlannedHomeStep]) async
+    /// Makes the Home automations match the planned steps. The plan is made when the
+    /// sync runs, which can be later: HomeKit only takes changes while the app is active.
+    func sync(_ plan: @escaping @MainActor () -> [PlannedHomeStep]) async
     /// Runs "When you're up" now.
     func runUp(_ actions: [HomeAction]) async
 }

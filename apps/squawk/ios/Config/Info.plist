@@ -17,6 +17,13 @@
 	<!-- Wake-up steps: lights and scenes from the Home app. -->
 	<key>NSHomeKitUsageDescription</key>
 	<string>Squawk turns on lights, runs scenes and opens blinds as part of your alarms.</string>
+	<!-- Morning summary: weather for your rough location, and today's first event. -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Squawk shows today's weather on Good morning. Your rough location is enough.</string>
+	<key>NSLocationDefaultAccuracyReduced</key>
+	<true/>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>Squawk shows your first event of the day on Good morning. It never changes your calendar.</string>
 	<!-- Needed to read ISO 14443 tags (most NFC stickers). Squawk only reads the tag's id. -->
 	<key>com.apple.developer.nfc.readersession.iso7816.select-identifiers</key>
 	<array>

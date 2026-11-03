@@ -56,6 +56,42 @@ import Testing
         #expect(health.toSend(after: t0.addingTimeInterval(120), now: t0.addingTimeInterval(3_600)).isEmpty)
     }
 
+    @Test func countsFirstGuessesPerSessionAndSendsThem() {
+        var health = KeyboardHealth()
+        let kept = SettledWord(word: "the", previous: nil, source: .swiped, firstGuess: "the")
+        let picked = SettledWord(word: "pit", previous: nil, source: .swiped, firstGuess: "pot")
+        let fixed = SettledWord(word: "pit", previous: nil, source: .fixed, fixedFrom: "pot", firstGuess: "pot")
+        let pecked = SettledWord(word: "hope", previous: nil, source: .tapped, firstGuess: "hope")
+        let unguessed = SettledWord(word: "hope", previous: nil, source: .tapped)
+
+        // Nothing open: nothing counted.
+        #expect(health.settled(kept) == false)
+        health.begin(at: t0, footprintMB: 20, headroomMB: 40)
+        for _ in 0..<8 { health.settled(kept) }
+        health.settled(picked)
+        #expect(health.settled(fixed) == true) // the tenth word: worth a write
+        health.settled(pecked)
+        #expect(health.settled(unguessed) == false)
+        health.end(footprintMB: 20, headroomMB: 40)
+        #expect(health.sessions[0].guesses == GuessTally(swiped: 10, swipedFirst: 8, pecked: 1, peckedFirst: 1))
+
+        let metrics = RecordingMetrics()
+        KeyboardHealth.report(health.sessions, to: metrics)
+        let guesses = metrics.sent.filter { $0.name.hasPrefix("guess.") }
+        #expect(guesses.map(\.name) == ["guess.words", "guess.first", "guess.first_share", "guess.words", "guess.first"])
+        #expect(guesses.map(\.value) == [10, 8, 80, 1, 1])
+        #expect(guesses.map { $0.attributes["kind"] } == ["swipe", "swipe", "swipe", "tap", "tap"])
+    }
+
+    @Test func oldHealthFilesReadWithNoGuesses() throws {
+        let old = #"{"version":1,"sessions":[{"started":0,"peakMB":20,"lowestHeadroomMB":40,"ended":true}]}"#
+        let health = try JSONDecoder().decode(KeyboardHealth.self, from: Data(old.utf8))
+        #expect(health.sessions.first?.guesses == GuessTally())
+        let metrics = RecordingMetrics()
+        KeyboardHealth.report(health.sessions, to: metrics)
+        #expect(!metrics.sent.contains { $0.name.hasPrefix("guess.") })
+    }
+
     @Test func filesRoundTripAndUsageSharingDefaultsOff() {
         let folder = FileManager.default.temporaryDirectory.appendingPathComponent("AstrotypeKitTests-\(UUID().uuidString)", isDirectory: true)
         defer { try? FileManager.default.removeItem(at: folder) }

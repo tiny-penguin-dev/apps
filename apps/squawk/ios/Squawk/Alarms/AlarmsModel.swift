@@ -23,12 +23,18 @@ final class AlarmsModel {
     private let scheduler: any RingScheduler
     /// Lights, scenes and blinds. Nil in previews.
     private let home: (any HomeController)?
+    /// "Open Squawk to keep your alarms" before a plan runs out. Nil in previews.
+    private let runOut: RunOutReminder?
 
-    init(store: any AlarmStore, morningsStore: any MorningsStore, scheduler: any RingScheduler, home: (any HomeController)? = nil) {
+    init(
+        store: any AlarmStore, morningsStore: any MorningsStore, scheduler: any RingScheduler,
+        home: (any HomeController)? = nil, runOut: RunOutReminder? = nil
+    ) {
         self.store = store
         self.morningsStore = morningsStore
         self.scheduler = scheduler
         self.home = home
+        self.runOut = runOut
         self.access = scheduler.access
         do {
             alarms = try store.load()
@@ -46,7 +52,8 @@ final class AlarmsModel {
     static func live() -> AlarmsModel {
         let store: any AlarmStore = (try? FileAlarmStore.standard()) ?? MemoryAlarmStore()
         let mornings: any MorningsStore = (try? FileMorningsStore.standard()) ?? MemoryMorningsStore()
-        return AlarmsModel(store: store, morningsStore: mornings, scheduler: AlarmKitScheduler.shared, home: HomeAccess.shared)
+        return AlarmsModel(store: store, morningsStore: mornings, scheduler: AlarmKitScheduler.shared,
+                           home: HomeAccess.shared, runOut: .shared)
     }
 
     static func preview(_ alarms: [Alarm] = [
@@ -66,6 +73,14 @@ final class AlarmsModel {
             Telemetry.count("alarm.created", ["kind": alarm.isOneTime ? "once" : "repeat"])
         }
         commit()
+        // A repeating alarm with a check is only planned a few mornings ahead, so ask
+        // to send the reminder that keeps it going, then plan it in.
+        if alarm.hasChecks, !alarm.isOneTime, let runOut {
+            Task {
+                await runOut.requestAccess()
+                await reschedule()
+            }
+        }
     }
 
     func delete(_ alarm: Alarm) {
@@ -131,6 +146,73 @@ final class AlarmsModel {
     func ringStopped(alarmID: String) async {
         guard alarms.contains(where: { $0.id.uuidString == alarmID && $0.hasChecks }) else { return }
         await reschedule()
+    }
+
+    // MARK: "Turn off Squawk" Shortcut
+
+    /// What the "Turn off Squawk" action did, for the message Shortcuts shows.
+    enum ShortcutResult {
+        case turnedOff, oneCheckLeft, needsCheck, nothingRinging
+    }
+
+    /// The "Turn off Squawk" action (`TurnOffSquawkIntent`), usually from an NFC or
+    /// Focus automation, often with the app in the background. It ends a morning that
+    /// has no checks or only Shortcut checks, and counts as the Shortcut check on one
+    /// that has other checks too. It never skips another check.
+    func turnOffFromShortcut() async -> ShortcutResult {
+        let now = Date()
+        var results: [ShortcutResult] = []
+        var upActions: [HomeAction] = []
+        for index in alarms.indices {
+            switch alarms[index].shortcutTurnOff(at: now) {
+            case .notRinging:
+                continue
+            case .lastRing:
+                Telemetry.count("morning.up", ["from": "shortcut"])
+                results.append(.turnedOff)
+            case .needsOtherCheck:
+                results.append(.needsCheck)
+            case .shortcutDone(let day):
+                shortcutRuns[alarms[index].id.uuidString] = day.key
+                saveShortcutRuns()
+                results.append(.oneCheckLeft)
+            case .up:
+                // Good morning shows now if its check screen is open, otherwise the next
+                // time the app opens.
+                let checkOpen = activeCheckID == alarms[index].id
+                logUp(index, at: now, show: checkOpen)
+                alarms[index].markUp(at: now)
+                upActions += alarms[index].upActions
+                if checkOpen { activeCheckID = nil }
+                Telemetry.count(alarms[index].hasChecks ? "check.finished" : "morning.up",
+                                alarms[index].hasChecks ? ["how": "shortcut"] : ["from": "shortcut"])
+                results.append(.turnedOff)
+            }
+        }
+        guard results.contains(.turnedOff) else {
+            return results.contains(.oneCheckLeft) ? .oneCheckLeft : results.first ?? .nothingRinging
+        }
+        scheduler.stopRinging()
+        save()
+        await home?.runUp(upActions)
+        await reschedule()
+        return .turnedOff
+    }
+
+    /// True when "Turn off Squawk" already ran during this alarm's morning, so its
+    /// Shortcut check on the check screen is done.
+    func shortcutRan(for alarm: Alarm) -> Bool {
+        guard let day = alarm.morningInProgress(at: Date()) else { return false }
+        return shortcutRuns[alarm.id.uuidString] == day.key
+    }
+
+    /// Alarm id → the morning "Turn off Squawk" ran in. Kept on disk because the action
+    /// often runs from a background launch.
+    private var shortcutRuns: [String: String] = UserDefaults.standard.dictionary(forKey: AlarmsModel.shortcutRunsKey) as? [String: String] ?? [:]
+    private static let shortcutRunsKey = "shortcut.runs"
+
+    private func saveShortcutRuns() {
+        UserDefaults.standard.set(shortcutRuns, forKey: Self.shortcutRunsKey)
     }
 
     // MARK: Wake-up checks
@@ -298,8 +380,14 @@ final class AlarmsModel {
         }
         Telemetry.gauge("alarms.total", value: Double(alarms.count))
         WidgetBridge.publish(alarms: alarms, streak: log.streak)
-        await home?.sync(HomePlanner.plan(alarms, now: Date()))
+        await runOut?.set(AlarmPlanner.runOutReminder(alarms, now: Date()))
+        await home?.sync { HomePlanner.plan(self.alarms, now: Date()) }
     }
 
     static let failureMessage = "I couldn't set this alarm. Try again, and if it keeps happening, restart your iPhone."
+}
+
+private extension LocalDate {
+    /// "2026-11-3", to remember a morning in UserDefaults.
+    var key: String { "\(year)-\(month)-\(day)" }
 }

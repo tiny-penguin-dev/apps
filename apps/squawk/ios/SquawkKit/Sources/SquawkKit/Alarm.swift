@@ -174,13 +174,16 @@ public struct WakeUpCheck: Codable, Identifiable, Hashable, Sendable {
         case code
         /// Count the penguins.
         case game
+        /// Run the "Turn off Squawk" action from a Shortcut or automation (an NFC tag,
+        /// a Focus turning off).
+        case shortcut
 
         public var id: String { rawValue }
     }
 
     public var id: UUID
     public var kind: Kind
-    /// What must match: the tag's id or the code's text. Empty for the game.
+    /// What must match: the tag's id or the code's text. Empty for the game and Shortcut.
     public var secret: String
     /// Where it is, like "Bathroom mirror". Shown on the check screen.
     public var place: String

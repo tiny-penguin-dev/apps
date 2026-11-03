@@ -2,8 +2,9 @@ import PenguinKit
 import SquawkKit
 import SwiftUI
 
-/// Screen 12: Squawk's reaction to how the morning went, this week's dots and the
-/// streak, with fish confetti for a first-ring morning.
+/// Screen 12: Squawk's reaction to how the morning went, today's weather and first event
+/// (Pro, features/morning-summary), this week's dots and the streak, with fish confetti
+/// for a first-ring morning.
 struct GoodMorningView: View {
     /// The morning to react to. Nil shows a plain "Rise and waddle!".
     var record: MorningRecord?
@@ -11,6 +12,9 @@ struct GoodMorningView: View {
     var onClose: () -> Void
     @Environment(ProModel.self) private var pro
     @Environment(AlarmsModel.self) private var model
+    @Environment(MorningSummaryModel.self) private var summary
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var paywall: ProFeature?
     @AppStorage(Wardrobe.key) private var outfitID = ""
 
     var body: some View {
@@ -38,6 +42,7 @@ struct GoodMorningView: View {
                         }
                         .transition(.scale.combined(with: .opacity))
                     }
+                    summaryCard
                     Card {
                         VStack(alignment: .leading, spacing: 14) {
                             Text("This week").font(Theme.label)
@@ -53,6 +58,9 @@ struct GoodMorningView: View {
                 .padding(24)
                 .frame(maxWidth: 560)
                 .frame(maxWidth: .infinity)
+                .animation(reduceMotion ? nil : .spring(duration: 0.5, bounce: 0.3), value: summary.weather)
+                .animation(reduceMotion ? nil : .spring(duration: 0.5, bounce: 0.3), value: summary.agenda)
+                .animation(reduceMotion ? nil : .spring(duration: 0.5, bounce: 0.3), value: summary.settings)
             }
             if record?.outcome == .firstRing {
                 FishConfetti().ignoresSafeArea()
@@ -66,6 +74,32 @@ struct GoodMorningView: View {
                 .frame(maxWidth: 560)
         }
         .sensoryFeedback(.success, trigger: record?.id)
+        .proSheet($paywall)
+        .task {
+            summary.countOffer()
+            await summary.load(access: pro.access)
+        }
+    }
+
+    /// Today's weather and first event, or the offer to add them.
+    @ViewBuilder
+    private var summaryCard: some View {
+        let allowed = pro.access.allows(.summary)
+        if allowed, summary.settings.isOn, summary.hasSomething {
+            TodayCard(weather: summary.weather, agenda: summary.agenda)
+                .transition(reduceMotion ? .opacity : .scale(scale: 0.9).combined(with: .opacity))
+        } else if summary.settings.shouldOffer {
+            SummaryOfferCard(locked: !allowed, working: summary.turningOn) {
+                if allowed {
+                    Task { await summary.turnOn(access: pro.access) }
+                } else {
+                    paywall = .summary
+                }
+            } onNotNow: {
+                summary.dismissOffer()
+            }
+            .transition(.opacity)
+        }
     }
 
     /// What "When you're up" just did, shown as chips.
@@ -157,8 +191,9 @@ private struct NewOutfitCard: View {
         log: MorningsLog(),
         onClose: {}
     )
-    .environment(ProModel.preview())
+    .environment(ProModel.preview(isPro: true))
     .environment(AlarmsModel.preview())
+    .environment(MorningSummaryModel.preview())
 }
 
 #Preview("Last ring, large text") {
@@ -167,8 +202,9 @@ private struct NewOutfitCard: View {
         log: MorningsLog(),
         onClose: {}
     )
-    .environment(ProModel.preview())
+    .environment(ProModel.preview(isPro: true))
     .environment(AlarmsModel.preview())
+    .environment(MorningSummaryModel.preview())
     .dynamicTypeSize(.accessibility3)
 }
 

@@ -19,7 +19,7 @@ let package = Package(
     targets: [
         // One folder per language under Resources/ (lexicon.tsv, bigrams.bin), and the
         // emoji list (emoji/emoji.tsv, features/emoji).
-        .target(name: "AstrotypeCore", resources: [.copy("Resources/en"), .copy("Resources/emoji")]),
+        .target(name: "AstrotypeCore", resources: [.copy("Resources/en"), .copy("Resources/es"), .copy("Resources/emoji")]),
         .target(name: "AstrotypeUI", dependencies: ["AstrotypeCore"]),
         .executableTarget(name: "AstrotypeTools", dependencies: ["AstrotypeCore"]),
         .testTarget(name: "AstrotypeKitTests", dependencies: ["AstrotypeCore"], exclude: ["Fixtures"]),

@@ -57,6 +57,7 @@ struct CheckFlowView: View {
             case .tag: TagCheckView(check: check, onDone: next)
             case .code: CodeCheckView(check: check, onDone: next)
             case .game: GameCheckView(onDone: next)
+            case .shortcut: ShortcutCheckView(done: model.shortcutRan(for: alarm), onDone: next)
             }
             Button("Stuck? Answer a math question instead") {
                 withAnimation(.spring) { stage = .math }
@@ -196,6 +197,42 @@ private struct CodeCheckView: View {
             }
         }
         .sensoryFeedback(.error, trigger: message)
+    }
+}
+
+// MARK: Shortcut
+
+/// "Run your Shortcut": done when the "Turn off Squawk" action runs this morning, from
+/// an NFC tag, a Focus or the Shortcuts app.
+private struct ShortcutCheckView: View {
+    /// True once the action ran this morning (it may have run before this screen opened).
+    var done: Bool
+    var onDone: () -> Void
+    @State private var finished = false
+    @Environment(\.openURL) private var openURL
+
+    var body: some View {
+        VStack(spacing: 18) {
+            PenguinView(mood: .grumpy).frame(width: 120, height: 120)
+            Text("Run your Shortcut").titleFont(30)
+            Text("Tap your tag or run the automation that turns off Squawk.")
+                .font(Theme.body).foregroundStyle(Theme.muted)
+                .multilineTextAlignment(.center)
+            Spacer(minLength: 0)
+            Button("Open Shortcuts") {
+                if let url = URL(string: "shortcuts://") { openURL(url) }
+            }
+            .buttonStyle(PillButtonStyle())
+            Spacer(minLength: 0)
+        }
+        .onAppear(perform: finishIfDone)
+        .onChange(of: done) { finishIfDone() }
+    }
+
+    private func finishIfDone() {
+        guard done, !finished else { return }
+        finished = true
+        onDone()
     }
 }
 

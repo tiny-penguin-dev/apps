@@ -11,7 +11,7 @@ import Foundation
 public enum ProFeature: String, CaseIterable, Identifiable, Sendable {
     /// More than `ProAccess.freeRings` rings on one alarm.
     case moreRings
-    /// Wake-up checks: tag, code, penguin game.
+    /// Wake-up checks: tag, code, penguin game, Shortcut.
     case checks
     /// "Change tomorrow only" to a new time. Skipping a morning is free.
     case changeNextTime
@@ -25,6 +25,8 @@ public enum ProFeature: String, CaseIterable, Identifiable, Sendable {
     case appIcons
     /// Home steps (lights, scenes, plugs, blinds) and "When you're up".
     case home
+    /// The weather and your first calendar event on Good morning.
+    case summary
 
     public var id: String { rawValue }
 

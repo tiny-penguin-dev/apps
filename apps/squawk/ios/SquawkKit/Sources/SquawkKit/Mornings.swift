@@ -163,6 +163,34 @@ extension Alarm {
         return true
     }
 
+    // MARK: "Turn off Squawk" Shortcut
+
+    /// What the "Turn off Squawk" action does to this alarm right now. It can't skip a
+    /// wake-up check: it only turns the morning off when the alarm has no checks, or
+    /// when its checks are all "Run a Shortcut". With other checks too, it counts as the
+    /// Shortcut check, and the rest are done in the app.
+    public func shortcutTurnOff(at now: Date, calendar: Calendar = .current) -> ShortcutTurnOff {
+        guard let day = morningInProgress(at: now, calendar: calendar) else {
+            return lastRingMayBeRinging(at: now, calendar: calendar) ? .lastRing : .notRinging
+        }
+        guard hasChecks else { return .up(day) }
+        guard checks.contains(where: { $0.kind == .shortcut }) else { return .needsOtherCheck }
+        return checks.allSatisfy { $0.kind == .shortcut } ? .up(day) : .shortcutDone(day)
+    }
+
+    /// Without a check, a morning is over once its last ring goes off, but that ring
+    /// keeps going until it's stopped. The action can still silence it for a while.
+    public static let shortcutGraceSeconds: TimeInterval = 600
+
+    private func lastRingMayBeRinging(at now: Date, calendar: Calendar) -> Bool {
+        guard isOn, !hasChecks else { return false }
+        let today = LocalDate(now, calendar: calendar)
+        return [today.adding(days: -1, calendar: calendar), today].contains { day in
+            guard let last = ringTimes(on: day, calendar: calendar).last else { return false }
+            return last.fire <= now && now < last.fire.addingTimeInterval(Self.shortcutGraceSeconds)
+        }
+    }
+
     // MARK: Adding rings
 
     /// Adds a soft ring 10 minutes before the first one.
@@ -201,4 +229,19 @@ extension Ring {
         if let name, !name.isEmpty { return "\(time) · \(name)" }
         return "\(time) · \(sound.name)"
     }
+}
+
+/// What running the "Turn off Squawk" action means for one alarm.
+public enum ShortcutTurnOff: Equatable, Sendable {
+    /// No morning of this alarm is going on.
+    case notRinging
+    /// This morning is over: cancel the rest of it.
+    case up(LocalDate)
+    /// An alarm without a check whose last ring went off a moment ago: nothing is left
+    /// to cancel, but that ring may still be going off.
+    case lastRing
+    /// The Shortcut check of this morning is done, but other checks are left.
+    case shortcutDone(LocalDate)
+    /// The alarm has checks and none of them is a Shortcut, so it keeps ringing.
+    case needsOtherCheck
 }

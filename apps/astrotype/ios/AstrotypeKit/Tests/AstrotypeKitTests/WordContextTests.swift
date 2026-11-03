@@ -32,6 +32,7 @@ import Testing
         #expect(WordContext.words(before: "Don't you ") == ["dont", "you"])
         #expect(WordContext.words(before: "I'll ") == ["<s>", "ill"])
         #expect(WordContext.words(before: "It's 10 o'clock ") == ["its", "oclock"])
-        #expect(WordContext.words(before: "Café ") == ["<s>", "caf"])
+        // Accents come off, as the trie and the word pairs file words (Lexicon.fold).
+        #expect(WordContext.words(before: "Café ") == ["<s>", "cafe"])
     }
 }

@@ -126,17 +126,7 @@ public enum AlarmPlanner {
     /// its own time, which tops the repeats back up. Doing the check marks the morning
     /// done, and the re-plan cancels the rest.
     static func planWithChecks(_ alarm: Alarm, now: Date, calendar: Calendar) -> [PlannedRing] {
-        var days: [LocalDate] = []
-        if let date = alarm.date {
-            days = [date]
-        } else {
-            let today = LocalDate(now, calendar: calendar)
-            for offset in -1...14 where days.count < checkMorningsAhead {
-                let day = today.adding(days: offset, calendar: calendar)
-                if alarm.isPending(day, now: now, calendar: calendar) { days.append(day) }
-            }
-        }
-
+        let days = alarm.date.map { [$0] } ?? checkMornings(alarm, now: now, calendar: calendar)
         let repeats = Int(Alarm.checkWindowSeconds / Alarm.checkRepeatSeconds)
         var result: [PlannedRing] = []
         for day in days {
@@ -164,6 +154,71 @@ public enum AlarmPlanner {
             }
         }
         return result
+    }
+
+    /// The mornings a repeating alarm with a wake-up check is planned for: the next
+    /// `checkMorningsAhead` that haven't ended, looking at most two weeks ahead.
+    static func checkMornings(_ alarm: Alarm, now: Date, calendar: Calendar) -> [LocalDate] {
+        var days: [LocalDate] = []
+        let today = LocalDate(now, calendar: calendar)
+        for offset in -1...14 where days.count < checkMorningsAhead {
+            let day = today.adding(days: offset, calendar: calendar)
+            if alarm.isPending(day, now: now, calendar: calendar) { days.append(day) }
+        }
+        return days
+    }
+
+    // MARK: Before the plan runs out
+
+    /// The reminder goes off at this time on the evening before the last planned morning.
+    static let reminderTime = TimeOfDay(hour: 20, minute: 0)
+
+    /// When to remind the person to open Squawk, because a repeating alarm is only
+    /// planned for a few mornings and nothing re-planned it since. Nil when every
+    /// plan is open-ended (plain weekly alarms) or the reminder time has passed.
+    ///
+    /// Every re-plan (opening the app, a Snooze, a morning ending) moves this further
+    /// out, so it only goes off when nobody has touched Squawk for days: the phone was
+    /// off, or the alarms rang out without anyone stopping them. It's set for the
+    /// evening before the last planned morning, so that morning still rings and
+    /// opening the app plans the next few.
+    public static func runOutReminder(_ alarms: [Alarm], now: Date, calendar: Calendar = .current) -> Date? {
+        alarms.filter(\.isOn)
+            .compactMap { lastPlannedRing($0, now: now, calendar: calendar) }
+            .compactMap { reminder(before: $0, calendar: calendar) }
+            .filter { $0 > now }
+            .min()
+    }
+
+    /// The first ring of the last morning the plan covers, for a repeating alarm whose
+    /// plan stops after a while: with a wake-up check (`checkMorningsAhead` mornings),
+    /// or with a one-morning change (that weekday rings as one-off alarms for
+    /// `weeksAhead` weeks). Nil for a one-time alarm or one that repeats weekly.
+    static func lastPlannedRing(_ alarm: Alarm, now: Date, calendar: Calendar) -> Date? {
+        guard alarm.date == nil else { return nil }
+        let days: [LocalDate]
+        if alarm.hasChecks {
+            days = checkMornings(alarm, now: now, calendar: calendar)
+        } else {
+            // Each changed weekday stops after its last one-off week; the earliest
+            // of those is when the plan first runs out.
+            days = changedWeekdays(alarm, now: now, calendar: calendar).values
+                .map { $0.adding(days: 7 * weeksAhead, calendar: calendar) }
+                .sorted()
+                .prefix(1)
+                .map { $0 }
+        }
+        // A skipped morning at the end doesn't ring, so look for the last one that does.
+        return days.reversed().lazy
+            .compactMap { alarm.ringTimes(on: $0, calendar: calendar).first?.fire }
+            .first
+    }
+
+    /// `reminderTime` on the day before `firstRing`.
+    static func reminder(before firstRing: Date, calendar: Calendar) -> Date? {
+        LocalDate(firstRing, calendar: calendar)
+            .adding(days: -1, calendar: calendar)
+            .date(at: reminderTime, calendar: calendar)
     }
 
     /// Weekdays whose next morning has a one-morning change, with that morning. These

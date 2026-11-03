@@ -63,6 +63,7 @@ public final class KeyboardModel {
         didSet {
             guard entitlement != oldValue else { return }
             composer.settings.twoThumbs = entitlement.allows(.twoThumbs)
+            refreshLanguage()
             onChange?()
         }
     }
@@ -74,6 +75,7 @@ public final class KeyboardModel {
             guard keyboardSettings != oldValue else { return }
             composer.settings = keyboardSettings.composerSettings(from: composer.settings)
             applyPersonalSettings()
+            refreshLanguage()
             settingsChanged = Date()
             store?.save(keyboardSettings)
             onChange?()
@@ -107,6 +109,43 @@ public final class KeyboardModel {
     }
 
     private var autospace: Task<Void, Never>?
+
+    // MARK: Languages
+
+    /// The phone's languages, most preferred first (`Locale.preferredLanguages`): a
+    /// Spanish phone types Spanish until the person chooses (features/languages).
+    public var preferredLanguages: [String] = Locale.preferredLanguages {
+        didSet { if preferredLanguages != oldValue { refreshLanguage() } }
+    }
+    /// Loads the dictionaries for some languages, off the main thread; the bundled ones
+    /// unless a test says otherwise.
+    public var loadLanguage: @Sendable ([String]) -> Language? = { try? Language.bundled($0) }
+    /// The languages the keyboard types in now: the chosen ones, or one on the free
+    /// keyboard (two at once is Pro).
+    public var activeLanguages: [String] {
+        keyboardSettings.activeLanguages(preferred: preferredLanguages, allowsTwo: entitlement.allows(.twoLanguages))
+    }
+    private var languageLoad: Task<Void, Never>?
+    /// Whether the languages follow the settings. The app's practice field stays in the
+    /// language it was made with: the speed test and drills are English.
+    public var followsLanguages = true
+
+    /// Swaps the dictionaries when the languages to type in changed. Loading two takes
+    /// a moment, so it happens in the background and the keys keep typing meanwhile.
+    private func refreshLanguage() {
+        guard followsLanguages else { return }
+        let codes = activeLanguages
+        let code = codes.joined(separator: "+")
+        guard code != composer.languageCode else { languageLoad?.cancel(); return }
+        languageLoad?.cancel()
+        let load = loadLanguage
+        languageLoad = Task { [weak self] in
+            let language = await Task.detached(priority: .userInitiated) { load(codes) }.value
+            guard !Task.isCancelled, let self, let language, self.activeLanguages == codes else { return }
+            self.apply(self.composer.setLanguage(language, time: self.now))
+            self.onChange?()
+        }
+    }
 
     /// `store`'s settings and `wordStore`'s words apply when they have any; otherwise
     /// the defaults and no words.
@@ -220,6 +259,12 @@ public final class KeyboardModel {
     public func touchEnded(id: Int, at point: CGPoint, time: TimeInterval) {
         onTouch?(.ended, id, point, time)
         apply(composer.touchUp(id: id, at: point, time: time))
+    }
+
+    /// A held key's callout gave another letter for the touch `id` ("ñ" from n).
+    public func pick(_ letter: Character, touch id: Int, time: TimeInterval) {
+        onTouch?(.cancelled, id, .zero, time)
+        apply(composer.pick(letter, touch: id, time: time))
     }
 
     public func touchCancelled(id: Int, time: TimeInterval) {

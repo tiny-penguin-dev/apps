@@ -206,8 +206,35 @@ public struct Matcher: Sendable {
     /// pecked letters that begin a word ("bri" on the way to "bring") then stay as they
     /// are; when it is true (on space) they too must make a word, as `strictness` says.
     public func candidates(for pieces: [Piece], limit: Int = 3, final: Bool = true) -> [Candidate] {
-        let keyed = keyedCandidates(for: pieces, limit: limit, final: final)
-        return dictionary.hasSpellings || learnedLexicon.hasSpellings ? spelled(keyed, limit: limit) : keyed
+        // Letters picked from a held key ("ñ") search as their plain key and must come
+        // out as picked.
+        let picked = pieces.sorted { $0.start < $1.start }.flatMap(\.keys).filter { $0.unicodeScalars.contains { $0.value >= 0x80 } }
+        guard !picked.isEmpty else {
+            let keyed = keyedCandidates(for: pieces, limit: limit, final: final)
+            return dictionary.hasSpellings || learnedLexicon.hasSpellings ? spelled(keyed, limit: limit) : keyed
+        }
+        let plain = pieces.map { piece in
+            var piece = piece
+            piece.keys = piece.keys.map { Character(Lexicon.fold(String($0))) }
+            return piece
+        }
+        let wide = spelled(keyedCandidates(for: plain, limit: limit + 3, final: final), limit: limit + 6)
+        let kept = wide.filter { Self.has(picked, in: $0.word) }
+        if !kept.isEmpty { return Array(kept.prefix(limit)) }
+        // No word has them: the letters as typed, when every piece was a tap.
+        guard pieces.allSatisfy(\.isTap) else { return Array(wide.prefix(limit)) }
+        let typed = String(pieces.sorted { $0.start < $1.start }.flatMap(\.keys))
+        return [Candidate(word: typed, score: priorWeight * Double(unknownPrior))] + wide.prefix(limit - 1)
+    }
+
+    /// Whether `word` has the `letters`, in this order.
+    static func has(_ letters: [Character], in word: String) -> Bool {
+        var rest = Substring(word)
+        for letter in letters {
+            guard let i = rest.firstIndex(of: letter) else { return false }
+            rest = rest[rest.index(after: i)...]
+        }
+        return true
     }
 
     /// The guesses as the keys spell them ("cancion"), before `spelled` writes them.
@@ -304,7 +331,7 @@ public struct Matcher: Sendable {
 
     /// The log prior of a word of the person's own, from how often they wrote it.
     func ownPrior(_ word: String) -> Float {
-        learned.logPrior(of: word, base: learnedPrior)
+        learned.logPrior(of: learnedLexicon.spellings(of: word).first?.word ?? word, base: learnedPrior)
     }
 
     /// Words and scores as guesses, best first (ties alphabetical, so runs repeat).
@@ -318,12 +345,12 @@ public struct Matcher: Sendable {
 
     /// In the dictionary or the person's own words.
     func isKnown(_ word: String) -> Bool {
-        dictionary.contains(word) || learned.contains(word)
+        dictionary.contains(word) || learnedLexicon.contains(word)
     }
 
     /// What was tapped, then common words that continue it, the context deciding among them.
     private func exactly(_ typed: String, limit: Int) -> [Candidate] {
-        let prior = priorWeight * Double(dictionary.logPrior(of: typed) ?? (learned.contains(typed) ? ownPrior(typed) : unknownPrior))
+        let prior = priorWeight * Double(dictionary.logPrior(of: typed) ?? (learnedLexicon.contains(typed) ? ownPrior(typed) : unknownPrior))
         var out = [Candidate(word: typed, score: prior + learned.weight(of: typed))]
         let completions = dictionary.completions(of: typed, limit: limit + 2)
             .filter { $0 != typed }
@@ -439,7 +466,7 @@ public struct Matcher: Sendable {
     /// words must be common, single letters only "a" and "i".
     private func splitPrior(_ part: String) -> Float? {
         if part.count == 1 { return part == "a" || part == "i" ? dictionary.logPrior(of: part) : nil }
-        let own = dictionary.logPrior(of: part) ?? (learned.contains(part) ? ownPrior(part) : nil)
+        let own = dictionary.logPrior(of: part) ?? (learnedLexicon.contains(part) ? ownPrior(part) : nil)
         guard let own, own >= (part.count <= 3 ? splitShortPrior : splitLongPrior) else { return nil }
         return own
     }

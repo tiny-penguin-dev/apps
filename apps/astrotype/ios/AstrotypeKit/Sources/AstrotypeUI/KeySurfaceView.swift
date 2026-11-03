@@ -18,6 +18,9 @@ public protocol KeySurfaceDelegate: AnyObject {
     func keySurfaceDidSwipeBackspace(_ surface: KeySurfaceView)
     /// A finger held the "123" key.
     func keySurfaceDidHoldNumbers(_ surface: KeySurfaceView)
+    /// A finger held a letter and lifted on another letter from its callout ("ñ" from
+    /// n): the touch `id` types that letter instead (features/languages).
+    func keySurface(_ surface: KeySurfaceView, picked letter: Character, touch id: Int, time: TimeInterval)
 }
 
 /// The keys. One UIKit view that draws a `Layout` and reports touches, with multitouch
@@ -60,6 +63,11 @@ public final class KeySurfaceView: UIView {
     public var hints: [Key: Side] = [:] {
         didSet { applyHints() }
     }
+    /// The other letters a held key offers (`Accents.alternates`), none to hold nothing.
+    public var alternates: (Character) -> [Character] = { _ in [] }
+    /// How long a finger rests on a key before its accents show.
+    static let accentDelay: TimeInterval = 0.35
+
     /// Settings: a slide on space moves the cursor; a swipe left on backspace deletes a word.
     public var spaceSlideEnabled = true
     public var backspaceSwipeEnabled = true
@@ -85,6 +93,8 @@ public final class KeySurfaceView: UIView {
         /// A slide, a swipe or a hold took this touch: no tap when it lifts.
         var gestured = false
         var hold: Task<Void, Never>?
+        /// The accents shown for a held key, when they are up.
+        var callout: AccentCallout?
     }
 
     /// The views per key: space is placed twice on a split keyboard.
@@ -230,6 +240,16 @@ public final class KeySurfaceView: UIView {
                     self.unflash(.numbers)
                     self.delegate?.keySurfaceDidHoldNumbers(self)
                 }
+            case .letter(let c), .symbol(let c):
+                let options = alternates(c)
+                guard !options.isEmpty, !UIAccessibility.isVoiceOverRunning else { break }
+                touchState.hold = Task { [weak self] in
+                    try? await Task.sleep(for: .seconds(Self.accentDelay))
+                    guard !Task.isCancelled, let self, let state = self.active[oid], !state.gestured,
+                          state.key == key, let last = state.points.last,
+                          hypot(last.x - state.startPoint.x, last.y - state.startPoint.y) < 18 else { return }
+                    self.showCallout(for: key, options: options, touch: oid)
+                }
             default:
                 break
             }
@@ -245,6 +265,10 @@ public final class KeySurfaceView: UIView {
             let oid = ObjectIdentifier(touch)
             guard var touchState = active[oid] else { continue }
             let point = touch.location(in: self)
+            if let callout = touchState.callout {
+                callout.select(at: convert(point, to: callout))
+                continue
+            }
             if touchState.isLetter {
                 // No swipe typing under VoiceOver: the touch types the key it landed on.
                 if UIAccessibility.isVoiceOverRunning { continue }
@@ -291,6 +315,24 @@ public final class KeySurfaceView: UIView {
         for touch in touches {
             guard let touchState = active.removeValue(forKey: ObjectIdentifier(touch)) else { continue }
             touchState.hold?.cancel()
+            if let callout = touchState.callout {
+                callout.removeFromSuperview()
+                if let key = touchState.key { unflash(key) }
+                let picked = callout.selected > 0 ? callout.options[callout.selected] : nil
+                switch touchState.startKey {
+                case .letter:
+                    if let picked {
+                        delegate?.keySurface(self, picked: picked, touch: touchState.id, time: touch.timestamp)
+                    } else {
+                        delegate?.keySurface(self, touchEnded: touchState.id, at: touchState.startPoint, time: touch.timestamp)
+                    }
+                case .symbol(let c):
+                    delegate?.keySurface(self, didTap: .symbol(picked ?? c), side: touchState.side)
+                default:
+                    break
+                }
+                continue
+            }
             let point = touchState.isLetter && UIAccessibility.isVoiceOverRunning ? touchState.startPoint : touch.location(in: self)
             if let key = touchState.key { unflash(key) }
             if touchState.isLetter {
@@ -306,12 +348,40 @@ public final class KeySurfaceView: UIView {
         for touch in touches {
             guard let touchState = active.removeValue(forKey: ObjectIdentifier(touch)) else { continue }
             touchState.hold?.cancel()
+            touchState.callout?.removeFromSuperview()
             if let key = touchState.key { unflash(key) }
             touchState.trail?.removeFromSuperlayer()
             if touchState.isLetter {
                 delegate?.keySurface(self, touchCancelled: touchState.id, time: touch.timestamp)
             }
         }
+    }
+
+    // MARK: Accents
+
+    /// The held key's letters in a row of keys above it, the plain one first and
+    /// picked until the finger slides along (features/languages "Accent callout").
+    private func showCallout(for key: Key, options: [Character], touch oid: ObjectIdentifier) {
+        guard var state = active[oid], let frame = layout.frame(of: key, on: state.side) ?? layout.frame(of: key) else { return }
+        let plain: Character
+        switch key {
+        case .letter(let c), .symbol(let c): plain = c
+        default: return
+        }
+        let letters = ([plain] + options).map { shifted && key.character != nil ? Character($0.uppercased()) : $0 }
+        let width = frame.width * CGFloat(letters.count)
+        var x = frame.minX
+        x = min(max(x, 2), bounds.width - width - 2)
+        let height = frame.height
+        let callout = AccentCallout(options: [plain] + options, labels: letters)
+        callout.frame = CGRect(x: x, y: frame.minY - height - 6, width: width, height: height)
+        addSubview(callout)
+        state.callout = callout
+        state.gestured = true
+        state.trail?.removeFromSuperlayer()
+        state.trail = nil
+        active[oid] = state
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
     }
 
     // MARK: Replay
@@ -501,6 +571,66 @@ public final class KeySurfaceView: UIView {
 }
 
 /// A key as VoiceOver sees it.
+/// A row of keys over a held key: its plain letter and its accents. The thumb picks one
+/// by sliding along the row; lifting types the one picked.
+final class AccentCallout: UIView {
+    let options: [Character]
+    private(set) var selected = 0
+    private var views: [UILabel] = []
+
+    init(options: [Character], labels: [Character]) {
+        self.options = options
+        super.init(frame: .zero)
+        isUserInteractionEnabled = false
+        backgroundColor = Theme.ui(.key)
+        layer.cornerRadius = Theme.Radius.key
+        layer.cornerCurve = .continuous
+        layer.shadowColor = UIColor.black.cgColor
+        layer.shadowOpacity = 0.25
+        layer.shadowOffset = CGSize(width: 0, height: 1)
+        layer.shadowRadius = 3
+        for letter in labels {
+            let label = UILabel()
+            label.text = String(letter)
+            label.textAlignment = .center
+            label.font = UIFont.systemFont(ofSize: 23, weight: .regular)
+            label.layer.cornerRadius = Theme.Radius.key
+            label.layer.cornerCurve = .continuous
+            label.clipsToBounds = true
+            addSubview(label)
+            views.append(label)
+        }
+        refresh()
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        let width = bounds.width / CGFloat(max(views.count, 1))
+        for (i, label) in views.enumerated() {
+            label.frame = CGRect(x: CGFloat(i) * width, y: 0, width: width, height: bounds.height).insetBy(dx: 2, dy: 2)
+        }
+    }
+
+    /// The option under `point` (in this view), the nearest one at either end.
+    func select(at point: CGPoint) {
+        let width = bounds.width / CGFloat(max(views.count, 1))
+        let index = min(max(Int(floor(point.x / width)), 0), views.count - 1)
+        guard index != selected else { return }
+        selected = index
+        refresh()
+        UISelectionFeedbackGenerator().selectionChanged()
+    }
+
+    private func refresh() {
+        for (i, label) in views.enumerated() {
+            label.backgroundColor = i == selected ? Theme.ui(.accent) : .clear
+            label.textColor = Theme.ui(i == selected ? .accentInk : .keyInk)
+        }
+    }
+}
+
 final class KeyElement: UIAccessibilityElement {
     let key: Key
     var onActivate: (() -> Void)?

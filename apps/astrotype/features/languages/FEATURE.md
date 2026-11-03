@@ -180,3 +180,24 @@ English alone. Left for Phase B: learned and personal words with accents (the
 personal model counts what was written, the matcher asks for plain letters), and
 the missed-space split's one-letter words ("a", "i" are English; Spanish has
 "a", "y", "o", "e", "u").
+
+**Phase B (2026-11-03).** The keyboard types in the languages that are on.
+`KeyboardSettings.languages` is nil until the person chooses, and nil follows the
+phone (`phoneLanguages`: the bundled ones among `Locale.preferredLanguages`, English
+when none). `activeLanguages` applies the Pro rule: free, the chosen one the phone
+puts first. `KeyboardModel` swaps the dictionaries in the background when the settings
+or Pro change (`Composer.setLanguage`); the extension loads the right ones at start,
+both until the entitlement says otherwise. The app's practice field stays English
+(`followsLanguages` off), as the speed test and drills are English.
+
+Holding a, e, i, o, u, n (or ? and ! on the symbols page) for 0.35 s without moving
+shows the callout above the key; sliding along it picks, lifting types. A picked
+letter is kept: the guesses must have it (`Matcher` searches its plain key and keeps
+only words with the picked letters in order, or the taps as typed when none has
+them). ¿ and ¡ come only from the hold, not a key of their own on the symbols page
+(the page stays as it is). After ¿ or ¡ the next word starts a sentence: a capital
+and `<s>` context. The in-keyboard panel has a tile per language, with "One language
+at a time. Pro types in two at once." under them on the free keyboard. Learned and
+personal words are keyed by their plain letters too, so "mañana" counts as
+"manana" in the personal model. Not done: VoiceOver for the callout (VoiceOver types
+the plain key, as before).

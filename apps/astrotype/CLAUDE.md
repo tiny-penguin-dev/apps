@@ -20,7 +20,7 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
     real services are named; `LiveMetrics` on `Telemetry`), `Onboarding/`
     (`TurnOnView`, `LanguagesSetupView` (only on a phone set to two languages), `SyncView`, `TryItView`, and `SetupPage`, their shared shape),
     `HelloView`, `HomeView`, `Settings/` (`SettingsView`, the main page with its
-    `SettingsPage`s, and `SettingsPages`, one view per page), `LearnedWordsView`, `SharingView` ("What
+    `SettingsPage`s, and `SettingsPages`, one view per page), `LearnedWordsView`, `MissedWordsView` ("Words it missed", features/missed-words), `SharingView` ("What
     gets shared": the words waiting to go up, drawn on the keys), `PracticeView`,
     `ProView` (the subscription screen, StoreKit's `SubscriptionStoreView`),
     `TrialOverView` (the sheet, once), `MilestoneView` (the sheet, once each),
@@ -134,7 +134,7 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
   `languages` (Spanish and the next languages, both at once; built),
   `emoji` (the emoji key and page, skin tones; built 3 Nov 2026),
   `missed-words` (the bar's "Not it?": type the word meant, learn from the swipe, keep
-  it for debugging; planned, being built),
+  it for debugging; built),
   `field-types` (the keyboard following email, web, search and number fields).
 - `design/`: the mockup (`mockups/astrotype.html`, the keyboard in it works), the
   screen captures the design doc links, the icon's SVGs (`icon/`) and

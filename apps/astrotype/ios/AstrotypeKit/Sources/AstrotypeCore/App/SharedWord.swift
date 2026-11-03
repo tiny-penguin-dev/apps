@@ -183,6 +183,13 @@ public struct SharedWordStore: Sendable {
 
     public var pendingCount: Int { files().count }
 
+    /// The IDs of the words already sent (`markUploaded`).
+    public func uploadedIDs() -> Set<UUID> {
+        let uploaded = folder.appendingPathComponent("Uploaded", isDirectory: true)
+        let items = (try? FileManager.default.contentsOfDirectory(at: uploaded, includingPropertiesForKeys: nil)) ?? []
+        return Set(items.compactMap { UUID(uuidString: $0.deletingPathExtension().lastPathComponent) })
+    }
+
     /// Taken off the list before it went ("What gets shared", or sharing turned off).
     public func remove(_ ids: [UUID]) {
         for id in ids { try? FileManager.default.removeItem(at: url(id)) }

@@ -382,6 +382,27 @@ final class AppModel {
         pendingShared = environment.sharedWords?.pending() ?? []
     }
 
+    /// The words the keyboard missed, newest first ("Words it missed").
+    private(set) var missedWords: [SharedWord] = []
+    /// Of those, the ones already sent, and the ones waiting to go.
+    private(set) var sentMisses: Set<UUID> = []
+    private(set) var waitingMisses: Set<UUID> = []
+
+    /// Re-reads the misses (the keyboard adds them as you type).
+    func reloadMissed() {
+        missedWords = Array((environment.missedWords?.pending() ?? []).reversed())
+        sentMisses = environment.sharedWords?.uploadedIDs() ?? []
+        waitingMisses = Set((environment.sharedWords?.pending() ?? []).map(\.id))
+    }
+
+    /// Swiped away on "Words it missed": off the list, and not sent if it was waiting.
+    func removeMissed(_ id: UUID) {
+        environment.missedWords?.remove([id])
+        environment.sharedWords?.remove([id])
+        reloadMissed()
+        reloadShared()
+    }
+
     /// Taken off the list on "What gets shared": it never goes.
     func removeShared(_ id: UUID) {
         environment.sharedWords?.remove([id])
@@ -454,6 +475,9 @@ final class AppModel {
         model.forget(at: date)
         personal = model
         environment.personalStore.save(model)
+        // The remembered swipes went with the model; the list of misses goes too.
+        environment.missedWords?.remove((environment.missedWords?.pending() ?? []).map(\.id))
+        missedWords = []
         keyboardSettings.forgetPersonalAt = date
         environment.metrics.count("personal.reset")
         sync()

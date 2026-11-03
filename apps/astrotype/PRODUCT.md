@@ -114,6 +114,10 @@ Goal: typing in the app within **one minute**, in another app within two.
 - A word the dictionary does not know: tap it out letter by letter and it is learned.
 - A word you keep choosing outranks a more common one.
 - Hold a guess in the bar and slide it down to forget it, or up to make it stick.
+- A swipe that came out wrong: tap **Not it?** in the bar and type the word meant. The
+  text is fixed, the keyboard remembers that swipe for the word, and the miss is kept
+  in Settings → Your words → Words it missed (and shared with "Include corrections"
+  on). From `features/missed-words` (3 Nov 2026).
 
 ### 5.4 Practice and speed test (in the app)
 1. "Speed test": type three sentences, see words per minute and how many words needed a
@@ -274,6 +278,7 @@ and `guess.*` rows below).
 | `personal.reset` | How often people wipe what the keyboard learned (features/smart-matching) |
 | `languages.enabled` (`set`: `en`, `es`, `en+es`) | Which languages people turn on, and how many want two at once (features/languages) |
 | `keyboard.memory_peak` (MB, per time the keyboard is shown) | Memory regressions before they hit the extension's limit (budget: 40 MB) |
+| `miss.saved` (count) | Words typed with "Not it?" because a swipe missed them (features/missed-words). Falling over time means the matcher is getting better |
 | `keyboard.memory_headroom` (MB, the least left) | How close the keyboard gets to iOS ending it |
 | `keyboard.ended_while_showing` | Keyboards ended while on screen: crashes, and the memory kills no crash report sees |
 | `guess.words`, `guess.first` (counts, `kind`: `swipe` / `tap`) | How many words went in, and how many as the keyboard's first guess (goal: 9 in 10, §9). Counted per time the keyboard is shown, never which words, and not in fields that don't learn (like passwords) |

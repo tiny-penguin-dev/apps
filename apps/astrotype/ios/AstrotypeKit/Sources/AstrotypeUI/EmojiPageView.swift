@@ -31,7 +31,11 @@ final class EmojiPageView: UIView, UICollectionViewDataSource, UICollectionViewD
     }
 
     static let rows = 5
-    static let headerHeight: CGFloat = 20
+    /// Room left over the grid. Sections have no titles (they took a column's width);
+    /// a gap and the highlighted category on the strip tell them apart.
+    static let topRoom: CGFloat = 20
+    /// The gap between sections, on top of each section's 6 pt insets.
+    static let sectionGap: CGFloat = 16
     static let stripHeight: CGFloat = 44
 
     private let catalog: EmojiCatalog
@@ -57,8 +61,6 @@ final class EmojiPageView: UIView, UICollectionViewDataSource, UICollectionViewD
         collection.dataSource = self
         collection.delegate = self
         collection.register(EmojiCell.self, forCellWithReuseIdentifier: EmojiCell.id)
-        collection.register(EmojiHeader.self, forSupplementaryViewOfKind: UICollectionView.elementKindSectionHeader,
-                            withReuseIdentifier: EmojiHeader.id)
         collection.collectionViewLayout = makeLayout()
         let hold = UILongPressGestureRecognizer(target: self, action: #selector(held(_:)))
         hold.minimumPressDuration = 0.4
@@ -95,7 +97,7 @@ final class EmojiPageView: UIView, UICollectionViewDataSource, UICollectionViewD
         super.layoutSubviews()
         let gridHeight = bounds.height - Self.stripHeight
         collection.frame = CGRect(x: 0, y: 0, width: bounds.width, height: gridHeight)
-        let size = max(24, ((gridHeight - Self.headerHeight - 4) / CGFloat(Self.rows)).rounded(.down))
+        let size = max(24, ((gridHeight - Self.topRoom - 4) / CGFloat(Self.rows)).rounded(.down))
         if size != cellSize {
             cellSize = size
             collection.collectionViewLayout.invalidateLayout()
@@ -149,9 +151,10 @@ final class EmojiPageView: UIView, UICollectionViewDataSource, UICollectionViewD
     private func makeLayout() -> UICollectionViewCompositionalLayout {
         let configuration = UICollectionViewCompositionalLayoutConfiguration()
         configuration.scrollDirection = .horizontal
-        configuration.interSectionSpacing = 12
-        return UICollectionViewCompositionalLayout(sectionProvider: { [weak self] _, _ in
+        configuration.interSectionSpacing = Self.sectionGap
+        return UICollectionViewCompositionalLayout(sectionProvider: { [weak self] _, environment in
             let size = self?.cellSize ?? 37
+            let top = max(0, ((environment.container.contentSize.height - size * CGFloat(Self.rows)) / 2).rounded(.down))
             let item = NSCollectionLayoutItem(layoutSize: NSCollectionLayoutSize(widthDimension: .absolute(size),
                                                                                 heightDimension: .absolute(size)))
             let group = NSCollectionLayoutGroup.vertical(
@@ -159,12 +162,7 @@ final class EmojiPageView: UIView, UICollectionViewDataSource, UICollectionViewD
                                                    heightDimension: .absolute(size * CGFloat(Self.rows))),
                 repeatingSubitem: item, count: Self.rows)
             let section = NSCollectionLayoutSection(group: group)
-            section.contentInsets = NSDirectionalEdgeInsets(top: 0, leading: 6, bottom: 0, trailing: 6)
-            let header = NSCollectionLayoutBoundarySupplementaryItem(
-                layoutSize: NSCollectionLayoutSize(widthDimension: .estimated(160),
-                                                   heightDimension: .absolute(Self.headerHeight)),
-                elementKind: UICollectionView.elementKindSectionHeader, alignment: .topLeading)
-            section.boundarySupplementaryItems = [header]
+            section.contentInsets = NSDirectionalEdgeInsets(top: top, leading: 6, bottom: 0, trailing: 6)
             return section
         }, configuration: configuration)
     }
@@ -186,14 +184,6 @@ final class EmojiPageView: UIView, UICollectionViewDataSource, UICollectionViewD
         return cell
     }
 
-    func collectionView(_ collectionView: UICollectionView, viewForSupplementaryElementOfKind kind: String,
-                        at indexPath: IndexPath) -> UICollectionReusableView {
-        let header = collectionView.dequeueReusableSupplementaryView(ofKind: kind, withReuseIdentifier: EmojiHeader.id,
-                                                                     for: indexPath) as! EmojiHeader
-        header.label.text = Self.title(for: category(of: indexPath.section)).uppercased()
-        return header
-    }
-
     // MARK: Touches
 
     func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
@@ -206,7 +196,7 @@ final class EmojiPageView: UIView, UICollectionViewDataSource, UICollectionViewD
 
     func scrollViewDidScroll(_ scrollView: UIScrollView) {
         closePicker()
-        let point = CGPoint(x: scrollView.contentOffset.x + 24, y: Self.headerHeight + cellSize / 2)
+        let point = CGPoint(x: scrollView.contentOffset.x + 24, y: collection.bounds.midY)
         if let path = collection.indexPathForItem(at: point) { markCurrent(path.section) }
     }
 
@@ -359,33 +349,6 @@ extension EmojiPageView {
         let item = form(at: path)
         guard !item.tones.isEmpty else { return }
         openPicker(base: item.base, tones: item.tones, current: item.form, over: cell)
-    }
-}
-
-/// A section's name over its columns.
-private final class EmojiHeader: UICollectionReusableView {
-    static let id = "header"
-    let label = UILabel()
-
-    override init(frame: CGRect) {
-        super.init(frame: frame)
-        label.font = Theme.uiFont(size: 11, weight: .heavy)
-        label.textColor = Theme.ui(.muted)
-        addSubview(label)
-        accessibilityTraits = .header
-    }
-
-    required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
-
-    override func layoutSubviews() {
-        super.layoutSubviews()
-        label.frame = bounds.insetBy(dx: 4, dy: 0)
-    }
-
-    override func preferredLayoutAttributesFitting(_ attributes: UICollectionViewLayoutAttributes) -> UICollectionViewLayoutAttributes {
-        let fitted = super.preferredLayoutAttributesFitting(attributes)
-        fitted.size.width = ceil(label.intrinsicContentSize.width) + 8
-        return fitted
     }
 }
 

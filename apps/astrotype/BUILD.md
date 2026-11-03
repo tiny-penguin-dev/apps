@@ -243,6 +243,22 @@ panel over the keys: autospace, its delay (0.5 to 1.5 s) and trails, kept as
 and the keyboard each have their own until Phase 5 moves them to the group and
 iCloud). Shift, caps lock and sentence capitals were already in the Phase 2 composer.
 
+Notes (3 Nov 2026, two-thumb accuracy): Gabriel's recordings on the open Duo showed him
+swiping with both thumbs at the same time ("girls": right g-i-l, left r-s), which the
+pieces-in-order reading above missed (1 of 4). `Matcher.together` reads overlapping
+pieces as one word, their letters woven by when each key was reached; a swipe's key
+counts until the finger reaches the next one, and its last key counts until the lift.
+A key read later than that, within `swapWindow`, costs `latePenalty`. That reading
+also covers taps inside a swipe, so overlapping pieces skip the split and swapped readings.
+Touches that land within the window are tried in any order (`orderings`, at most 8).
+A swipe that gives one letter is now scored against its path, and each tap pays
+`tapWeight` for its distance from its key's centre. Two halves that make a common word
+("after" + "noon") stay one word (`compoundPrior`). "Not it?" shapes now hold every
+touch and work on the split keyboard. `SyntheticTyping` types with two thumbs
+(`.two` takes turns, `.together` swipes at once; `astrotype-tools synth --thumbs 2`).
+First guess on made-up typing went from 45% to 98% for both thumbs at once and from 95.5%
+to 97% for taking turns, with one swipe unchanged.
+
 ### Phase 4: The app
 
 First launch (Hello, Turn on the keyboard with detection through the active input

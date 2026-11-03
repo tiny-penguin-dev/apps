@@ -73,6 +73,14 @@ final class AlarmKitScheduler: RingScheduler {
         return failures
     }
 
+    /// Used when a Shortcut turns the morning off: unlike the ringing screen's buttons,
+    /// nothing else silences the ring that's going off.
+    func stopRinging() {
+        for alarm in (try? manager.alarms) ?? [] where alarm.state == .alerting {
+            try? manager.stop(id: alarm.id)
+        }
+    }
+
     // MARK: What's scheduled
 
     /// What each scheduled AlarmKit alarm was made from, so a re-plan can tell what

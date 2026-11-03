@@ -81,19 +81,19 @@ struct ChecksCard: View {
         }
     }
 
-    /// Kinds this phone can do. The game can be added once.
+    /// Kinds this phone can do. The game and the Shortcut can be added once.
     private var availableKinds: [WakeUpCheck.Kind] {
         WakeUpCheck.Kind.allCases.filter { kind in
             switch kind {
             case .tag: TagReader.isAvailable
             case .code: CodeScanner.isAvailable
-            case .game: !alarm.checks.contains { $0.kind == .game }
+            case .game, .shortcut: !alarm.checks.contains { $0.kind == kind }
             }
         }
     }
 }
 
-/// Set up a tag or code: scan it once here, and say where it is.
+/// Set up a tag or code (scan it once here, and say where it is), or a Shortcut.
 struct AddCheckSheet: View {
     var kind: WakeUpCheck.Kind
     var onAdd: (WakeUpCheck) -> Void
@@ -109,7 +109,9 @@ struct AddCheckSheet: View {
                     Text(intro)
                         .font(Theme.body)
                         .foregroundStyle(Theme.muted)
-                    if secret.isEmpty {
+                    if kind == .shortcut {
+                        ShortcutSetupCard()
+                    } else if secret.isEmpty {
                         scanner
                     } else {
                         Card {
@@ -124,11 +126,13 @@ struct AddCheckSheet: View {
                         }
                         .transition(.scale.combined(with: .opacity))
                     }
-                    Card {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Where is it?").font(Theme.label)
-                            TextField(kind == .tag ? "Bathroom mirror" : "Coffee bag", text: $place)
-                                .font(Theme.body)
+                    if kind != .shortcut {
+                        Card {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Where is it?").font(Theme.label)
+                                TextField(kind == .tag ? "Bathroom mirror" : "Coffee bag", text: $place)
+                                    .font(Theme.body)
+                            }
                         }
                     }
                 }
@@ -148,7 +152,7 @@ struct AddCheckSheet: View {
                         dismiss()
                     }
                     .fontWeight(.heavy)
-                    .disabled(secret.isEmpty)
+                    .disabled(secret.isEmpty && kind != .shortcut)
                 }
             }
         }
@@ -160,6 +164,7 @@ struct AddCheckSheet: View {
         switch kind {
         case .tag: "Stick an NFC tag somewhere far from bed, like the bathroom mirror. Scan it once now so Squawk knows it."
         case .code: "Pick any QR code or barcode far from bed, like your coffee bag or toothpaste. Scan it once now so Squawk knows it."
+        case .shortcut: "Turn off Squawk from a Shortcut or automation, like tapping an NFC tag or turning off your Sleep Focus. Add the \"Turn off Squawk\" action to it in the Shortcuts app."
         case .game: ""
         }
     }
@@ -182,8 +187,30 @@ struct AddCheckSheet: View {
             }
             .frame(height: 300)
             .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-        case .game:
+        case .game, .shortcut:
             EmptyView()
+        }
+    }
+}
+
+/// How to set up the Shortcut, with a way into the Shortcuts app.
+private struct ShortcutSetupCard: View {
+    @Environment(\.openURL) private var openURL
+
+    var body: some View {
+        Card {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 12) {
+                    PenguinView(mood: .awake, animated: false).frame(width: 56, height: 56)
+                    Text("In Shortcuts, go to Automation, pick when it runs, then add \"Turn off Squawk\".")
+                        .font(.system(.subheadline, design: .rounded, weight: .semibold))
+                        .foregroundStyle(Theme.muted)
+                }
+                Button("Open Shortcuts") {
+                    if let url = URL(string: "shortcuts://") { openURL(url) }
+                }
+                .buttonStyle(LinkButtonStyle())
+            }
         }
     }
 }
@@ -194,6 +221,7 @@ extension WakeUpCheck.Kind {
         case .tag: "Scan a tag"
         case .code: "Scan a code"
         case .game: "Penguin game"
+        case .shortcut: "Run a Shortcut"
         }
     }
 
@@ -202,6 +230,7 @@ extension WakeUpCheck.Kind {
         case .tag: "wave.3.right"
         case .code: "qrcode.viewfinder"
         case .game: "gamecontroller.fill"
+        case .shortcut: "square.2.layers.3d.fill"
         }
     }
 }

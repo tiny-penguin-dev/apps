@@ -282,6 +282,27 @@ private func onceDates(_ plan: [PlannedRing]) -> [Date] {
         #expect(dates.first == at(2, 7, 5).addingTimeInterval(30))
     }
 
+    @Test func shortcutTurnsOffOnlyWhatItMay() {
+        let ringing = at(2, 7, 3)
+        let plain = Alarm(days: Weekday.weekdays, rings: [Ring(offsetMinutes: -5), Ring()])
+        #expect(plain.shortcutTurnOff(at: at(2, 6, 0), calendar: utc) == .notRinging)
+        #expect(plain.shortcutTurnOff(at: at(2, 6, 56), calendar: utc) == .up(monday))
+        // Its last ring keeps going until it's stopped, so the action can still silence it.
+        #expect(plain.shortcutTurnOff(at: at(2, 7, 3), calendar: utc) == .lastRing)
+        #expect(plain.shortcutTurnOff(at: at(2, 7, 11), calendar: utc) == .notRinging)
+        // It never skips another check.
+        #expect(tagAlarm().shortcutTurnOff(at: ringing, calendar: utc) == .needsOtherCheck)
+        let shortcutOnly = Alarm(days: Weekday.weekdays, checks: [WakeUpCheck(kind: .shortcut)])
+        #expect(shortcutOnly.shortcutTurnOff(at: ringing, calendar: utc) == .up(monday))
+        var both = tagAlarm()
+        both.checks.append(WakeUpCheck(kind: .shortcut))
+        #expect(both.shortcutTurnOff(at: ringing, calendar: utc) == .shortcutDone(monday))
+        // Once the morning is done, there's nothing left to turn off.
+        var done = shortcutOnly
+        done.markUp(at: ringing, calendar: utc)
+        #expect(done.shortcutTurnOff(at: ringing, calendar: utc) == .notRinging)
+    }
+
     @Test func matching() {
         let check = WakeUpCheck(kind: .code, secret: "1234567890128")
         #expect(check.matches("1234567890128\n"))
@@ -492,7 +513,8 @@ private func onceDates(_ plan: [PlannedRing]) -> [Date] {
             Alarm(date: LocalDate(year: 2026, month: 11, day: 7), label: "Hike day"),
             Alarm(changes: [MorningChange(date: monday, kind: .skip),
                             MorningChange(date: monday.adding(days: 1, calendar: utc), kind: .time(.sevenAM))]),
-            Alarm(checks: [WakeUpCheck(kind: .tag, secret: "04A1", place: "Kitchen"), WakeUpCheck(kind: .game)]),
+            Alarm(checks: [WakeUpCheck(kind: .tag, secret: "04A1", place: "Kitchen"), WakeUpCheck(kind: .game),
+                           WakeUpCheck(kind: .shortcut)]),
         ]
         try store.save(alarms)
         #expect(try store.load() == alarms)

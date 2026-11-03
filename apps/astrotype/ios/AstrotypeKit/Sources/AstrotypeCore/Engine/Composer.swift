@@ -106,6 +106,9 @@ public struct Composer: Sendable {
         var previous: String?
         /// The guess first written, when the bar swapped it for another.
         var fixedFrom: String?
+        /// The keyboard's first guess when the word went in, which the person may not
+        /// have taken (a later guess picked from the bar).
+        var firstGuess: String?
         /// The word was learned when it went in (`.learn`).
         var learned: String?
     }
@@ -489,7 +492,7 @@ public struct Composer: Sendable {
         let learn = wordToLearn(word)
         reopenedLearned = nil
         committed = Committed(word: word, trailing: trailing, pieces: pieces, guesses: words, casing: casing,
-                              previous: matcher.context.last, learned: learn)
+                              previous: matcher.context.last, firstGuess: words.first, learned: learn)
         pieces = []
         candidates = []
         autospaceDue = nil
@@ -600,7 +603,8 @@ public struct Composer: Sendable {
         }
         let strokes = pieces.map { SettledWord.Stroke(side: $0.side, points: $0.raw ?? $0.points, times: $0.times) }
         return SettledWord(word: word, previous: last.previous, source: source,
-                           fixedFrom: last.fixedFrom?.lowercased(), touches: touches, strokes: strokes)
+                           fixedFrom: last.fixedFrom?.lowercased(), firstGuess: last.firstGuess?.lowercased(),
+                           pecked: last.pieces.allSatisfy(\.isTap), touches: touches, strokes: strokes)
     }
 
     private func cased(_ word: String) -> String {

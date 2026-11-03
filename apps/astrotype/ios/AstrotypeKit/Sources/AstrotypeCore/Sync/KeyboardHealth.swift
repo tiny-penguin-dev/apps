@@ -2,8 +2,8 @@ import Foundation
 
 /// How the keyboard extension is doing, for catching memory regressions (PRODUCT.md
 /// §10b): for each time the keyboard was shown, the most memory it used, the least it
-/// had left before iOS's limit, and whether it closed normally. Numbers only, never
-/// anything typed. The extension writes it to the App Group (with Full Access and
+/// had left before iOS's limit, whether it closed normally, and how many words went in
+/// as the first guess (`GuessTally`). Numbers only, never anything typed. The extension writes it to the App Group (with Full Access and
 /// "Share anonymous usage data" on); the app sends it to Sentry and remembers how far
 /// it got, so the keyboard itself never sends metrics.
 public struct KeyboardHealth: Codable, Sendable, Equatable {
@@ -21,12 +21,25 @@ public struct KeyboardHealth: Codable, Sendable, Equatable {
         /// The keyboard went away normally. False means it was ended while showing:
         /// a crash, or iOS's memory limit (which no crash report sees).
         public var ended: Bool
+        /// How many words went in, and how many as the first guess.
+        public var guesses: GuessTally
 
-        public init(started: Date, peakMB: Double, lowestHeadroomMB: Double, ended: Bool = false) {
+        public init(started: Date, peakMB: Double, lowestHeadroomMB: Double, ended: Bool = false,
+                    guesses: GuessTally = GuessTally()) {
             self.started = started
             self.peakMB = peakMB
             self.lowestHeadroomMB = lowestHeadroomMB
             self.ended = ended
+            self.guesses = guesses
+        }
+
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            started = try c.decode(Date.self, forKey: .started)
+            peakMB = try c.decode(Double.self, forKey: .peakMB)
+            lowestHeadroomMB = try c.decode(Double.self, forKey: .lowestHeadroomMB)
+            ended = try c.decode(Bool.self, forKey: .ended)
+            guesses = try c.decodeIfPresent(GuessTally.self, forKey: .guesses) ?? GuessTally()
         }
     }
 
@@ -70,6 +83,16 @@ public struct KeyboardHealth: Codable, Sendable, Equatable {
         sessions[sessions.count - 1].ended = true
     }
 
+    /// A word went in while the keyboard was showing (`GuessTally.add`). Returns whether
+    /// it is worth writing now: every tenth word, so a keyboard ended while showing
+    /// loses only a few.
+    @discardableResult
+    public mutating func settled(_ word: SettledWord) -> Bool {
+        guard var last = sessions.last, !last.ended, last.guesses.add(word) else { return false }
+        sessions[sessions.count - 1] = last
+        return last.guesses.words % 10 == 0
+    }
+
     /// The sessions the app should send now: started after `sent`, and finished. One
     /// still open counts as finished once it is `openFor` old, since it was never going
     /// to end normally. Stops at the first one that is not finished yet (the keyboard
@@ -84,14 +107,16 @@ public struct KeyboardHealth: Codable, Sendable, Equatable {
     }
 
     /// Sends `sessions` as metrics: `keyboard.memory_peak` and `keyboard.memory_headroom`
-    /// (MB) for each, and `keyboard.ended_while_showing` for each that did not close
-    /// normally. Returns the newest start sent, for the next `toSend(after:)`.
+    /// (MB) for each, `keyboard.ended_while_showing` for each that did not close
+    /// normally, and the session's words (`GuessTally.report`). Returns the newest start
+    /// sent, for the next `toSend(after:)`.
     @discardableResult
     public static func report(_ sessions: [Session], to metrics: Metrics) -> Date? {
         for session in sessions {
             metrics.size("keyboard.memory_peak", megabytes: session.peakMB)
             metrics.size("keyboard.memory_headroom", megabytes: session.lowestHeadroomMB)
             if !session.ended { metrics.count("keyboard.ended_while_showing") }
+            session.guesses.report(to: metrics)
         }
         return sessions.map(\.started).max()
     }

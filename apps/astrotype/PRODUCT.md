@@ -250,8 +250,9 @@ The keyboard sends one thing itself: crash reports, with Full Access and the swi
 on. A report says where the code crashed (stack traces), on which device, OS and
 version, and how much memory was in use. It never carries text: no breadcrumbs, logs,
 screenshots, session replay, traces, messages or user ID, and Astrotype strips any
-crash reason that could quote a string. The keyboard's memory readings go to the app
-through the App Group, and the app sends them (the `keyboard.*` rows below).
+crash reason that could quote a string. The keyboard's memory readings and its word
+counts go to the app through the App Group, and the app sends them (the `keyboard.*`
+and `guess.*` rows below).
 
 | Metric | What it tells us |
 |---|---|
@@ -267,6 +268,8 @@ through the App Group, and the app sends them (the `keyboard.*` rows below).
 | `keyboard.memory_peak` (MB, per time the keyboard is shown) | Memory regressions before they hit the extension's limit (budget: 40 MB) |
 | `keyboard.memory_headroom` (MB, the least left) | How close the keyboard gets to iOS ending it |
 | `keyboard.ended_while_showing` | Keyboards ended while on screen: crashes, and the memory kills no crash report sees |
+| `guess.words`, `guess.first` (counts, `kind`: `swipe` / `tap`) | How many words went in, and how many as the keyboard's first guess (goal: 9 in 10, §9). Counted per time the keyboard is shown, never which words, and not in fields that don't learn (like passwords) |
+| `guess.first_share` (gauge: percent, `kind`) | The same share for one time the keyboard was shown, sent when it had at least 10 words, to read at a glance |
 
 More get added here as phases land.
 

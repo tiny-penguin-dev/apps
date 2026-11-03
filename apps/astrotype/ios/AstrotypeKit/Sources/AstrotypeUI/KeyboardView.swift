@@ -83,7 +83,6 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         bar.onBoost = { [weak self] index in self?.model.boost(guess: index) }
         bar.onForget = { [weak self] index in self?.model.forget(guess: index) }
         bar.onNotIt = { [weak self] in self?.model.beginCorrection() }
-        bar.onGlobe = { [weak self] in self?.onSystemKey?(.globe) }
         bar.onCancelCorrection = { [weak self] in self?.model.cancelCorrection() }
         bar.onSaveCorrection = { [weak self] in self?.model.saveCorrection() }
         model.onChange = { [weak self] in self?.render() }
@@ -160,7 +159,8 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         }
         let keys = model.layout.height
         let top = max(0, bounds.height - keys - (barOnTop ? Self.barHeight : 0))
-        bar.showsGlobe = showsGlobe && place == .top
+        // TODO(features/space-bar): `bar.leadingKey = showsGlobe && place == .top ? globeKey : nil`
+        // once the guesses-bar redesign lands BarView.leadingKey.
         switch place {
         case .top:
             bar.isHidden = false

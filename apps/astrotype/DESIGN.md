@@ -81,6 +81,10 @@ code (`AstrotypeKit/Theme`, `docs/building.md` rule 1). Screens only use these.
   `BackButton`.
 - `Card` and `Row` (card with a leading number or tick, title, subtitle, trailing
   control), `SectionLabel` (small caps), `Chip`, `ProBadge`.
+- Settings: `SettingsGroup` (several rows in one card, hairlines between), `SettingsRow`,
+  `SettingsToggle`, `SettingsLink`, `SettingsSlider`, `GroupFootnote`, `StatusTile`,
+  `IconTile` (a coloured symbol square), `KeyboardPreview`; in the keyboard,
+  `QuickTile`. Tokens `danger` (`#E0526A` / `#FF7A8E`) and `slate` (`#5B6B8C` / `#6E7FA0`).
 - `Toggle`, `Segmented`, `Slider`, `PriceOption`, `Perk`.
 - `Steps` (numbered setup steps), `Meter` (you versus Apple), `WordCards` (drill words),
   `WeekDots`.
@@ -100,17 +104,17 @@ code (`AstrotypeKit/Theme`, `docs/building.md` rule 1). Screens only use these.
 | 6 | Speed test | A sentence to type with the typed part turning mint, a timer, the keyboard. | [06](design/screens/06-speed.png) |
 | 7 | Speed test result | A bolt in a sun, the words per minute, fixes, versus Apple's, confetti on a new best. | [07](design/screens/07-result.png) |
 | 8 | Drill | One habit per drill. Word cards, the keys of the next word outlined in the thumb's color. | [08](design/screens/08-drill.png) |
-| 9 | Settings | Typing (two-thumb, autospace and its delay, learned words), gestures, layout, look, sync, Pro. | [09](design/screens/09-settings.png) |
+| 9 | Settings | Status tiles (keyboard, sync, Pro), then a page per area: Typing (two thumbs, autospace, real words, split words, gestures), Appearance (height with a live preview, guesses bar, trails, haptics, underline, wide-screen layout), Your words, Privacy and sharing, About. On wide screens the main page is a sidebar. From `features/settings` (3 Nov 2026). | [main](features/settings/design/screens/01-settings.png), [typing](features/settings/design/screens/02-typing.png), [appearance](features/settings/design/screens/03-appearance.png), [wide](features/settings/design/screens/08-settings-wide.png) |
 | 10 | Astrotype Pro | A gold star tile with the two trails, four perks, yearly and monthly, "Start 14 days free". | [10](design/screens/10-pro.png) |
 | 11 | Trial over | The keyboard faded, with z's. What is resting, what still works, the person's own best speed as the reason to keep Pro. | [11](design/screens/11-trial-over.png) |
 | 12 | Typing in Messages | The keyboard in another app. Bar in "Fix" mode after a commit, the open word underlined in the field. | [12](design/screens/12-messages.png), [dark](design/screens/12-messages-dark.png), [small](design/screens/12-messages-small.png), [wide](design/screens/12-messages-wide.png) |
 | 13 | Free keyboard | After the trial: taps and one-finger swipes. A second thumb shows "Two thumbs is in Astrotype Pro" in the bar instead of typing. | [13](design/screens/13-free.png) |
 
 Not drawn yet (simple, same style): the numbers and symbols pages, the in-keyboard
-settings panel (gear under the `123` hold menu, for when Full Access is off; the title
-and Done stay at the top and the rows scroll below in three rounded groups, typing,
-look and learning, so every row fits on every phone; Gabriel, 2 Nov 2026; the look
-group starts with the keyboard height, 3 Nov 2026), learned
+settings panel (under a held `123`: four quick tiles, autospace, guesses bar, haptics
+and trails, plus split on a wide screen, and four sliders, height, real words, split
+words and autospace's wait; the rest is in the app; `features/settings`, 3 Nov 2026,
+[panel](features/settings/design/screens/09-panel.png)), learned
 words list, snippets editor, one-handed layouts, the milestone sheet. The split layout
 (an option on wide screens, Gabriel, 1 Nov 2026) is exactly Apple's: Q to T, A to G
 and Z to V on the left, Y to P, G to L and V to M on the right (G and V on both halves,

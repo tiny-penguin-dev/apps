@@ -2,67 +2,56 @@
 import AstrotypeCore
 import UIKit
 
-/// The in-keyboard settings (DESIGN.md: under the "123" hold), for when Full Access is
-/// off and the app's Settings cannot reach the keyboard: autospace, its delay, how
-/// strictly it keeps to real words, how readily it puts back a missed space, the keyboard's height, trails, the guesses bar, the
-/// split, and learning from the person (with a forget that asks twice).
+/// The in-keyboard settings under a held "123" (features/settings/FEATURE.md): the core
+/// few, so they can change without leaving the app being typed in, and so people
+/// without Full Access (where the app's Settings can't reach the keyboard) can still
+/// change them. Four quick tiles (autospace, the guesses bar, haptics, trails, and the
+/// split on a wide screen) and four sliders (height, real words, split words, and
+/// autospace's wait). The rest lives in the app.
 ///
-/// Shown over the keys. The title and Done stay at the top; the rows sit below in
-/// three rounded groups (typing, look, learning) that scroll when the keys' space is
-/// shorter than the list, so every row can be reached on every phone and text size.
+/// Shown over the keys. The title and Done stay at the top; the tiles and sliders sit
+/// below and scroll when the keys' space is shorter than them.
 public final class SettingsPanelView: UIView {
     public var settings: KeyboardSettings {
         didSet { render() }
     }
     public var onChange: ((KeyboardSettings) -> Void)?
     public var onDone: (() -> Void)?
-    /// Whether the split layout may be turned on (Pro). Off, the row says so and the
-    /// switch stays put; the app's Pro screen is where to go.
+    /// Whether the split layout may be turned on (Pro). Off, the Split tile shows PRO
+    /// and stays put; the app's Pro screen is where to go.
     public var allowsSplit = true {
-        didSet { render() }
+        didSet { if allowsSplit != oldValue { render() } }
+    }
+    /// Whether the keyboard is on a wide screen, where the Split tile shows.
+    public var showsSplit = false {
+        didSet { if showsSplit != oldValue { layoutTiles(); render() } }
     }
     /// The height iOS gave the keyboard and the height it asked for. When iOS gives
-    /// less, the keys shrink to fit, and the height row says so.
+    /// less, the keys shrink to fit, and a note under the sliders says so.
     public var granted: (got: CGFloat, asked: CGFloat) = (0, 0) {
         didSet { if granted != oldValue { render() } }
     }
 
-    /// A row's least height, the tap target size.
-    private static let rowHeight: CGFloat = 44
-    private static let headerHeight: CGFloat = 52
+    private static let headerHeight: CGFloat = 48
 
     private let title = UILabel()
     private let done = UIButton(configuration: .filled())
     private let scroll = PanelScrollView()
-    private let groups = UIStackView()
+    private let column = UIStackView()
+    private let tileGrid = UIStackView()
 
-    private let autospaceLabel = UILabel()
-    private let autospaceSwitch = UISwitch()
-    private let delayLabel = UILabel()
-    private let delayValue = UILabel()
-    private let delaySlider = UISlider()
-    private var delayRow = UIView()
-    private let strictLabel = UILabel()
-    private let strictValue = UILabel()
-    private let strictSlider = UISlider()
-    private let spacesLabel = UILabel()
-    private let spacesValue = UILabel()
-    private let spacesSlider = UISlider()
-    private let heightLabel = UILabel()
-    private let heightValue = UILabel()
-    private let heightSlider = UISlider()
-    private let heightNote = UILabel()
-    private let trailsLabel = UILabel()
-    private let trailsSwitch = UISwitch()
-    private let barLabel = UILabel()
-    private let barSwitch = UISwitch()
-    private let splitLabel = UILabel()
-    private let splitSwitch = UISwitch()
-    private let learnLabel = UILabel()
-    private let learnSwitch = UISwitch()
-    private let forget = UIButton(configuration: .plain())
-    /// The first tap on Forget arms it; the second forgets.
-    private var forgetArmed = false
+    private let autospaceTile = QuickTile(title: "Autospace", symbol: "space")
+    private let barTile = QuickTile(title: "Guesses bar", symbol: "rectangle.topthird.inset.filled")
+    private let hapticsTile = QuickTile(title: "Haptics", symbol: "iphone.radiowaves.left.and.right")
+    private let trailsTile = QuickTile(title: "Trails", symbol: "scribble")
+    private let splitTile = QuickTile(title: "Split", symbol: "rectangle.split.2x1")
+
+    private let height = SliderRow(title: "Height", range: KeyboardSettings.heightRange, label: "Keyboard height")
+    private let strict = SliderRow(title: "Real words", range: 0...1, label: "Real words")
+    private let split = SliderRow(title: "Split words", range: 0...1, label: "Split words")
+    private let wait = SliderRow(title: "Wait", range: KeyboardSettings.delayRange, label: "Autospace wait")
+    private let note = UILabel()
+    private let more = UILabel()
     private var flashedIndicators = false
 
     public init(settings: KeyboardSettings) {
@@ -88,260 +77,142 @@ public final class SettingsPanelView: UIView {
         done.addAction(UIAction { [weak self] _ in self?.onDone?() }, for: .touchUpInside)
         addSubview(done)
 
-        for (label, text) in [(autospaceLabel, "Autospace"), (delayLabel, "Delay"), (strictLabel, "Real words"), (spacesLabel, "Split words"), (heightLabel, "Height"), (trailsLabel, "Trails"), (barLabel, "Guesses bar"), (splitLabel, "Split on wide screens"), (learnLabel, "Learn from my typing")] {
-            label.text = text
-            label.font = Self.rowFont
-            label.textColor = Theme.ui(.ink)
-            label.adjustsFontForContentSizeCategory = true
-            label.numberOfLines = 0
-        }
-        for value in [delayValue, strictValue, spacesValue, heightValue] {
-            value.font = Self.rowFont
-            value.textColor = Theme.ui(.muted)
-            value.textAlignment = .right
-            value.adjustsFontForContentSizeCategory = true
-        }
-        autospaceLabel.accessibilityHint = "Write a swiped word after a short pause"
-        barLabel.accessibilityHint = "Show the guesses above the keys on a phone"
-        learnLabel.accessibilityHint = "Your words, word pairs and where your thumbs land, kept on this phone"
+        wire(autospaceTile) { $0.autospace.toggle() }
+        wire(barTile) { $0.showsBar.toggle() }
+        wire(hapticsTile) { $0.haptics.toggle() }
+        wire(trailsTile) { $0.trails.toggle() }
+        wire(splitTile) { $0.splitOnWide.toggle() }
 
-        for (control, label) in [(autospaceSwitch, autospaceLabel), (trailsSwitch, trailsLabel), (barSwitch, barLabel), (splitSwitch, splitLabel), (learnSwitch, learnLabel)] {
-            control.onTintColor = Theme.ui(.accent)
-            control.accessibilityLabel = label.text
-            control.accessibilityHint = label.accessibilityHint
-        }
-
-        delaySlider.minimumValue = Float(KeyboardSettings.delayRange.lowerBound)
-        delaySlider.maximumValue = Float(KeyboardSettings.delayRange.upperBound)
-        delaySlider.accessibilityLabel = "Autospace delay"
-        strictSlider.minimumValue = 0
-        strictSlider.maximumValue = 1
-        strictSlider.accessibilityLabel = "Real words"
-        strictSlider.accessibilityHint = "How sure the keyboard must be of a real word before it puts one in for letters you tapped"
-        spacesSlider.minimumValue = 0
-        spacesSlider.maximumValue = 1
-        spacesSlider.accessibilityLabel = "Split words"
-        spacesSlider.accessibilityHint = "How sure the keyboard must be that letters you tapped are two words before it puts the space in. At 0 percent it never does"
-        heightSlider.minimumValue = Float(KeyboardSettings.heightRange.lowerBound)
-        heightSlider.maximumValue = Float(KeyboardSettings.heightRange.upperBound)
-        heightSlider.accessibilityLabel = "Keyboard height"
-        heightSlider.accessibilityHint = "How tall the keys are. 100 percent puts every key where Apple's keyboard has it"
-        for slider in [delaySlider, strictSlider, spacesSlider, heightSlider] {
-            slider.minimumTrackTintColor = Theme.ui(.accent)
-        }
-        heightNote.font = Theme.uiFont(size: 13, weight: .regular, scaledWith: .footnote, upTo: 18)
-        heightNote.textColor = Theme.ui(.muted)
-        heightNote.adjustsFontForContentSizeCategory = true
-        heightNote.numberOfLines = 0
-
-        autospaceSwitch.addAction(UIAction { [weak self] _ in
-            guard let self else { return }
-            self.settings.autospace = self.autospaceSwitch.isOn
-            self.onChange?(self.settings)
-        }, for: .valueChanged)
-        delaySlider.addAction(UIAction { [weak self] _ in
-            guard let self else { return }
-            self.settings.autospaceDelay = (Double(self.delaySlider.value) * 10).rounded() / 10
-            self.onChange?(self.settings)
-        }, for: .valueChanged)
-        strictSlider.addAction(UIAction { [weak self] _ in
-            guard let self else { return }
-            self.settings.wordStrictness = (Double(self.strictSlider.value) * 100).rounded() / 100
-            self.onChange?(self.settings)
-        }, for: .valueChanged)
-        spacesSlider.addAction(UIAction { [weak self] _ in
-            guard let self else { return }
-            self.settings.splitStrictness = (Double(self.spacesSlider.value) * 100).rounded() / 100
-            self.onChange?(self.settings)
-        }, for: .valueChanged)
-        heightSlider.addAction(UIAction { [weak self] _ in
-            guard let self else { return }
+        height.onChange = { [weak self] value in
             // In 5% steps, so 100% (Apple's) is easy to land on.
-            self.settings.keyboardHeight = (Double(self.heightSlider.value) * 20).rounded() / 20
-            self.onChange?(self.settings)
-        }, for: .valueChanged)
-        trailsSwitch.addAction(UIAction { [weak self] _ in
-            guard let self else { return }
-            self.settings.trails = self.trailsSwitch.isOn
-            self.onChange?(self.settings)
-        }, for: .valueChanged)
-        barSwitch.addAction(UIAction { [weak self] _ in
-            guard let self else { return }
-            self.settings.showsBar = self.barSwitch.isOn
-            self.onChange?(self.settings)
-        }, for: .valueChanged)
-        splitSwitch.addAction(UIAction { [weak self] _ in
-            guard let self else { return }
-            self.settings.splitOnWide = self.splitSwitch.isOn
-            self.onChange?(self.settings)
-        }, for: .valueChanged)
-        learnSwitch.addAction(UIAction { [weak self] _ in
-            guard let self else { return }
-            self.settings.learnsFromYou = self.learnSwitch.isOn
-            self.onChange?(self.settings)
-        }, for: .valueChanged)
+            self?.update { $0.keyboardHeight = (value * 20).rounded() / 20 }
+        }
+        height.slider.accessibilityHint = "How tall the keys are. 100 percent puts every key where Apple's keyboard has it"
+        strict.onChange = { [weak self] value in self?.update { $0.wordStrictness = (value * 100).rounded() / 100 } }
+        strict.slider.accessibilityHint = "How sure the keyboard must be of a real word before it puts one in for letters you tapped"
+        split.onChange = { [weak self] value in self?.update { $0.splitStrictness = (value * 100).rounded() / 100 } }
+        split.slider.accessibilityHint = "How sure the keyboard must be before it puts a space into letters that read as two words. At 0 it never splits"
+        wait.onChange = { [weak self] value in self?.update { $0.autospaceDelay = (value * 10).rounded() / 10 } }
+        wait.slider.accessibilityHint = "How long autospace waits before it puts a swiped word in"
 
-        var forgetConfig = UIButton.Configuration.plain()
-        forgetConfig.contentInsets = .zero
-        forgetConfig.baseForegroundColor = Theme.ui(.right)
-        forget.configuration = forgetConfig
-        forget.contentHorizontalAlignment = .leading
-        forget.addAction(UIAction { [weak self] _ in
-            guard let self else { return }
-            if self.forgetArmed {
-                self.forgetArmed = false
-                self.settings.forgetPersonalAt = Date()
-                self.onChange?(self.settings)
-                self.forget.configuration?.attributedTitle = Self.rowTitle("Forgotten")
-                self.forget.configuration?.baseForegroundColor = Theme.ui(.muted)
-                self.forget.isEnabled = false
-            } else {
-                self.forgetArmed = true
-                self.render()
-            }
-        }, for: .touchUpInside)
+        note.font = Theme.uiFont(size: 13, weight: .regular, scaledWith: .footnote, upTo: 18)
+        note.textColor = Theme.ui(.muted)
+        note.adjustsFontForContentSizeCategory = true
+        note.numberOfLines = 0
+        more.text = "More in the Astrotype app"
+        more.font = Theme.uiFont(size: 13, weight: .semibold, scaledWith: .footnote, upTo: 18)
+        more.textColor = Theme.ui(.muted)
+        more.textAlignment = .center
+        more.adjustsFontForContentSizeCategory = true
+        more.numberOfLines = 0
 
-        buildGroups()
+        build()
+        layoutTiles()
         render()
+        registerForTraitChanges([UITraitPreferredContentSizeCategory.self]) { (self: Self, _: UITraitCollection) in
+            self.layoutTiles()
+        }
     }
 
     public required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 
-    private static var rowFont: UIFont {
-        Theme.uiFont(size: 15, weight: .semibold, scaledWith: .body, upTo: 22)
+    private func wire(_ tile: QuickTile, _ change: @escaping (inout KeyboardSettings) -> Void) {
+        tile.addAction(UIAction { [weak self] _ in self?.update(change) }, for: .touchUpInside)
     }
 
-    private static func rowTitle(_ text: String) -> AttributedString {
-        AttributedString(text, attributes: AttributeContainer([.font: rowFont]))
+    private func update(_ change: (inout KeyboardSettings) -> Void) {
+        change(&settings)
+        onChange?(settings)
     }
 
     // MARK: Building
 
-    private func buildGroups() {
-        delayRow = sliderRow(delayLabel, delaySlider, delayValue)
-        let strictRow = sliderRow(strictLabel, strictSlider, strictValue)
-        let spacesRow = sliderRow(spacesLabel, spacesSlider, spacesValue)
-        let heightRow = UIStackView(arrangedSubviews: [sliderRow(heightLabel, heightSlider, heightValue), heightNote])
-        heightRow.axis = .vertical
-        heightRow.isLayoutMarginsRelativeArrangement = true
-        heightRow.directionalLayoutMargins = NSDirectionalEdgeInsets(top: 0, leading: 0, bottom: Theme.Space.xs, trailing: 0)
+    private func build() {
+        tileGrid.axis = .vertical
+        tileGrid.spacing = Theme.Space.s
 
-        groups.axis = .vertical
-        groups.spacing = Theme.Space.m
-        groups.translatesAutoresizingMaskIntoConstraints = false
-        groups.addArrangedSubview(group([switchRow(autospaceLabel, autospaceSwitch), delayRow, strictRow, spacesRow]))
-        groups.addArrangedSubview(group([heightRow, switchRow(trailsLabel, trailsSwitch), switchRow(barLabel, barSwitch), switchRow(splitLabel, splitSwitch)]))
-        groups.addArrangedSubview(group([switchRow(learnLabel, learnSwitch), row([forget])]))
-        // The two sliders start at the same place. Only once both rows sit in the same
-        // card: a constraint between views with no common ancestor throws.
-        delayLabel.widthAnchor.constraint(equalTo: strictLabel.widthAnchor).isActive = true
-        spacesLabel.widthAnchor.constraint(equalTo: strictLabel.widthAnchor).isActive = true
+        let sliders = UIStackView()
+        sliders.axis = .vertical
+        sliders.backgroundColor = Theme.ui(.key)
+        sliders.layer.cornerRadius = Theme.Radius.sm
+        sliders.layer.cornerCurve = .continuous
+        sliders.isLayoutMarginsRelativeArrangement = true
+        sliders.directionalLayoutMargins = NSDirectionalEdgeInsets(top: 0, leading: Theme.Space.m, bottom: 0, trailing: Theme.Space.m)
+        for (index, row) in [height, strict, split, wait].enumerated() {
+            if index > 0 {
+                let line = UIView()
+                line.backgroundColor = Theme.ui(.kb)
+                line.heightAnchor.constraint(equalToConstant: 0.5).isActive = true
+                sliders.addArrangedSubview(line)
+            }
+            sliders.addArrangedSubview(row)
+        }
+        // The sliders start at the same place.
+        for row in [strict, split, wait] {
+            row.label.widthAnchor.constraint(equalTo: height.label.widthAnchor).isActive = true
+        }
+
+        column.axis = .vertical
+        column.spacing = Theme.Space.s
+        column.translatesAutoresizingMaskIntoConstraints = false
+        for view in [tileGrid, sliders, note, more] { column.addArrangedSubview(view) }
 
         scroll.showsHorizontalScrollIndicator = false
         scroll.alwaysBounceVertical = true
         scroll.delaysContentTouches = false
         scroll.backgroundColor = .clear
-        scroll.addSubview(groups)
+        scroll.addSubview(column)
         addSubview(scroll)
 
         let content = scroll.contentLayoutGuide
         let frame = scroll.frameLayoutGuide
         NSLayoutConstraint.activate([
-            groups.topAnchor.constraint(equalTo: content.topAnchor),
-            groups.bottomAnchor.constraint(equalTo: content.bottomAnchor, constant: -Theme.Space.m),
-            groups.leadingAnchor.constraint(equalTo: frame.leadingAnchor, constant: Theme.Space.m),
-            groups.trailingAnchor.constraint(equalTo: frame.trailingAnchor, constant: -Theme.Space.m),
+            column.topAnchor.constraint(equalTo: content.topAnchor),
+            column.bottomAnchor.constraint(equalTo: content.bottomAnchor, constant: -Theme.Space.m),
+            column.leadingAnchor.constraint(equalTo: frame.leadingAnchor, constant: Theme.Space.m),
+            column.trailingAnchor.constraint(equalTo: frame.trailingAnchor, constant: -Theme.Space.m),
         ])
     }
 
-    /// A rounded card holding rows, with a hairline between them.
-    private func group(_ rows: [UIView]) -> UIView {
-        let card = UIView()
-        card.backgroundColor = Theme.ui(.key)
-        card.layer.cornerRadius = Theme.Radius.sm
-        card.layer.cornerCurve = .continuous
-        let column = UIStackView()
-        column.axis = .vertical
-        column.translatesAutoresizingMaskIntoConstraints = false
-        for (index, row) in rows.enumerated() {
-            if index > 0 {
-                let line = UIView()
-                line.backgroundColor = Theme.ui(.kb)
-                line.heightAnchor.constraint(equalToConstant: 0.5).isActive = true
-                column.addArrangedSubview(line)
-            }
-            column.addArrangedSubview(row)
+    /// One row of tiles, or rows of two at the accessibility text sizes.
+    private func layoutTiles() {
+        for row in tileGrid.arrangedSubviews { row.removeFromSuperview() }
+        let tiles = [autospaceTile, barTile, hapticsTile, trailsTile] + (showsSplit ? [splitTile] : [])
+        let perRow = traitCollection.preferredContentSizeCategory.isAccessibilityCategory ? 2 : tiles.count
+        for start in stride(from: 0, to: tiles.count, by: perRow) {
+            let row = UIStackView(arrangedSubviews: Array(tiles[start..<min(start + perRow, tiles.count)]))
+            row.axis = .horizontal
+            row.spacing = Theme.Space.s
+            row.distribution = .fillEqually
+            tileGrid.addArrangedSubview(row)
         }
-        card.addSubview(column)
-        NSLayoutConstraint.activate([
-            column.topAnchor.constraint(equalTo: card.topAnchor),
-            column.bottomAnchor.constraint(equalTo: card.bottomAnchor),
-            column.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: Theme.Space.m),
-            column.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -Theme.Space.m),
-        ])
-        return card
-    }
-
-    private func row(_ views: [UIView]) -> UIStackView {
-        let row = UIStackView(arrangedSubviews: views)
-        row.axis = .horizontal
-        row.alignment = .center
-        row.spacing = Theme.Space.m
-        row.isLayoutMarginsRelativeArrangement = true
-        row.directionalLayoutMargins = NSDirectionalEdgeInsets(top: Theme.Space.xs, leading: 0, bottom: Theme.Space.xs, trailing: 0)
-        row.heightAnchor.constraint(greaterThanOrEqualToConstant: Self.rowHeight).isActive = true
-        return row
-    }
-
-    /// A name on the left and a switch on the right.
-    private func switchRow(_ label: UILabel, _ control: UISwitch) -> UIStackView {
-        label.setContentHuggingPriority(.defaultLow, for: .horizontal)
-        control.setContentHuggingPriority(.required, for: .horizontal)
-        control.setContentCompressionResistancePriority(.required, for: .horizontal)
-        return row([label, control])
-    }
-
-    /// A name, a slider, and its value at the end.
-    private func sliderRow(_ label: UILabel, _ slider: UISlider, _ value: UILabel) -> UIStackView {
-        label.numberOfLines = 1
-        label.setContentHuggingPriority(.defaultHigh, for: .horizontal)
-        label.setContentCompressionResistancePriority(.required, for: .horizontal)
-        slider.setContentHuggingPriority(.defaultLow, for: .horizontal)
-        slider.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-        value.setContentHuggingPriority(.required, for: .horizontal)
-        value.widthAnchor.constraint(greaterThanOrEqualToConstant: 44).isActive = true
-        return row([label, slider, value])
     }
 
     // MARK: State
 
     private func render() {
-        autospaceSwitch.isOn = settings.autospace
-        trailsSwitch.isOn = settings.trails
-        barSwitch.isOn = settings.showsBar
-        splitSwitch.isOn = settings.splitOnWide && allowsSplit
-        splitSwitch.isEnabled = allowsSplit
-        splitLabel.text = allowsSplit ? "Split on wide screens" : "Split on wide screens · PRO"
-        splitLabel.alpha = allowsSplit ? 1 : 0.5
-        delaySlider.value = Float(settings.autospaceDelay)
-        delaySlider.isEnabled = settings.autospace
-        delayValue.text = "\(String(format: "%.1f", settings.autospaceDelay)) s"
-        delayRow.alpha = settings.autospace ? 1 : 0.45
-        learnSwitch.isOn = settings.learnsFromYou
-        strictSlider.value = Float(settings.wordStrictness)
-        strictValue.text = "\(Int((settings.wordStrictness * 100).rounded()))%"
-        spacesSlider.value = Float(settings.splitStrictness)
-        spacesValue.text = "\(Int((settings.splitStrictness * 100).rounded()))%"
-        heightSlider.value = Float(settings.heightScale)
-        heightValue.text = "\(Int((settings.heightScale * 100).rounded()))%"
-        heightSlider.accessibilityValue = "\(Int((settings.heightScale * 100).rounded())) percent"
+        autospaceTile.isOn = settings.autospace
+        barTile.isOn = settings.showsBar
+        hapticsTile.isOn = settings.haptics
+        trailsTile.isOn = settings.trails
+        splitTile.isOn = settings.splitOnWide && allowsSplit
+        splitTile.isEnabled = allowsSplit
+        splitTile.subtitle = allowsSplit ? nil : "PRO"
+
+        height.set(Double(settings.heightScale), text: percent(Double(settings.heightScale)))
+        strict.set(settings.wordStrictness, text: percent(settings.wordStrictness))
+        split.set(settings.splitStrictness, text: percent(settings.splitStrictness))
+        wait.set(settings.autospaceDelay, text: "\(String(format: "%.1f", settings.autospaceDelay)) s",
+                 spoken: "\(String(format: "%.1f", settings.autospaceDelay)) seconds")
+        wait.slider.isEnabled = settings.autospace
+        wait.alpha = settings.autospace ? 1 : 0.45
+
         let short = granted.got > 0 && granted.got < granted.asked - 0.5
-        heightNote.text = short ? "iOS gave the keyboard \(Int(granted.got)) of the \(Int(granted.asked.rounded())) pt it asked for, so the keys are shorter." : nil
-        heightNote.isHidden = !short
-        if forget.isEnabled {
-            forget.configuration?.attributedTitle = Self.rowTitle(forgetArmed ? "Tap again to forget" : "Forget what it learned")
-        }
+        note.text = short ? "iOS gave the keyboard \(Int(granted.got)) of the \(Int(granted.asked.rounded())) pt it asked for, so the keys are shorter." : nil
+        note.isHidden = !short
     }
+
+    private func percent(_ value: Double) -> String { "\(Int((value * 100).rounded()))%" }
 
     // MARK: Layout
 
@@ -367,8 +238,133 @@ public final class SettingsPanelView: UIView {
     }
 }
 
-/// Lets a drag that starts on a switch or button scroll the list, while a drag on a
-/// slider still moves the slider.
+/// A square switch, like Control Center's: a symbol over a name, `key` when off and
+/// `accent` when on. VoiceOver reads it as a toggle button with its name.
+final class QuickTile: UIControl {
+    var isOn = false {
+        didSet { if isOn != oldValue { restyle() } }
+    }
+    /// A second line under the name, like "PRO" when the tile can't turn on yet.
+    var subtitle: String? {
+        didSet { name.text = subtitle.map { "\(title) · \($0)" } ?? title; restyle() }
+    }
+    override var isEnabled: Bool {
+        didSet { restyle() }
+    }
+    override var isHighlighted: Bool {
+        didSet {
+            UIView.animate(withDuration: 0.2, delay: 0, usingSpringWithDamping: 0.6, initialSpringVelocity: 0, options: [.allowUserInteraction]) {
+                self.transform = self.isHighlighted && !UIAccessibility.isReduceMotionEnabled ? CGAffineTransform(scaleX: 0.95, y: 0.95) : .identity
+            }
+        }
+    }
+
+    private let title: String
+    private let icon = UIImageView()
+    private let name = UILabel()
+
+    init(title: String, symbol: String) {
+        self.title = title
+        super.init(frame: .zero)
+        layer.cornerRadius = Theme.Radius.sm
+        layer.cornerCurve = .continuous
+        icon.image = UIImage(systemName: symbol, withConfiguration: UIImage.SymbolConfiguration(pointSize: 18, weight: .bold))
+        icon.contentMode = .center
+        name.text = title
+        name.font = Theme.uiFont(size: 12, weight: .heavy, scaledWith: .caption1, upTo: 17)
+        name.adjustsFontForContentSizeCategory = true
+        name.textAlignment = .center
+        name.numberOfLines = 2
+        let stack = UIStackView(arrangedSubviews: [icon, name])
+        stack.axis = .vertical
+        stack.alignment = .center
+        stack.spacing = 4
+        stack.isUserInteractionEnabled = false
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(stack)
+        NSLayoutConstraint.activate([
+            stack.topAnchor.constraint(equalTo: topAnchor, constant: 10),
+            stack.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -8),
+            stack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 4),
+            stack.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -4),
+            heightAnchor.constraint(greaterThanOrEqualToConstant: 64),
+        ])
+        isAccessibilityElement = true
+        accessibilityTraits = [.button, .toggleButton]
+        restyle()
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
+
+    private func restyle() {
+        backgroundColor = isOn ? Theme.ui(.accent) : Theme.ui(.key)
+        let ink = isOn ? Theme.ui(.accentInk) : Theme.ui(.keyInk)
+        icon.tintColor = ink.withAlphaComponent(isOn ? 1 : 0.65)
+        name.textColor = ink
+        alpha = isEnabled ? 1 : 0.5
+        accessibilityLabel = subtitle.map { "\(title), \($0)" } ?? title
+        accessibilityValue = isOn ? "On" : "Off"
+        if isEnabled { accessibilityTraits.remove(.notEnabled) } else { accessibilityTraits.insert(.notEnabled) }
+    }
+}
+
+/// A name, a slider and its value at the end, at least 44 pt tall.
+private final class SliderRow: UIStackView {
+    let label = UILabel()
+    let slider = UISlider()
+    private let value = UILabel()
+    var onChange: ((Double) -> Void)?
+
+    init(title: String, range: ClosedRange<Double>, label accessibilityLabel: String) {
+        super.init(frame: .zero)
+        axis = .horizontal
+        alignment = .center
+        spacing = Theme.Space.m
+        isLayoutMarginsRelativeArrangement = true
+        directionalLayoutMargins = NSDirectionalEdgeInsets(top: Theme.Space.xs, leading: 0, bottom: Theme.Space.xs, trailing: 0)
+        heightAnchor.constraint(greaterThanOrEqualToConstant: 44).isActive = true
+
+        let font = Theme.uiFont(size: 15, weight: .semibold, scaledWith: .body, upTo: 22)
+        label.text = title
+        label.font = font
+        label.textColor = Theme.ui(.ink)
+        label.adjustsFontForContentSizeCategory = true
+        label.setContentHuggingPriority(.defaultHigh, for: .horizontal)
+        label.setContentCompressionResistancePriority(.required, for: .horizontal)
+        label.isAccessibilityElement = false
+        value.font = font
+        value.textColor = Theme.ui(.muted)
+        value.textAlignment = .right
+        value.adjustsFontForContentSizeCategory = true
+        value.setContentHuggingPriority(.required, for: .horizontal)
+        value.widthAnchor.constraint(greaterThanOrEqualToConstant: 46).isActive = true
+        value.isAccessibilityElement = false
+
+        slider.minimumValue = Float(range.lowerBound)
+        slider.maximumValue = Float(range.upperBound)
+        slider.minimumTrackTintColor = Theme.ui(.accent)
+        slider.accessibilityLabel = accessibilityLabel
+        slider.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        slider.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        slider.addAction(UIAction { [weak self] _ in
+            guard let self else { return }
+            self.onChange?(Double(self.slider.value))
+        }, for: .valueChanged)
+
+        for view in [label, slider, value] { addArrangedSubview(view) }
+    }
+
+    required init(coder: NSCoder) { fatalError("init(coder:) is not supported") }
+
+    func set(_ number: Double, text: String, spoken: String? = nil) {
+        if !slider.isTracking { slider.value = Float(number) }
+        value.text = text
+        slider.accessibilityValue = spoken ?? text
+    }
+}
+
+/// Lets a drag that starts on a tile scroll the list, while a drag on a slider still
+/// moves the slider.
 private final class PanelScrollView: UIScrollView {
     override func touchesShouldCancel(in view: UIView) -> Bool {
         !(view is UISlider)

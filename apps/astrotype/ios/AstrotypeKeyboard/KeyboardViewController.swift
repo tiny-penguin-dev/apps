@@ -23,6 +23,9 @@ final class KeyboardViewController: UIInputViewController {
     private let checks = ExtensionChecks()
     private var health: KeyboardHealthRecorder?
     private var edits = 0
+    /// The last appearance the field asked for, and whether it only echoed the phone's
+    /// light or dark mode (`followKeyboardAppearance`).
+    private var askedAppearance: (asked: UIKeyboardAppearance, echo: Bool)?
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -87,6 +90,12 @@ final class KeyboardViewController: UIInputViewController {
             checks.run(hasFullAccess: fullAccess) { [weak keyboard] note in
                 keyboard?.bar.note = note
             }
+        }
+
+        // Light or dark mode changing while the keyboard is up (Gabriel, 3 Nov 2026: the
+        // keys stayed white until the app was reopened).
+        registerForTraitChanges([UITraitUserInterfaceStyle.self]) { (self: Self, _: UITraitCollection) in
+            self.followKeyboardAppearance()
         }
     }
 
@@ -156,6 +165,7 @@ final class KeyboardViewController: UIInputViewController {
         heightRetries = 0
         applyHeight(fresh: true)
         health?.appeared()
+        askedAppearance = nil
         followKeyboardAppearance()
         keyboard?.model.learningAllowed = fieldAllowsLearning
         keyboard?.model.contextChanged()
@@ -201,13 +211,33 @@ final class KeyboardViewController: UIInputViewController {
         return true
     }
 
-    /// Light or dark as the app asked for its keyboard, like Apple's keyboard does.
+    /// Light or dark as the app asked for its keyboard, like Apple's keyboard does, and
+    /// otherwise the phone's mode, live.
+    ///
+    /// The override goes on the keyboard view, not on this controller's view, so this
+    /// controller's own traits stay the phone's and tell it when the mode changes. A field
+    /// often answers with the mode the phone was in when it opened (light in light mode)
+    /// and keeps answering that after the mode changes; pinned to that answer, the keys
+    /// stayed white in dark mode until the app was reopened. So an answer that only
+    /// echoes the phone's mode is not pinned, and stays an echo until the field answers
+    /// something else.
     private func followKeyboardAppearance() {
-        switch textDocumentProxy.keyboardAppearance ?? .default {
-        case .dark: view.overrideUserInterfaceStyle = .dark
-        case .light: view.overrideUserInterfaceStyle = .light
-        default: view.overrideUserInterfaceStyle = .unspecified
+        guard let keyboard else { return }
+        let asked = textDocumentProxy.keyboardAppearance ?? .default
+        let phone = traitCollection.userInterfaceStyle
+        let echo: Bool
+        if let last = askedAppearance, last.asked == asked {
+            echo = last.echo
+        } else {
+            switch asked {
+            case .dark: echo = phone == .dark
+            case .light: echo = phone != .dark
+            default: echo = true
+            }
         }
+        askedAppearance = (asked, echo)
+        let style: UIUserInterfaceStyle = echo ? .unspecified : (asked == .dark ? .dark : .light)
+        if keyboard.overrideUserInterfaceStyle != style { keyboard.overrideUserInterfaceStyle = style }
     }
 
     override func viewWillLayoutSubviews() {

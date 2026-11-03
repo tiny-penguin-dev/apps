@@ -102,6 +102,11 @@ final class KeyboardViewController: UIInputViewController {
                 model.onCorrection = { word in store.save([word]) }
             }
         }
+        // Misses from "Not it?" are kept for "Words it missed" (features/missed-words):
+        // in the App Group where the app can list them, else in our own files.
+        let misses = SharedWordStore(folder: (fullAccess ? KeyboardFiles.shared(KeyboardFiles.misses) : nil)
+            ?? KeyboardFiles.own(KeyboardFiles.misses), limit: 200)
+        model.onMiss = { word in misses.save([word]) }
         startEntitlement(model: model, fullAccess: fullAccess)
 
         if Flags.extensionReadout {

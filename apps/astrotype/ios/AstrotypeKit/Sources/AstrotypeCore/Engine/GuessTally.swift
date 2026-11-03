@@ -16,12 +16,15 @@ public struct GuessTally: Codable, Sendable, Equatable {
     /// Pecked words (every touch a tap), and how many went in as the first guess.
     public var pecked = 0
     public var peckedFirst = 0
+    /// Words typed with "Not it?" because the swipe missed them (features/missed-words).
+    public var missed = 0
 
-    public init(swiped: Int = 0, swipedFirst: Int = 0, pecked: Int = 0, peckedFirst: Int = 0) {
+    public init(swiped: Int = 0, swipedFirst: Int = 0, pecked: Int = 0, peckedFirst: Int = 0, missed: Int = 0) {
         self.swiped = swiped
         self.swipedFirst = swipedFirst
         self.pecked = pecked
         self.peckedFirst = peckedFirst
+        self.missed = missed
     }
 
     public init(from decoder: Decoder) throws {
@@ -30,6 +33,7 @@ public struct GuessTally: Codable, Sendable, Equatable {
         swipedFirst = try c.decodeIfPresent(Int.self, forKey: .swipedFirst) ?? 0
         pecked = try c.decodeIfPresent(Int.self, forKey: .pecked) ?? 0
         peckedFirst = try c.decodeIfPresent(Int.self, forKey: .peckedFirst) ?? 0
+        missed = try c.decodeIfPresent(Int.self, forKey: .missed) ?? 0
     }
 
     public var words: Int { swiped + pecked }
@@ -37,6 +41,7 @@ public struct GuessTally: Codable, Sendable, Equatable {
     /// Counts a settled word. Returns false for one the keyboard made no guess for.
     @discardableResult
     public mutating func add(_ word: SettledWord) -> Bool {
+        if word.missed { missed += 1 }
         guard let first = word.firstGuess else { return false }
         let right = first == word.word
         if word.pecked {
@@ -56,8 +61,9 @@ public struct GuessTally: Codable, Sendable, Equatable {
     /// Sends `guess.words` and `guess.first` (counts, `kind`: `swipe` or `tap`) for the
     /// words there were, so the share is `guess.first` over `guess.words`, and
     /// `guess.first_share` (a gauge, 0 to 100) for a kind with at least `shareMinimum`
-    /// words, to read at a glance.
+    /// words, to read at a glance. `miss.saved` counts the words typed with "Not it?".
     public func report(to metrics: Metrics) {
+        if missed > 0 { metrics.count("miss.saved", by: missed, [:]) }
         for (kind, words, first) in [("swipe", swiped, swipedFirst), ("tap", pecked, peckedFirst)] where words > 0 {
             metrics.count("guess.words", by: words, ["kind": kind])
             if first > 0 { metrics.count("guess.first", by: first, ["kind": kind]) }

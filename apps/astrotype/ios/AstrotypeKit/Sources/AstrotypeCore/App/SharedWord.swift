@@ -16,6 +16,9 @@ public struct SharedWord: Codable, Sendable, Equatable, Identifiable {
     /// The kinds: a practice word from the app ("word.speedtest", "word.drill.pairs")
     /// and a fix made in another app.
     public static let correctionKind = "word.correction"
+    /// A word the keyboard missed, typed with "Not it?" in another app
+    /// (features/missed-words): like a correction, the word meant and the swipe.
+    public static let missKind = "word.miss"
 
     public var version = SharedWord.currentVersion
     public var id: UUID
@@ -59,7 +62,10 @@ public struct SharedWord: Codable, Sendable, Equatable, Identifiable {
         self.day = day
     }
 
-    public var isCorrection: Bool { kind == Self.correctionKind }
+    /// Made in another app: a fix from the bar or a miss typed with "Not it?". Both go
+    /// only with "Include corrections" on.
+    public var isCorrection: Bool { kind == Self.correctionKind || kind == Self.missKind }
+    public var isMiss: Bool { kind == Self.missKind }
 
     /// With where it was made, as the app knows it (the extension does not).
     public func stamped(with device: PracticeRecording.Device) -> SharedWord {
@@ -126,7 +132,7 @@ public struct SharedWord: Codable, Sendable, Equatable, Identifiable {
                 return [round4(point.x / layout.width), round4(point.y / layout.height), round4(t)]
             })
         }
-        return SharedWord(kind: correctionKind, word: settled.word, typed: typed, layoutWidth: layout.width,
+        return SharedWord(kind: settled.missed ? missKind : correctionKind, word: settled.word, typed: typed, layoutWidth: layout.width,
                           layoutHeight: layout.height, split: layout.split, touches: touches, day: day(of: now))
     }
 

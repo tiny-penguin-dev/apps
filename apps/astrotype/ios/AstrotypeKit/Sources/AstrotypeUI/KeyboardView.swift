@@ -79,6 +79,9 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         bar.onChoose = { [weak self] index in self?.model.choose(guess: index) }
         bar.onBoost = { [weak self] index in self?.model.boost(guess: index) }
         bar.onForget = { [weak self] index in self?.model.forget(guess: index) }
+        bar.onNotIt = { [weak self] in self?.model.beginCorrection() }
+        bar.onCancelCorrection = { [weak self] in self?.model.cancelCorrection() }
+        bar.onSaveCorrection = { [weak self] in self?.model.saveCorrection() }
         model.onChange = { [weak self] in self?.render() }
         model.onHaptic = { [weak self] haptic in self?.play(haptic) }
         model.onNotice = { [weak self] notice in
@@ -211,6 +214,8 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
     private var shownField: Field?
 
     private func render() {
+        let wasCorrecting = { if case .correcting = self.bar.bar { true } else { false } }()
+        bar.canCorrect = model.state.canCorrect
         if shownField != model.field {
             shownField = model.field
             page = model.field.startPage
@@ -219,6 +224,12 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         surface.returnKey = model.field.returnKey
         surface.returnEnabled = model.returnEnabled
         bar.bar = model.state.bar
+        // Saved from "Not it?": the commit squeeze (DESIGN.md "Commit").
+        if wasCorrecting, case .idle = model.state.bar, !model.state.canCorrect {
+            UIView.animate(withDuration: 0.12, animations: { self.bar.transform = CGAffineTransform(scaleX: 0.97, y: 0.97) }) { _ in
+                UIView.animate(withDuration: 0.15) { self.bar.transform = .identity }
+            }
+        }
         if usesDefaultNote {
             bar.note = model.entitlement.allows(.twoThumbs) ? "Both thumbs, one word" : "One finger at a time"
         }

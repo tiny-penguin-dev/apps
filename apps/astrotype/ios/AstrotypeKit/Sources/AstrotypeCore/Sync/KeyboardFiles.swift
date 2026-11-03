@@ -31,6 +31,9 @@ public enum KeyboardFiles {
     /// Shared words waiting for the app to send (`SharedWordStore`): practice words and,
     /// with Full Access, the keyboard's corrections.
     public static let sharing = "Sharing"
+    /// Words the keyboard missed, typed with "Not it?" (`SharedWordStore`, the last 200):
+    /// kept for "Words it missed" whether or not they are shared (features/missed-words).
+    public static let misses = "Missed"
 
     /// A file in this process's own Application Support folder.
     public static func own(_ name: String, fileManager: FileManager = .default) -> URL {

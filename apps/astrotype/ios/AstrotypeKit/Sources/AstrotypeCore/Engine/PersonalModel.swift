@@ -297,9 +297,12 @@ public struct SettledWord: Sendable, Equatable {
     public var touches: [Touch]
     /// The word's touches in touch-down order.
     public var strokes: [Stroke]
+    /// The person typed this word with "Not it?" over the swipe's guess (`fixedFrom`):
+    /// the keyboard missed it (features/missed-words).
+    public var missed: Bool
 
     public init(word: String, previous: String?, source: Source, fixedFrom: String? = nil, firstGuess: String? = nil,
-                pecked: Bool? = nil, touches: [Touch] = [], strokes: [Stroke] = []) {
+                pecked: Bool? = nil, touches: [Touch] = [], strokes: [Stroke] = [], missed: Bool = false) {
         self.word = word
         self.previous = previous
         self.source = source
@@ -308,6 +311,7 @@ public struct SettledWord: Sendable, Equatable {
         self.pecked = pecked ?? (source == .tapped)
         self.touches = touches
         self.strokes = strokes
+        self.missed = missed
     }
 }
 

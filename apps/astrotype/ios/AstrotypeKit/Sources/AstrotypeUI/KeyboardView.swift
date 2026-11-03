@@ -30,8 +30,10 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
     public let stats = StatsOverlayView()
     /// Keys the engine leaves to the host: the globe.
     public var onSystemKey: ((Key) -> Void)?
-    /// Whether the bottom row has a globe key before the emoji key: the extension sets
-    /// it from `needsInputModeSwitchKey` (true only where iOS draws no globe of its own).
+    /// Whether the keyboard has our globe key: the extension sets it from
+    /// `needsInputModeSwitchKey` (true only where iOS draws no globe of its own). It
+    /// sits at the bar's leading end when the bar is on top, else on the bottom row
+    /// before the emoji key (features/space-bar).
     public var showsGlobe = false {
         didSet { if showsGlobe != oldValue { setNeedsLayout() } }
     }
@@ -65,6 +67,17 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
     public var hapticsAvailable = true {
         didSet { if hapticsAvailable && !oldValue { keyHaptic.prepare() } }
     }
+    /// Our globe in the bar's left slot (features/space-bar): SF Symbol `globe` in
+    /// `keyInk`, no key background; the bar gives it its 44 pt slot.
+    private lazy var globeKey: UIButton = {
+        var config = UIButton.Configuration.plain()
+        config.image = UIImage(systemName: "globe", withConfiguration: UIImage.SymbolConfiguration(pointSize: 20, weight: .regular))
+        config.baseForegroundColor = Theme.ui(.keyInk)
+        let button = UIButton(configuration: config)
+        button.accessibilityLabel = "Next keyboard"
+        button.addAction(UIAction { [weak self] _ in self?.onSystemKey?(.globe) }, for: .touchUpInside)
+        return button
+    }()
     private let keyHaptic = UIImpactFeedbackGenerator(style: .soft)
     private let commitHaptic = UIImpactFeedbackGenerator(style: .light)
 
@@ -146,10 +159,10 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         let room = bounds.height - (barOnTop ? Self.barHeight : 0)
         let fill: CGFloat? = room > 0 ? min(room, natural.height) : nil
         if model.layout.width != width || model.layout.split != natural.split || model.layout.extraLetters != natural.extraLetters
-            || model.layout.globe != showsGlobe || model.layout.bottomRow != bottom || fill != keysHeight || place != self.place {
+            || model.layout.globe != rowGlobe(place) || model.layout.bottomRow != bottom || fill != keysHeight || place != self.place {
             keysHeight = fill
             self.place = place
-            model.layout = Layout.qwerty(width: width, split: split, extraLetters: extraLetters, globe: showsGlobe, height: fill,
+            model.layout = Layout.qwerty(width: width, split: split, extraLetters: extraLetters, globe: rowGlobe(place), height: fill,
                                          bottom: bottom)
             surface.layout = pageLayout(width: width, height: fill)
         }
@@ -161,6 +174,7 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         }
         let keys = model.layout.height
         let top = max(0, bounds.height - keys - (barOnTop ? Self.barHeight : 0))
+        bar.leadingKey = showsGlobe && place == .top ? globeKey : nil
         switch place {
         case .top:
             bar.isHidden = false
@@ -206,9 +220,13 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
     }
 
     private func pageLayout(width: CGFloat, height: CGFloat?) -> Layout {
-        Layout.qwerty(width: width, page: page, split: model.splitOnWide, extraLetters: extraLetters, globe: showsGlobe,
+        Layout.qwerty(width: width, page: page, split: model.splitOnWide, extraLetters: extraLetters, globe: rowGlobe(place),
                       height: height, bottom: model.field.bottomRow)
     }
+
+    /// Whether our globe goes on the bottom row: only when there's no bar on top to
+    /// hold it (the bar is off, or the guesses are a column).
+    private func rowGlobe(_ place: BarPlace) -> Bool { showsGlobe && place != .top }
 
     /// The split's extra letters, as set.
     private var extraLetters: Bool { model.keyboardSettings.splitExtraLetters

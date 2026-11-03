@@ -13,7 +13,8 @@ public enum Key: Hashable, Sendable {
     case symbols
     /// Back to the letters ("ABC").
     case letters
-    /// The next keyboard, only where iOS draws no globe of its own (Home button phones).
+    /// The next keyboard, only where iOS draws no globe of its own (Home button phones,
+    /// the iPhone Duo): on this row only when the guesses bar isn't on top to hold it.
     case globe
     /// The emoji page (features/emoji).
     case emoji
@@ -130,7 +131,8 @@ public struct Layout: Sendable, Equatable {
     /// left, T F C on the right (an option, Gabriel, 2 Nov 2026).
     public let extraLetters: Bool
     /// The bottom row has a globe key before the emoji key, for phones where iOS draws
-    /// no globe under the keyboard (`needsInputModeSwitchKey`, the Home button phones).
+    /// no globe under the keyboard (`needsInputModeSwitchKey`) and the guesses bar is
+    /// off or a column; with the bar on top the globe sits in it (features/space-bar).
     /// Without it the emoji key sits where the globe was, as on Apple's keyboard.
     public let globe: Bool
     /// The keyboard's height: the keys and, under the bottom row, `bottomInset`. No

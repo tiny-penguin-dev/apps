@@ -27,8 +27,10 @@ Status: Draft
     one on turns the other off; with Pro (or the trial) both can be on.
   - *To start* the keyboard takes the phone's language: a Spanish phone (its first
     preferred language is Spanish) starts in Spanish, any other phone in English. If the
-    phone's preferred languages include both, both start on, which the two-week trial
-    covers.
+    phone's preferred languages include both, setup asks once ("Which languages do you
+    type in?", both ticked) on the step after the keyboard is turned on, and the two-week
+    trial covers having both (Gabriel, 3 Nov 2026: pick the right one by itself, or ask
+    in setup). Anyone else never sees the question.
   - *When the trial ends* without Pro and two are on, the keyboard keeps the first one in
     the phone's preferred languages and turns the other off, with a line on the Languages
     page saying so and that Pro brings it back. Nothing learned in either language is

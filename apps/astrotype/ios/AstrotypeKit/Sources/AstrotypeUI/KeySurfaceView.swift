@@ -728,8 +728,13 @@ final class KeyView: UIView {
         }
     }
     /// Dimmed when it does nothing (return, waiting for text).
+    /// A disabled key (return in an empty field that needs text) keeps its background
+    /// and greys only its label or glyph (Gabriel, 3 Nov 2026).
     var enabled = true {
-        didSet { alpha = enabled ? 1 : 0.4 }
+        didSet {
+            label.textColor = inkColor
+            icon.tintColor = iconColor
+        }
     }
 
     private let spaceLabel: String
@@ -754,7 +759,7 @@ final class KeyView: UIView {
         label.text = text
         addSubview(label)
         icon.contentMode = .center
-        icon.tintColor = Theme.ui(.keyInk)
+        icon.tintColor = iconColor
         icon.image = symbol
         addSubview(icon)
     }
@@ -769,7 +774,11 @@ final class KeyView: UIView {
 
     private var isAction: Bool { key == .returnKey && returnKey.isAction }
     private var restColor: UIColor { Theme.ui(isAction ? .returnAction : key.isFunction ? .keyDark : .key) }
-    private var inkColor: UIColor { isAction ? .white : Theme.ui(key == .space ? .muted : .keyInk) }
+    private var inkColor: UIColor {
+        guard enabled else { return isAction ? UIColor.white.withAlphaComponent(0.5) : Theme.ui(.muted) }
+        return isAction ? .white : Theme.ui(key == .space ? .muted : .keyInk)
+    }
+    private var iconColor: UIColor { enabled ? Theme.ui(.keyInk) : Theme.ui(.muted) }
 
     private var fontSize: CGFloat {
         switch key {
@@ -827,7 +836,7 @@ final class KeyView: UIView {
         UIView.animate(withDuration: 0.25) {
             self.backgroundColor = self.restColor
             self.label.textColor = self.inkColor
-            self.icon.tintColor = Theme.ui(.keyInk)
+            self.icon.tintColor = self.iconColor
             self.transform = .identity
         }
     }

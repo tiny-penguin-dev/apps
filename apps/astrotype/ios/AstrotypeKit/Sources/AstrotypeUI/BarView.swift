@@ -55,6 +55,9 @@ public final class BarView: UIView {
     static let slideDistance: CGFloat = 22
     /// The width of each end of the bar: one 44 pt button.
     static let endWidth: CGFloat = 44
+    /// The narrowest a word on the bar is, so "I" or "a" is still easy to hit
+    /// (Gabriel, 3 Nov 2026); the word sits centred in it.
+    static let guessWidth: CGFloat = 64
 
     /// What the bar says when idle.
     public var note = "Both thumbs, one word" {
@@ -262,7 +265,7 @@ public final class BarView: UIView {
         views.forEach { if $0.isHidden { $0.isHidden = false } }
         func needed() -> CGFloat {
             let shown = views.filter { !$0.isHidden }
-            return shown.reduce(0) { $0 + $1.intrinsicContentSize.width } + CGFloat(max(0, shown.count - 1)) * stack.spacing
+            return shown.reduce(0) { $0 + max($1.intrinsicContentSize.width, $1 is GuessButton ? Self.guessWidth : 0) } + CGFloat(max(0, shown.count - 1)) * stack.spacing
         }
         while needed() > width {
             let shown = views.filter { !$0.isHidden && $0 !== keptView }
@@ -377,7 +380,7 @@ public final class BarView: UIView {
 
     /// A reading of the last word in the fix row: tapped, it replaces the word.
     private func addReading(_ word: String, index: Int) {
-        let button = UIButton(configuration: guessConfiguration(word, chosen: false, ink: .ink))
+        let button = GuessButton(configuration: guessConfiguration(word, chosen: false, ink: .ink))
         button.accessibilityLabel = word
         button.accessibilityHint = "Replaces the last word"
         button.addAction(UIAction { [weak self] _ in self?.onChooseFix?(index) }, for: .touchUpInside)
@@ -447,7 +450,7 @@ public final class BarView: UIView {
     }
 
     private func add(_ word: String, index: Int, chosen: Bool) {
-        let button = UIButton(configuration: guessConfiguration(word, chosen: chosen))
+        let button = GuessButton(configuration: guessConfiguration(word, chosen: chosen))
         button.accessibilityLabel = word
         if chosen {
             button.accessibilityTraits.insert(.selected)
@@ -529,6 +532,23 @@ public final class BarView: UIView {
         ]))
         button.configuration = config
         button.transform = held ? CGAffineTransform(scaleX: 1.08, y: 1.08) : .identity
+    }
+}
+/// A word on the bar: at least `BarView.guessWidth` wide, and it takes touches over the
+/// bar's whole height and halfway into the gap beside it, not only on its pill.
+private final class GuessButton: UIButton {
+    convenience init(configuration: UIButton.Configuration) {
+        self.init(frame: .zero)
+        self.configuration = configuration
+        translatesAutoresizingMaskIntoConstraints = false
+        let minimum = widthAnchor.constraint(greaterThanOrEqualToConstant: BarView.guessWidth)
+        minimum.priority = .defaultHigh
+        minimum.isActive = true
+    }
+
+    override func point(inside point: CGPoint, with event: UIEvent?) -> Bool {
+        let tall = max(0, (BarView.endWidth - bounds.height) / 2)
+        return bounds.insetBy(dx: -3, dy: -tall).contains(point)
     }
 }
 #endif

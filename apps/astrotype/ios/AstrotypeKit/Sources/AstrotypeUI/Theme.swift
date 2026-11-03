@@ -35,7 +35,9 @@ public enum Theme {
             // The keys are Apple's keyboard's (iOS 26), so ours sits beside it unnoticed
             // (Gabriel, 2 Nov 2026); dark measured from his screenshots.
             case .key: (0xFFFFFF, 0x464646)
-            case .keyDark: (0xDCDDE1, 0x404040)
+            // Function keys a step lighter than Apple's, halfway to the letter keys, so
+            // they stand off the keyboard (Gabriel, 3 Nov 2026).
+            case .keyDark: (0xEDEEF0, 0x404040)
             case .keyInk: (0x000000, 0xFFFFFF)
             case .kb: (0xD1D3D9, 0x1F1F1F)
             case .keyPressed: (0xC4C6CC, 0x6B6B6B)

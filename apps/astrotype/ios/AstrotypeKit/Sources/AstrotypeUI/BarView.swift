@@ -4,19 +4,24 @@ import UIKit
 
 /// The guesses, in their states (DESIGN.md "The bar"): an idle note, the guesses
 /// for the open word with the chosen one in a pill, FIX with the other readings of
-/// the word just written, or the "Not it?" field where the word meant is typed
-/// (features/missed-words). After a swiped word a "Not it?" button sits at the end. Holding a guess and sliding up boosts it, down forgets it
+/// the word just written, the likely next words with the best other reading of the
+/// last word as a FIX chip in front (features/next-word), or the "Not it?" field where
+/// the word meant is typed (features/missed-words). After a swiped word a "Not it?"
+/// button sits at the end. Holding a guess and sliding up boosts it, down forgets it
 /// (DESIGN.md "Learning"). A bar above the keys (`axis` horizontal) or a column beside
 /// them (vertical: the middle of a split keyboard, the side of a wide one); in a column,
 /// touches between the guesses fall through to the keys under it.
 ///
 ///     bar.bar = model.state.bar
 ///     bar.onChoose = { index in model.choose(guess: index) }
+///     bar.onChooseFix = { model.chooseFix() }
 ///     bar.onBoost = { index in model.boost(guess: index) }
 ///     bar.canCorrect = model.state.canCorrect
 ///     bar.onNotIt = { model.beginCorrection() }
 public final class BarView: UIView {
     public var onChoose: ((Int) -> Void)?
+    /// The FIX chip beside the next words was tapped.
+    public var onChooseFix: (() -> Void)?
     /// "Not it?", and the field's ✕ and Save.
     public var onNotIt: (() -> Void)?
     public var onCancelCorrection: (() -> Void)?
@@ -50,7 +55,27 @@ public final class BarView: UIView {
     }
 
     public var bar: Composer.Bar = .idle {
-        didSet { if bar != oldValue { render() } }
+        didSet {
+            guard bar != oldValue else { return }
+            render()
+            if case .next(let words, _, _) = bar, words != Self.nextWords(of: oldValue) { fadeIn() }
+        }
+    }
+
+    private static func nextWords(of bar: Composer.Bar) -> [String] {
+        if case .next(let words, _, _) = bar { return words }
+        return []
+    }
+
+    /// New next words rise into place over 0.25 s; at once with Reduce Motion.
+    private func fadeIn() {
+        guard !UIAccessibility.isReduceMotionEnabled, window != nil else { return }
+        stack.alpha = 0
+        stack.transform = CGAffineTransform(translationX: 0, y: 4)
+        UIView.animate(withDuration: 0.25, delay: 0, options: [.curveEaseOut, .allowUserInteraction]) {
+            self.stack.alpha = 1
+            self.stack.transform = .identity
+        }
     }
 
     /// A line shown over whatever the bar has, for a moment (DESIGN.md "Free mode":
@@ -273,10 +298,62 @@ public final class BarView: UIView {
             for (i, word) in words.enumerated() where i != chosen {
                 add(word, index: i, chosen: false)
             }
+        case .next(let words, _, _):
+            label.isHidden = true
+            fixLabel.isHidden = true
+            stack.isHidden = false
+            if let fix = bar.fixChoice {
+                addFixChip(fix)
+                if axis == .horizontal { addHairline() }
+            }
+            for (i, word) in words.enumerated() {
+                add(word, index: i, chosen: false)
+                stack.arrangedSubviews.last?.accessibilityHint = "Writes the next word"
+            }
         case .correcting:
             break
         }
         setNeedsLayout()
+    }
+
+    /// The best other reading of the last word, in front of the next words: FIX and the
+    /// word on the ice fill, at most 38% of the bar so a long word truncates here.
+    private func addFixChip(_ word: String) {
+        var config = UIButton.Configuration.plain()
+        config.contentInsets = NSDirectionalEdgeInsets(top: 6, leading: Theme.Space.s, bottom: 6, trailing: Theme.Space.m)
+        config.background.cornerRadius = 16
+        config.background.backgroundColor = Theme.ui(.ice)
+        config.titleLineBreakMode = .byTruncatingTail
+        var title = AttributedString("FIX ", attributes: AttributeContainer([
+            .font: Theme.uiFont(size: 11, weight: .black, scaledWith: .caption2, upTo: 13),
+            .foregroundColor: Theme.ui(.accent),
+        ]))
+        title += AttributedString(word, attributes: AttributeContainer([
+            .font: guessFont(chosen: true),
+            .foregroundColor: Theme.ui(.ink),
+        ]))
+        config.attributedTitle = title
+        let chip = UIButton(configuration: config)
+        chip.accessibilityLabel = "Fix: \(word)"
+        chip.addAction(UIAction { [weak self] _ in self?.onChooseFix?() }, for: .touchUpInside)
+        stack.addArrangedSubview(chip)
+        if axis == .horizontal {
+            chip.widthAnchor.constraint(lessThanOrEqualTo: widthAnchor, multiplier: 0.38).isActive = true
+        }
+    }
+
+    /// A hairline between the FIX chip and the next words.
+    private func addHairline() {
+        let line = UIView()
+        line.backgroundColor = Theme.ui(.line)
+        line.isAccessibilityElement = false
+        line.isUserInteractionEnabled = false
+        line.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            line.widthAnchor.constraint(equalToConstant: 1 / max(1, traitCollection.displayScale)),
+            line.heightAnchor.constraint(equalToConstant: 22),
+        ])
+        stack.addArrangedSubview(line)
     }
 
     /// The "Not it?" field: the word typed so far with a caret, or the question while

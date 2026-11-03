@@ -53,7 +53,8 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
       under their plain letters, `Lexicon.fold`, and `Matcher` writes the accents back), `Flags`, and `Engine/`: `Composer` (touches in, effects out, pure,
       time passed in), `Matcher` (pieces to ranked candidates: trie search plus DTW,
       two-thumb orderings and split swipes, the words before the open one from
-      `WordContext` and the person's `PersonalIndex`), `PersonalModel` (what the keyboard
+      `WordContext` and the person's `PersonalIndex`), `NextWords` (the likely next words for
+      the bar, from the word pairs and the person's own), `PersonalModel` (what the keyboard
       learns from the person: word and pair counts that fade, thumb offsets per key, one
       shard per install, merged and forgotten across devices; `SettledWord`, which the
       composer emits when a word is final, and `PersonalLearner`, the model as a
@@ -102,7 +103,7 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
       the trial, for the extension).
       UIKit and SwiftUI, guarded
       with `#if canImport(UIKit)` so `swift test` still builds the package on macOS.
-    - `AstrotypeKitTests`: Swift Testing. `ComposerTests`, `FieldTests`, `LanguagesTests` (Spanish, accents, both at once, picked accents, which languages are on), `PersonalModelTests`, `SharedWordTests`, `TuningTests`, `MatcherTests` (the 50-word
+    - `AstrotypeKitTests`: Swift Testing. `ComposerTests`, `NextWordTests`, `FieldTests`, `LanguagesTests` (Spanish, accents, both at once, picked accents, which languages are on), `PersonalModelTests`, `SharedWordTests`, `TuningTests`, `MatcherTests` (the 50-word
       fixture in `Fixtures/swipes.json`, through `Synth`'s straight-line swipes, and
       `ContextMatcherTests`), `WordContextTests`, `NgramModelTests`, `ReplayTests`, `MissedWordTests` (the bar's "Not it?")
       (recordings made from `Synth` strokes replay to the live result),
@@ -135,7 +136,8 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
   `emoji` (the emoji key and page, skin tones; built 3 Nov 2026),
   `missed-words` (the bar's "Not it?": type the word meant, learn from the swipe, keep
   it for debugging; built),
-  `field-types` (the keyboard following email, web, search and number fields).
+  `field-types` (the keyboard following email, web, search and number fields),
+  `next-word` (the likely next words on the bar after each word, with the FIX chip).
 - `design/`: the mockup (`mockups/astrotype.html`, the keyboard in it works), the
   screen captures the design doc links, the icon's SVGs (`icon/`) and
   `appstore/make-screenshots.mjs`, which renders the store screenshots from the mockup

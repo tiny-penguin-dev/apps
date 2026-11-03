@@ -77,6 +77,7 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         surface.alternates = { [weak model] key in Accents.alternates(for: key, languages: model?.activeLanguages ?? []) }
         surface.layout = model.layout
         bar.onChoose = { [weak self] index in self?.model.choose(guess: index) }
+        bar.onChooseFix = { [weak self] in self?.model.chooseFix() }
         bar.onBoost = { [weak self] index in self?.model.boost(guess: index) }
         bar.onForget = { [weak self] index in self?.model.forget(guess: index) }
         bar.onNotIt = { [weak self] in self?.model.beginCorrection() }

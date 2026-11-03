@@ -161,8 +161,20 @@ This is the product, so it gets its own section.
     space writes. Tapping any guess writes it.
   - *Fix:* right after a commit, the label FIX and the other readings of the last word.
     Tap one and it replaces the word just written. Any new tap or swipe clears it.
-  - *Not it?* (features/missed-words): after a swiped word (open, FIX, or idle right
-    after it), a small "Not it?" with a pencil at the end of the bar (under the guesses
+    Shown like this only when there are no next words (below), or "Guess the next
+    word" is off.
+  - *Next:* with no word open, up to three likely next words, in the plain guess style
+    (no pill: space does not write them). A tap writes one with a space after it, and
+    the bar guesses the word after that. At a sentence start they are capitalised ("I",
+    "The"). When the last word has other readings, the best one comes first as a chip on
+    the `ice` fill, "FIX" then the word (at most 38% of the bar), a hairline, then two
+    next words; the chip swaps the word and, tapped again, swaps it back. In a column
+    the chip sits on top. Nothing after a comma, inside a word, in fields that do not
+    learn, or in the app's practice fields. Any tap or swipe on the keys clears it.
+    New guesses rise in over 0.25 s (at once with Reduce Motion). From
+    features/next-word, where the before and after screenshots are.
+  - *Not it?* (features/missed-words): after a swiped word (open, FIX, next words or
+    idle right after it), a small "Not it?" with a pencil at the end of the bar (under the guesses
     in a column). Tapped, the bar becomes a field: ✕, the word typed so far ("What did
     you mean?" while empty), and a Save pill. Taps type exact letters into it,
     backspace edits, space or return saves; Save replaces the swiped word and squeezes

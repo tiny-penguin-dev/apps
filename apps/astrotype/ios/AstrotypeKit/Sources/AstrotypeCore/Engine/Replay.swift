@@ -15,8 +15,19 @@ public enum Replay {
         public var expected: String
         /// The bar's guesses, the one space would write first.
         public var guesses: [String]
+        /// The next-word guesses the bar offered before the word's first touch
+        /// (features/next-word), lowercase.
+        public var next: [String]
         public var isFirstGuess: Bool { guesses.first == expected }
         public var isInTopThree: Bool { guesses.prefix(3).contains(expected) }
+        /// One tap on the bar would have written it.
+        public var wasNextWord: Bool { next.contains(expected) }
+
+        public init(expected: String, guesses: [String], next: [String] = []) {
+            self.expected = expected
+            self.guesses = guesses
+            self.next = next
+        }
     }
 
     public struct Outcome: Sendable, Equatable {
@@ -26,6 +37,7 @@ public enum Replay {
 
         public var firstGuesses: Int { words.filter(\.isFirstGuess).count }
         public var topThrees: Int { words.filter(\.isInTopThree).count }
+        public var nextWords: Int { words.filter(\.wasNextWord).count }
         public var misses: [Word] { words.filter { !$0.isFirstGuess } }
         public var firstGuessRate: Double { words.isEmpty ? 0 : Double(firstGuesses) / Double(words.count) }
     }
@@ -55,10 +67,16 @@ public enum Replay {
         var words: [Word] = []
         var text = before
         var pointer = 0
+        // The next words on the bar before the word's first touch.
+        var next: [String]?
         composer.setContext(before: text)
         for event in events {
             switch event.kind {
-            case .down(let point): _ = composer.touchDown(id: event.id, at: point, time: event.time)
+            case .down(let point):
+                if next == nil {
+                    if case .next(let offered, _, _) = composer.state.bar { next = offered.map { $0.lowercased() } } else { next = [] }
+                }
+                _ = composer.touchDown(id: event.id, at: point, time: event.time)
             case .move(let point): _ = composer.touchMoved(id: event.id, to: point, time: event.time)
             case .up(let point): _ = composer.touchUp(id: event.id, at: point, time: event.time)
             case .commit(let typed):
@@ -71,7 +89,8 @@ public enum Replay {
                     guesses = []
                 }
                 let word = expected[pointer]
-                words.append(Word(expected: word, guesses: guesses.map { SpeedTest.normalize($0) }))
+                words.append(Word(expected: word, guesses: guesses.map { SpeedTest.normalize($0) }, next: next ?? []))
+                next = nil
                 _ = composer.press(.space, time: event.time)
                 // What the person wrote is what the field holds: it is the context of
                 // the next word, and a right word moves them on to the next one asked.
@@ -191,6 +210,9 @@ public enum Replay {
         public var topThrees: Int { outcomes.reduce(0) { $0 + $1.topThrees } }
         public var firstGuessRate: Double { wordCount == 0 ? 0 : Double(firstGuesses) / Double(wordCount) }
         public var topThreeRate: Double { wordCount == 0 ? 0 : Double(topThrees) / Double(wordCount) }
+        public var nextWords: Int { outcomes.reduce(0) { $0 + $1.nextWords } }
+        /// How many words one tap on a next-word guess would have written.
+        public var nextWordRate: Double { wordCount == 0 ? 0 : Double(nextWords) / Double(wordCount) }
 
         /// The misses, most frequent word first: "store → stare, stir" per expected word.
         public var missLines: [String] {
@@ -218,6 +240,7 @@ public enum Replay {
         public var summary: String {
             func percent(_ value: Double) -> String { String(format: "%.1f%%", value * 100) }
             var line = "\(outcomes.count) sessions · \(wordCount) words · first guess \(percent(firstGuessRate)) · top three \(percent(topThreeRate)) · \(wordCount - firstGuesses) misses"
+            if nextWords > 0 { line += " · a tap away \(percent(nextWordRate))" }
             if skipped > 0 { line += " · \(skipped) skipped (no commit times)" }
             return line
         }

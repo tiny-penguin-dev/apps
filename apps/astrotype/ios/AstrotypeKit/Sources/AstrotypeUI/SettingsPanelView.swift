@@ -61,6 +61,7 @@ public final class SettingsPanelView: UIView {
     private let hapticsTile = QuickTile(title: "Haptics", symbol: "iphone.radiowaves.left.and.right")
     private let trailsTile = QuickTile(title: "Trails", symbol: "scribble")
     private let splitTile = QuickTile(title: "Split", symbol: "rectangle.split.2x1")
+    private let nextTile = QuickTile(title: "Next word", symbol: "text.append")
 
     private let height = SliderRow(title: "Height", range: KeyboardSettings.heightRange, label: "Keyboard height")
     private let strict = SliderRow(title: "Real words", range: 0...1, label: "Real words")
@@ -121,6 +122,8 @@ public final class SettingsPanelView: UIView {
         wire(hapticsTile) { $0.haptics.toggle() }
         wire(trailsTile) { $0.trails.toggle() }
         wire(splitTile) { $0.splitOnWide.toggle() }
+        wire(nextTile) { $0.nextWords.toggle() }
+        nextTile.accessibilityHint = "Likely next words in the bar after each word"
         languagesLink.addAction(UIAction { [weak self] _ in self?.showingLanguages = true }, for: .touchUpInside)
         for (code, row) in languageRows {
             row.addAction(UIAction { [weak self] _ in self?.toggleLanguage(code) }, for: .touchUpInside)
@@ -275,7 +278,7 @@ public final class SettingsPanelView: UIView {
     /// One row of tiles, or rows of two at the accessibility text sizes.
     private func layoutTiles() {
         for row in tileGrid.arrangedSubviews { row.removeFromSuperview() }
-        let tiles = [autospaceTile, barTile, hapticsTile, trailsTile] + (showsSplit ? [splitTile] : [])
+        let tiles = [autospaceTile, nextTile, barTile, hapticsTile, trailsTile] + (showsSplit ? [splitTile] : [])
         let perRow = traitCollection.preferredContentSizeCategory.isAccessibilityCategory ? 2 : tiles.count
         for start in stride(from: 0, to: tiles.count, by: perRow) {
             let row = UIStackView(arrangedSubviews: Array(tiles[start..<min(start + perRow, tiles.count)]))
@@ -312,6 +315,7 @@ public final class SettingsPanelView: UIView {
         barTile.isOn = settings.showsBar
         hapticsTile.isOn = settings.haptics
         trailsTile.isOn = settings.trails
+        nextTile.isOn = settings.nextWords
         splitTile.isOn = settings.splitOnWide && allowsSplit
         splitTile.isEnabled = allowsSplit
         splitTile.subtitle = allowsSplit ? nil : "PRO"

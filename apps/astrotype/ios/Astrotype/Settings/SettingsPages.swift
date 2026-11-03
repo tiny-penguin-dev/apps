@@ -74,6 +74,8 @@ private struct TypingSettings: View {
                            accessibilityLabel: "Autospace wait")
                 .opacity(model.keyboardSettings.autospace ? 1 : 0.45)
                 .disabled(!model.keyboardSettings.autospace)
+            SettingsToggle("Guess the next word", subtitle: "Likely next words in the bar after each word. A tap writes one.",
+                           symbol: "text.append", tint: Theme.mint, isOn: $model.keyboardSettings.nextWords)
             SettingsSlider("Real words", value: $model.keyboardSettings.wordStrictness, in: 0...1, step: 0.01,
                            low: "As tapped", high: "Words only", valueText: percent(model.keyboardSettings.wordStrictness))
             SettingsSlider("Split words", value: $model.keyboardSettings.splitStrictness, in: 0...1, step: 0.01,

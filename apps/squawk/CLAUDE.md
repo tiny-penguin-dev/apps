@@ -72,6 +72,14 @@ Squawk is in the **Build** stage. Read `PRODUCT.md`, `DESIGN.md` and `BUILD.md` 
   can't fade, so `Alarm.homeSteps` spreads each one into up to 10 timed light changes and
   `HomePlanner` plans from `homeSteps`, not `steps`. "+" on Home opens the guided setup (`Screens/NewAlarmFlow.swift`, answers
   in `NewAlarmGuide`), with "All options" going to `EditAlarmView`.
+- Morning summary (`features/morning-summary/FEATURE.md`, Pro): the Today card on Good
+  morning with the weather and the first event of the day. The rules (`Agenda`,
+  `WeatherNote`, `SummarySettings`, `withTimeout`) and the `WeatherSource`/`AgendaSource`
+  protocols with fakes are in `SquawkKit/MorningSummary.swift`. `Squawk/Summary/` has
+  `MorningSummaryModel` (switches, permissions, loading; the weather is dropped after 6 s)
+  and the live sources: WeatherKit with approximate "while using" location, and EventKit
+  (read only). WeatherKit needs its entitlement and the App Service on the App ID
+  (`docs/ios-release.md`). Apple's Weather mark and "Data sources" link must stay on the card.
 - `ios/SquawkWidget/`: the next-alarm widget (home screen small and medium, lock screen).
   The app saves a `WidgetSnapshot` (next wake-ups and the streak, in `SquawkKit`) to the
   App Group `group.com.tinypenguin.squawk` whenever alarms or mornings change

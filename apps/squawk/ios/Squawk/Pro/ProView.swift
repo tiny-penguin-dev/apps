@@ -96,6 +96,7 @@ private struct ProPerk: Identifiable {
         ProPerk(title: "As many steps and rings as you want", symbol: "plus", features: [.moreRings]),
         ProPerk(title: "Lights, scenes and blinds in your morning", symbol: "lightbulb.fill", features: [.home]),
         ProPerk(title: "Wake-up checks: tag, code, penguin game", symbol: "checkmark", features: [.checks]),
+        ProPerk(title: "Today's weather and first event when you're up", symbol: "sun.max.fill", features: [.summary]),
         ProPerk(title: "Change tomorrow to a new time, just once", symbol: "clock", features: [.changeNextTime]),
         ProPerk(title: "Every sound, color and ring name", symbol: "music.note", features: [.allSounds, .ringStyle]),
         ProPerk(title: "Penguin outfits and app icons", symbol: "star.fill", features: [.outfits, .appIcons]),

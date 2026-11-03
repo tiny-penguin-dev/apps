@@ -131,6 +131,7 @@ nobody is ever stuck with a ringing phone.
 | Default sounds | |
 | Skip next morning | Change next morning only (new time) |
 | Penguin reactions and streaks | Extra penguin outfits and app icons |
+| | Morning summary: weather and first event on Good morning |
 | | Later: app blocking, "only when home", morning actions |
 
 **Pro pricing (auto-renewing subscription):**
@@ -211,6 +212,8 @@ The build doc turns this into the real structure.
 - Widget showing the next alarm.
 - Everything stored on the phone, no account.
 - Free basics + Pro subscription.
+- Morning summary (Pro): weather and the first calendar event on Good morning
+  ([features/morning-summary](features/morning-summary/FEATURE.md)).
 
 ### Later
 - "Only ring when I'm home" (location).
@@ -219,7 +222,6 @@ The build doc turns this into the real structure.
 - iCloud sync, if people need it.
 - Step-count wake-up check.
 - Apple Watch app.
-- Morning summary (weather, first calendar event) after you get up.
 
 ### Never
 - Sleep tracking, sleep sounds, bedtime stories.
@@ -258,6 +260,10 @@ anything typed. People can turn this off in Settings.
 | `pro.restored` (`found`: yes / no) | Whether restoring works |
 | `outfit.changed` (`outfit`) | Whether outfits and streak rewards get used |
 | `pro.icon_changed` (`icon`) | Whether the Pro app icons get used |
+| `summary.enabled` (`part`: weather / calendar) | How many people turn each half of the morning summary on |
+| `summary.declined` (`part`: weather / calendar / offer) | Which permission people say no to, and how often "Not now" wins |
+| `summary.shown` (`weather`: yes / no, `event`: yes / none / off) | How often the Today card has something to show |
+| `summary.weather_failed` (`reason`: timeout / error) | Whether the weather loads fast enough in the morning |
 
 More get added here as phases land (rings, checks, mornings, Pro).
 

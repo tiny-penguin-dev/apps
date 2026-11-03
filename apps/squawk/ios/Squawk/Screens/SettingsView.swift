@@ -2,8 +2,8 @@ import PenguinKit
 import SquawkKit
 import SwiftUI
 
-/// Settings: Squawk Pro, Squawk's outfit, the app icon, restoring purchases and sharing
-/// usage data.
+/// Settings: Squawk Pro, the morning summary, Squawk's outfit, the app icon, restoring
+/// purchases and sharing usage data.
 struct SettingsView: View {
     @Environment(ProModel.self) private var pro
     @Environment(AlarmsModel.self) private var model
@@ -21,6 +21,7 @@ struct SettingsView: View {
             ScrollView {
                 VStack(spacing: 14) {
                     proCard
+                    SummarySettingsCard { paywall = .summary }
                     outfitCard
                     iconCard
                     Card {
@@ -244,11 +245,13 @@ private struct OutfitTile: View {
     SettingsView()
         .environment(ProModel.preview())
         .environment(AlarmsModel.preview())
+        .environment(MorningSummaryModel.preview())
 }
 
 #Preview("Pro, large text") {
     SettingsView()
         .environment(ProModel.preview(isPro: true))
         .environment(AlarmsModel.preview())
+        .environment(MorningSummaryModel.preview())
         .dynamicTypeSize(.accessibility3)
 }

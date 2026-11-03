@@ -250,11 +250,18 @@ public struct Layout: Sendable, Equatable {
             let table = page == .numbers ? numberRows : symbolRows
             _ = keys(table[0], as: Key.symbol, row: 0, from: left)
             _ = keys(table[1], as: Key.symbol, row: 1, from: left)
-            let row2Width = 2 * wideKey + 5 * unit + 6 * gap
-            x = ((width - row2Width) / 2).rounded()
-            add(page == .numbers ? .symbols : .numbers, row: 2, x: x, width: wideKey)
-            x = keys(table[2], as: Key.symbol, row: 2, from: x + wideKey + gap)
-            add(.backspace, row: 2, x: x, width: wideKey)
+            // Apple's third row (measured on iOS 26, Gabriel, 3 Nov 2026): the page key
+            // and backspace at the row's ends, 11.85% of its width each, and the five
+            // marks wide between them, 14.18% apart from 21.56% in, so each sits where
+            // Apple's does; ours grow into Apple's gaps up to `keyGap`.
+            let edgeKey = (0.1185 * rowWidth).rounded()
+            let pitch = 0.1418 * rowWidth
+            add(page == .numbers ? .symbols : .numbers, row: 2, x: left, width: edgeKey)
+            for (i, c) in table[2].enumerated() {
+                let center = left + rowWidth * 0.2156 + CGFloat(i) * pitch
+                add(.symbol(c), row: 2, x: center - (pitch - gap) / 2, width: pitch - gap)
+            }
+            add(.backspace, row: 2, x: left + rowWidth - edgeKey, width: edgeKey)
         }
 
         let space = rowWidth - 2 * fnKey - returnKey - 3 * gap

@@ -1,7 +1,5 @@
 import AstrotypeCore
-import Darwin
 import Foundation
-import os
 
 /// Writes the keyboard's memory for each time it is shown, and how many words went in
 /// as the first guess (`KeyboardHealth`), to the
@@ -54,18 +52,11 @@ final class KeyboardHealthRecorder {
 
     /// The memory iOS counts against the extension's limit (its physical footprint), in MB.
     nonisolated static func footprintMB() -> Double {
-        var info = task_vm_info_data_t()
-        var count = mach_msg_type_number_t(MemoryLayout<task_vm_info_data_t>.stride / MemoryLayout<natural_t>.stride)
-        let result = withUnsafeMutablePointer(to: &info) { pointer in
-            task_info(mach_task_self_, task_flavor_t(TASK_VM_INFO),
-                      UnsafeMutableRawPointer(pointer).assumingMemoryBound(to: integer_t.self), &count)
-        }
-        guard result == KERN_SUCCESS else { return 0 }
-        return Double(info.phys_footprint) / 1_048_576
+        MemoryReading.current()?.footprintMB ?? 0
     }
 
     /// How much more the extension can use before iOS ends it, in MB.
     nonisolated static func headroomMB() -> Double {
-        Double(os_proc_available_memory()) / 1_048_576
+        MemoryReading.current()?.headroomMB ?? 0
     }
 }

@@ -22,6 +22,7 @@ struct SettingsPageView: View {
                 case .words: WordsSettings(model: model, path: $path)
                 case .privacy: PrivacySettings(model: model, path: $path)
                 case .about: AboutSettings()
+                case .debug: DebugSettings(model: model)
                 }
             }
             .padding(.horizontal, Theme.Space.gutter)
@@ -43,6 +44,7 @@ struct SettingsPageView: View {
         case .words: "Your words"
         case .privacy: "Privacy and sharing"
         case .about: "About"
+        case .debug: "Debug"
         }
     }
 }

@@ -64,6 +64,17 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
     public var hapticsAvailable = true {
         didSet { if hapticsAvailable && !oldValue { keyHaptic.prepare() } }
     }
+    /// Our globe in the bar's left slot (features/space-bar): SF Symbol `globe` in
+    /// `keyInk`, no key background; the bar gives it its 44 pt slot.
+    private lazy var globeKey: UIButton = {
+        var config = UIButton.Configuration.plain()
+        config.image = UIImage(systemName: "globe", withConfiguration: UIImage.SymbolConfiguration(pointSize: 20, weight: .regular))
+        config.baseForegroundColor = Theme.ui(.keyInk)
+        let button = UIButton(configuration: config)
+        button.accessibilityLabel = "Next keyboard"
+        button.addAction(UIAction { [weak self] _ in self?.onSystemKey?(.globe) }, for: .touchUpInside)
+        return button
+    }()
     private let keyHaptic = UIImpactFeedbackGenerator(style: .soft)
     private let commitHaptic = UIImpactFeedbackGenerator(style: .light)
 
@@ -159,8 +170,7 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         }
         let keys = model.layout.height
         let top = max(0, bounds.height - keys - (barOnTop ? Self.barHeight : 0))
-        // TODO(features/space-bar): `bar.leadingKey = showsGlobe && place == .top ? globeKey : nil`
-        // once the guesses-bar redesign lands BarView.leadingKey.
+        bar.leadingKey = showsGlobe && place == .top ? globeKey : nil
         switch place {
         case .top:
             bar.isHidden = false

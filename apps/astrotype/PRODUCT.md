@@ -58,6 +58,9 @@ on day one.
    space, punctuation or a pause, so mixing taps and swipes costs nothing.
 3. **A plain keyboard on day one.** With no gestures learned, it works like Apple's
    keyboard: tap letters, get suggestions, press space. The speed comes as habits form.
+   Like Apple's, it changes for the field: @ and . in email fields, . / and .com in web
+   addresses, the app's word on return ("go", "search"), and no autospace or
+   corrections where they get in the way (`features/field-types`).
 4. **Power one level down.** Gestures, shortcuts, snippets and themes live in the app and
    behind long-presses, never on the main keys.
 5. **Private by default.** Nothing typed goes anywhere. Full Access is asked for one

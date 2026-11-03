@@ -19,6 +19,8 @@ public enum Key: Hashable, Sendable {
     case emoji
     case space
     case returnKey
+    /// A key that types a string (".com" in a web address field).
+    case text(String)
 
     /// The letter, for letter keys.
     public var character: Character? {
@@ -35,7 +37,7 @@ public enum Key: Hashable, Sendable {
     /// Shift, backspace, the page keys, the globe, emoji and return: drawn darker.
     public var isFunction: Bool {
         switch self {
-        case .letter, .symbol, .space: false
+        case .letter, .symbol, .space, .text: false
         default: true
         }
     }
@@ -67,6 +69,47 @@ public struct Layout: Sendable, Equatable {
         case letters, numbers, symbols
     }
 
+    /// The keys beside space on the letters page, for the field (features/field-types).
+    /// 123, the globe and return keep their size and place; these take space's room.
+    public enum BottomRow: Sendable, Equatable {
+        /// Space alone.
+        case standard
+        /// Space, then @ and . (an email or username field).
+        case email
+        /// No space: . / and .com, .com twice as wide (a web address).
+        case url
+        /// Space, then . (a web search).
+        case webSearch
+        /// Space, then @ and # (a social post).
+        case social
+
+        /// The keys after space, or in its place for a web address.
+        public var keys: [Key] {
+            switch self {
+            case .standard: []
+            case .email: [.symbol("@"), .symbol(".")]
+            case .url: [.symbol("."), .symbol("/"), .text(".com")]
+            case .webSearch: [.symbol(".")]
+            case .social: [.symbol("@"), .symbol("#")]
+            }
+        }
+
+        /// Whether the row keeps a space bar.
+        public var hasSpace: Bool { self != .url }
+
+        /// On a split keyboard, the keys on each half: each half keeps its space (but a
+        /// web address has none) and the keys share out so neither space gets too short.
+        var splitKeys: (left: [Key], right: [Key]) {
+            switch self {
+            case .standard: ([], [])
+            case .email: ([.symbol("@")], [.symbol(".")])
+            case .url: ([.symbol("."), .symbol("/")], [.text(".com")])
+            case .webSearch: ([], [.symbol(".")])
+            case .social: ([.symbol("@")], [.symbol("#")])
+            }
+        }
+    }
+
     public static let rows: [[Character]] = [
         Array("qwertyuiop"), Array("asdfghjkl"), Array("zxcvbnm"),
     ]
@@ -79,6 +122,8 @@ public struct Layout: Sendable, Equatable {
 
     public let width: CGFloat
     public let page: Page
+    /// The keys beside space (letters page only; the other pages keep Apple's row).
+    public let bottomRow: BottomRow
     /// The halves pulled apart to the screen's edges (wide screens only).
     public let split: Bool
     /// On a split keyboard, each half also has the next key past Apple's: Y H B on the
@@ -140,8 +185,11 @@ public struct Layout: Sendable, Equatable {
     /// less `bottomInset` (the room the system granted): they shrink to fit or grow up
     /// to a limit, and past the limit they sit at the bottom. `globe` adds the globe key
     /// before the emoji key, which shortens space.
+    ///
+    /// `bottom` puts the field's keys beside space on the letters page (`BottomRow`).
     public static func qwerty(width: CGFloat, page: Page = .letters, split: Bool = false, extraLetters: Bool = false,
-                              globe: Bool = false, scale: CGFloat = 1, height fill: CGFloat? = nil) -> Layout {
+                              globe: Bool = false, scale: CGFloat = 1, height fill: CGFloat? = nil,
+                              bottom: BottomRow = .standard) -> Layout {
         let gap = keyGap
         let wide = width >= wideWidth
         let split = split && wide
@@ -187,6 +235,35 @@ public struct Layout: Sendable, Equatable {
             }
             return x
         }
+
+        let bottom = page == .letters ? bottom : .standard
+        /// Space and the field's keys over `from...to` on the bottom row: the keys a
+        /// letter wide after space, or, with no space, sharing the room (".com" double).
+        func spaceRow(_ keys: [Key], space: Bool, from x0: CGFloat, to x1: CGFloat) {
+            var x = x0
+            if space {
+                let spaceWidth = x1 - x0 - CGFloat(keys.count) * (unit + gap)
+                add(.space, row: 3, x: x, width: spaceWidth)
+                x += spaceWidth + gap
+                for key in keys {
+                    add(key, row: 3, x: x, width: unit)
+                    x += unit + gap
+                }
+                return
+            }
+            let weights = keys.map { $0 == .text(".com") ? 2.0 : 1.0 }
+            let room = x1 - x0 - CGFloat(keys.count - 1) * gap
+            for (i, key) in keys.enumerated() {
+                let w = i == keys.count - 1 ? x1 - x : (room * weights[i] / weights.reduce(0, +)).rounded()
+                add(key, row: 3, x: x, width: w)
+                x += w + gap
+            }
+        }
+
+        // The keys after 123: the globe where iOS draws none, then emoji. A field's row
+        // keeps only one of them (the globe if shown, else emoji), as Apple's does, so
+        // space keeps room beside the field's keys.
+        let fnKeys: [Key] = bottom == .standard ? (globe ? [.globe, .emoji] : [.emoji]) : [globe ? .globe : .emoji]
 
         let wideKey = (1.45 * unit).rounded()
         let fnKey = (1.33 * unit).rounded()
@@ -238,12 +315,12 @@ public struct Layout: Sendable, Equatable {
             }
             add(page == .letters ? .numbers : .letters, row: 3, x: 0, width: fnKey)
             var spaceX = fnKey + gap
-            if globe { add(.globe, row: 3, x: spaceX, width: fnKey); spaceX += fnKey + gap }
-            add(.emoji, row: 3, x: spaceX, width: fnKey); spaceX += fnKey + gap
-            add(.space, row: 3, x: spaceX, width: leftEnd - spaceX)
-            add(.space, row: 3, x: rightStart, width: width - rightStart - returnKey - gap)
+            for key in fnKeys { add(key, row: 3, x: spaceX, width: fnKey); spaceX += fnKey + gap }
+            let halves = bottom.splitKeys
+            spaceRow(halves.left, space: bottom.hasSpace, from: spaceX, to: leftEnd)
+            spaceRow(halves.right, space: bottom.hasSpace, from: rightStart, to: width - returnKey - gap)
             add(.returnKey, row: 3, x: width - returnKey, width: returnKey)
-            return Layout(width: width, page: page, split: true, extraLetters: extra, globe: globe, height: height,
+            return Layout(width: width, page: page, bottomRow: bottom, split: true, extraLetters: extra, globe: globe, height: height,
                           keyHeight: keyHeight, gap: gap, bottomInset: below, placements: placements, top: top, rowGap: rowGap)
         }
 
@@ -274,16 +351,14 @@ public struct Layout: Sendable, Equatable {
             add(.backspace, row: 2, x: left + rowWidth - edgeKey, width: edgeKey)
         }
 
-        let fnKeys: CGFloat = globe ? 3 : 2
-        let space = rowWidth - fnKeys * fnKey - returnKey - (fnKeys + 1) * gap
         x = left
         add(page == .letters ? .numbers : .letters, row: 3, x: x, width: fnKey); x += fnKey + gap
-        if globe { add(.globe, row: 3, x: x, width: fnKey); x += fnKey + gap }
-        add(.emoji, row: 3, x: x, width: fnKey); x += fnKey + gap
-        add(.space, row: 3, x: x, width: space); x += space + gap
-        add(.returnKey, row: 3, x: x, width: returnKey)
+        for key in fnKeys { add(key, row: 3, x: x, width: fnKey); x += fnKey + gap }
+        let returnX = left + rowWidth - returnKey
+        spaceRow(bottom.keys, space: bottom.hasSpace, from: x, to: returnX - gap)
+        add(.returnKey, row: 3, x: returnX, width: returnKey)
 
-        return Layout(width: width, page: page, split: false, extraLetters: false, globe: globe, height: height,
+        return Layout(width: width, page: page, bottomRow: bottom, split: false, extraLetters: false, globe: globe, height: height,
                       keyHeight: keyHeight, gap: gap, bottomInset: below, placements: placements, top: top, rowGap: rowGap)
     }
 

@@ -16,6 +16,12 @@ public protocol TextTarget: AnyObject {
     func unmark()
     /// Move the cursor by `offset` characters (negative is left).
     func moveCursor(by offset: Int)
+    /// Whether the field has any text (for a return key that waits for some).
+    var hasText: Bool { get }
+}
+
+extension TextTarget {
+    public var hasText: Bool { !(textBeforeCursor ?? "").isEmpty }
 }
 
 /// The keyboard's model, one per host (BUILD.md "The engine runs in both processes"):
@@ -73,7 +79,7 @@ public final class KeyboardModel {
     public var keyboardSettings: KeyboardSettings {
         didSet {
             guard keyboardSettings != oldValue else { return }
-            composer.settings = keyboardSettings.composerSettings(from: composer.settings)
+            composer.settings = field.composerSettings(keyboardSettings.composerSettings(from: composer.settings))
             applyPersonalSettings()
             refreshLanguage()
             settingsChanged = Date()
@@ -89,9 +95,26 @@ public final class KeyboardModel {
     /// Where what the keyboard learns from the person is kept; nil learns nothing
     /// (the app's practice field reads the model but never writes it).
     public var personalStore: PersonalStore?
-    /// Whether the field being typed in may teach the keyboard: the host turns it off
-    /// for addresses, codes and fields that ask for no autocorrection.
-    public var learningAllowed = true
+    /// The field being typed in (features/field-types), which the host reads from the
+    /// app's traits each time the keyboard appears or the field changes. It decides the
+    /// bottom row, the return key, capitals, exact taps, autospace and learning.
+    public var field: Field = .text {
+        didSet {
+            guard field != oldValue else { return }
+            composer.settings = field.composerSettings(keyboardSettings.composerSettings(from: composer.settings))
+            onChange?()
+        }
+    }
+
+    /// Whether the field being typed in may teach the keyboard: never an address, a
+    /// code, a number or a field that asks for no autocorrection (`Field.learns`).
+    public var learningAllowed: Bool { field.learns }
+
+    /// Whether return does anything now: a field that waits for text (the app's
+    /// `enablesReturnKeyAutomatically`) has it off until there is some.
+    public var returnEnabled: Bool {
+        !field.returnNeedsText || composer.hasOpenWord || (target?.hasText ?? false)
+    }
 
     /// What the keyboard learned from the person's typing (features/smart-matching).
     public private(set) var personal: PersonalLearner
@@ -280,6 +303,11 @@ public final class KeyboardModel {
         apply(composer.press(character: character, time: now))
     }
 
+    /// A key that types a string (".com").
+    public func press(text: String) {
+        apply(composer.press(text: text, time: now))
+    }
+
     // MARK: Emoji
 
     /// Where the emoji history is kept (the keyboard's own file); nil keeps it in
@@ -387,6 +415,7 @@ public final class KeyboardModel {
             case .haptic(let haptic):
                 onHaptic?(haptic)
             case .learn(let word):
+                guard learningAllowed else { continue }
                 var words = composer.learned
                 words.learn(word, at: Date())
                 composer.learned = words

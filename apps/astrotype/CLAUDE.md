@@ -33,7 +33,8 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
     `Try/`, `Train/` and `Shared/` are v1: the handwriting pad, training recorder and
     the CloudKit sample upload, reachable from Settings behind the flag.
   - `AstrotypeKeyboard/`: the keyboard extension (`com.tinypenguin.astrotype.keyboard`).
-    `KeyboardViewController` hosts the shared `KeyboardView`, types through
+    `KeyboardViewController` hosts the shared `KeyboardView`, reads the field into a
+    `Field` (features/field-types), types through
     `ProxyTarget` (the text document proxy), picks the stores (own files, mirrored to
     the App Group with Full Access), starts an `EntitlementController` (Pro from
     StoreKit, the trial from the App Group or its own first run) and, with Full
@@ -43,7 +44,9 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
     writes the StoreKit, memory and size readings into the bar's idle note while
     `Flags.extensionReadout` is on.
   - `AstrotypeKit/`: the local package, three targets:
-    - `AstrotypeCore`: Core and Services. `Layout` (key geometry), `Language` (one
+    - `AstrotypeCore`: Core and Services. `Layout` (key geometry, with the field's
+      `BottomRow`), `Field` (what the app says about the field and what the keyboard
+      makes of it: bottom row, return key, exact taps, spacing, capitals, learning), `Language` (one
       language's files from `Resources/<code>/`: `Lexicon`, the trie from
       `lexicon.tsv`, and `NgramModel`, the word pairs from `bigrams.bin`; English and
       Spanish, `Language.bundled(["en", "es"])` for both at once; accented words sit
@@ -99,7 +102,7 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
       the trial, for the extension).
       UIKit and SwiftUI, guarded
       with `#if canImport(UIKit)` so `swift test` still builds the package on macOS.
-    - `AstrotypeKitTests`: Swift Testing. `ComposerTests`, `LanguagesTests` (Spanish, accents, both at once, picked accents, which languages are on), `PersonalModelTests`, `SharedWordTests`, `TuningTests`, `MatcherTests` (the 50-word
+    - `AstrotypeKitTests`: Swift Testing. `ComposerTests`, `FieldTests`, `LanguagesTests` (Spanish, accents, both at once, picked accents, which languages are on), `PersonalModelTests`, `SharedWordTests`, `TuningTests`, `MatcherTests` (the 50-word
       fixture in `Fixtures/swipes.json`, through `Synth`'s straight-line swipes, and
       `ContextMatcherTests`), `WordContextTests`, `NgramModelTests`, `ReplayTests`
       (recordings made from `Synth` strokes replay to the live result),
@@ -131,7 +134,8 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
   `languages` (Spanish and the next languages, both at once; built),
   `emoji` (the emoji key and page, skin tones; built 3 Nov 2026),
   `missed-words` (the bar's "Not it?": type the word meant, learn from the swipe, keep
-  it for debugging; planned, being built).
+  it for debugging; planned, being built),
+  `field-types` (the keyboard following email, web, search and number fields).
 - `design/`: the mockup (`mockups/astrotype.html`, the keyboard in it works), the
   screen captures the design doc links, the icon's SVGs (`icon/`) and
   `appstore/make-screenshots.mjs`, which renders the store screenshots from the mockup

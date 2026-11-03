@@ -227,6 +227,10 @@ final class KeyboardViewController: UIInputViewController {
 /// and the space went there (Gabriel, 2 Nov 2026). With "Underline the word you're
 /// typing" on, the open word is marked text again, and it is finished by inserting it
 /// over the marked text in one step, which leaves the cursor after it.
+///
+/// Text selected in the field is deleted before anything is typed, so a tap or a swipe
+/// replaces it: inserting through the proxy left the selection in place (Gabriel, 3 Nov
+/// 2026).
 @MainActor
 final class ProxyTarget: TextTarget {
     private unowned let controller: UIInputViewController
@@ -236,6 +240,9 @@ final class ProxyTarget: TextTarget {
     private var open = ""
     /// Whether `open` went in as marked text.
     private var openIsMarked = false
+    /// Set once the selection is deleted, until the run loop turns: the proxy can still
+    /// report the old selection right after, and a second delete would take a letter.
+    private var clearedSelection = false
 
     init(controller: UIInputViewController) {
         self.controller = controller
@@ -249,12 +256,18 @@ final class ProxyTarget: TextTarget {
         return !open.isEmpty && before.hasSuffix(open) ? String(before.dropLast(open.count)) : before
     }
 
-    func insert(_ text: String) { proxy.insertText(text) }
+    func insert(_ text: String) {
+        if !text.isEmpty { deleteSelection() }
+        proxy.insertText(text)
+    }
     func deleteBackward() { proxy.deleteBackward() }
 
     func mark(_ text: String) {
         guard text != open else { return }
-        if open.isEmpty { openIsMarked = underlines() }
+        if open.isEmpty {
+            openIsMarked = underlines()
+            if !text.isEmpty { deleteSelection() }
+        }
         if openIsMarked {
             proxy.setMarkedText(text, selectedRange: NSRange(location: text.utf16.count, length: 0))
             open = text
@@ -279,4 +292,12 @@ final class ProxyTarget: TextTarget {
     }
 
     func moveCursor(by offset: Int) { proxy.adjustTextPosition(byCharacterOffset: offset) }
+
+    /// Deletes the selected text, if any, so what is typed next takes its place.
+    private func deleteSelection() {
+        guard !clearedSelection, let selected = proxy.selectedText, !selected.isEmpty else { return }
+        proxy.deleteBackward()
+        clearedSelection = true
+        Task { @MainActor [weak self] in self?.clearedSelection = false }
+    }
 }

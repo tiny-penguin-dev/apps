@@ -60,6 +60,20 @@ struct SettingsView: View {
                         Text("Words only").font(.sw(.small)).foregroundStyle(Theme.muted)
                     }
                 }
+                Row("Split words", subtitle: "How sure the keyboard must be before it puts a space into letters that read as two words, like textseparately. At 0% it never splits.") {
+                    Text("\(Int((model.keyboardSettings.splitStrictness * 100).rounded()))%")
+                        .font(.sw(.heading)).monospacedDigit()
+                }
+                Card {
+                    HStack(spacing: Theme.Space.m) {
+                        Text("Never").font(.sw(.small)).foregroundStyle(Theme.muted)
+                        Slider(value: $model.keyboardSettings.splitStrictness, in: 0...1, step: 0.01)
+                            .tint(Theme.accent)
+                            .accessibilityLabel("Split words")
+                            .accessibilityValue("\(Int((model.keyboardSettings.splitStrictness * 100).rounded())) percent")
+                        Text("Whenever it's sure").font(.sw(.small)).foregroundStyle(Theme.muted)
+                    }
+                }
                 Row("Learned words", subtitle: learnedWordsSubtitle) {
                     Button("Open") { path.append(.learnedWords) }.buttonStyle(.small)
                 }

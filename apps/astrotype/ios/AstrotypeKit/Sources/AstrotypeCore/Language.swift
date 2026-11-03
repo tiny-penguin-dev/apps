@@ -1,32 +1,89 @@
 import Foundation
 
-/// Everything about one language the engine needs, so the next language is files under
-/// `Resources/<code>/`, not code (features/smart-matching/FEATURE.md "Languages"):
-/// the dictionary and the word-pair model. The alphabet is a to z for now, which the
-/// trie assumes; a language with more letters widens `Lexicon` when it comes.
+/// Everything about the languages the engine types in, so the next language is files
+/// under `Resources/<code>/`, not code (features/smart-matching/FEATURE.md "Languages",
+/// features/languages/FEATURE.md): the dictionary and the word-pair models. Words with
+/// accents sit under their plain letters (`Lexicon.fold`), since the keys are a to z.
 ///
 ///     let english = try Language.bundled("en")
-///     var composer = Composer(language: english, layout: layout)
+///     let both = try Language.bundled(["en", "es"])    // guesses from both at once
+///     var composer = Composer(language: both, layout: layout)
 public struct Language: Sendable {
+    /// One language's code ("en"), or the codes joined with "+" ("en+es") for several.
     public var code: String
     public var lexicon: Lexicon
-    /// The word-pair model, nil for a language that has none yet.
-    public var ngrams: NgramModel?
+    /// The word-pair models, one per language that has one; keyed by folded words.
+    public var ngramModels: [NgramModel]
+
+    /// The first word-pair model, nil for a language that has none yet.
+    public var ngrams: NgramModel? {
+        get { ngramModels.first }
+        set { ngramModels = newValue.map { [$0] } ?? [] }
+    }
+
+    /// The single languages this one is made of.
+    public var codes: [String] { code.split(separator: "+").map(String.init) }
 
     public init(code: String, lexicon: Lexicon, ngrams: NgramModel? = nil) {
         self.code = code
         self.lexicon = lexicon
-        self.ngrams = ngrams
+        self.ngramModels = ngrams.map { [$0] } ?? []
+    }
+
+    public init(code: String, lexicon: Lexicon, ngramModels: [NgramModel]) {
+        self.code = code
+        self.lexicon = lexicon
+        self.ngramModels = ngramModels
     }
 
     /// The languages that ship in the package.
-    public static let bundledCodes = ["en"]
+    public static let bundledCodes = ["en", "es"]
+
+    /// Each bundled language's name in itself, for pickers.
+    public static let names = ["en": "English", "es": "Español"]
 
     /// A language from the package: its lexicon must be there, its word pairs may be.
     public static func bundled(_ code: String = "en") throws -> Language {
-        let lexicon = try Lexicon(contentsOf: resource("lexicon", "tsv", language: code))
+        let entries = try Lexicon.readEntries(from: resource("lexicon", "tsv", language: code))
         let ngrams = (try? resource("bigrams", "bin", language: code)).flatMap { try? NgramModel(contentsOf: $0) }
-        return Language(code: code, lexicon: lexicon, ngrams: ngrams)
+        return Language(code: code, lexicon: Lexicon(entries: entries), ngrams: ngrams)
+    }
+
+    /// Several bundled languages typed at once: one dictionary of all their words, each
+    /// language weighing the same (`combined`), and every language's word pairs.
+    public static func bundled(_ codes: [String]) throws -> Language {
+        guard codes.count > 1 else { return try bundled(codes.first ?? "en") }
+        var lists: [[Lexicon.Entry]] = []
+        var models: [NgramModel] = []
+        for code in codes {
+            lists.append(try Lexicon.readEntries(from: resource("lexicon", "tsv", language: code)))
+            if let url = try? resource("bigrams", "bin", language: code), let model = try? NgramModel(contentsOf: url) {
+                models.append(model)
+            }
+        }
+        return Language(code: codes.joined(separator: "+"), lexicon: Lexicon(entries: combined(lists)), ngramModels: models)
+    }
+
+    /// Word lists merged so each language counts the same whatever its counts add up
+    /// to: every list is scaled to a total of 1 first, and a word in two lists ("no",
+    /// "a") gets both shares.
+    public static func combined(_ lists: [[Lexicon.Entry]]) -> [Lexicon.Entry] {
+        var out: [Lexicon.Entry] = []
+        var index: [String: Int] = [:]
+        for list in lists {
+            let total = list.reduce(0) { $0 + $1.frequency }
+            guard total > 0 else { continue }
+            for entry in list {
+                let share = entry.frequency / total
+                if let i = index[entry.word] {
+                    out[i].frequency += share
+                } else {
+                    index[entry.word] = out.count
+                    out.append(Lexicon.Entry(word: entry.word, frequency: share))
+                }
+            }
+        }
+        return out
     }
 
     static func resource(_ name: String, _ ext: String, language code: String) throws -> URL {

@@ -10,6 +10,9 @@
 	<!-- Wake-up steps: lights, scenes, plugs and blinds in the Home app. -->
 	<key>com.apple.developer.homekit</key>
 	<true/>
+	<!-- Morning summary: today's weather on Good morning. -->
+	<key>com.apple.developer.weatherkit</key>
+	<true/>
 	<!-- Shared with the widget, which shows the next alarm. -->
 	<key>com.apple.security.application-groups</key>
 	<array>

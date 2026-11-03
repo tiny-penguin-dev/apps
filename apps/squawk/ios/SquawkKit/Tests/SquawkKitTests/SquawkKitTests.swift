@@ -734,3 +734,95 @@ private func onceDates(_ plan: [PlannedRing]) -> [Date] {
         #expect(HomePlanner.plan([alarm], now: sundayNight, calendar: utc).isEmpty)
     }
 }
+
+@Suite struct MorningSummaryTests {
+    /// Tuesday 2026-11-03 at `hour`:`minute` UTC.
+    private func at(_ hour: Int, _ minute: Int = 0, day: Int = 3) -> Date {
+        utc.date(from: DateComponents(year: 2026, month: 11, day: day, hour: hour, minute: minute))!
+    }
+
+    @Test func firstEventIsTheNextOneThatHasntEnded() {
+        let events = [
+            AgendaEvent(title: "Lunch", start: at(12), end: at(13)),
+            AgendaEvent(title: "Gym", start: at(6), end: at(7)),
+            AgendaEvent(title: "Standup", start: at(9, 30), end: at(9, 45)),
+            AgendaEvent(title: "Holiday", start: at(0), end: at(0, day: 4), isAllDay: true),
+            AgendaEvent(title: "Tomorrow", start: at(9, day: 4), end: at(10, day: 4)),
+        ]
+        let agenda = Agenda(events: events, now: at(7, 15), calendar: utc)
+        #expect(agenda == .next(events[2], started: false, more: 1))
+    }
+
+    @Test func anEventThatIsOnCountsAsStarted() {
+        let event = AgendaEvent(title: "Flight", start: at(5), end: at(9))
+        #expect(Agenda(events: [event], now: at(7), calendar: utc) == .next(event, started: true, more: 0))
+    }
+
+    @Test func noEventsLeftIsEmpty() {
+        let events = [
+            AgendaEvent(title: "Gym", start: at(6), end: at(7)),
+            AgendaEvent(title: "Holiday", start: at(0), end: at(0, day: 4), isAllDay: true),
+        ]
+        #expect(Agenda(events: events, now: at(7, 30), calendar: utc) == .empty)
+        #expect(Agenda(events: [], now: at(7), calendar: utc) == .empty)
+    }
+
+    @Test func rainComesBeforeWind() {
+        let hours = [
+            HourForecast(date: at(7), windKmh: 45),
+            HourForecast(date: at(15), precipitationChance: 0.7, precipitation: .rain),
+            HourForecast(date: at(16), precipitationChance: 0.9, precipitation: .snow),
+        ]
+        #expect(WeatherNote.pick(from: hours, now: at(7, 20), calendar: utc) == .rain(from: at(15)))
+    }
+
+    @Test func unlikelyRainAndPastHoursDontCount() {
+        let hours = [
+            HourForecast(date: at(5), precipitationChance: 0.9, precipitation: .rain),
+            HourForecast(date: at(10), precipitationChance: 0.3, precipitation: .rain),
+            HourForecast(date: at(12), windKmh: 50),
+            HourForecast(date: at(9, day: 4), precipitationChance: 0.9, precipitation: .snow),
+        ]
+        #expect(WeatherNote.pick(from: hours, now: at(7, 20), calendar: utc) == .windy)
+    }
+
+    @Test func rainThisHourCountsAsNow() {
+        let hours = [HourForecast(date: at(7), precipitationChance: 0.8, precipitation: .snow)]
+        #expect(WeatherNote.pick(from: hours, now: at(7, 40), calendar: utc) == .snow(from: at(7)))
+    }
+
+    @Test func calmDayHasNoNote() {
+        let hours = [HourForecast(date: at(8), precipitationChance: 0.1, precipitation: .rain, windKmh: 10)]
+        #expect(WeatherNote.pick(from: hours, now: at(7), calendar: utc) == nil)
+    }
+
+    @Test func offerShowsAFewTimesUntilDismissedOrOn() {
+        var settings = SummarySettings()
+        #expect(settings.shouldOffer)
+        settings.offersShown = SummarySettings.maxOffers
+        #expect(!settings.shouldOffer)
+        #expect(!SummarySettings(offerDismissed: true).shouldOffer)
+        #expect(!SummarySettings(calendar: true).shouldOffer)
+    }
+
+    @Test func timeoutThrowsWhenSlow() async throws {
+        let fast = try await withTimeout(seconds: 1) { 42 }
+        #expect(fast == 42)
+        await #expect(throws: TimedOut.self) {
+            try await withTimeout(seconds: 0.05) {
+                try await Task.sleep(for: .seconds(5))
+                return 1
+            }
+        }
+    }
+
+    @MainActor @Test func fakeSourcesAskOnce() async {
+        let weather = FakeWeatherSource(access: .notAsked)
+        weather.answer = .denied
+        #expect(await weather.requestAccess() == false)
+        #expect(weather.access == .denied)
+        let agenda = FakeAgendaSource(access: .notAsked)
+        #expect(await agenda.requestAccess())
+        #expect(agenda.access == .allowed)
+    }
+}

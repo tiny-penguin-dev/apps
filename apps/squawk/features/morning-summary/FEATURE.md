@@ -111,8 +111,46 @@ Gabriel, 3 Nov 2026:
 
 ## Design
 
-Status: Not started
+Status: Skipped. Gabriel asked to build it straight after the Product section (3 Nov 2026).
+The screens below are what was built, from the existing design system.
+
+- **Good morning:** under the reaction (and any "When you're up" chips or new outfit), a
+  **Today** card: "Today", the weather row (multicolor SF Symbol, "12°" big, "H 16° · L 9°"
+  muted, the note in orange: "Rain from 3 PM", "Snow now", "Windy today"), a divider, the
+  event row (calendar icon, "9:30 · Standup" or "Now · Flight", "and 2 more" muted, or
+  "Nothing on the calendar today."), and Apple's Weather mark with "Data sources". The card
+  springs in when its data arrives (a fade with Reduce Motion).
+- **Offer card** (until it's on or "Not now"): sun icon, "Add the weather and your day",
+  "See today's weather and your first event right here. Squawk asks for your rough
+  location and your calendar. Both stay between your phone and Apple." and "Turn it on" /
+  "Not now". Without Pro it has the PRO tag and opens the Pro screen.
+- **Settings:** a "Morning summary" card under Pro, with a Weather switch and a First event
+  switch (PRO tag and Pro screen without Pro). When iOS Settings turned one off: "Location
+  is off for Squawk in iOS Settings." and "Open iOS Settings".
+- **Pro screen:** a new line, "Today's weather and first event when you're up".
+- **Design system:** reuses `Card`, `ProBadge`, `LinkButtonStyle`, `Theme` colors and
+  fonts. No new tokens.
+- **Sizes and accessibility:** the card sits in Good morning's 560 pt column, so it's the
+  same on the Duo's wide screen. At accessibility text sizes the weather row stacks. Each
+  row reads as one VoiceOver element ("Drizzle, 12°. High 16°, low 9°. Rain from 3 PM").
 
 ## Build
 
-Status: Not started
+Status: Built 2026-11-03
+
+- **Core** (`SquawkKit/MorningSummary.swift`, tested): `Agenda(events:now:)` picks the
+  next timed event today that hasn't ended and counts the rest; `WeatherNote.pick` finds
+  the first hour today with a likely (50%+) rain or snow, else wind of 40 km/h or more;
+  `SummarySettings` holds the two switches and when to offer; `withTimeout` drops a slow
+  request. `WeatherSource` and `AgendaSource` are the protocols, with fakes.
+- **Services** (`Squawk/Summary/LiveSummarySources.swift`): WeatherKit with approximate
+  "while using" location (a location from the last hour is reused), and EventKit with full
+  access, read only.
+- **Model:** `MorningSummaryModel` (switches, permissions, loading both halves in parallel,
+  metrics), in the environment from `RootView`.
+- **Pro:** `ProFeature.summary`.
+- **Setup:** the WeatherKit entitlement, location and calendar permission texts, and the
+  WeatherKit capability in `scripts/ios/asc-prepare-app.py`.
+- **Risks:** WeatherKit may need its App Service ticked by hand (`docs/ios-release.md`).
+  Weather only loads with signal; without it the card shows just the event.
+- Folded into `PRODUCT.md`, `DESIGN.md` and the app's `CLAUDE.md`.

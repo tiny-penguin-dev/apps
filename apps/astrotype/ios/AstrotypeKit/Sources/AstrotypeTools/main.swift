@@ -15,15 +15,15 @@ let usage = """
 usage:
   astrotype-tools build-ngrams <pairs.tsv> <out.bin> [--max-pairs N] [--lambda L]
       the word-pair binary from `previous<TAB>next<TAB>count` lines (ml/ngrams/count_pairs.py)
-  astrotype-tools replay <folder-or-file.json> [--language en] [--misses N] [--prior P --context C --length L]
+  astrotype-tools replay <folder-or-file.json> [--language en|es|en+es] [--misses N] [--prior P --context C --length L]
       plays practice recordings and shared words through the engine and reports first-guess accuracy
-  astrotype-tools tune <folder> [--language en] [--rounds N]
+  astrotype-tools tune <folder> [--language en|es|en+es] [--rounds N]
       searches the matcher's weights for the best first-guess rate on those items
   astrotype-tools synth <out-folder> [--sessions N] [--noise σ] [--seed S]
       writes made-up shared words (noisy swipes of practice prompts) to measure against
   astrotype-tools prompts [--count N] [--seed S]
       the "Practice words" prompts
-  astrotype-tools next <word> [--language en] [--limit N]
+  astrotype-tools next <word> [--language en|es|en+es] [--limit N]
       the words the model expects after `word` (`<s>` for a sentence start)
 """
 
@@ -49,7 +49,8 @@ func parse(_ arguments: ArraySlice<String>) -> (plain: [String], options: [Strin
 
 func language(_ options: [String: String]) -> Language {
     let code = options["language"] ?? "en"
-    do { return try Language.bundled(code) } catch { fail("no bundled language \(code): \(error)") }
+    // "en+es" for two at once.
+    do { return try Language.bundled(code.split(separator: "+").map(String.init)) } catch { fail("no bundled language \(code): \(error)") }
 }
 
 func buildNgrams(_ plain: [String], _ options: [String: String]) {

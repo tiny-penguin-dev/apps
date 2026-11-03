@@ -159,3 +159,24 @@ Status: Approved 2026-11-03 (with the design, at Gabriel's request)
   `keyboard.memory_peak` will show it.
 - **Metrics:** `languages.enabled` (`set`) from the app with `Telemetry`.
 - **Last step:** fold into PRODUCT.md (section 6's table) and DESIGN.md.
+
+### Notes
+
+**Phase A (2026-11-03).** Spanish is in the engine, not yet in the keyboard. The word
+list is `wordfreq`'s 40,000 commonest Spanish words less 2,992 English ones from
+Spanish tweets ("the", "you"; kept when Tatoeba's Spanish sentences use them, like
+"he" and "has") and 218 spellings that miss an accent ("segun"), so 39,782 words,
+about 7,000 with accents (`ml/ngrams/make_lexicon.py`). Word pairs from Tatoeba's
+Spanish sentences: 180,369 pairs, 813 KB. `Lexicon` files a word under its plain
+letters and keeps its spellings; a key with two ("esta", "está") offers both, the
+commoner first. Context and word pairs are on plain letters too, so "esta" and
+"está" share their pairs (the price of one trie path per key). Two at once is one
+merged trie (each language's counts scaled to the same total) and both pair models,
+the bonus from the models that know the previous word, so an English word after
+"el" loses a little. On the straight-swipe fixtures with both on: English 50 of 50
+first guesses right, Spanish 19 of 20 (the miss: "esta" before "está" with no
+context, since English counts "esta" too), 7 ms a word in a debug build, the same as
+English alone. Left for Phase B: learned and personal words with accents (the
+personal model counts what was written, the matcher asks for plain letters), and
+the missed-space split's one-letter words ("a", "i" are English; Spanish has
+"a", "y", "o", "e", "u").

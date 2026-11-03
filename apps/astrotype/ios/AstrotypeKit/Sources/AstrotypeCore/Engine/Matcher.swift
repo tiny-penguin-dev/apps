@@ -32,8 +32,14 @@ public struct Candidate: Sendable, Equatable {
 ///     matcher.candidates(for: pieces, limit: 3)
 public struct Matcher: Sendable {
     public var dictionary: Lexicon
-    /// The language's word pairs, nil to rank by frequency alone.
-    public var ngrams: NgramModel?
+    /// The languages' word pairs (one model per language, on folded words), empty to
+    /// rank by frequency alone.
+    public var ngramModels: [NgramModel]
+    /// The first word-pair model; setting it leaves just that one.
+    public var ngrams: NgramModel? {
+        get { ngramModels.first }
+        set { ngramModels = newValue.map { [$0] } ?? [] }
+    }
     /// The words before the open word, oldest first (`WordContext.words`), empty for none.
     public var context: [String] = []
     public var layout: Layout
@@ -141,23 +147,37 @@ public struct Matcher: Sendable {
 
     public init(dictionary: Lexicon, ngrams: NgramModel? = nil, layout: Layout, learned: LearnedWords = LearnedWords()) {
         self.dictionary = dictionary
-        self.ngrams = ngrams
+        self.ngramModels = ngrams.map { [$0] } ?? []
         self.layout = layout
         self.learned = learned
         self.learnedLexicon = Self.lexicon(of: learned)
     }
 
     public init(language: Language, layout: Layout, learned: LearnedWords = LearnedWords()) {
-        self.init(dictionary: language.lexicon, ngrams: language.ngrams, layout: layout, learned: learned)
+        self.init(dictionary: language.lexicon, ngrams: nil, layout: layout, learned: learned)
+        ngramModels = language.ngramModels
     }
 
     /// The word right before the open one, for the pair model; nil without context.
-    var previousWord: String? { context.last }
+    var previousWord: String? { context.last.map(Lexicon.fold) }
 
     /// The context's say on `word`, given the word's log prior from the dictionary.
     func contextBonus(for word: String, prior: Float) -> Double {
-        guard let ngrams, let previous = previousWord else { return 0 }
-        return Double(ngrams.contextBonus(for: word, after: previous, unigramLogProbability: prior + dictionary.logProbabilityOffset))
+        guard let previous = previousWord else { return 0 }
+        return pairModelsBonus(word, after: previous, prior: prior)
+    }
+
+    /// The word-pair models' say on `word` after `previous`: from each language whose
+    /// model knows `previous`, the best of them (so after "el" Spanish decides and after
+    /// "the" English does); 0 when none knows it.
+    private func pairModelsBonus(_ word: String, after previous: String, prior: Float) -> Double {
+        var best: Float?
+        let unigram = prior + dictionary.logProbabilityOffset
+        for model in ngramModels where model.id(of: previous) != nil {
+            let bonus = model.contextBonus(for: word, after: previous, unigramLogProbability: unigram)
+            best = max(best ?? -.infinity, bonus)
+        }
+        return Double(best ?? 0)
     }
 
     /// The person's say on `word`: how much more they use it than the dictionary
@@ -186,6 +206,12 @@ public struct Matcher: Sendable {
     /// pecked letters that begin a word ("bri" on the way to "bring") then stay as they
     /// are; when it is true (on space) they too must make a word, as `strictness` says.
     public func candidates(for pieces: [Piece], limit: Int = 3, final: Bool = true) -> [Candidate] {
+        let keyed = keyedCandidates(for: pieces, limit: limit, final: final)
+        return dictionary.hasSpellings || learnedLexicon.hasSpellings ? spelled(keyed, limit: limit) : keyed
+    }
+
+    /// The guesses as the keys spell them ("cancion"), before `spelled` writes them.
+    private func keyedCandidates(for pieces: [Piece], limit: Int, final: Bool) -> [Candidate] {
         let ordered = pieces.sorted { $0.start < $1.start }.filter { !$0.keys.isEmpty }
         guard !ordered.isEmpty, limit > 0 else { return [] }
         let orderings = Self.orderings(of: ordered, swapWindow: swapWindow)
@@ -223,6 +249,40 @@ public struct Matcher: Sendable {
         guard !out.isEmpty else { return [split] }
         let rest = Array(out.prefix(limit - 1))
         return Array((sure ? [split] + rest : [rest[0], split] + rest.dropFirst()).prefix(limit))
+    }
+
+    /// Guesses written as the words are ("canción" for the keys "cancion"): each takes
+    /// its likeliest spelling, and a second spelling of the same keys ("esta" behind
+    /// "está") follows it, scored lower by the difference in their priors. Letters
+    /// that are no word stay as they are.
+    func spelled(_ keyed: [Candidate], limit: Int) -> [Candidate] {
+        var out: [Candidate] = []
+        var seen = Set<String>()
+        func add(_ candidate: Candidate) {
+            if seen.insert(candidate.word).inserted { out.append(candidate) }
+        }
+        for candidate in keyed {
+            let parts = candidate.word.split(separator: " ", omittingEmptySubsequences: false).map(String.init)
+            guard parts.count == 1 else {
+                // A split: each half written as it is.
+                add(Candidate(word: parts.map { spellings(of: $0).first?.word ?? $0 }.joined(separator: " "),
+                              score: candidate.score))
+                continue
+            }
+            let options = spellings(of: candidate.word)
+            guard let best = options.first else { add(candidate); continue }
+            add(Candidate(word: best.word, score: candidate.score))
+            for other in options.dropFirst().prefix(1) {
+                add(Candidate(word: other.word, score: candidate.score - priorWeight * Double(best.logPrior - other.logPrior)))
+            }
+        }
+        return Array(out.prefix(limit))
+    }
+
+    /// A key's spellings from the dictionary, else from the person's own words.
+    private func spellings(of key: String) -> [(word: String, logPrior: Float)] {
+        let own = dictionary.spellings(of: key)
+        return own.isEmpty ? learnedLexicon.spellings(of: key) : own
     }
 
     /// Every word the pieces fit (in any of the orderings), with its best score.
@@ -386,12 +446,7 @@ public struct Matcher: Sendable {
 
     /// What the words before and the word pairs say of `first` then `second`.
     private func pairBonus(_ first: String, _ p1: Float, _ second: String, _ p2: Float) -> Double {
-        var bonus = contextWeight * contextBonus(for: first, prior: p1)
-        if let ngrams {
-            bonus += contextWeight * Double(ngrams.contextBonus(for: second, after: first,
-                                                                 unigramLogProbability: p2 + dictionary.logProbabilityOffset))
-        }
-        return bonus
+        contextWeight * (contextBonus(for: first, prior: p1) + pairModelsBonus(second, after: first, prior: p2))
     }
 
     /// The best split, when no other place for the space reads nearly as well.

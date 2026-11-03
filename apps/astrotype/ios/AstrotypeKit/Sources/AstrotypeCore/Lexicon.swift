@@ -2,7 +2,9 @@ import Foundation
 
 /// The decoder's dictionary as a compact trie in flat arrays (no per-node
 /// objects), so it stays small enough for a keyboard extension.
-/// Node 0 is the root. Letters are 1...26 for a–z, matching the model's classes.
+/// Node 0 is the root. Letters are 1...26 for a–z, matching the model's classes;
+/// accented words sit under their plain letters with their spellings kept (`fold`,
+/// `spellings(at:)`), since the keys a thumb crosses are a to z.
 public struct Lexicon: Sendable {
     public struct Entry: Sendable {
         public var word: String
@@ -25,7 +27,26 @@ public struct Lexicon: Sendable {
     /// `log(maxFreq / sum of frequencies)`.
     public private(set) var logProbabilityOffset: Float = 0
 
+    /// For nodes whose word is written differently from its keys ("canción" under
+    /// "cancion") or has more than one spelling ("está" and "esta" under "esta"): every
+    /// spelling with its own log prior, likeliest first.
+    var spellingTable: [Int32: [(word: String, logPrior: Float)]] = [:]
+
     public var nodeCount: Int { parent.count }
+
+    /// A word as the keys spell it: lowercase, accents and tildes off, so "Año" is
+    /// "ano" and "pingüino" is "pinguino". The trie is keyed by these, and the
+    /// thumbs only ever hit a to z.
+    public static func fold(_ word: String) -> String {
+        let lower = word.lowercased()
+        guard lower.utf8.contains(where: { $0 >= 0x80 }) else { return lower }
+        var out = String.UnicodeScalarView()
+        for scalar in lower.decomposedStringWithCanonicalMapping.unicodeScalars
+        where !(0x300...0x36F).contains(scalar.value) {
+            out.append(scalar)
+        }
+        return String(out)
+    }
 
     /// Reads `lexicon.tsv` (`word<TAB>frequency` per line).
     public static func readEntries(from url: URL) throws -> [Entry] {
@@ -50,7 +71,26 @@ public struct Lexicon: Sendable {
         try Lexicon(contentsOf: Language.resource("lexicon", "tsv", language: "en"))
     }
 
-    public init(entries: [Entry]) {
+    /// Words with accents are stored under their folded keys (`fold`), with the key's
+    /// frequency the sum of its spellings', and the spellings kept for `spellings(at:)`.
+    public init(entries rawEntries: [Entry]) {
+        // Only a list with accented words needs keys and spellings sorted out (English
+        // has none, and loads as it always did).
+        var entries = rawEntries
+        var spelled: [String: [Entry]] = [:]
+        if rawEntries.contains(where: { $0.word.utf8.contains { $0 >= 0x80 } }) {
+            var keyed: [String: Double] = [:]
+            var keys: [String] = []
+            var all: [String: [Entry]] = [:]
+            for entry in rawEntries {
+                let key = Self.fold(entry.word)
+                if keyed[key] == nil { keys.append(key) }
+                keyed[key, default: 0] += entry.frequency
+                all[key, default: []].append(entry)
+            }
+            entries = keys.map { Entry(word: $0, frequency: keyed[$0]!) }
+            for (key, list) in all where list.count > 1 || list[0].word != key { spelled[key] = list }
+        }
         let maxFreq = entries.map(\.frequency).max() ?? 1
         let sum = entries.reduce(0) { $0 + $1.frequency }
         logProbabilityOffset = sum > 0 ? Float(log(maxFreq / sum)) : 0
@@ -79,6 +119,11 @@ public struct Lexicon: Sendable {
             }
             if valid, node != 0 {
                 wordLogPrior[Int(node)] = Float(log(entry.frequency / maxFreq))
+                if let spellings = spelled[entry.word] {
+                    spellingTable[node] = spellings
+                        .sorted { $0.frequency > $1.frequency || ($0.frequency == $1.frequency && $0.word < $1.word) }
+                        .map { ($0.word, Float(log($0.frequency / maxFreq))) }
+                }
             }
         }
         edgeStart.reserveCapacity(children.count)
@@ -114,6 +159,22 @@ public struct Lexicon: Sendable {
         }
         return String(decoding: bytes.reversed(), as: UTF8.self)
     }
+
+    /// How the word ending at `node` is written, likeliest first, with each one's log
+    /// prior: one entry, the key itself, for a word with no accents.
+    public func spellings(at node: Int32) -> [(word: String, logPrior: Float)] {
+        if let table = spellingTable[node] { return table }
+        guard let prior = logPrior(at: node) else { return [] }
+        return [(word(at: node), prior)]
+    }
+
+    /// The spellings of a key (`fold`ed letters), likeliest first; empty if it is no word.
+    public func spellings(of key: String) -> [(word: String, logPrior: Float)] {
+        node(for: key).map { spellings(at: $0) } ?? []
+    }
+
+    /// Whether any word is written with letters beyond a to z.
+    public var hasSpellings: Bool { !spellingTable.isEmpty }
 
     /// The node reached by spelling `word`, if it's a path in the trie.
     public func node(for word: String) -> Int32? {

@@ -44,8 +44,9 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
   - `AstrotypeKit/`: the local package, three targets:
     - `AstrotypeCore`: Core and Services. `Layout` (key geometry), `Language` (one
       language's files from `Resources/<code>/`: `Lexicon`, the trie from
-      `lexicon.tsv`, and `NgramModel`, the word pairs from `bigrams.bin`; English
-      only so far), `Flags`, and `Engine/`: `Composer` (touches in, effects out, pure,
+      `lexicon.tsv`, and `NgramModel`, the word pairs from `bigrams.bin`; English and
+      Spanish, `Language.bundled(["en", "es"])` for both at once; accented words sit
+      under their plain letters, `Lexicon.fold`, and `Matcher` writes the accents back), `Flags`, and `Engine/`: `Composer` (touches in, effects out, pure,
       time passed in), `Matcher` (pieces to ranked candidates: trie search plus DTW,
       two-thumb orderings and split swipes, the words before the open one from
       `WordContext` and the person's `PersonalIndex`), `PersonalModel` (what the keyboard
@@ -93,7 +94,7 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
       the trial, for the extension).
       UIKit and SwiftUI, guarded
       with `#if canImport(UIKit)` so `swift test` still builds the package on macOS.
-    - `AstrotypeKitTests`: Swift Testing. `ComposerTests`, `PersonalModelTests`, `SharedWordTests`, `TuningTests`, `MatcherTests` (the 50-word
+    - `AstrotypeKitTests`: Swift Testing. `ComposerTests`, `LanguagesTests` (Spanish, accents, both at once), `PersonalModelTests`, `SharedWordTests`, `TuningTests`, `MatcherTests` (the 50-word
       fixture in `Fixtures/swipes.json`, through `Synth`'s straight-line swipes, and
       `ContextMatcherTests`), `WordContextTests`, `NgramModelTests`, `ReplayTests`
       (recordings made from `Synth` strokes replay to the live result),
@@ -117,8 +118,8 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
 - `ml/`: the v1 Python training loop (see `ml/README.md`); the opt-in practice-session
   uploads (`PracticeSession` records) land in the same container, and
   `download_samples.py --type PracticeSession` fetches them for `astrotype-tools
-  replay`. `ml/ngrams/` counts a corpus's word pairs for `build-ngrams` (its README
-  has the commands and the data source).
+  replay`. `ml/ngrams/` makes a language's word list (`make_lexicon.py`) and counts a
+  corpus's word pairs for `build-ngrams` (its README has the commands and the data sources).
 - `features/`: the bigger features after the v2 build, one folder each with a
   `FEATURE.md` (product, design, build and its phases, notes as they ship):
   `smart-matching` (context, personal learning, consented sharing, the harness),

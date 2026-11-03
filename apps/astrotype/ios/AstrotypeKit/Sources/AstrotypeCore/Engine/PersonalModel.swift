@@ -131,7 +131,8 @@ public struct PersonalModel: Codable, Sendable, Equatable {
     /// One word that settled (the person moved on without changing it): its count, its
     /// pair with the word before, and where the thumbs landed for its letters.
     public mutating func learn(_ word: SettledWord, device: String, at date: Date) {
-        let lower = word.word.lowercased()
+        // Keyed by plain letters, as the matcher asks ("mañana" counts as "manana").
+        let lower = Lexicon.fold(word.word)
         guard Self.isLearnable(lower) else { return }
         let today = Self.day(of: date)
         var shard = shards[device] ?? Shard(since: date)

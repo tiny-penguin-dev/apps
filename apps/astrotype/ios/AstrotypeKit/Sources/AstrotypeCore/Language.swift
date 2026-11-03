@@ -41,6 +41,8 @@ public struct Language: Sendable {
 
     /// Each bundled language's name in itself, for pickers.
     public static let names = ["en": "English", "es": "Español"]
+    /// Each bundled language's name in English, under its own name in pickers.
+    public static let englishNames = ["en": "English", "es": "Spanish"]
 
     /// A language from the package: its lexicon must be there, its word pairs may be.
     public static func bundled(_ code: String = "en") throws -> Language {

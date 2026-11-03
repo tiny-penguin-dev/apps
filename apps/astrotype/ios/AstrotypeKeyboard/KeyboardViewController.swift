@@ -36,9 +36,14 @@ final class KeyboardViewController: UIInputViewController {
         // First, so a crash while loading is caught.
         KeyboardTelemetry.start(fullAccess: fullAccess)
         health = KeyboardHealthRecorder(fullAccess: fullAccess)
-        // English, with its word pairs when they shipped (features/smart-matching).
-        let language = (try? Language.bundled()) ?? Language(code: "en", lexicon: Lexicon(entries: []))
         let (settingsStore, wordStore, personalStore) = Self.stores(fullAccess: fullAccess)
+        // The languages turned on, or the phone's (features/languages), with their word
+        // pairs. Pro is not known yet, so both load; the model drops to one when the
+        // entitlement says the keyboard is free.
+        let codes = (settingsStore.load() ?? KeyboardSettings())
+            .activeLanguages(preferred: Locale.preferredLanguages, allowsTwo: true)
+        let language = (try? Language.bundled(codes)) ?? (try? Language.bundled())
+            ?? Language(code: "en", lexicon: Lexicon(entries: []))
         let model = KeyboardModel(composer: Composer(language: language, layout: Layout.qwerty(width: 390)),
                                   store: settingsStore, wordStore: wordStore, personalStore: personalStore,
                                   installID: InstallID.load(from: KeyboardFiles.own(KeyboardFiles.install)))

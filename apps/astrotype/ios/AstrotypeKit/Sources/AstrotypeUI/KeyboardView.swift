@@ -67,6 +67,8 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         addSubview(bar)
         addSubview(surface)
         surface.delegate = self
+        // Held keys offer the accents of the languages being typed (features/languages).
+        surface.alternates = { [weak model] key in Accents.alternates(for: key, languages: model?.activeLanguages ?? []) }
         surface.layout = model.layout
         bar.onChoose = { [weak self] index in self?.model.choose(guess: index) }
         bar.onBoost = { [weak self] index in self?.model.boost(guess: index) }
@@ -188,6 +190,7 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         surface.backspaceSwipeEnabled = model.keyboardSettings.backspaceSwipe
         panel?.allowsSplit = model.entitlement.allows(.splitLayout)
         panel?.showsSplit = model.layout.isWide
+        panel?.allowsTwoLanguages = model.entitlement.allows(.twoLanguages)
         if model.layout.split != (model.splitOnWide && model.layout.isWide)
             || model.layout.extraLetters != (model.layout.split && extraLetters) || barPlace(for: model.layout) != place
             || height != asked { setNeedsLayout() }
@@ -210,6 +213,8 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         let panel = SettingsPanelView(settings: model.keyboardSettings)
         panel.allowsSplit = model.entitlement.allows(.splitLayout)
         panel.showsSplit = model.layout.isWide
+        panel.allowsTwoLanguages = model.entitlement.allows(.twoLanguages)
+        panel.preferredLanguages = model.preferredLanguages
         panel.onChange = { [weak self] settings in self?.model.keyboardSettings = settings }
         panel.onDone = { [weak self] in self?.hideSettings() }
         panel.frame = surface.frame
@@ -272,6 +277,10 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
 
     public func keySurfaceDidHoldNumbers(_ surface: KeySurfaceView) {
         showSettings()
+    }
+
+    public func keySurface(_ surface: KeySurfaceView, picked letter: Character, touch id: Int, time: TimeInterval) {
+        model.pick(letter, touch: id, time: time)
     }
 }
 #endif

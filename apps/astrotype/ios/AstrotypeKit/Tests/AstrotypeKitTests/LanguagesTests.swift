@@ -153,4 +153,90 @@ import Testing
         #expect(byWord["el"] == 0.5)
         #expect(byWord["no"] == 1.0)
     }
+
+    // MARK: Phase B: the keyboard
+
+    /// Taps `letters`, holding `held` and picking `picked` from it where it comes.
+    static func type(_ composer: inout Composer, _ letters: String, picking picked: Character? = nil, at index: Int? = nil) {
+        var time: TimeInterval = 0
+        for (i, letter) in letters.enumerated() {
+            if let picked, i == index {
+                _ = composer.touchDown(id: 100 + i, at: Synth.center(letter), time: time)
+                _ = composer.pick(picked, touch: 100 + i, time: time + 0.5)
+                time += 0.6
+            } else {
+                Synth.tap(&composer, letter, at: time)
+                time += 0.15
+            }
+        }
+    }
+
+    @Test func aPickedLetterIsKept() {
+        var composer = Self.composer(Self.spanish)
+        Self.type(&composer, "esta", picking: "á", at: 3)
+        #expect(composer.state.openWord == "está")
+
+        composer = Self.composer(Self.spanish)
+        Self.type(&composer, "esta")
+        #expect(composer.state.openWord == "está" || composer.state.openWord == "esta")
+
+        // A letter no word has stays as typed.
+        composer = Self.composer(Self.spanish)
+        Self.type(&composer, "xq", picking: "ñ", at: 1)
+        #expect(composer.state.openWord == "xñ")
+    }
+
+    @Test func aPickedLetterWorksWithBothOn() {
+        var composer = Self.composer(Self.both)
+        Self.type(&composer, "nino", picking: "ñ", at: 2)
+        #expect(composer.state.openWord == "niño")
+    }
+
+    @Test func heldKeysOfferTheLanguagesAccents() {
+        #expect(Accents.alternates(for: "n", languages: ["en", "es"]) == ["ñ"])
+        #expect(Accents.alternates(for: "U", languages: ["es"]) == ["ú", "ü"])
+        #expect(Accents.alternates(for: "?", languages: ["es"]) == ["¿"])
+        #expect(Accents.alternates(for: "n", languages: ["en"]).isEmpty)
+    }
+
+    @Test func aSentenceStartsAfterAnOpeningMark() {
+        #expect(Composer.startsSentence("Hola. ¿"))
+        #expect(Composer.startsSentence("¡"))
+        #expect(!Composer.startsSentence("Dime, ¿"))
+        #expect(WordContext.words(before: "Hola. ¿") == ["<s>"])
+        #expect(WordContext.words(before: "Dime ¿") == ["<s>", "dime"])
+    }
+
+    @Test func theLanguagesFollowThePhoneUntilChosen() {
+        var settings = KeyboardSettings()
+        #expect(settings.languages == nil)
+        #expect(KeyboardSettings.phoneLanguages(["es-MX", "en-US"]) == ["es", "en"])
+        #expect(KeyboardSettings.phoneLanguages(["fr-FR"]) == ["en"])
+        #expect(settings.activeLanguages(preferred: ["es-MX"], allowsTwo: true) == ["es"])
+        #expect(settings.activeLanguages(preferred: ["en-US", "es-US"], allowsTwo: true) == ["en", "es"])
+        // Free: the one the phone puts first.
+        #expect(settings.activeLanguages(preferred: ["es-US", "en-US"], allowsTwo: false) == ["es"])
+        settings.languages = ["en", "es"]
+        #expect(settings.activeLanguages(preferred: ["es-ES"], allowsTwo: false) == ["es"])
+        #expect(settings.activeLanguages(preferred: ["fr-FR"], allowsTwo: false) == ["en"])
+        settings.languages = []
+        #expect(settings.activeLanguages(preferred: ["fr-FR"], allowsTwo: true) == ["en"])
+        // Saved settings from before keep following the phone.
+        let old = try! JSONDecoder().decode(KeyboardSettings.self, from: Data(#"{"version":1}"#.utf8))
+        #expect(old.languages == nil)
+    }
+
+    @Test func twoLanguagesIsPro() {
+        #expect(!Entitlement(status: .free, now: Date()).allows(.twoLanguages))
+        #expect(Entitlement(status: .pro, now: Date()).allows(.twoLanguages))
+    }
+
+    @Test func theLanguageCanChangeWhileTyping() {
+        var composer = Self.composer(try! Language.bundled("en"))
+        Synth.swipe(&composer, "cancion")
+        #expect(composer.state.openWord != "canción")
+        _ = composer.setLanguage(Self.spanish)
+        #expect(composer.languageCode == "es")
+        #expect(composer.state.openWord == "canción")
+    }
 }

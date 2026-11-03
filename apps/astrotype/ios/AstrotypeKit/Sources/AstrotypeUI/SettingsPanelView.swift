@@ -7,7 +7,8 @@ import UIKit
 /// without Full Access (where the app's Settings can't reach the keyboard) can still
 /// change them. Four quick tiles (autospace, the guesses bar, haptics, trails, and the
 /// split on a wide screen) and four sliders (height, real words, split words, and
-/// autospace's wait). The rest lives in the app.
+/// autospace's wait), and a tile per language (features/languages: any one free, two
+/// at once Pro). The rest lives in the app.
 ///
 /// Shown over the keys. The title and Done stay at the top; the tiles and sliders sit
 /// below and scroll when the keys' space is shorter than them.
@@ -25,6 +26,15 @@ public final class SettingsPanelView: UIView {
     /// Whether the keyboard is on a wide screen, where the Split tile shows.
     public var showsSplit = false {
         didSet { if showsSplit != oldValue { layoutTiles(); render() } }
+    }
+    /// Whether two languages may be on at once (Pro). Off, turning one on turns the
+    /// other off, and a line says Pro types in both.
+    public var allowsTwoLanguages = true {
+        didSet { if allowsTwoLanguages != oldValue { render() } }
+    }
+    /// The phone's languages, for the languages that follow it until chosen.
+    public var preferredLanguages: [String] = Locale.preferredLanguages {
+        didSet { render() }
     }
     /// The height iOS gave the keyboard and the height it asked for. When iOS gives
     /// less, the keys shrink to fit, and a note under the sliders says so.
@@ -51,6 +61,12 @@ public final class SettingsPanelView: UIView {
     private let split = SliderRow(title: "Split words", range: 0...1, label: "Split words")
     private let wait = SliderRow(title: "Wait", range: KeyboardSettings.delayRange, label: "Autospace wait")
     private let note = UILabel()
+    /// One tile per bundled language, named in itself ("Español").
+    private let languageTiles: [(code: String, tile: QuickTile)] = Language.bundledCodes.map {
+        ($0, QuickTile(title: Language.names[$0] ?? $0, symbol: "character.bubble"))
+    }
+    private let languageRow = UIStackView()
+    private let languageNote = UILabel()
     private let more = UILabel()
     private var flashedIndicators = false
 
@@ -82,6 +98,9 @@ public final class SettingsPanelView: UIView {
         wire(hapticsTile) { $0.haptics.toggle() }
         wire(trailsTile) { $0.trails.toggle() }
         wire(splitTile) { $0.splitOnWide.toggle() }
+        for (code, tile) in languageTiles {
+            tile.addAction(UIAction { [weak self] _ in self?.toggleLanguage(code) }, for: .touchUpInside)
+        }
 
         height.onChange = { [weak self] value in
             // In 5% steps, so 100% (Apple's) is easy to land on.
@@ -99,6 +118,11 @@ public final class SettingsPanelView: UIView {
         note.textColor = Theme.ui(.muted)
         note.adjustsFontForContentSizeCategory = true
         note.numberOfLines = 0
+        languageNote.font = note.font
+        languageNote.textColor = Theme.ui(.muted)
+        languageNote.adjustsFontForContentSizeCategory = true
+        languageNote.numberOfLines = 0
+        languageNote.text = "One language at a time. Pro types in two at once."
         more.text = "More in the Astrotype app"
         more.font = Theme.uiFont(size: 13, weight: .semibold, scaledWith: .footnote, upTo: 18)
         more.textColor = Theme.ui(.muted)
@@ -155,7 +179,11 @@ public final class SettingsPanelView: UIView {
         column.axis = .vertical
         column.spacing = Theme.Space.s
         column.translatesAutoresizingMaskIntoConstraints = false
-        for view in [tileGrid, sliders, note, more] { column.addArrangedSubview(view) }
+        languageRow.axis = .horizontal
+        languageRow.spacing = Theme.Space.s
+        languageRow.distribution = .fillEqually
+        for (_, tile) in languageTiles { languageRow.addArrangedSubview(tile) }
+        for view in [tileGrid, languageRow, languageNote, sliders, note, more] { column.addArrangedSubview(view) }
 
         scroll.showsHorizontalScrollIndicator = false
         scroll.alwaysBounceVertical = true
@@ -190,7 +218,26 @@ public final class SettingsPanelView: UIView {
 
     // MARK: State
 
+    /// A language tile tapped: on, it goes off unless it is the last one; off, it
+    /// joins the other (or, free, takes its place).
+    private func toggleLanguage(_ code: String) {
+        var chosen = settings.activeLanguages(preferred: preferredLanguages, allowsTwo: allowsTwoLanguages)
+        if chosen.contains(code) {
+            guard chosen.count > 1 else { return }
+            chosen.removeAll { $0 == code }
+        } else {
+            chosen = allowsTwoLanguages ? chosen + [code] : [code]
+        }
+        update { $0.languages = chosen }
+    }
+
     private func render() {
+        let active = settings.activeLanguages(preferred: preferredLanguages, allowsTwo: allowsTwoLanguages)
+        for (code, tile) in languageTiles {
+            tile.isOn = active.contains(code)
+            tile.accessibilityHint = Language.englishNames[code]
+        }
+        languageNote.isHidden = allowsTwoLanguages
         autospaceTile.isOn = settings.autospace
         barTile.isOn = settings.showsBar
         hapticsTile.isOn = settings.haptics

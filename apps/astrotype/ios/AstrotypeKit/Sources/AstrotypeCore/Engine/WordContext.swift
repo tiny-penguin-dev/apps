@@ -20,6 +20,16 @@ public enum WordContext {
         guard count > 0 else { return [] }
         // The current sentence: everything after the last ender.
         var sentence = Substring(text)
+        // "¿" or "¡" just typed: a question or exclamation starts here, so the next
+        // word starts a sentence ("Hola. ¿" reads as a sentence start).
+        if let last = sentence.last, Accents.openers.contains(last) {
+            while let last = sentence.last, Accents.openers.contains(last) { sentence = sentence.dropLast() }
+            let trimmed = sentence.trimmingCharacters(in: .whitespaces)
+            if trimmed.isEmpty || trimmed.last.map({ sentenceEnders.contains($0) }) == true {
+                return [NgramModel.sentenceStart]
+            }
+            return words(before: String(sentence) + " ", count: count)
+        }
         if let end = sentence.lastIndex(where: { sentenceEnders.contains($0) }) {
             sentence = sentence[sentence.index(after: end)...]
         }

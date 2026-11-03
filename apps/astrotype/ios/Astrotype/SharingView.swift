@@ -94,7 +94,8 @@ struct SharingView: View {
 }
 
 /// The keyboard as the word was typed on it, with each thumb's path in its colour.
-private struct SharedPathsView: View {
+/// One shared word drawn on the keys it was typed on, with its thumbs' paths.
+struct SharedPathsView: View {
     let word: SharedWord
 
     var body: some View {

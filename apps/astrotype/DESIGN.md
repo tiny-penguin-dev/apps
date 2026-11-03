@@ -155,12 +155,18 @@ This is the product, so it gets its own section.
   of a split keyboard, the sides of a wide one) the guesses stack there, and the keys
   get the whole height. Otherwise (a phone) they are a bar above the keys, which
   Settings ("Guesses bar") can turn off to give the keys its room.
-- **The bar** (or column) has three states:
+- **The bar** (or column) has four states:
   - *Idle:* a short note ("Both thumbs, one word") or, with nothing to say, empty.
   - *Open word:* up to three guesses, the first one in a white pill. That one is what
     space writes. Tapping any guess writes it.
   - *Fix:* right after a commit, the label FIX and the other readings of the last word.
     Tap one and it replaces the word just written. Any new tap or swipe clears it.
+  - *Not it?* (features/missed-words): after a swiped word (open, FIX, or idle right
+    after it), a small "Not it?" with a pencil at the end of the bar (under the guesses
+    in a column). Tapped, the bar becomes a field: ✕, the word typed so far ("What did
+    you mean?" while empty), and a Save pill. Taps type exact letters into it,
+    backspace edits, space or return saves; Save replaces the swiped word and squeezes
+    the bar like a commit.
 - **Pieces:** a touch is a tap if it lifts within 18 pt of where it landed and crossed no
   other key, otherwise a swipe. Taps flash the key in the thumb's color and leave a ring
   that pings out. Swipes draw a 9 pt rounded trail in the thumb's color that fades over a

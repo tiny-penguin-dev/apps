@@ -221,4 +221,21 @@ import Testing
         #expect(model.shards["a"]?.shapes.isEmpty == true)
         #expect(model.shards["a"]?.words["hi"] != nil)
     }
+
+    // MARK: Phase C, the list
+
+    @Test func theStoreKnowsWhatWasSent() {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let store = SharedWordStore(folder: folder, limit: 200)
+        let words = ["second", "third"].map {
+            SharedWord(kind: SharedWord.missKind, word: $0, typed: "song", layoutWidth: 390, layoutHeight: 216,
+                       split: false, touches: [], day: "2026-11-03")
+        }
+        store.save(words)
+        #expect(store.uploadedIDs().isEmpty)
+        store.markUploaded([words[0].id])
+        #expect(store.uploadedIDs() == [words[0].id])
+        #expect(store.pending().map(\.id) == [words[1].id])
+    }
 }

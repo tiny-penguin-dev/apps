@@ -33,6 +33,9 @@ struct AppEnvironment {
     /// features/smart-matching Phase C), and what sends them; nil in tests.
     var sharedWords: SharedWordStore?
     var sharedUploader: SharedWordUploader?
+    /// The words the keyboard missed, typed with "Not it?" (features/missed-words),
+    /// which the keyboard writes to the App Group; nil in tests.
+    var missedWords: SharedWordStore?
     /// What a recording says about where it was made (no name or account).
     var device: PracticeRecording.Device
     var metrics: Metrics
@@ -58,6 +61,7 @@ struct AppEnvironment {
             practiceStore: PracticeStore(folder: KeyboardFiles.own("Practice")),
             sharedWords: SharedWordStore(folder: dataFile(KeyboardFiles.sharing)),
             sharedUploader: CloudKitPracticeUploader(),
+            missedWords: SharedWordStore(folder: dataFile(KeyboardFiles.misses), limit: 200),
             device: PracticeRecording.Device(model: DeviceInfo.model, system: DeviceInfo.system,
                                              app: DeviceInfo.appVersion, writer: DeviceInfo.writerID),
             metrics: LiveMetrics(),
@@ -103,6 +107,7 @@ struct AppEnvironment {
         practiceStore: PracticeStore? = nil,
         sharedWords: SharedWordStore? = nil,
         sharedUploader: SharedWordUploader? = nil,
+        missedWords: SharedWordStore? = nil,
         device: PracticeRecording.Device = PracticeRecording.Device(model: "iPhone", system: "iOS 26", app: "0.2.0", writer: "test"),
         metrics: Metrics = RecordingMetrics(),
         now: @escaping () -> Date = { Date(timeIntervalSince1970: 1_793_491_200) },
@@ -116,7 +121,7 @@ struct AppEnvironment {
                        keyboardHealth: keyboardHealth, proStore: proStore,
                        trialStore: trialStore, practiceStore: practiceStore,
                        sharedWords: sharedWords, sharedUploader: sharedUploader,
-                       device: device, metrics: metrics, now: now,
+                       missedWords: missedWords, device: device, metrics: metrics, now: now,
                        appVersion: appVersion, backup: backup, openSettings: openSettings)
     }
 }

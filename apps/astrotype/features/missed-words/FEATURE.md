@@ -163,3 +163,10 @@ Status: Approved 2026-11-03 (with the design, at Gabriel's request)
   saved miss took the next 40 from 23 right to 37; "song", "sold", "send" and the like
   stayed as they were. `miss.shape_hit` was dropped: the bar can't tell which guesses
   a shape decided without more bookkeeping than it's worth.
+- **Phase C** (3 Nov 2026): `MissedWordsView` from Settings → Your words → Words it
+  missed (`HomeView.Route.missedWords`): the swipe drawn on the keys
+  (`SharedPathsView`, shared with "What gets shared"), each miss with what it wrote and
+  "Shared", "Waiting to share" or "On this phone" (`SharedWordStore.uploadedIDs`);
+  swipe to delete (also takes it off the sharing list). "Forget what it learned"
+  clears the list with the shapes. Folded into `PRODUCT.md` 5.3 and `DESIGN.md` "The
+  bar".

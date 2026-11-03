@@ -33,6 +33,9 @@ public struct Composer: Sendable {
         /// How sure the keyboard must be of a real word to write it in place of pecked
         /// letters that spell none (`Matcher.strictness`).
         public var strictness = 0.8
+        /// How sure the keyboard must be that pecked letters are two words with the
+        /// space missed before it writes them split (`Matcher.splitStrictness`).
+        public var splitStrictness = 0.8
         public init() {}
     }
 
@@ -122,7 +125,10 @@ public struct Composer: Sendable {
     }
 
     public var settings: Settings {
-        didSet { matcher.strictness = settings.strictness }
+        didSet {
+            matcher.strictness = settings.strictness
+            matcher.splitStrictness = settings.splitStrictness
+        }
     }
     public var layout: Layout {
         didSet { matcher.layout = layout }
@@ -160,6 +166,7 @@ public struct Composer: Sendable {
         self.settings = settings
         self.matcher = Matcher(dictionary: dictionary, layout: layout, learned: learned)
         matcher.strictness = settings.strictness
+        matcher.splitStrictness = settings.splitStrictness
         refreshState()
     }
 
@@ -169,6 +176,7 @@ public struct Composer: Sendable {
         self.settings = settings
         self.matcher = Matcher(language: language, layout: layout, learned: learned)
         matcher.strictness = settings.strictness
+        matcher.splitStrictness = settings.splitStrictness
         refreshState()
     }
 

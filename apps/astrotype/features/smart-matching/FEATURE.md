@@ -253,3 +253,17 @@ over the letters (scored at `unknownPrior`, -13) read as log odds at
 stay while typing goes on and are decided on space. A swipe that fits nothing always
 becomes the nearest word. At strictness 1 letters that are not a word never go in.
 The setting is "Real words" in Settings and the keyboard's panel, 0–100% in 1% steps, default 80%.
+
+**Missed spaces (2026-11-03).** Pecked letters that spell no word but read as two
+words with the space missed ("textseparately") go in split, when it is obvious
+(Gabriel asked for it): both halves are real words (the dictionary's or the person's),
+a half of three letters or fewer must be common (log prior -7 or better, so rare bits
+like "ep" and "xt" never split a word), single letters only "a" and "i", and the best
+place for the space must beat the next by 0.1 in score. The split is scored like a
+guess for its rarer half plus the word pairs' say on the two together, less 0.45 for
+the space (a missing letter), so a close slip ("hte" for "the") still wins. It stays in
+the bar behind the letters, and the letters behind it, either way. "Split words" in
+Settings and the 123-hold panel (`KeyboardSettings.splitStrictness`, 80% by default)
+says how sure it must be, like "Real words"; at 0% it never splits. Only pecked words
+and only two halves; a split is never learned as a word or settled for the personal
+model. The settings redesign (PR #72) gives the slider its final place.

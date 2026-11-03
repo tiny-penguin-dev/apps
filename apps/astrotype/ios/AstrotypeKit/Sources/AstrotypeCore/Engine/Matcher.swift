@@ -265,11 +265,20 @@ public struct Matcher: Sendable {
     /// Letters a swipe fell back to (`pecked` false) were never spelled on purpose, so
     /// any near word beats them.
     private func resolve(_ letters: String, points: [CGPoint?], limit: Int, pecked: Bool) -> [Candidate] {
-        let near = nearestWords(to: letters, points: points, limit: limit)
+        var near = nearestWords(to: letters, points: points, limit: limit)
         let literal = Candidate(word: letters, score: priorWeight * Double(unknownPrior))
+        let split = pecked ? split(letters) : nil
+        if let split {
+            near = Array(Self.ranked(Dictionary(uniqueKeysWithValues: (near + [split]).map { ($0.word, $0.score) })).prefix(limit))
+            // Not sure enough to split: the split waits behind what else there is.
+            if splitStrictness <= 0 || confidence(of: split, over: literal) < 1 - splitStrictness, near.first == split {
+                near = Array(near.dropFirst()) + [split]
+            }
+        }
         guard strictness < 1 else { return near }
         guard let best = near.first else { return [literal] }
-        let sure = !pecked || (strictness > 0 && confidence(of: best, over: literal) >= 1 - strictness)
+        let threshold = best == split ? splitStrictness : strictness
+        let sure = !pecked || (threshold > 0 && confidence(of: best, over: literal) >= 1 - threshold)
         var ordered: [Candidate] = sure ? [best, literal] : [literal, best]
         ordered.append(contentsOf: near.dropFirst())
         return Array(ordered.prefix(limit))
@@ -278,6 +287,55 @@ public struct Matcher: Sendable {
     /// How sure the keyboard is of `word` rather than `other`, 0 to 1, from their scores.
     func confidence(of word: Candidate, over other: Candidate) -> Double {
         1 / (1 + exp(-(word.score - other.score) / confidenceScale))
+    }
+
+    // MARK: Missed spaces
+
+    /// What the space a split puts back costs, in score units, like a missing letter.
+    public var splitCost = 0.45
+    /// How sure the keyboard must be of a split before it writes it in place of the
+    /// letters, 0 to 1, like `strictness`: at 0 it never writes one (it stays in the
+    /// bar), at 1 it writes every split it finds.
+    public var splitStrictness = 0.8
+    /// The rarest a word may be (log prior) to be one half of a split: short words need
+    /// to be common ("in", "of", "the"), since the dictionary also holds rare bits
+    /// like "ep" and "xt" that would split almost anything.
+    public var splitLongPrior: Float = -10
+    public var splitShortPrior: Float = -7
+    /// How much better the best split must score than the next one to be offered: two
+    /// readings that close are not an obvious missed space.
+    public var splitMargin = 0.1
+
+    /// Letters that spell no word but two real words with the space between them
+    /// missed ("textseparately" for "text separately"), when that is obvious: both
+    /// halves are common enough real words (the dictionary's or the person's), and
+    /// no other place for the space reads nearly as well. Scored like a guess for the
+    /// rarer half, plus what the word pairs say of the two together, less the space.
+    func split(_ letters: String) -> Candidate? {
+        let chars = Array(letters)
+        guard chars.count >= 3, letters.utf8.allSatisfy({ $0 >= 97 && $0 <= 122 }) else { return nil }
+        func prior(_ part: String) -> Float? {
+            if part.count == 1 { return part == "a" || part == "i" ? dictionary.logPrior(of: part) : nil }
+            let own = dictionary.logPrior(of: part) ?? (learned.contains(part) ? ownPrior(part) : nil)
+            guard let own, own >= (part.count <= 3 ? splitShortPrior : splitLongPrior) else { return nil }
+            return own
+        }
+        var splits: [Candidate] = []
+        for cut in 1..<chars.count {
+            let first = String(chars[..<cut]), second = String(chars[cut...])
+            guard let p1 = prior(first), let p2 = prior(second) else { continue }
+            var score = priorWeight * Double(min(p1, p2)) - splitCost
+            score += contextWeight * contextBonus(for: first, prior: p1)
+            if let ngrams {
+                score += contextWeight * Double(ngrams.contextBonus(for: second, after: first,
+                                                                     unigramLogProbability: p2 + dictionary.logProbabilityOffset))
+            }
+            splits.append(Candidate(word: first + " " + second, score: score))
+        }
+        let ranked = splits.sorted { $0.score > $1.score }
+        guard let best = ranked.first else { return nil }
+        if ranked.count > 1, best.score - ranked[1].score < splitMargin { return nil }
+        return best
     }
 
     // MARK: Nearest words

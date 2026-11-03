@@ -54,6 +54,10 @@ public struct KeyboardSettings: Codable, Sendable, Equatable {
     /// pecked letters that spell none, 0 to 1 (`Matcher.strictness`). At 1 it only
     /// ever writes real words.
     public var wordStrictness = 0.8
+    /// How sure the keyboard must be that pecked letters are two words with the space
+    /// missed ("textseparately") before it writes them split, 0 to 1
+    /// (`Matcher.splitStrictness`). At 0 it never splits.
+    public var splitStrictness = 0.8
     /// How tall the keys are against Apple's, 0.8 to 1.2. At 1 every key sits where
     /// Apple's does; other heights move the top row and keep the bottom row in place.
     /// The guesses bar adds to the height either way (Gabriel, 3 Nov 2026).
@@ -84,6 +88,7 @@ public struct KeyboardSettings: Codable, Sendable, Equatable {
         forgetPersonalAt = try c.decodeIfPresent(Date.self, forKey: .forgetPersonalAt)
         shareCorrections = try c.decodeIfPresent(Bool.self, forKey: .shareCorrections) ?? false
         wordStrictness = try c.decodeIfPresent(Double.self, forKey: .wordStrictness) ?? 0.8
+        splitStrictness = try c.decodeIfPresent(Double.self, forKey: .splitStrictness) ?? 0.8
         keyboardHeight = try c.decodeIfPresent(Double.self, forKey: .keyboardHeight) ?? 1.0
     }
 
@@ -92,6 +97,7 @@ public struct KeyboardSettings: Codable, Sendable, Equatable {
         var out = base
         out.autospaceDelay = autospace ? min(max(autospaceDelay, Self.delayRange.lowerBound), Self.delayRange.upperBound) : nil
         out.strictness = min(max(wordStrictness, 0), 1)
+        out.splitStrictness = min(max(splitStrictness, 0), 1)
         return out
     }
 }

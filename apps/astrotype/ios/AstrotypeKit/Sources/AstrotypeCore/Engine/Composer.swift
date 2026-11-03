@@ -839,10 +839,18 @@ public struct Composer: Sendable {
             touch(letters[0], swipe, weight: 0.3)
         }
         let strokes = pieces.map { SettledWord.Stroke(side: $0.side, points: $0.raw ?? $0.points, times: $0.times) }
+        // A miss swiped in one stroke is remembered for the word (features/missed-words
+        // Phase B), as the matcher saw it, in fractions of the keys' width and height.
+        var shape: [CGPoint]?
+        if last.missed, last.fixedFrom != nil, pieces.count == 1, let swipe = pieces.first, !swipe.isTap,
+           !layout.split, layout.width > 0, layout.height > 0 {
+            shape = Geometry.resample(swipe.points, count: PersonalModel.shapePoints)
+                .map { CGPoint(x: $0.x / layout.width, y: $0.y / layout.height) }
+        }
         return SettledWord(word: word, previous: last.previous, source: source,
                            fixedFrom: last.fixedFrom?.lowercased(), firstGuess: last.firstGuess?.lowercased(),
                            pecked: last.pieces.allSatisfy(\.isTap), touches: touches, strokes: strokes,
-                           missed: last.missed && last.fixedFrom != nil)
+                           missed: last.missed && last.fixedFrom != nil, shape: shape)
     }
 
     private func cased(_ word: String) -> String { Self.cased(word, as: casing) }

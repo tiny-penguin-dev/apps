@@ -11,6 +11,9 @@ import UIKit
 /// planned or have changed, and adds the missing ones, so editing an alarm updates its
 /// automations, deleting it removes them, and one changed in the Home app comes back.
 ///
+/// Every action set shows up as a scene in the Home app, so steps that set the same
+/// lights, plugs and blinds share one, and an action set goes once nothing needs it.
+///
 /// HomeKit only takes changes while the app is in the foreground. In the background
 /// (a reschedule from "I'm up" or Snooze on the lock screen) it answers "Request not
 /// handled", so a sync stops there and says it didn't finish; `HomeAccess` runs it again
@@ -21,10 +24,13 @@ final class HomeSync {
     private struct Made: Codable {
         var fingerprint: String
         var trigger: UUID
-        var actionSet: UUID?
     }
 
-    private static let madeKey = "home.automations"
+    /// v2 shares action sets. Starting over with a new key replaces the automations made
+    /// with one action set each.
+    private static let madeKey = "home.automations.v2"
+    /// Squawk's action sets, by what they do (`setKey`).
+    private static let setsKey = "home.actionSets"
     private var syncing = false
     /// The newest plan asked for while a sync was running.
     private var next: (plan: [PlannedHomeStep], home: HMHome)?
@@ -56,71 +62,87 @@ final class HomeSync {
     /// One pass. Returns false if it stopped because the app went to the background.
     private func syncOnce(_ plan: [PlannedHomeStep], in home: HMHome) async -> Bool {
         var made = load()
+        var sets = loadSets().filter { _, id in home.actionSets.contains { $0.uniqueIdentifier == id } }
         let wanted = Dictionary(plan.map { ($0.id.uuidString, $0) }, uniquingKeysWith: { a, _ in a })
 
         // Remove what's no longer planned, has changed, or was deleted in the Home app.
         for (id, record) in made {
             let trigger = home.triggers.first { $0.uniqueIdentifier == record.trigger }
             if let step = wanted[id], step.fingerprint == record.fingerprint, trigger != nil { continue }
-            await remove(trigger: trigger, actionSet: record.actionSet, from: home)
+            if let trigger { try? await home.removeTrigger(trigger) }
             made[id] = nil
         }
         // Anything else named like Squawk's that it no longer knows about.
         let known = Set(made.values.map(\.trigger))
         for trigger in home.triggers where trigger.name.hasPrefix(HomePlanner.namePrefix) && !known.contains(trigger.uniqueIdentifier) {
-            await remove(trigger: trigger, actionSet: nil, from: home)
+            try? await home.removeTrigger(trigger)
         }
-        let knownSets = Set(made.values.compactMap(\.actionSet))
-        for set in home.actionSets where set.name.hasPrefix(HomePlanner.namePrefix) && !knownSets.contains(set.uniqueIdentifier) {
+        // Action sets no planned step needs, and Squawk's that it no longer knows about.
+        let wantedSets = Set(plan.compactMap(Self.setKey))
+        sets = sets.filter { wantedSets.contains($0.key) }
+        let keptSets = Set(sets.values)
+        for set in home.actionSets where set.name.hasPrefix(HomePlanner.namePrefix) && !keptSets.contains(set.uniqueIdentifier) {
             try? await home.removeActionSet(set)
         }
+        saveSets(sets)
 
         // Add what's missing.
         for step in plan where made[step.id.uuidString] == nil {
             guard Self.canWrite else { save(made); return false }
             do {
-                made[step.id.uuidString] = try await add(step, to: home)
+                made[step.id.uuidString] = try await add(step, to: home, sets: &sets)
             } catch let error where Self.isBackground(error) {
                 // Not a real failure: the app left the foreground. The next sync adds it.
                 save(made)
+                saveSets(sets)
                 return false
             } catch {
                 Telemetry.count("home.sync_failed", ["reason": reason(error)])
                 Telemetry.report(error)
             }
             save(made)
+            saveSets(sets)
         }
         save(made)
+        saveSets(sets)
         return true
     }
 
-    private func remove(trigger: HMTrigger?, actionSet: UUID?, from home: HMHome) async {
-        var sets = trigger?.actionSets.filter { $0.name.hasPrefix(HomePlanner.namePrefix) } ?? []
-        if let actionSet, let set = home.actionSets.first(where: { $0.uniqueIdentifier == actionSet }), !sets.contains(set) {
-            sets.append(set)
-        }
-        if let trigger { try? await home.removeTrigger(trigger) }
-        for set in sets { try? await home.removeActionSet(set) }
+    /// What a step's own action set does, so steps that do the same share one. Nil when
+    /// it only runs scenes from the Home app.
+    static func setKey(_ step: PlannedHomeStep) -> String? {
+        let actions = step.actions.filter { $0.kind != .scene }
+        guard !actions.isEmpty else { return nil }
+        return actions.map { a in
+            "\(a.kind.rawValue)|\(a.targets.map(\.id.uuidString).sorted())|\(a.setting.isOn)|\(a.setting.brightness ?? -1)|\(a.setting.warmth ?? -1)|\(a.setting.position ?? -1)"
+        }.sorted().joined(separator: ";")
     }
 
-    private func add(_ step: PlannedHomeStep, to home: HMHome) async throws -> Made {
+    private func add(_ step: PlannedHomeStep, to home: HMHome, sets: inout [String: UUID]) async throws -> Made {
         let name = uniqueName(step.name, in: home)
-        // Scenes from the Home app run as they are; everything else goes in one action set.
+        // Scenes from the Home app run as they are; everything else goes in one action set,
+        // shared with other steps that do the same.
         let scenes = step.actions.filter { $0.kind == .scene }.flatMap(\.targets).compactMap { target in
             home.actionSets.first { $0.uniqueIdentifier == target.id }
         }
+        let key = Self.setKey(step)
+        var ownSet = key.flatMap { sets[$0] }.flatMap { id in home.actionSets.first { $0.uniqueIdentifier == id } }
+        var createdSet: HMActionSet?
         let writes = step.actions.filter { $0.kind != .scene }.flatMap { Self.writes(for: $0, in: home) }
-
-        var ownSet: HMActionSet?
-        if !writes.isEmpty {
-            let set = try await home.addActionSet(named: name)
-            ownSet = set
-            for write in writes {
-                try await set.addAction(write)
+        if ownSet == nil, let key, !writes.isEmpty {
+            let set = try await home.addActionSet(named: uniqueName(Self.setName(step), in: home))
+            createdSet = set
+            do {
+                for write in writes { try await set.addAction(write) }
+            } catch {
+                try? await home.removeActionSet(set)
+                throw error
             }
+            ownSet = set
+            sets[key] = set.uniqueIdentifier
         }
-        let sets = (ownSet.map { [$0] } ?? []) + scenes
-        guard !sets.isEmpty else { throw HomeSyncError.nothingToRun }
+        let toRun = (ownSet.map { [$0] } ?? []) + scenes
+        guard !toRun.isEmpty else { throw HomeSyncError.nothingToRun }
 
         let trigger: HMTrigger
         switch step.schedule {
@@ -137,14 +159,24 @@ final class HomeSync {
         }
         do {
             try await home.addTrigger(trigger)
-            for set in sets { try await trigger.addActionSet(set) }
+            for set in toRun { try await trigger.addActionSet(set) }
             try await trigger.enable(true)
         } catch {
-            if let ownSet { try? await home.removeActionSet(ownSet) }
+            if let createdSet, let key {
+                try? await home.removeActionSet(createdSet)
+                sets[key] = nil
+            }
             if home.triggers.contains(trigger) { try? await home.removeTrigger(trigger) }
             throw error
         }
-        return Made(fingerprint: step.fingerprint, trigger: trigger.uniqueIdentifier, actionSet: ownSet?.uniqueIdentifier)
+        return Made(fingerprint: step.fingerprint, trigger: trigger.uniqueIdentifier)
+    }
+
+    /// A shared action set's name: the step's without its time, "Squawk · Wake up".
+    private static func setName(_ step: PlannedHomeStep) -> String {
+        var parts = step.name.components(separatedBy: " · ")
+        if parts.count > 2 { parts.removeLast() }
+        return parts.joined(separator: " · ")
     }
 
     // MARK: When you're up
@@ -263,6 +295,18 @@ final class HomeSync {
     private func save(_ made: [String: Made]) {
         if let data = try? JSONEncoder().encode(made) {
             UserDefaults.standard.set(data, forKey: Self.madeKey)
+        }
+    }
+
+    private func loadSets() -> [String: UUID] {
+        guard let data = UserDefaults.standard.data(forKey: Self.setsKey),
+              let sets = try? JSONDecoder().decode([String: UUID].self, from: data) else { return [:] }
+        return sets
+    }
+
+    private func saveSets(_ sets: [String: UUID]) {
+        if let data = try? JSONEncoder().encode(sets) {
+            UserDefaults.standard.set(data, forKey: Self.setsKey)
         }
     }
 }

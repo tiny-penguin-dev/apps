@@ -264,6 +264,16 @@ guess for its rarer half plus the word pairs' say on the two together, less 0.45
 the space (a missing letter), so a close slip ("hte" for "the") still wins. It stays in
 the bar behind the letters, and the letters behind it, either way. "Split words" in
 Settings and the 123-hold panel (`KeyboardSettings.splitStrictness`, 80% by default)
-says how sure it must be, like "Real words"; at 0% it never splits. Only pecked words
-and only two halves; a split is never learned as a word or settled for the personal
-model. The settings redesign (PR #72) gives the slider its final place.
+says how sure it must be, like "Real words"; at 0% it never splits. Only two halves;
+a split is never learned as a word or settled for the personal model. The settings
+redesign (PR #72) gives the slider its final place.
+
+The same day it reached swipes (Gabriel: "between swipes and taps it could miss a
+space"): an open word of several touches may also split at a gap between a swipe and
+the touch after or before it, never between two taps (that is the letters' split
+above) or two touches down together. Each side is matched on its own, the second with
+the first as its context, the halves gated as above, and the split goes first only
+when it beats the best one-word reading by `splitMargin`, so two-thumb words ("some" +
+"thing", "hel" + "lo") stay whole with the split behind them in the bar. One swipe is
+never split into two words. Cost: three searches instead of one on a word of several
+touches with a swipe, about 3 ms per lift in release (23 ms in a debug build).

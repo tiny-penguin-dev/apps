@@ -202,6 +202,31 @@ public struct Matcher: Sendable {
             return resolve(typed, points: orderings[index].map { $0.points.first }, limit: limit, pecked: true)
         }
 
+        let out = Self.ranked(matches(orderings))
+        let split = split(ordered)
+        guard let split else {
+            if out.isEmpty {
+                // Nothing fits the keys as crossed: the nearest real words to the keys the
+                // swipes started and ended on, and those keys themselves only when no word
+                // is near (and strictness allows letters at all).
+                return resolve(Self.fallback(ordered), points: [], limit: limit, pecked: false)
+            }
+            return Array(out.prefix(limit))
+        }
+        // Two words with the space missed between a swipe and the touch next to it: the
+        // split goes first when it reads clearly better than any one word does (or no
+        // word fits at all), as sure as `splitStrictness` asks; otherwise it waits in
+        // the bar behind the first guess.
+        let joined = out.first ?? Candidate(word: "", score: priorWeight * Double(unknownPrior))
+        let sure = splitStrictness > 0 && split.score > joined.score + splitMargin
+            && confidence(of: split, over: joined) >= 1 - splitStrictness
+        guard !out.isEmpty else { return [split] }
+        let rest = Array(out.prefix(limit - 1))
+        return Array((sure ? [split] + rest : [rest[0], split] + rest.dropFirst()).prefix(limit))
+    }
+
+    /// Every word the pieces fit (in any of the orderings), with its best score.
+    private func matches(_ orderings: [[Piece]]) -> [String: Double] {
         var best: [String: Double] = [:]
         for ordering in orderings {
             for segments in segmentations(of: ordering) {
@@ -214,14 +239,7 @@ public struct Matcher: Sendable {
                 }
             }
         }
-        let out = Self.ranked(best)
-        if out.isEmpty {
-            // Nothing fits the keys as crossed: the nearest real words to the keys the
-            // swipes started and ended on, and those keys themselves only when no word
-            // is near (and strictness allows letters at all).
-            return resolve(Self.fallback(ordered), points: [], limit: limit, pecked: false)
-        }
-        return Array(out.prefix(limit))
+        return best
     }
 
     /// The log prior of a word of the person's own, from how often they wrote it.
@@ -314,27 +332,73 @@ public struct Matcher: Sendable {
     func split(_ letters: String) -> Candidate? {
         let chars = Array(letters)
         guard chars.count >= 3, letters.utf8.allSatisfy({ $0 >= 97 && $0 <= 122 }) else { return nil }
-        func prior(_ part: String) -> Float? {
-            if part.count == 1 { return part == "a" || part == "i" ? dictionary.logPrior(of: part) : nil }
-            let own = dictionary.logPrior(of: part) ?? (learned.contains(part) ? ownPrior(part) : nil)
-            guard let own, own >= (part.count <= 3 ? splitShortPrior : splitLongPrior) else { return nil }
-            return own
-        }
         var splits: [Candidate] = []
         for cut in 1..<chars.count {
             let first = String(chars[..<cut]), second = String(chars[cut...])
-            guard let p1 = prior(first), let p2 = prior(second) else { continue }
-            var score = priorWeight * Double(min(p1, p2)) - splitCost
-            score += contextWeight * contextBonus(for: first, prior: p1)
-            if let ngrams {
-                score += contextWeight * Double(ngrams.contextBonus(for: second, after: first,
-                                                                     unigramLogProbability: p2 + dictionary.logProbabilityOffset))
-            }
-            splits.append(Candidate(word: first + " " + second, score: score))
+            guard let p1 = splitPrior(first), let p2 = splitPrior(second) else { continue }
+            splits.append(Candidate(word: first + " " + second,
+                                    score: priorWeight * Double(min(p1, p2)) + pairBonus(first, p1, second, p2) - splitCost))
         }
+        return Self.obvious(splits, margin: splitMargin)
+    }
+
+    /// Pieces of one open word that read as two words with the space missed between a
+    /// swipe and the touch beside it: "text" swiped then "separately" swiped, or "going"
+    /// swiped then "to" tapped (Gabriel, 3 Nov 2026). Only between touches one after
+    /// the other (two thumbs down together are one word), and both halves must be
+    /// common enough real words, as for pecked letters. Scored like a guess for the
+    /// weaker half, plus what the word pairs say of the two together, less the space.
+    func split(_ pieces: [Piece]) -> Candidate? {
+        guard pieces.count >= 2, !pieces.allSatisfy(\.isTap), splitStrictness > 0 else { return nil }
+        var splits: [Candidate] = []
+        for cut in 1..<pieces.count where !(pieces[cut - 1].isTap && pieces[cut].isTap)
+            && pieces[..<cut].allSatisfy({ $0.end <= pieces[cut].start }) {
+            guard let first = bestWord(Array(pieces[..<cut])), let p1 = splitPrior(first.word) else { continue }
+            var after = self
+            after.context.append(first.word)
+            guard let second = after.bestWord(Array(pieces[cut...])), let p2 = splitPrior(second.word) else { continue }
+            splits.append(Candidate(word: first.word + " " + second.word,
+                                    score: min(first.score, second.score) + pairBonus(first.word, p1, second.word, p2) - splitCost))
+        }
+        return Self.obvious(splits, margin: splitMargin)
+    }
+
+    /// The one real word some pieces make on their own, for half of a split: tapped
+    /// letters exactly as they are, or the best word for a swipe (and what goes with it).
+    private func bestWord(_ pieces: [Piece]) -> Candidate? {
+        if pieces.allSatisfy(\.isTap) {
+            let typed = String(pieces.flatMap(\.keys))
+            guard isKnown(typed) else { return nil }
+            let prior = dictionary.logPrior(of: typed) ?? ownPrior(typed)
+            return Candidate(word: typed, score: priorWeight * Double(prior) + contextWeight * contextBonus(for: typed, prior: prior))
+        }
+        return Self.ranked(matches([pieces])).first
+    }
+
+    /// A word's log prior when it may be half of a split, nil when it may not: short
+    /// words must be common, single letters only "a" and "i".
+    private func splitPrior(_ part: String) -> Float? {
+        if part.count == 1 { return part == "a" || part == "i" ? dictionary.logPrior(of: part) : nil }
+        let own = dictionary.logPrior(of: part) ?? (learned.contains(part) ? ownPrior(part) : nil)
+        guard let own, own >= (part.count <= 3 ? splitShortPrior : splitLongPrior) else { return nil }
+        return own
+    }
+
+    /// What the words before and the word pairs say of `first` then `second`.
+    private func pairBonus(_ first: String, _ p1: Float, _ second: String, _ p2: Float) -> Double {
+        var bonus = contextWeight * contextBonus(for: first, prior: p1)
+        if let ngrams {
+            bonus += contextWeight * Double(ngrams.contextBonus(for: second, after: first,
+                                                                 unigramLogProbability: p2 + dictionary.logProbabilityOffset))
+        }
+        return bonus
+    }
+
+    /// The best split, when no other place for the space reads nearly as well.
+    private static func obvious(_ splits: [Candidate], margin: Double) -> Candidate? {
         let ranked = splits.sorted { $0.score > $1.score }
         guard let best = ranked.first else { return nil }
-        if ranked.count > 1, best.score - ranked[1].score < splitMargin { return nil }
+        if ranked.count > 1, best.score - ranked[1].score < margin { return nil }
         return best
     }
 

@@ -10,8 +10,9 @@ import UIKit
 /// autospace's wait), and a Languages row that opens the list of languages
 /// (features/languages: any one free, two at once Pro). The rest lives in the app.
 ///
-/// Shown over the keys. The title and Done stay at the top; the tiles and sliders sit
-/// below and scroll when the keys' space is shorter than them.
+/// Shown over the keys, on the keyboard's own backdrop (glass on iOS 26). The title and
+/// Done head the tiles and sliders and scroll away with them when the keys' space is
+/// shorter than them (Gabriel, 3 Nov 2026).
 public final class SettingsPanelView: UIView {
     public var settings: KeyboardSettings {
         didSet { render() }
@@ -49,6 +50,9 @@ public final class SettingsPanelView: UIView {
 
     private static let headerHeight: CGFloat = 48
 
+    /// The title, Done and the back chevron. It rides at the top of whichever page is
+    /// showing, inside its scroll view, so it scrolls with the content.
+    private let header = UIView()
     private let title = UILabel()
     private let back = UIButton(configuration: .plain())
     private let done = UIButton(configuration: .filled())
@@ -87,7 +91,8 @@ public final class SettingsPanelView: UIView {
     public init(settings: KeyboardSettings) {
         self.settings = settings
         super.init(frame: .zero)
-        backgroundColor = Theme.ui(.kb)
+        // Not `.clear`: iOS drops touches on fully clear pixels in a keyboard.
+        backgroundColor = Theme.seeThrough
 
         title.text = "Keyboard settings"
         title.font = Theme.uiFont(size: 17, weight: .heavy)
@@ -95,7 +100,7 @@ public final class SettingsPanelView: UIView {
         title.accessibilityTraits = .header
         title.adjustsFontSizeToFitWidth = true
         title.minimumScaleFactor = 0.8
-        addSubview(title)
+        header.addSubview(title)
 
         var config = UIButton.Configuration.filled()
         config.baseBackgroundColor = Theme.ui(.accent)
@@ -105,7 +110,7 @@ public final class SettingsPanelView: UIView {
         config.attributedTitle = AttributedString("Done", attributes: AttributeContainer([.font: Theme.uiFont(size: 15, weight: .bold)]))
         done.configuration = config
         done.addAction(UIAction { [weak self] _ in self?.onDone?() }, for: .touchUpInside)
-        addSubview(done)
+        header.addSubview(done)
 
         var backConfig = UIButton.Configuration.plain()
         backConfig.image = UIImage(systemName: "chevron.left", withConfiguration: UIImage.SymbolConfiguration(pointSize: 17, weight: .bold))
@@ -115,7 +120,7 @@ public final class SettingsPanelView: UIView {
         back.accessibilityLabel = "Back to keyboard settings"
         back.addAction(UIAction { [weak self] _ in self?.showingLanguages = false }, for: .touchUpInside)
         back.isHidden = true
-        addSubview(back)
+        header.addSubview(back)
 
         wire(autospaceTile) { $0.autospace.toggle() }
         wire(barTile) { $0.showsBar.toggle() }
@@ -235,6 +240,15 @@ public final class SettingsPanelView: UIView {
         scroll.addSubview(column)
         addSubview(scroll)
 
+        // Both pages leave room at the top for the header, which sits in that room.
+        for page in [scroll, languageScroll] {
+            page.contentInsetAdjustmentBehavior = .never
+            page.contentInset.top = Self.headerHeight
+            page.verticalScrollIndicatorInsets.top = Self.headerHeight
+            page.contentOffset = CGPoint(x: 0, y: -Self.headerHeight)
+        }
+        scroll.addSubview(header)
+
         let content = scroll.contentLayoutGuide
         let frame = scroll.frameLayoutGuide
         NSLayoutConstraint.activate([
@@ -271,6 +285,9 @@ public final class SettingsPanelView: UIView {
         languageScroll.isHidden = !showingLanguages
         back.isHidden = !showingLanguages
         title.text = showingLanguages ? "Languages" : "Keyboard settings"
+        let page = showingLanguages ? languageScroll : scroll
+        page.addSubview(header)
+        page.contentOffset = CGPoint(x: 0, y: -Self.headerHeight)
         setNeedsLayout()
         UIAccessibility.post(notification: .screenChanged, argument: title)
     }
@@ -342,18 +359,18 @@ public final class SettingsPanelView: UIView {
     public override func layoutSubviews() {
         super.layoutSubviews()
         let side = Theme.Space.m
-        let header = Self.headerHeight
+        let headerHeight = Self.headerHeight
+        scroll.frame = bounds
+        languageScroll.frame = bounds
+        self.header.frame = CGRect(x: 0, y: -headerHeight, width: bounds.width, height: headerHeight)
         done.sizeToFit()
         let doneSize = CGSize(width: max(80, done.bounds.width), height: 34)
-        done.frame = CGRect(x: bounds.maxX - side - doneSize.width, y: (header - doneSize.height) / 2,
+        done.frame = CGRect(x: bounds.maxX - side - doneSize.width, y: (headerHeight - doneSize.height) / 2,
                             width: doneSize.width, height: doneSize.height)
         back.sizeToFit()
-        back.frame = CGRect(x: side - 4, y: (header - 44) / 2, width: max(44, back.bounds.width), height: 44)
+        back.frame = CGRect(x: side - 4, y: (headerHeight - 44) / 2, width: max(44, back.bounds.width), height: 44)
         let titleX = showingLanguages ? back.frame.maxX : side + Theme.Space.xs
-        title.frame = CGRect(x: titleX, y: 0, width: max(0, done.frame.minX - titleX - Theme.Space.s), height: header)
-        let body = CGRect(x: 0, y: header, width: bounds.width, height: max(0, bounds.height - header))
-        scroll.frame = body
-        languageScroll.frame = body
+        title.frame = CGRect(x: titleX, y: 0, width: max(0, done.frame.minX - titleX - Theme.Space.s), height: headerHeight)
     }
 
     public override func didMoveToWindow() {
@@ -408,20 +425,24 @@ final class QuickTile: UIControl {
         name.adjustsFontSizeToFitWidth = true
         name.minimumScaleFactor = 0.7
         name.allowsDefaultTighteningForTruncation = true
-        // Fill, not center: a centred multi-line label in a narrow tile gets squeezed to a
-        // letter wide, so each letter went on its own line (Gabriel, 3 Nov 2026).
-        let stack = UIStackView(arrangedSubviews: [icon, name])
-        stack.axis = .vertical
-        stack.alignment = .fill
-        stack.spacing = 4
-        stack.isUserInteractionEnabled = false
-        stack.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(stack)
+        // The icon sits at the same height in every tile, and the name is centred in
+        // the room under it, so a one-line name and a two-line one still line up across
+        // the row (tiles in a row share a height). The label spans the tile's width: a
+        // narrow multi-line label gets squeezed a letter wide (Gabriel, 3 Nov 2026).
+        for view in [icon, name] {
+            view.isUserInteractionEnabled = false
+            view.translatesAutoresizingMaskIntoConstraints = false
+            addSubview(view)
+        }
         NSLayoutConstraint.activate([
-            stack.topAnchor.constraint(equalTo: topAnchor, constant: 10),
-            stack.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -8),
-            stack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 4),
-            stack.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -4),
+            icon.topAnchor.constraint(equalTo: topAnchor, constant: 12),
+            icon.heightAnchor.constraint(equalToConstant: 24),
+            icon.leadingAnchor.constraint(equalTo: leadingAnchor),
+            icon.trailingAnchor.constraint(equalTo: trailingAnchor),
+            name.topAnchor.constraint(equalTo: icon.bottomAnchor, constant: 4),
+            name.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -8),
+            name.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 4),
+            name.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -4),
             heightAnchor.constraint(greaterThanOrEqualToConstant: 64),
         ])
         isAccessibilityElement = true

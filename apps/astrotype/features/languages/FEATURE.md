@@ -16,13 +16,23 @@ Status: Draft
   Spanish, often in the same message.
 
 - **Basics or powerful:** a language picker in Settings, set once and forgotten.
-  Extra languages are Pro, as PRODUCT.md section 6 says ("Extra languages as they are
-  added"); English stays free. See the open questions.
+  Every language is free: anyone can type in Spanish, or English, or any language that
+  comes later. Two languages at once is Pro (Gabriel, 3 Nov 2026). This changes
+  PRODUCT.md section 6 ("Extra languages" in the Pro column becomes "Two languages at
+  once", and the free column's "English" becomes "any one language"); the Build stage's
+  last step folds it in.
 
 - **How it works:**
-  - *Settings → Languages* lists English and Español with a switch each. English is on
-    to start. A Spanish phone (its first preferred language is Spanish) starts with both
-    on, and the trial covers it.
+  - *Settings → Languages* lists English and Español with a switch each. Free, turning
+    one on turns the other off; with Pro (or the trial) both can be on.
+  - *To start* the keyboard takes the phone's language: a Spanish phone (its first
+    preferred language is Spanish) starts in Spanish, any other phone in English. If the
+    phone's preferred languages include both, both start on, which the two-week trial
+    covers.
+  - *When the trial ends* without Pro and two are on, the keyboard keeps the first one in
+    the phone's preferred languages and turns the other off, with a line on the Languages
+    page saying so and that Pro brings it back. Nothing learned in either language is
+    lost.
   - *Both at once.* With two languages on, the keyboard guesses from both word lists
     together, so "see you mañana" needs no switching. The word pairs keep each
     language's words with its own kind: after "el" the Spanish guess wins, after "the"
@@ -67,15 +77,13 @@ Status: Draft
 
 - **What we measure** (`docs/telemetry.md`, anonymous):
   - `languages.enabled` (`set`, for example `en`, `en+es`, `es`): which languages people
-    turn on, sent when they change. Tells us whether to do more languages and which.
+    turn on, sent when they change. Tells us whether to do more languages and which,
+    and how many people turn on a second language (a Pro reason).
   - `guess.fixed` split by the fixed word's language, so we see if Spanish guesses are
     worse than English ones.
 
-- **Open questions for Gabriel:**
-  1. Should Spanish be Pro, as PRODUCT.md says, or free? Free makes Astrotype a full
-     keyboard for Spanish speakers who never pay; Pro keeps the free set as it is.
-  2. On a Spanish phone, should Spanish start on with English, or should the person turn
-     it on?
+- **Open questions for Gabriel:** none left. Answered 3 Nov 2026: both languages at
+  once rather than a switch key; every language free, two at once Pro.
 
 ## Design
 

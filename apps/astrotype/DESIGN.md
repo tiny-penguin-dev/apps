@@ -211,7 +211,7 @@ This is the product, so it gets its own section.
 - **Emoji page** (`features/emoji`, [mockup](features/emoji/design/mockups/emoji.html),
   [screens](features/emoji/design/screens/03-emoji.png)): the emoji key swaps the bar and
   the keys for a sideways grid, five rows high: Frequently used, then Apple's eight
-  categories with their names above them. A strip below has `ABC`, a button per
+  categories, a gap between sections and no titles (they cost a column). A strip below has `ABC`, a button per
   category (the one in view highlighted) and delete. Tapping types the emoji (an open
   word goes in first, with its space; nothing after the emoji). Holding a hand or a
   person opens the skin tones; the pick is kept for that emoji.

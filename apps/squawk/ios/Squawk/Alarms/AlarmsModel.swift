@@ -298,7 +298,7 @@ final class AlarmsModel {
         }
         Telemetry.gauge("alarms.total", value: Double(alarms.count))
         WidgetBridge.publish(alarms: alarms, streak: log.streak)
-        await home?.sync(HomePlanner.plan(alarms, now: Date()))
+        await home?.sync { HomePlanner.plan(self.alarms, now: Date()) }
     }
 
     static let failureMessage = "I couldn't set this alarm. Try again, and if it keeps happening, restart your iPhone."

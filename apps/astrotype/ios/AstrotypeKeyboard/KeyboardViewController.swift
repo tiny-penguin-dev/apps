@@ -45,6 +45,9 @@ final class KeyboardViewController: UIInputViewController {
         let target = ProxyTarget(controller: self)
         target.underlines = { [weak model] in model?.keyboardSettings.underlinesWord ?? false }
         model.target = target
+        // Frequently used emoji and skin tones, in the extension's own files (they don't
+        // sync, features/emoji).
+        model.emojiStore = FileEmojiStore(url: KeyboardFiles.own(KeyboardFiles.emoji))
         self.target = target
 
         let keyboard = KeyboardView(model: model)
@@ -148,6 +151,9 @@ final class KeyboardViewController: UIInputViewController {
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         heightRetries = 0
+        // Our globe key only where iOS draws none (Home button phones); elsewhere the
+        // emoji key takes its place, as on Apple's keyboard (features/emoji).
+        keyboard?.showsGlobe = needsInputModeSwitchKey
         applyHeight(fresh: true)
         health?.appeared()
         followKeyboardAppearance()
@@ -208,6 +214,7 @@ final class KeyboardViewController: UIInputViewController {
         super.viewWillLayoutSubviews()
         let width = view.bounds.width
         guard width > 0, let keyboard else { return }
+        keyboard.showsGlobe = needsInputModeSwitchKey
         let height = applyHeight(fresh: false) ?? keyboard.height(forWidth: width)
         // The keyboard view takes whatever iOS grants, edge to edge (iOS adds the margins
         // around it): the keys sit at the bottom where Apple's are, and shrink if iOS

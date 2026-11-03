@@ -168,6 +168,7 @@ public final class KeySurfaceView: UIView {
         case .symbols: "More symbols"
         case .letters: "Letters"
         case .globe: "Next keyboard"
+        case .emoji: "Emoji"
         case .space: "Space"
         case .returnKey: "Return"
         }
@@ -582,6 +583,7 @@ final class KeyView: UIView {
         case .shift: name = shifted ? "shift.fill" : "shift"
         case .backspace: name = "delete.left"
         case .globe: name = "globe"
+        case .emoji: name = "face.smiling"
         case .returnKey: name = "return.left"
         default: return nil
         }
@@ -596,7 +598,7 @@ final class KeyView: UIView {
         case .symbols: "#+="
         case .letters: "ABC"
         case .space: spaceLabel
-        case .shift, .backspace, .globe, .returnKey: ""
+        case .shift, .backspace, .globe, .emoji, .returnKey: ""
         }
     }
 

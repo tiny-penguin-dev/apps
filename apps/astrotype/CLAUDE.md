@@ -54,7 +54,10 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
       composer emits when a word is final, and `PersonalLearner`, the model as a
       keyboard holds it), `NgramModel` (the word-pair binary, read and built), `Replay`
       (the harness: a practice recording through the engine, first-guess accuracy),
-      `Piece`, `Geometry`, `LearnedWords`, `KeyboardSettings` (the in-keyboard settings
+      `Piece`, `Geometry`, `LearnedWords`, `Emoji` (`EmojiCatalog`, the emoji by category
+      from `Resources/emoji/emoji.tsv`, built by `ml/emoji/build_emoji.py`, cut to what
+      the running iOS draws; `EmojiHistory` and its `EmojiStore`, Frequently used and the
+      skin tones in `emoji.json`), `KeyboardSettings` (the in-keyboard settings
       and their `SettingsStore`). `Sync/` holds the data layer: `Stores` (`JSONFile`,
       `WordStore` and file, memory and mirrored stores for words, settings and the
       personal model, `InstallID`),
@@ -85,7 +88,7 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
       keyboard's views: `KeyboardView` (bar plus keys, the pages, the settings panel;
       owns a `KeyboardModel`), `BarView`, `KeySurfaceView` (touch stream, flashes,
       trails, rings, and the gestures: space slide, backspace swipe and hold, "123"
-      hold), `SettingsPanelView`, `KeyboardModel` (applies the composer's effects to a
+      hold), `SettingsPanelView`, `EmojiPageView` (the emoji page and its `TonePicker`), `KeyboardModel` (applies the composer's effects to a
       `TextTarget`, runs the autospace timer, keeps the settings and the learned words,
       learns, boosts and forgets, and feeds each settled word to the personal model; `TextViewTarget` for a `UITextView`),
       `SyncController` (a model's words and settings in step with a `CloudSync`),
@@ -97,7 +100,7 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
       fixture in `Fixtures/swipes.json`, through `Synth`'s straight-line swipes, and
       `ContextMatcherTests`), `WordContextTests`, `NgramModelTests`, `ReplayTests`
       (recordings made from `Synth` strokes replay to the live result),
-      `GeometryTests`, `LayoutTests`, `KeyboardSettingsTests`, `AppCoreTests` (the
+      `GeometryTests`, `LayoutTests`, `EmojiTests`, `KeyboardSettingsTests`, `AppCoreTests` (the
       `App/` pieces), `ProTests` (`Entitlement`, the trial and Pro files, the memory
       store), `PracticeTests` (the speed test, streak and milestones, the drills on the
       engine, recordings), `SyncTests` (stores, snapshots, `Syncer`, `Backup`), and
@@ -122,7 +125,7 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
 - `features/`: the bigger features after the v2 build, one folder each with a
   `FEATURE.md` (product, design, build and its phases, notes as they ship):
   `smart-matching` (context, personal learning, consented sharing, the harness),
-  `emoji` (the emoji key and page, in design).
+  `emoji` (the emoji key and page, skin tones; built 3 Nov 2026).
 - `design/`: the mockup (`mockups/astrotype.html`, the keyboard in it works), the
   screen captures the design doc links, the icon's SVGs (`icon/`) and
   `appstore/make-screenshots.mjs`, which renders the store screenshots from the mockup

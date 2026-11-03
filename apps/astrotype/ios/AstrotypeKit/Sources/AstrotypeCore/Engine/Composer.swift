@@ -314,7 +314,7 @@ public struct Composer: Sendable {
             lastShiftPress = time
         case .symbol(let c):
             return press(character: c, time: time)
-        case .numbers, .symbols, .letters, .globe:
+        case .numbers, .symbols, .letters, .globe, .emoji:
             return [] // The host handles these: the pages and the next keyboard.
         }
         refreshState()
@@ -337,6 +337,23 @@ public struct Composer: Sendable {
             autoSpaced = true
         } else {
             effects.append(.insert(String(character)))
+            effects += leaveFix()
+        }
+        refreshState()
+        return effects
+    }
+
+    /// An emoji from the emoji page. An open word goes in first with a space after it,
+    /// as space would write it, then the emoji; no space follows the emoji, so another
+    /// can come right after (features/emoji).
+    public mutating func insert(emoji: String, time: TimeInterval) -> [Effect] {
+        var effects: [Effect] = [.haptic(.key)]
+        autoSpaced = false
+        lastSpace = nil
+        if hasOpenWord {
+            effects += commit(trailing: " " + emoji, time: time)
+        } else {
+            effects.append(.insert(emoji))
             effects += leaveFix()
         }
         refreshState()

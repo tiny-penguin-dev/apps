@@ -188,8 +188,9 @@ These shape the design, so they are listed here, not only in the build doc.
   warping, which Kinetica shows decodes in a few milliseconds.
 - **Password fields always switch to Apple's keyboard.** Secure fields never see ours.
 - **No dictation.** Third-party keyboards cannot use Apple's microphone button.
-- **Emoji**: in v1 the globe key switches to Apple's emoji keyboard. An emoji page of
-  our own is a later item.
+- **Emoji**: Astrotype has its own emoji page (`features/emoji`), so nobody switches to
+  Apple's keyboard for one. Where iOS draws its own globe under the keyboard (Face ID
+  iPhones) the emoji key takes our globe's place; Home button phones keep both.
 - **Haptics and key sounds** may need Full Access on some iOS versions. We check in the
   build stage and fall back to visual feedback.
 - **Multitouch works** inside keyboard extensions. Nintype did two-thumb input there in
@@ -224,7 +225,8 @@ items easy:
   behind a flag, so they are not lost and not shipped.
 - More languages, starting with Spanish.
 - Themes and milestones.
-- Own emoji page, next-word suggestions while nothing is being typed.
+- Next-word suggestions while nothing is being typed. Emoji search, emoji suggestions
+  while typing, and Frequently used synced with iCloud (`features/emoji`).
 
 ### Never
 - Needing Full Access to type. It is only ever asked for sync.

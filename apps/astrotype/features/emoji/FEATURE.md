@@ -9,7 +9,8 @@ forth." `PRODUCT.md` has it under Later ("Own emoji page").
 
 ## Product
 
-Status: Draft
+Status: Approved 2026-11-03 (Gabriel in the thread: "Build it"; the open questions
+go as proposed until he says otherwise)
 
 - **The problem:** to type an emoji today you tap our globe key, land on Apple's
   keyboard, find the emoji, then tap the globe again (sometimes twice) to come back. It
@@ -68,7 +69,8 @@ Status: Draft
 
 ## Design
 
-Status: Draft
+Status: Approved 2026-11-03 (Gabriel in the thread: "Build it"; the open questions
+go as proposed until he says otherwise)
 
 - **Mockups:** `design/mockups/emoji.html` (Artifact link:
   https://claude.ai/artifact/L3VnKo9QKPmrWoXr3AtQhP). Tap the emoji key, tap emoji into
@@ -125,7 +127,8 @@ Status: Draft
 
 ## Build
 
-Status: Draft
+Status: Approved 2026-11-03 (Gabriel in the thread: "Build it"; the open questions
+go as proposed until he says otherwise)
 
 - **Approach:** a new page of the shared `KeyboardView`, next to letters, numbers and
   symbols, so the extension and the app's practice fields both get it. The data and the
@@ -166,3 +169,16 @@ Status: Draft
 - **Metrics:** none (see Product).
 - **Last step:** fold this feature into `PRODUCT.md` (Emoji under platform limits, Later)
   and `DESIGN.md` (The keyboard, the bottom row) with the screenshots.
+
+## Notes as it shipped
+
+- 3 Nov 2026: both phases in one PR. `EmojiCatalog` reads `Resources/emoji/emoji.tsv`
+  (1,923 emoji, 332 with skin tones, 62 KB) built by `ml/emoji/build_emoji.py` from
+  Unicode's `emoji-test.txt` (Emoji 18.0). The version table keeps a step behind:
+  iOS 18.0 to 18.3 get Emoji 15.1, iOS 18.4 to 26 get 16.0, 27 gets 17.0, so no emoji
+  shows as a box. `EmojiHistory` (counts halve every 30 days, 100 kept, 30 shown, a
+  starter row until then) lives in `emoji.json` in the extension's own files. The
+  grid is `EmojiPageView` (a horizontal compositional layout, five rows, headers per
+  section) with `TonePicker`; `KeyboardView.showsGlobe` comes from
+  `needsInputModeSwitchKey`. Section headers use Apple's capitalised names
+  ("Smileys & People").

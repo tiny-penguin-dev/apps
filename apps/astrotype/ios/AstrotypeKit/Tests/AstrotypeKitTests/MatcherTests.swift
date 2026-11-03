@@ -172,6 +172,16 @@ import Testing
         #expect(composer.state.openWord == "coffee")
     }
 
+    /// The tap need not land exactly while the swipe is over its place: a little early
+    /// (the finger still on "e") or a little late (already past "l") is still "hello".
+    @Test func aTapInsideASwipeMayBeALittleEarlyOrLate() {
+        for time in [0.22, 0.3, 0.5] {
+            var composer = Synth.composer()
+            Synth.play(&composer, [.swipe("helo", id: 1, from: 0, to: 0.6), .tap("l", id: 2, at: time)])
+            #expect(composer.state.openWord == "hello", "tap at \(time): \(composer.state.bar)")
+        }
+    }
+
     /// Two taps that land within the swap window are read in the order that spells a word.
     @Test func tapsThatLandTogetherAreTriedBothWays() {
         var composer = Synth.composer()

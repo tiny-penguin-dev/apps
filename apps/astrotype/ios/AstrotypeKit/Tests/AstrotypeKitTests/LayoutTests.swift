@@ -61,7 +61,7 @@ import Testing
     @Test func wideKeysGetAllOfTheirOwnRoom() {
         // Nearest by edge, not by middle: the ends of a wide key are that key.
         let layout = Layout.qwerty(width: 390)
-        for key in [Key.space, .shift, .backspace, .emoji, .returnKey] {
+        for key in [Key.space, .shift, .backspace, .emoji] {  // return: spaceReachesIntoReturn
             let f = layout.frame(of: key)!
             #expect(layout.key(at: CGPoint(x: f.minX + 1, y: f.midY)) == key, "\(key)")
             #expect(layout.key(at: CGPoint(x: f.maxX - 1, y: f.midY)) == key, "\(key)")

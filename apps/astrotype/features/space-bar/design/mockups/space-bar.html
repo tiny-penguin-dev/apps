@@ -101,15 +101,15 @@ body{background:var(--stage);color:var(--ink);font-family:var(--font);
 <div class="stage">
   <nav class="picker" aria-label="Options">
     <h1>Wider space</h1>
-    <p>Three ways to give space more room. Tap the emoji key (or hold <b>123</b> where it's gone). Widths are for the phone shown.</p>
-    <small>Option</small>
-    <button data-opt="today">Today: emoji on the row</button>
-    <button data-opt="bar">A. Emoji in the guesses bar <span class="rec">Pick</span></button>
-    <button data-opt="hold">B. Only under a held 123</button>
+    <p>Where iOS draws no globe of its own (Home button iPhones, the iPhone Duo), our globe moves into the guesses bar and space gets its room. Emoji stays next to 123. Widths are for the phone shown.</p>
+    <small>Screen</small>
+    <button data-opt="today">Today: globe on the row</button>
+    <button data-opt="bar">Globe in the bar <span class="rec">Gabriel's pick</span></button>
+    <button data-opt="off">Guesses bar turned off</button>
     <small>Phone</small>
     <div class="seg" id="phones">
+      <button data-phone="se">Our globe (SE, Duo)</button>
       <button data-phone="faceid">Face ID iPhone</button>
-      <button data-phone="se">Home button (SE)</button>
     </div>
     <small>Theme</small>
     <div class="seg" id="themes">
@@ -130,18 +130,18 @@ const I = {
 };
 // Space bar widths in points, from Layout.qwerty's numbers (fnKey 1.33 units, return 2.66).
 const WIDTH = {
-  faceid:{today:186, bar:237, hold:237},
-  se:{today:126, bar:224, hold:175}
+  faceid:{today:186, bar:186, off:186},
+  se:{today:126, bar:175, off:126}
 };
 const NOTES = {
-  today:{faceid:`<b>Today.</b> 123, emoji, space, return. iOS draws its own globe under the keyboard.`,
-         se:`<b>Today, Home button phone.</b> iOS draws no globe here, so ours sits beside emoji and space is short.`},
-  bar:{faceid:`<b>A. Emoji in the bar.</b> The emoji key moves to the left end of the guesses bar. The row is 123, space, return, so space is about <b>27% wider</b>.`,
-       se:`<b>A, Home button phone.</b> Emoji on the left of the bar, our globe on the right. Space is about <b>78% wider</b>.`},
-  hold:{faceid:`<b>B. Only under a held 123.</b> No emoji key anywhere: hold <b>123</b> and tap Emoji at the top of the panel. Same row as A.`,
-        se:`<b>B, Home button phone.</b> Apple asks for a visible next-keyboard key on these phones, so our globe stays on the row. Emoji is under a held 123.`}
+  today:{faceid:`<b>Face ID iPhone.</b> iOS draws its own globe under the keyboard, so ours never shows and nothing changes here.`,
+         se:`<b>Today.</b> 123, globe, emoji, space, return. Space is short.`},
+  bar:{faceid:`<b>Face ID iPhone.</b> iOS draws its own globe under the keyboard, so ours never shows and nothing changes here.`,
+       se:`<b>Globe in the bar.</b> Our globe sits at the bar's left end in every state. The row is 123, emoji, space, return, so space is about <b>39% wider</b>.`},
+  off:{faceid:`<b>Face ID iPhone.</b> iOS draws its own globe under the keyboard, so ours never shows and nothing changes here.`,
+       se:`<b>Bar turned off.</b> With no bar to hold it, the globe goes back next to 123, as today. Same when the guesses sit in a column (wide screens).`}
 };
-let opt="bar", phone="faceid", panel=false, toast="";
+let opt="bar", phone="se", panel=false, toast="";
 
 function letters(){
   const r=["qwertyuiop","asdfghjkl","zxcvbnm"];
@@ -152,18 +152,18 @@ function letters(){
 }
 function kb(){
   const se=phone==="se";
-  const rowEmoji = opt==="today";
-  const rowGlobe = se && (opt==="today"||opt==="hold");
-  const barEmoji = opt==="bar";
+  const rowEmoji = true;
+  const rowGlobe = se && opt!=="bar";
+  const barEmoji = false;
   const barGlobe = se && opt==="bar";
+  const showBar = opt!=="off";
   const w=WIDTH[phone][opt], base=WIDTH[phone].today;
-  const grow = opt==="today" ? "" : ` <span style="color:var(--accent)">+${Math.round((w/base-1)*100)}%</span>`;
-  const bar = `<div class="bar">
-      ${barEmoji?`<button class="barkey new" data-act="emoji" aria-label="Emoji">${I.smiley}</button>`:""}
+  const grow = w===base ? "" : ` <span style="color:var(--accent)">+${Math.round((w/base-1)*100)}%</span>`;
+  const bar = showBar?`<div class="bar">
+      ${barGlobe?`<button class="barkey new" aria-label="Next keyboard">${I.globe}</button>`:""}
       <div class="guesses"><span class="g top">morning</span><span class="g">more</span><span class="g">moving</span></div>
       <span class="notit">Not it? ${I.pencil}</span>
-      ${barGlobe?`<button class="barkey new" aria-label="Next keyboard">${I.globe}</button>`:""}
-    </div>`;
+    </div>`:"";
   const bottom = `<div class="krow">
       <button class="key fn" data-act="hold" aria-label="Numbers, hold for settings">123</button>
       ${rowGlobe?`<button class="key fn" aria-label="Next keyboard">${I.globe}</button>`:""}
@@ -172,10 +172,6 @@ function kb(){
       <button class="key ret">return</button></div>`;
   const pnl = panel?`<div class="panel">
       <div class="head">Keyboard <button class="done" data-act="close">Done</button></div>
-      <div class="jump">
-        <button class="new" data-act="emoji">${I.smiley} Emoji</button>
-        ${se&&opt!=="hold"?"":""}
-      </div>
       <div class="tiles"><div class="tile on">Autospace</div><div class="tile on">Guesses bar</div><div class="tile on">Haptics</div><div class="tile">Trails</div></div>
       <div class="sl"></div><div class="sl"></div>
     </div>`:"";
@@ -206,7 +202,7 @@ document.addEventListener("click",e=>{
 // Hold 123 for the panel (or click it in the mockup when the emoji key is gone).
 let t;
 document.addEventListener("pointerdown",e=>{const b=e.target.closest('[data-act="hold"]');if(b)t=setTimeout(()=>{panel=true;render()},450)});
-document.addEventListener("pointerup",e=>{clearTimeout(t);const b=e.target.closest('[data-act="hold"]');if(b&&opt==="hold"&&!panel){panel=true;render()}});
+document.addEventListener("pointerup",e=>{clearTimeout(t);const b=e.target.closest('[data-act="hold"]');});
 document.querySelector('[data-theme="auto"]').setAttribute("aria-pressed","true");
 const q=new URLSearchParams(location.search);
 if(q.get("opt"))opt=q.get("opt"); if(q.get("phone"))phone=q.get("phone"); if(q.get("panel"))panel=true;

@@ -136,9 +136,10 @@ This is the product, so it gets its own section.
   2 Nov 2026).
 - **Layout:** Apple's QWERTY proportions, so muscle memory carries over. Rows of 10, 9
   and 7 letters, shift and backspace on the third row, `123`, emoji, space and return on
-  the fourth, as on Apple's (iOS draws its globe under the keyboard). On a Home button
-  phone, where iOS draws none, our globe sits before the emoji key and space is shorter
-  (`features/emoji`, 3 Nov 2026). Space reads "Astrotype" when idle, like Apple's reads the language.
+  the fourth, as on Apple's (iOS draws its globe under the keyboard). Where iOS draws
+  none (a Home button phone, the iPhone Duo), our globe sits at the left end of the
+  guesses bar, so space keeps its room; with the bar off or in a column it goes back
+  before the emoji key (`features/space-bar`, 3 Nov 2026). Space reads "Astrotype" when idle, like Apple's reads the language.
 - **Size:** every key sits where Apple's does, so muscle memory carries over: the top
   of our top row is the top of Apple's, and the bottom of our bottom row is the bottom
   of Apple's (measured on iOS 26: rows spanning 213 pt on a phone with 7 pt under them,

@@ -54,7 +54,8 @@ Squawk is in the **Build** stage. Read `PRODUCT.md`, `DESIGN.md` and `BUILD.md` 
   `HomePlanner` turns them into Home automations with the same rules as rings.
   `Squawk/Home/`: `HomeAccess` (permission, hub, devices; created lazily since it shows
   the iOS prompt) and `HomeSync`, the only code that writes to HomeKit: action sets plus
-  triggers named "Squawk · …", remembered in UserDefaults and re-synced on every
+  triggers named "Squawk · …" (action sets show as scenes in the Home app, so steps that
+  set the same things share one), remembered in UserDefaults and re-synced on every
   reschedule. HomeKit refuses changes while the app is in the background ("Request not
   handled", e.g. after "I'm up" or Snooze on the lock screen), so `HomeAccess` holds that
   sync and runs it, with a fresh plan, the next time the app is active. Sunrise lights (`features/sunrise-lights/FEATURE.md`) are a `HomeAction`

@@ -133,7 +133,37 @@ Status: Approved 2026-11-03 (Gabriel asked to merge it)
 
 ## Build
 
-Status: Not started
+Status: Approved 2026-11-03 (Gabriel: "Merge and build")
 
-- **Last step:** fold this into `PRODUCT.md` and `DESIGN.md` (screen 9, the new pages
-  and the panel note under "Not drawn yet").
+- **Approach:** screens only, no Core change. `SettingsView` becomes the main page
+  and gains `SettingsPage` (typing, appearance, words, privacy, about); each page is a
+  view in `Astrotype/Settings/SettingsPages.swift`. On a phone the open page is pushed
+  with `navigationDestination(item:)`; at 700 pt and wider the main page is a 340 pt
+  sidebar with the page beside it. The same `open` state drives both, so folding or
+  unfolding keeps the page open. About became a small page of its own (version and the
+  Tatoeba credit).
+- **Core pieces (design system, `AstrotypeUI`):** `SettingsGroup` (named so, not
+  `Group`, which SwiftUI already has), `SettingsRow`, `SettingsToggle`, `SettingsLink`,
+  `SettingsSlider`, `GroupFootnote`, `StatusTile`, `IconTile`, `KeyboardPreview`, in
+  `SettingsComponents.swift`, plus `SectionLabel(_:pro:)` and the `danger` and `slate`
+  tokens. Called like:
+
+  ```swift
+  SectionLabel("Gestures")
+  SettingsGroup {
+      SettingsToggle("Slide on space", subtitle: "Move the cursor", symbol: "arrow.left.and.right",
+                     tint: Theme.left, isOn: $model.keyboardSettings.spaceSlide)
+      SettingsLink("Learned words", symbol: "book.closed", tint: Theme.mint, value: "214") { open() }
+  }
+  GroupFootnote("…")
+  ```
+
+  The panel's `QuickTile` stays private to `SettingsPanelView` until something else needs it.
+- **Phases:** one PR: the components, the five pages, and the new panel.
+  Done when: Settings shows the tiles and links; each page opens; the height slider
+  moves the preview; on a wide screen the sidebar and page sit side by side and folding
+  keeps the page; holding 123 shows four tiles and four sliders, plus Split on a wide
+  screen; at the largest text size rows wrap and the tiles go two by two.
+- **Risks:** no Xcode in the container, so the build is checked on CI.
+- **Metrics:** none.
+- **Last step:** folded into `DESIGN.md` (screen 9, the design system and the panel note).

@@ -114,15 +114,25 @@ public extension Row where Trailing == EmptyView {
 /// Small caps above a group of rows.
 public struct SectionLabel: View {
     var text: String
-    public init(_ text: String) { self.text = text }
+    var pro: Bool
+    /// `pro` puts the PRO badge after the label, for a group that is all Pro.
+    public init(_ text: String, pro: Bool = false) {
+        self.text = text
+        self.pro = pro
+    }
 
     public var body: some View {
-        Text(text.uppercased())
-            .font(.system(.caption, design: .rounded, weight: .black))
-            .tracking(0.8)
-            .foregroundStyle(Theme.muted)
-            .padding(.leading, Theme.Space.xs)
-            .frame(maxWidth: .infinity, alignment: .leading)
+        HStack(spacing: 6) {
+            Text(text.uppercased())
+                .font(.system(.caption, design: .rounded, weight: .black))
+                .tracking(0.8)
+                .foregroundStyle(Theme.muted)
+            if pro { ProBadge() }
+        }
+        .padding(.leading, Theme.Space.xs)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isHeader)
     }
 }
 

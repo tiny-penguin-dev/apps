@@ -19,7 +19,8 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
     `App/` (`AppModel`, the only thing views talk to; `AppEnvironment`, the one place
     real services are named; `LiveMetrics` on `Telemetry`), `Onboarding/`
     (`TurnOnView`, `SyncView`, `TryItView`, and `SetupPage`, their shared shape),
-    `HelloView`, `HomeView`, `SettingsView`, `LearnedWordsView`, `SharingView` ("What
+    `HelloView`, `HomeView`, `Settings/` (`SettingsView`, the main page with its
+    `SettingsPage`s, and `SettingsPages`, one view per page), `LearnedWordsView`, `SharingView` ("What
     gets shared": the words waiting to go up, drawn on the keys), `PracticeView`,
     `ProView` (the subscription screen, StoreKit's `SubscriptionStoreView`),
     `TrialOverView` (the sheet, once), `MilestoneView` (the sheet, once each),

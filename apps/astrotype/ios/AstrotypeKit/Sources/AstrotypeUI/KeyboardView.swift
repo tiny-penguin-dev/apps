@@ -187,6 +187,7 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         surface.spaceSlideEnabled = model.keyboardSettings.spaceSlide
         surface.backspaceSwipeEnabled = model.keyboardSettings.backspaceSwipe
         panel?.allowsSplit = model.entitlement.allows(.splitLayout)
+        panel?.showsSplit = model.layout.isWide
         if model.layout.split != (model.splitOnWide && model.layout.isWide)
             || model.layout.extraLetters != (model.layout.split && extraLetters) || barPlace(for: model.layout) != place
             || height != asked { setNeedsLayout() }
@@ -208,6 +209,7 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         guard panel == nil else { return }
         let panel = SettingsPanelView(settings: model.keyboardSettings)
         panel.allowsSplit = model.entitlement.allows(.splitLayout)
+        panel.showsSplit = model.layout.isWide
         panel.onChange = { [weak self] settings in self?.model.keyboardSettings = settings }
         panel.onDone = { [weak self] in self?.hideSettings() }
         panel.frame = surface.frame

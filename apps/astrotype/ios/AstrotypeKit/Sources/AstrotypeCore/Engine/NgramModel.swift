@@ -115,11 +115,30 @@ public struct NgramModel: Sendable, Equatable {
 
     /// The most likely words after `previous`, best first, for practice prompts and tests.
     public func likelyWords(after previous: String, limit: Int) -> [String] {
+        topNext(after: previous, limit: limit).map(\.word)
+    }
+
+    /// The `limit` most likely words after `previous` with `log P(word | previous)`,
+    /// best first (ties by vocabulary order). One pass over the previous word's pairs,
+    /// keeping the best few, so even "the" (thousands of pairs) costs microseconds:
+    /// the bar asks after every word (features/next-word).
+    public func topNext(after previous: String, limit: Int) -> [(word: String, logProbability: Float)] {
         guard limit > 0, let p = id(of: previous) else { return [] }
-        let range = Int(offsets[p])..<Int(offsets[p + 1])
-        return range.sorted { costs[$0] < costs[$1] || (costs[$0] == costs[$1] && nexts[$0] < nexts[$1]) }
-            .prefix(limit)
-            .map { words[Int(nexts[$0])] }
+        // The best so far, sorted by (cost, next id); the worst kept is last.
+        var best: [(cost: UInt8, next: UInt32)] = []
+        best.reserveCapacity(limit + 1)
+        for i in Int(offsets[p])..<Int(offsets[p + 1]) {
+            let entry = (cost: costs[i], next: nexts[i])
+            if best.count == limit, let worst = best.last,
+               entry.cost > worst.cost || (entry.cost == worst.cost && entry.next > worst.next) { continue }
+            var at = best.count
+            while at > 0, entry.cost < best[at - 1].cost || (entry.cost == best[at - 1].cost && entry.next < best[at - 1].next) {
+                at -= 1
+            }
+            best.insert(entry, at: at)
+            if best.count > limit { best.removeLast() }
+        }
+        return best.map { (words[Int($0.next)], -Float($0.cost) / scale) }
     }
 
     // MARK: Building

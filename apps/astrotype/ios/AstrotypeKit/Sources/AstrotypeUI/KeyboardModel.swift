@@ -83,7 +83,7 @@ public final class KeyboardModel {
     public var keyboardSettings: KeyboardSettings {
         didSet {
             guard keyboardSettings != oldValue else { return }
-            composer.settings = field.composerSettings(keyboardSettings.composerSettings(from: composer.settings))
+            applyComposerSettings()
             applyPersonalSettings()
             refreshLanguage()
             settingsChanged = Date()
@@ -105,9 +105,29 @@ public final class KeyboardModel {
     public var field: Field = .text {
         didSet {
             guard field != oldValue else { return }
-            composer.settings = field.composerSettings(keyboardSettings.composerSettings(from: composer.settings))
+            applyComposerSettings()
+            composer.setContext(before: target?.textBeforeCursor)
             onChange?()
         }
+    }
+
+    /// Whether the bar may offer next words here at all: the app's practice fields turn
+    /// it off, since they measure typing and record every word's touches.
+    public var offersNextWords = true {
+        didSet {
+            guard offersNextWords != oldValue else { return }
+            applyComposerSettings()
+            composer.setContext(before: target?.textBeforeCursor)
+            onChange?()
+        }
+    }
+
+    /// The engine's settings from the person's and the field's: next words only where
+    /// the field learns (no guesses in passwords, codes and addresses, features/next-word).
+    private func applyComposerSettings() {
+        var settings = field.composerSettings(keyboardSettings.composerSettings(from: composer.settings))
+        settings.nextWords = settings.nextWords && learningAllowed && offersNextWords
+        composer.settings = settings
     }
 
     /// Whether the field being typed in may teach the keyboard: never an address, a
@@ -338,9 +358,20 @@ public final class KeyboardModel {
         emojiStore?.save(emojiHistory)
     }
 
+    /// A guess tapped on the bar: a guess for the open word, another reading of the
+    /// last word (FIX), or a next word.
     public func choose(guess index: Int) {
         if case .fix(_, let chosen) = composer.state.bar, chosen != index { onFix?() }
         apply(composer.choose(guess: index, time: now))
+    }
+
+    /// Another reading of the last word, picked from the bar's fix row while next words
+    /// show (features/guesses-bar): `reading` indexes `Bar.next`'s `fix`.
+    public func chooseFix(reading: Int) {
+        guard case .next(_, let fix, let chosen) = composer.state.bar,
+              fix.indices.contains(reading), reading != chosen else { return }
+        onFix?()
+        apply(composer.chooseFix(reading: reading))
     }
 
     /// A slide on the space bar: the open word goes in, then the cursor moves.
@@ -396,7 +427,7 @@ public final class KeyboardModel {
 
     private func barWord(at index: Int) -> String? {
         switch composer.state.bar {
-        case .guesses(let words, _), .fix(let words, _):
+        case .guesses(let words, _), .fix(let words, _), .next(let words, _, _):
             words.indices.contains(index) ? words[index].lowercased() : nil
         case .idle, .correcting:
             nil

@@ -62,10 +62,20 @@ public struct KeyboardSettings: Codable, Sendable, Equatable {
     /// Apple's does; other heights move the top row and keep the bottom row in place.
     /// The guesses bar adds to the height either way (Gabriel, 3 Nov 2026).
     public var keyboardHeight = 1.0
+    /// After each word, offer the likely next words on the bar; a tap writes one
+    /// (features/next-word). On by default.
+    public var nextWords = true
     /// The languages the person turned on, as codes ("en", "es"), in their order. Nil
     /// follows the phone (`phoneLanguages`): a Spanish phone types Spanish
     /// (features/languages). Two at once is Pro; `activeLanguages` says which apply.
     public var languages: [String]?
+    /// With two languages on, guess from both for every word, for people who mix them
+    /// in one sentence. Off by default: once a sentence shows its language, the rest of
+    /// it keeps to that one (`Composer.Settings.mixesLanguages`, Gabriel 3 Nov 2026).
+    public var mixesLanguages = false
+    /// A tiny readout of the keyboard's memory in a corner of the keys, for watching it
+    /// on a phone (Settings → Debug, Gabriel 3 Nov 2026). Off by default.
+    public var showsStats = false
 
     /// `keyboardHeight` kept in its range, for `Layout.qwerty(scale:)`.
     public var heightScale: CGFloat {
@@ -94,7 +104,10 @@ public struct KeyboardSettings: Codable, Sendable, Equatable {
         wordStrictness = try c.decodeIfPresent(Double.self, forKey: .wordStrictness) ?? 0.8
         splitStrictness = try c.decodeIfPresent(Double.self, forKey: .splitStrictness) ?? 0.8
         keyboardHeight = try c.decodeIfPresent(Double.self, forKey: .keyboardHeight) ?? 1.0
+        nextWords = try c.decodeIfPresent(Bool.self, forKey: .nextWords) ?? true
         languages = try c.decodeIfPresent([String].self, forKey: .languages)
+        mixesLanguages = try c.decodeIfPresent(Bool.self, forKey: .mixesLanguages) ?? false
+        showsStats = try c.decodeIfPresent(Bool.self, forKey: .showsStats) ?? false
     }
 
     /// The bundled languages among the phone's preferred ones (`Locale.preferredLanguages`,
@@ -130,6 +143,8 @@ public struct KeyboardSettings: Codable, Sendable, Equatable {
         out.autospaceDelay = autospace ? min(max(autospaceDelay, Self.delayRange.lowerBound), Self.delayRange.upperBound) : nil
         out.strictness = min(max(wordStrictness, 0), 1)
         out.splitStrictness = min(max(splitStrictness, 0), 1)
+        out.nextWords = nextWords
+        out.mixesLanguages = mixesLanguages
         return out
     }
 }

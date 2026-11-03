@@ -16,6 +16,8 @@ public enum KeyboardFiles {
     public static let status = "keyboard-status.json"
     /// The keyboard's memory per session, written for the app to send (`KeyboardHealth`).
     public static let health = "keyboard-health.json"
+    /// The keyboard's last memory readings, for the app's Debug page (`KeyboardDebug`); never sent.
+    public static let debug = "keyboard-debug.json"
     /// Whether "Share anonymous usage data" is on, written by the app (`UsageSharing`).
     public static let usage = "usage-sharing.json"
     /// When the Pro trial started (`TrialStore`).

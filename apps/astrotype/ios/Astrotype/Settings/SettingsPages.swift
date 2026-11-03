@@ -22,6 +22,7 @@ struct SettingsPageView: View {
                 case .words: WordsSettings(model: model, path: $path)
                 case .privacy: PrivacySettings(model: model, path: $path)
                 case .about: AboutSettings()
+                case .debug: DebugSettings(model: model)
                 }
             }
             .padding(.horizontal, Theme.Space.gutter)
@@ -43,6 +44,7 @@ struct SettingsPageView: View {
         case .words: "Your words"
         case .privacy: "Privacy and sharing"
         case .about: "About"
+        case .debug: "Debug"
         }
     }
 }
@@ -74,6 +76,8 @@ private struct TypingSettings: View {
                            accessibilityLabel: "Autospace wait")
                 .opacity(model.keyboardSettings.autospace ? 1 : 0.45)
                 .disabled(!model.keyboardSettings.autospace)
+            SettingsToggle("Guess the next word", subtitle: "Likely next words in the bar after each word. A tap writes one.",
+                           symbol: "text.append", tint: Theme.mint, isOn: $model.keyboardSettings.nextWords)
             SettingsSlider("Real words", value: $model.keyboardSettings.wordStrictness, in: 0...1, step: 0.01,
                            low: "As tapped", high: "Words only", valueText: percent(model.keyboardSettings.wordStrictness))
             SettingsSlider("Split words", value: $model.keyboardSettings.splitStrictness, in: 0...1, step: 0.01,
@@ -117,8 +121,16 @@ private struct LanguagesSettings: View {
             }
         }
         GroupFootnote(allowsTwo
-                      ? "With two on, Astrotype guesses from both. No switching."
+                      ? "With two on, the first word can be either. Once a word shows which language you're writing, the rest of the sentence keeps to it. No switching."
                       : "One language at a time: turning one on turns the other off. Pro types in two at once.")
+        if allowsTwo, active.count > 1 {
+            SettingsGroup {
+                SettingsToggle("Mix in one sentence", subtitle: "Guess from both languages for every word",
+                               symbol: "shuffle", tint: Theme.sun, isOn: $model.keyboardSettings.mixesLanguages)
+            }
+            .padding(.top, Theme.Space.m)
+            GroupFootnote("For when you switch languages mid-sentence. Off keeps each sentence to one language, so words from the other one don't sneak in.")
+        }
         if !allowsTwo, model.languageOffWithoutPro == nil {
             Button("See Pro") { path.append(.pro) }.buttonStyle(.small)
         }

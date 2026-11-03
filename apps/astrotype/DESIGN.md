@@ -108,7 +108,7 @@ code (`AstrotypeKit/Theme`, `docs/building.md` rule 1). Screens only use these.
 | 9 | Settings | Status tiles (keyboard, sync, Pro), then a page per area: Typing (two thumbs, autospace, real words, split words, gestures), Appearance (height with a live preview, guesses bar, trails, haptics, underline, wide-screen layout), Languages (a switch per language, features/languages), Your words, Privacy and sharing, About. On wide screens the main page is a sidebar. From `features/settings` (3 Nov 2026). | [main](features/settings/design/screens/01-settings.png), [typing](features/settings/design/screens/02-typing.png), [appearance](features/settings/design/screens/03-appearance.png), [wide](features/settings/design/screens/08-settings-wide.png) |
 | 10 | Astrotype Pro | A gold star tile with the two trails, four perks, yearly and monthly, "Start 14 days free". | [10](design/screens/10-pro.png) |
 | 11 | Trial over | The keyboard faded, with z's. What is resting, what still works, the person's own best speed as the reason to keep Pro. | [11](design/screens/11-trial-over.png) |
-| 12 | Typing in Messages | The keyboard in another app. Bar in "Fix" mode after a commit, the open word underlined in the field. | [12](design/screens/12-messages.png), [dark](design/screens/12-messages-dark.png), [small](design/screens/12-messages-small.png), [wide](design/screens/12-messages-wide.png) |
+| 12 | Typing in Messages | The keyboard in another app. The bar after a commit (the three-part bar is in features/guesses-bar), the open word underlined in the field. | [12](design/screens/12-messages.png), [dark](design/screens/12-messages-dark.png), [small](design/screens/12-messages-small.png), [wide](design/screens/12-messages-wide.png) |
 | 13 | Free keyboard | After the trial: taps and one-finger swipes. A second thumb shows "Two thumbs is in Astrotype Pro" in the bar instead of typing. | [13](design/screens/13-free.png) |
 
 Not drawn yet (simple, same style): the numbers and symbols pages, the in-keyboard
@@ -155,18 +155,34 @@ This is the product, so it gets its own section.
   of a split keyboard, the sides of a wide one) the guesses stack there, and the keys
   get the whole height. Otherwise (a phone) they are a bar above the keys, which
   Settings ("Guesses bar") can turn off to give the keys its room.
-- **The bar** (or column) has four states:
+- **The bar** (or column) has three parts that never move (features/guesses-bar, where
+  the before and after screenshots are): a 44 pt key at the left end (the globe, where
+  our keyboard draws one, features/space-bar; ✕ while fixing), the words in the middle,
+  packed together and centred on the keyboard, and a 44 pt pencil ("Not it?") at the
+  right end. The middle holds one kind of thing at a time. When three words don't fit
+  whole, the outer ones drop (never the chosen one) rather than cut a word. In a column
+  the words stack and the pencil sits under them; the globe goes back next to 123.
+  The middle's states:
   - *Idle:* a short note ("Both thumbs, one word") or, with nothing to say, empty.
-  - *Open word:* up to three guesses, the first one in a white pill. That one is what
-    space writes. Tapping any guess writes it.
-  - *Fix:* right after a commit, the label FIX and the other readings of the last word.
-    Tap one and it replaces the word just written. Any new tap or swipe clears it.
-  - *Not it?* (features/missed-words): after a swiped word (open, FIX, or idle right
-    after it), a small "Not it?" with a pencil at the end of the bar (under the guesses
-    in a column). Tapped, the bar becomes a field: ✕, the word typed so far ("What did
-    you mean?" while empty), and a Save pill. Taps type exact letters into it,
-    backspace edits, space or return saves; Save replaces the swiped word and squeezes
-    the bar like a commit.
+  - *Open word:* up to three guesses, the chosen one in a white pill in the centre with
+    the others either side. That one is what space writes. Tapping any guess writes it.
+  - *Fix:* right after a commit, when there are no next words (or "Guess the next word"
+    is off): the word just written in the pill, its other readings either side. Tap one
+    and it replaces the word just written. Any new tap or swipe clears it.
+  - *Next:* with no word open, up to three likely next words, in the plain guess style
+    (no pill: space does not write them). A tap writes one with a space after it, and
+    the bar guesses the word after that. At a sentence start they are capitalised ("I",
+    "The"). Nothing after a comma, inside a word, in fields that do not learn, or in
+    the app's practice fields. Any tap or swipe on the keys clears it. New guesses rise
+    in over 0.25 s (at once with Reduce Motion). From features/next-word.
+  - *Fix row:* when the last word has other readings, the pencil opens them: ✕ at the
+    left end, the readings in the middle, and "Type it" last (outlined). A reading
+    replaces the last word and the bar goes back to next words; ✕ goes back unchanged.
+  - *Not it?* (features/missed-words): after a swiped word (open, FIX, next words or
+    idle right after it), "Type it", or the pencil when there are no readings to pick,
+    turns the bar into a field: ✕, the word typed so far ("What did you mean?" while
+    empty), and a Save pill. Taps type exact letters into it, backspace edits, space or
+    return saves; Save replaces the swiped word and squeezes the bar like a commit.
 - **Pieces:** a touch is a tap if it lifts within 18 pt of where it landed and crossed no
   other key, otherwise a swipe. Taps flash the key in the thumb's color and leave a ring
   that pings out. Swipes draw a 9 pt rounded trail in the thumb's color that fades over a
@@ -195,7 +211,7 @@ This is the product, so it gets its own section.
 - **Emoji page** (`features/emoji`, [mockup](features/emoji/design/mockups/emoji.html),
   [screens](features/emoji/design/screens/03-emoji.png)): the emoji key swaps the bar and
   the keys for a sideways grid, five rows high: Frequently used, then Apple's eight
-  categories with their names above them. A strip below has `ABC`, a button per
+  categories, a gap between sections and no titles (they cost a column). A strip below has `ABC`, a button per
   category (the one in view highlighted) and delete. Tapping types the emoji (an open
   word goes in first, with its space; nothing after the emoji). Holding a hand or a
   person opens the skin tones; the pick is kept for that emoji.

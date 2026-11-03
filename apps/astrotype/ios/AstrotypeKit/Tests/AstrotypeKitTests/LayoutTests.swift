@@ -58,6 +58,40 @@ import Testing
         #expect(layout.key(at: CGPoint(x: 195, y: layout.height - 1)) == .space)
     }
 
+    @Test func wideKeysGetAllOfTheirOwnRoom() {
+        // Nearest by edge, not by middle: the ends of a wide key are that key.
+        let layout = Layout.qwerty(width: 390)
+        for key in [Key.space, .shift, .backspace, .emoji] {  // return: spaceReachesIntoReturn
+            let f = layout.frame(of: key)!
+            #expect(layout.key(at: CGPoint(x: f.minX + 1, y: f.midY)) == key, "\(key)")
+            #expect(layout.key(at: CGPoint(x: f.maxX - 1, y: f.midY)) == key, "\(key)")
+        }
+    }
+
+    @Test func spaceReachesIntoReturn() {
+        let layouts = [
+            Layout.qwerty(width: 390), Layout.qwerty(width: 430, globe: true),
+            Layout.qwerty(width: 390, page: .numbers),
+            Layout.qwerty(width: 951), Layout.qwerty(width: 951, split: true),
+        ]
+        for layout in layouts {
+            let enter = layout.frame(of: .returnKey)!
+            let y = enter.midY
+            // A tap that just catches return's left edge is a space...
+            #expect(layout.key(at: CGPoint(x: enter.minX + Layout.spaceReach - layout.gap - 1, y: y)) == .space)
+            // ...but return's own middle and right are still return, and look the same.
+            #expect(layout.key(at: CGPoint(x: enter.minX + Layout.spaceReach + 1, y: y)) == .returnKey)
+            #expect(layout.key(at: CGPoint(x: enter.midX, y: y)) == .returnKey)
+            #expect(layout.key(at: CGPoint(x: enter.maxX - 1, y: y)) == .returnKey)
+        }
+        // Where space isn't beside return (a web address, a search's "."), return keeps its edge.
+        for bottom in [Layout.BottomRow.url, .webSearch] {
+            let layout = Layout.qwerty(width: 390, bottom: bottom)
+            let enter = layout.frame(of: .returnKey)!
+            #expect(layout.key(at: CGPoint(x: enter.minX + 1, y: enter.midY)) == .returnKey, "\(bottom)")
+        }
+    }
+
     @Test func theKeyboardHeightMovesTheTopRowOnly() {
         let apple = Layout.qwerty(width: 390)
         let taller = Layout.qwerty(width: 390, scale: 1.2)

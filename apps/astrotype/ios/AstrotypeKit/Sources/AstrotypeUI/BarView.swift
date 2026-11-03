@@ -2,22 +2,33 @@
 import AstrotypeCore
 import UIKit
 
-/// The guesses, in their states (DESIGN.md "The bar"): an idle note, the guesses
-/// for the open word with the chosen one in a pill, FIX with the other readings of
-/// the word just written, or the "Not it?" field where the word meant is typed
-/// (features/missed-words). After a swiped word a "Not it?" button sits at the end. Holding a guess and sliding up boosts it, down forgets it
-/// (DESIGN.md "Learning"). A bar above the keys (`axis` horizontal) or a column beside
-/// them (vertical: the middle of a split keyboard, the side of a wide one); in a column,
-/// touches between the guesses fall through to the keys under it.
+/// The guesses, in three parts that never move (DESIGN.md "The bar",
+/// features/guesses-bar): a key at the left end (`leadingKey`, the globe where our
+/// keyboard draws one), the words in the middle, packed together and centred on the bar,
+/// and the pencil ("Not it?") at the right end. The middle shows one kind of thing at a
+/// time: an idle note, the guesses for the open word with the chosen one in a pill in
+/// the centre, the readings of the word just written with it in the pill (FIX, when
+/// there are no next words), or the likely next words. With next words, the other
+/// readings of the last word wait behind the pencil: tapped, the bar becomes the fix
+/// row (✕, the readings, "Type it"). "Type it", or the pencil when there is nothing to
+/// pick, opens the "Not it?" field where the word meant is typed (features/missed-words).
+/// Holding a guess and sliding up boosts it, down forgets it (DESIGN.md "Learning").
+/// A bar above the keys (`axis` horizontal) or a column beside them (vertical: the
+/// middle of a split keyboard, the side of a wide one); in a column, touches between
+/// the guesses fall through to the keys under it, and there is no `leadingKey`.
 ///
 ///     bar.bar = model.state.bar
 ///     bar.onChoose = { index in model.choose(guess: index) }
+///     bar.onChooseFix = { reading in model.chooseFix(reading: reading) }
 ///     bar.onBoost = { index in model.boost(guess: index) }
 ///     bar.canCorrect = model.state.canCorrect
 ///     bar.onNotIt = { model.beginCorrection() }
+///     bar.leadingKey = globe
 public final class BarView: UIView {
     public var onChoose: ((Int) -> Void)?
-    /// "Not it?", and the field's ✕ and Save.
+    /// A reading of the last word picked from the fix row: an index into `Bar.next`'s `fix`.
+    public var onChooseFix: ((Int) -> Void)?
+    /// "Type it" (or the pencil with nothing to pick), and the field's ✕ and Save.
     public var onNotIt: (() -> Void)?
     public var onCancelCorrection: (() -> Void)?
     public var onSaveCorrection: (() -> Void)?
@@ -29,8 +40,21 @@ public final class BarView: UIView {
     public var onBoost: ((Int) -> Void)?
     public var onForget: ((Int) -> Void)?
 
+    /// A key for the bar's left end, 44 pt wide: the globe, set by the keyboard when it
+    /// draws one (features/space-bar). Hidden while the left end shows ✕, and in a column.
+    public var leadingKey: UIView? {
+        didSet {
+            guard leadingKey !== oldValue else { return }
+            oldValue?.removeFromSuperview()
+            if let leadingKey { addSubview(leadingKey) }
+            render()
+        }
+    }
+
     /// How far a held guess slides before it counts as a boost (up) or a forget (down).
     static let slideDistance: CGFloat = 22
+    /// The width of each end of the bar: one 44 pt button.
+    static let endWidth: CGFloat = 44
 
     /// What the bar says when idle.
     public var note = "Both thumbs, one word" {
@@ -42,15 +66,44 @@ public final class BarView: UIView {
         didSet {
             guard axis != oldValue else { return }
             stack.axis = axis
-            stack.distribution = axis == .vertical ? .fill : .equalCentering
-            stack.spacing = axis == .vertical ? Theme.Space.xs : Theme.Space.s
+            stack.spacing = axis == .vertical ? Theme.Space.xs : Theme.Space.xs + 2
             label.numberOfLines = axis == .vertical ? 0 : 1
-            setNeedsLayout()
+            render()
         }
     }
 
     public var bar: Composer.Bar = .idle {
-        didSet { if bar != oldValue { render() } }
+        didSet {
+            guard bar != oldValue else { return }
+            showsFixes = false
+            render()
+            if case .next(let words, _, _) = bar, words != Self.nextWords(of: oldValue) { fadeIn() }
+        }
+    }
+
+    /// The fix row is open: the pencil was tapped while next words showed.
+    private var showsFixes = false
+
+    private static func nextWords(of bar: Composer.Bar) -> [String] {
+        if case .next(let words, _, _) = bar { return words }
+        return []
+    }
+
+    /// The other readings of the last word behind the pencil, with their indices in `fix`.
+    private var readings: [(index: Int, word: String)] {
+        guard case .next(_, let fix, let chosen) = bar else { return [] }
+        return fix.enumerated().filter { $0.offset != chosen }.map { ($0.offset, $0.element) }
+    }
+
+    /// New next words rise into place over 0.25 s; at once with Reduce Motion.
+    private func fadeIn() {
+        guard !UIAccessibility.isReduceMotionEnabled, window != nil else { return }
+        stack.alpha = 0
+        stack.transform = CGAffineTransform(translationX: 0, y: 4)
+        UIView.animate(withDuration: 0.25, delay: 0, options: [.curveEaseOut, .allowUserInteraction]) {
+            self.stack.alpha = 1
+            self.stack.transform = .identity
+        }
     }
 
     /// A line shown over whatever the bar has, for a moment (DESIGN.md "Free mode":
@@ -71,12 +124,13 @@ public final class BarView: UIView {
     private var noticeTask: Task<Void, Never>?
 
     private let label = UILabel()
-    private let fixLabel = UILabel()
-    private let notItButton = UIButton(configuration: .plain())
-    private let cancelButton = UIButton(configuration: .plain())
+    private let pencilButton = UIButton(configuration: .plain())
+    private let closeButton = UIButton(configuration: .plain())
     private let saveButton = UIButton(configuration: .plain())
     private let fieldLabel = UILabel()
     private let stack = UIStackView()
+    /// The word that must stay when the middle is too narrow for all of them.
+    private weak var keptView: UIView?
     private var indices: [Int] = []
     private var holdStart: CGPoint?
     private var holdVerdict: Verdict?
@@ -99,33 +153,14 @@ public final class BarView: UIView {
         label.minimumScaleFactor = 0.7
         addSubview(label)
 
-        fixLabel.font = Theme.uiFont(size: 11, weight: .black, scaledWith: .caption2, upTo: 13)
-        fixLabel.adjustsFontForContentSizeCategory = true
-        fixLabel.textColor = Theme.ui(.accent)
-        fixLabel.text = "FIX"
-        fixLabel.accessibilityLabel = "Fix the last word"
-        addSubview(fixLabel)
+        pencilButton.configuration = Self.iconConfiguration("pencil")
+        pencilButton.accessibilityLabel = "Not it? Fix the last word"
+        pencilButton.addAction(UIAction { [weak self] _ in self?.tappedPencil() }, for: .touchUpInside)
+        addSubview(pencilButton)
 
-        var notIt = UIButton.Configuration.plain()
-        notIt.image = UIImage(systemName: "pencil", withConfiguration: UIImage.SymbolConfiguration(pointSize: 12, weight: .bold))
-        notIt.imagePadding = Theme.Space.xs
-        notIt.contentInsets = NSDirectionalEdgeInsets(top: 6, leading: Theme.Space.s, bottom: 6, trailing: Theme.Space.s)
-        notIt.baseForegroundColor = Theme.ui(.muted)
-        notIt.attributedTitle = AttributedString("Not it?", attributes: AttributeContainer([
-            .font: Theme.uiFont(size: 13, weight: .bold, scaledWith: .footnote, upTo: 15),
-        ]))
-        notItButton.configuration = notIt
-        notItButton.accessibilityLabel = "Not it? Type the word you meant"
-        notItButton.addAction(UIAction { [weak self] _ in self?.onNotIt?() }, for: .touchUpInside)
-        addSubview(notItButton)
-
-        var cancel = UIButton.Configuration.plain()
-        cancel.image = UIImage(systemName: "xmark", withConfiguration: UIImage.SymbolConfiguration(pointSize: 14, weight: .bold))
-        cancel.baseForegroundColor = Theme.ui(.muted)
-        cancelButton.configuration = cancel
-        cancelButton.accessibilityLabel = "Cancel"
-        cancelButton.addAction(UIAction { [weak self] _ in self?.onCancelCorrection?() }, for: .touchUpInside)
-        addSubview(cancelButton)
+        closeButton.configuration = Self.iconConfiguration("xmark")
+        closeButton.addAction(UIAction { [weak self] _ in self?.tappedClose() }, for: .touchUpInside)
+        addSubview(closeButton)
 
         saveButton.addAction(UIAction { [weak self] _ in self?.onSaveCorrection?() }, for: .touchUpInside)
         saveButton.accessibilityLabel = "Save"
@@ -140,8 +175,8 @@ public final class BarView: UIView {
 
         stack.axis = .horizontal
         stack.alignment = .center
-        stack.distribution = .equalCentering
-        stack.spacing = Theme.Space.s
+        stack.distribution = .fill
+        stack.spacing = Theme.Space.xs + 2
         stack.accessibilityLabel = "Suggestions"
         addSubview(stack)
         registerForTraitChanges([UITraitPreferredContentSizeCategory.self]) { (self: BarView, _: UITraitCollection) in
@@ -150,11 +185,39 @@ public final class BarView: UIView {
         render()
     }
 
+    /// A bar button at one of the ends: a muted symbol on a 44 pt target.
+    private static func iconConfiguration(_ symbol: String) -> UIButton.Configuration {
+        var config = UIButton.Configuration.plain()
+        config.image = UIImage(systemName: symbol, withConfiguration: UIImage.SymbolConfiguration(pointSize: 17, weight: .semibold))
+        config.baseForegroundColor = Theme.ui(.muted)
+        config.contentInsets = .zero
+        config.background.cornerRadius = 12
+        return config
+    }
+
     private func guessFont(chosen: Bool) -> UIFont {
         Theme.uiFont(size: 16, weight: chosen ? .bold : .semibold, scaledWith: .body, upTo: 18)
     }
 
     public required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
+
+    private func tappedPencil() {
+        if readings.isEmpty {
+            onNotIt?()
+        } else {
+            showsFixes = true
+            render()
+        }
+    }
+
+    private func tappedClose() {
+        if case .correcting = bar {
+            onCancelCorrection?()
+        } else {
+            showsFixes = false
+            render()
+        }
+    }
 
     /// Empty parts of the bar take no touches: in a column over the keys they belong
     /// to the keys.
@@ -169,32 +232,46 @@ public final class BarView: UIView {
             layoutColumn()
             return
         }
-        var inset = bounds.insetBy(dx: Theme.Space.s, dy: 0)
+        let inset = bounds.insetBy(dx: Theme.Space.xs, dy: 0)
+        let end = Self.endWidth
         if case .correcting = bar {
+            // ✕ and Save at the ends, both ends as wide as Save so the word stays centred.
             let save = saveButton.sizeThatFits(inset.size)
-            cancelButton.frame = CGRect(x: inset.minX, y: 0, width: 40, height: inset.height)
+            let side = max(end, save.width)
+            closeButton.frame = CGRect(x: inset.minX, y: 0, width: end, height: inset.height)
             saveButton.frame = CGRect(x: inset.maxX - save.width, y: (inset.height - save.height) / 2, width: save.width, height: save.height)
-            fieldLabel.frame = CGRect(x: cancelButton.frame.maxX + Theme.Space.s, y: 0,
-                                      width: saveButton.frame.minX - cancelButton.frame.maxX - Theme.Space.m, height: inset.height)
+            fieldLabel.frame = inset.insetBy(dx: side + Theme.Space.s, dy: 0)
             return
         }
-        if !notItButton.isHidden {
-            let size = notItButton.sizeThatFits(inset.size)
-            notItButton.frame = CGRect(x: inset.maxX - size.width, y: (inset.height - size.height) / 2, width: size.width, height: size.height)
-            inset = inset.divided(atDistance: size.width + Theme.Space.xs, from: .maxXEdge).remainder
+        let left = CGRect(x: inset.minX, y: 0, width: end, height: inset.height)
+        closeButton.frame = left
+        leadingKey?.frame = left
+        pencilButton.frame = CGRect(x: inset.maxX - end, y: 0, width: end, height: inset.height)
+        let middle = inset.insetBy(dx: end + Theme.Space.xs, dy: 0)
+        label.frame = middle
+        fitMiddle(width: middle.width)
+        let fit = stack.systemLayoutSizeFitting(CGSize(width: middle.width, height: middle.height),
+                                                withHorizontalFittingPriority: .fittingSizeLevel, verticalFittingPriority: .required)
+        let width = min(middle.width, fit.width)
+        stack.frame = CGRect(x: bounds.midX - width / 2, y: 0, width: width, height: inset.height)
+    }
+
+    /// Drops the outer words, never the kept one, until the rest fit whole in `width`.
+    private func fitMiddle(width: CGFloat) {
+        let views = stack.arrangedSubviews
+        views.forEach { if $0.isHidden { $0.isHidden = false } }
+        func needed() -> CGFloat {
+            let shown = views.filter { !$0.isHidden }
+            return shown.reduce(0) { $0 + $1.intrinsicContentSize.width } + CGFloat(max(0, shown.count - 1)) * stack.spacing
         }
-        label.frame = inset
-        if case .fix = bar {
-            fixLabel.sizeToFit()
-            fixLabel.frame = CGRect(x: inset.minX + Theme.Space.xs, y: 0, width: fixLabel.bounds.width, height: inset.height)
-            let x = fixLabel.frame.maxX + Theme.Space.m
-            stack.frame = CGRect(x: x, y: 0, width: inset.maxX - x, height: inset.height)
-        } else {
-            stack.frame = inset
+        while needed() > width {
+            let shown = views.filter { !$0.isHidden && $0 !== keptView }
+            guard views.filter({ !$0.isHidden }).count > 1, let drop = shown.last ?? shown.first else { break }
+            drop.isHidden = true
         }
     }
 
-    /// A column: FIX on top when fixing, the guesses stacked and centred under it.
+    /// A column: the words stacked and centred, the pencil (or ✕ in the fix row) under them.
     private func layoutColumn() {
         var area = bounds.insetBy(dx: Theme.Space.xs, dy: Theme.Space.s)
         if case .correcting = bar {
@@ -207,21 +284,18 @@ public final class BarView: UIView {
             y += line + Theme.Space.s
             saveButton.frame = CGRect(x: area.midX - save.width / 2, y: y, width: save.width, height: save.height)
             y += save.height + Theme.Space.s
-            cancelButton.frame = CGRect(x: area.midX - 20, y: y, width: 40, height: 40)
+            closeButton.frame = CGRect(x: area.midX - 20, y: y, width: 40, height: 40)
             return
         }
-        if !notItButton.isHidden {
-            let size = notItButton.sizeThatFits(area.size)
-            notItButton.frame = CGRect(x: area.midX - size.width / 2, y: area.maxY - size.height, width: size.width, height: size.height)
-            area = area.divided(atDistance: size.height + Theme.Space.s, from: .maxYEdge).remainder
+        let end = Self.endWidth
+        let bottom = CGRect(x: area.midX - end / 2, y: area.maxY - end, width: end, height: end)
+        pencilButton.frame = bottom
+        closeButton.frame = bottom
+        if !pencilButton.isHidden || !closeButton.isHidden {
+            area = area.divided(atDistance: end + Theme.Space.s, from: .maxYEdge).remainder
         }
         label.frame = area
-        if case .fix = bar {
-            fixLabel.sizeToFit()
-            fixLabel.frame = CGRect(x: area.midX - fixLabel.bounds.width / 2, y: area.minY,
-                                    width: fixLabel.bounds.width, height: fixLabel.bounds.height)
-            area = area.divided(atDistance: fixLabel.bounds.height + Theme.Space.xs, from: .minYEdge).remainder
-        }
+        stack.arrangedSubviews.forEach { if $0.isHidden { $0.isHidden = false } }
         let fit = stack.systemLayoutSizeFitting(CGSize(width: area.width, height: UIView.layoutFittingCompressedSize.height),
                                                 withHorizontalFittingPriority: .required, verticalFittingPriority: .fittingSizeLevel)
         let height = min(area.height, fit.height)
@@ -231,16 +305,20 @@ public final class BarView: UIView {
     private func render() {
         stack.arrangedSubviews.forEach { $0.removeFromSuperview() }
         indices = []
+        keptView = nil
         let correcting: String?
         if case .correcting(let typed) = bar { correcting = typed } else { correcting = nil }
-        notItButton.isHidden = !canCorrect || notice != nil || correcting != nil
-        cancelButton.isHidden = correcting == nil
+        if !readings.isEmpty, case .next = bar {} else { showsFixes = false }
+        let fixing = showsFixes && correcting == nil && notice == nil
+        pencilButton.isHidden = !(canCorrect || !readings.isEmpty) || notice != nil || correcting != nil || fixing
+        closeButton.isHidden = correcting == nil && !fixing
+        closeButton.accessibilityLabel = correcting != nil ? "Cancel" : "Back to the next words"
+        leadingKey?.isHidden = axis == .vertical || !closeButton.isHidden
         saveButton.isHidden = correcting == nil
         fieldLabel.isHidden = correcting == nil
         if let correcting, notice == nil {
             renderField(correcting)
             label.isHidden = true
-            fixLabel.isHidden = true
             stack.isHidden = true
             setNeedsLayout()
             return
@@ -248,8 +326,17 @@ public final class BarView: UIView {
         if let notice {
             label.text = notice
             label.isHidden = false
-            fixLabel.isHidden = true
             stack.isHidden = true
+            setNeedsLayout()
+            return
+        }
+        label.isHidden = true
+        stack.isHidden = false
+        if fixing {
+            for reading in readings {
+                addReading(reading.word, index: reading.index)
+            }
+            if canCorrect { addTypeIt() }
             setNeedsLayout()
             return
         }
@@ -257,26 +344,65 @@ public final class BarView: UIView {
         case .idle:
             label.text = note
             label.isHidden = false
-            fixLabel.isHidden = true
             stack.isHidden = true
         case .guesses(let words, let chosen):
-            label.isHidden = true
-            fixLabel.isHidden = true
-            stack.isHidden = false
-            for (i, word) in words.enumerated() {
-                add(word, index: i, chosen: i == chosen)
+            for i in middleFirst(words.count, chosen: chosen) {
+                add(words[i], index: i, chosen: i == chosen)
             }
         case .fix(let words, let chosen):
-            label.isHidden = true
-            fixLabel.isHidden = false
-            stack.isHidden = false
-            for (i, word) in words.enumerated() where i != chosen {
-                add(word, index: i, chosen: false)
+            // The word just written in the pill, its other readings either side.
+            for i in middleFirst(words.count, chosen: chosen) {
+                add(words[i], index: i, chosen: i == chosen)
             }
+        case .next(let words, _, _):
+            for (i, word) in words.enumerated() {
+                add(word, index: i, chosen: false)
+                stack.arrangedSubviews.last?.accessibilityHint = "Writes the next word"
+            }
+            keptView = stack.arrangedSubviews.first
         case .correcting:
             break
         }
         setNeedsLayout()
+    }
+
+    /// The order the words sit in, left to right: the chosen one in the middle of
+    /// three (in a column, on top), the rest in their order.
+    private func middleFirst(_ count: Int, chosen: Int) -> [Int] {
+        let others = (0..<count).filter { $0 != chosen }
+        guard (0..<count).contains(chosen) else { return Array(0..<count) }
+        if axis == .vertical || others.count < 2 { return [chosen] + others }
+        return [others[0], chosen] + others.dropFirst()
+    }
+
+    /// A reading of the last word in the fix row: tapped, it replaces the word.
+    private func addReading(_ word: String, index: Int) {
+        let button = UIButton(configuration: guessConfiguration(word, chosen: false, ink: .ink))
+        button.accessibilityLabel = word
+        button.accessibilityHint = "Replaces the last word"
+        button.addAction(UIAction { [weak self] _ in self?.onChooseFix?(index) }, for: .touchUpInside)
+        stack.addArrangedSubview(button)
+        if keptView == nil { keptView = button }
+    }
+
+    /// "Type it", last in the fix row: opens the "Not it?" field.
+    private func addTypeIt() {
+        var config = UIButton.Configuration.plain()
+        config.image = UIImage(systemName: "pencil", withConfiguration: UIImage.SymbolConfiguration(pointSize: 12, weight: .bold))
+        config.imagePadding = Theme.Space.xs
+        config.contentInsets = NSDirectionalEdgeInsets(top: 6, leading: Theme.Space.s, bottom: 6, trailing: Theme.Space.m)
+        config.baseForegroundColor = Theme.ui(.muted)
+        config.background.cornerRadius = 16
+        config.background.strokeColor = Theme.ui(.line)
+        config.background.strokeWidth = 1.5
+        config.attributedTitle = AttributedString("Type it", attributes: AttributeContainer([
+            .font: Theme.uiFont(size: 14, weight: .bold, scaledWith: .footnote, upTo: 16),
+        ]))
+        let button = UIButton(configuration: config)
+        button.accessibilityLabel = "Type it"
+        button.accessibilityHint = "Type the word you meant"
+        button.addAction(UIAction { [weak self] _ in self?.onNotIt?() }, for: .touchUpInside)
+        stack.addArrangedSubview(button)
     }
 
     /// The "Not it?" field: the word typed so far with a caret, or the question while
@@ -306,7 +432,8 @@ public final class BarView: UIView {
         saveButton.alpha = typed.isEmpty ? 0.45 : 1
     }
 
-    private func add(_ word: String, index: Int, chosen: Bool) {
+    /// A word on the bar: the chosen one bold on the white pill, the rest plain.
+    private func guessConfiguration(_ word: String, chosen: Bool, ink: Theme.Tone? = nil) -> UIButton.Configuration {
         var config = UIButton.Configuration.plain()
         config.contentInsets = NSDirectionalEdgeInsets(top: 6, leading: Theme.Space.m, bottom: 6, trailing: Theme.Space.m)
         config.background.cornerRadius = 16
@@ -314,11 +441,18 @@ public final class BarView: UIView {
         config.background.backgroundColor = chosen ? Theme.ui(.card) : .clear
         config.attributedTitle = AttributedString(word, attributes: AttributeContainer([
             .font: guessFont(chosen: chosen),
-            .foregroundColor: Theme.ui(chosen ? .ink : .muted),
+            .foregroundColor: Theme.ui(ink ?? (chosen ? .ink : .muted)),
         ]))
-        let button = UIButton(configuration: config)
+        return config
+    }
+
+    private func add(_ word: String, index: Int, chosen: Bool) {
+        let button = UIButton(configuration: guessConfiguration(word, chosen: chosen))
         button.accessibilityLabel = word
-        if chosen { button.accessibilityTraits.insert(.selected) }
+        if chosen {
+            button.accessibilityTraits.insert(.selected)
+            keptView = button
+        }
         button.tag = indices.count
         indices.append(index)
         button.addAction(UIAction { [weak self] action in

@@ -7,7 +7,7 @@ import SwiftUI
 /// goes on the page it belongs to: what a touch does is Typing, what you see or feel is
 /// Appearance, what the keyboard remembers is Your words.
 enum SettingsPage: Hashable, CaseIterable {
-    case typing, languages, appearance, words, privacy, about
+    case typing, languages, appearance, words, privacy, about, debug
 }
 
 /// DESIGN.md screen 9: the main page of Settings. Status tiles (keyboard, sync, Pro),
@@ -61,6 +61,7 @@ struct SettingsView: View {
             model.refreshKeyboardStatus()
             model.reloadWords()
             model.reloadShared()
+            model.reloadDebug()
         }
     }
 
@@ -99,6 +100,11 @@ struct SettingsView: View {
                     }
                 }
                 link(.about, "About", subtitle: "Version \(DeviceInfo.appVersion)", symbol: "info.circle", tint: Theme.ice)
+            }
+
+            SectionLabel("Debug").padding(.top, Theme.Space.m)
+            SettingsGroup {
+                link(.debug, "Debug", subtitle: debugSubtitle, symbol: "ladybug", tint: Theme.slate)
             }
 
             if Flags.handwritingPad {
@@ -183,6 +189,11 @@ struct SettingsView: View {
 
     private var languagesSubtitle: String {
         model.activeLanguages.map { Language.names[$0] ?? $0 }.joined(separator: ", ")
+    }
+
+    private var debugSubtitle: String {
+        guard let last = model.keyboardDebug?.last else { return "Keyboard memory, stats on the keys" }
+        return "Keyboard memory \(MemoryReading.mb(last.footprintMB)) of \(Int(MemoryReading.budgetMB)) MB"
     }
 
     private var wordsSubtitle: String {

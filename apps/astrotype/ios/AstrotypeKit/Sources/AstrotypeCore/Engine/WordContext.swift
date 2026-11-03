@@ -52,6 +52,24 @@ public enum WordContext {
         return Array(words.suffix(count))
     }
 
+    /// Every finished word of the current sentence, oldest first: what decides which
+    /// language it is in (`Language.lock(for:)`). A word still being written (no space
+    /// after it) is left out.
+    ///
+    ///     WordContext.sentence(before: "Hi. Gracias por ")   // ["gracias", "por"]
+    ///     WordContext.sentence(before: "Gracias, amig")      // ["gracias"]
+    public static func sentence(before text: String) -> [String] {
+        var sentence = Substring(text)
+        if let end = sentence.lastIndex(where: { sentenceEnders.contains($0) }) {
+            sentence = sentence[sentence.index(after: end)...]
+        }
+        var tokens = sentence.split(whereSeparator: { $0.isWhitespace || breakers.contains($0) })
+        if let last = sentence.last, !(last.isWhitespace || breakers.contains(last)), !tokens.isEmpty {
+            tokens.removeLast()
+        }
+        return tokens.map { normalize($0) }.filter { !$0.isEmpty }
+    }
+
     /// A token as the model knows it: lowercase letters with accents off (`Lexicon.fold`,
     /// "Mañana" → "manana"), apostrophes dropped ("Don't" → "dont"), anything else removed.
     static func normalize(_ token: Substring) -> String {

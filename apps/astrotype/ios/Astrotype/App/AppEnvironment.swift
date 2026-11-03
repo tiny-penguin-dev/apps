@@ -21,6 +21,11 @@ struct AppEnvironment {
     var extensionStatus: ExtensionStatusReading
     /// The keyboard's memory readings, for the app to send (`KeyboardHealth`); nil in tests.
     var keyboardHealth: FileKeyboardHealthStore?
+    /// The keyboard's last memory readings, for Settings → Debug (`KeyboardDebug`); nil
+    /// in tests and without an App Group.
+    var keyboardDebug: FileKeyboardDebugStore?
+    /// The app's own memory now (`MemoryReading.current`), for Settings → Debug.
+    var readMemory: () -> MemoryReading?
     /// Whether this Apple Account has Astrotype Pro (StoreKit).
     var proStore: ProStore
     /// Where the trial's start is written for the keyboard extension to read (the App
@@ -56,6 +61,8 @@ struct AppEnvironment {
             keyboardStatus: UserDefaultsKeyboardStatus(),
             extensionStatus: KeyboardFiles.shared(KeyboardFiles.status).map { FileExtensionStatusStore(url: $0) as ExtensionStatusReading } ?? FakeExtensionStatus(),
             keyboardHealth: KeyboardFiles.shared(KeyboardFiles.health).map { FileKeyboardHealthStore(url: $0) },
+            keyboardDebug: KeyboardFiles.shared(KeyboardFiles.debug).map { FileKeyboardDebugStore(url: $0) },
+            readMemory: { MemoryReading.current() },
             proStore: StoreKitProStore(),
             trialStore: TrialStore(url: dataFile(KeyboardFiles.trial)),
             practiceStore: PracticeStore(folder: KeyboardFiles.own("Practice")),
@@ -102,6 +109,8 @@ struct AppEnvironment {
         keyboardStatus: KeyboardStatusReading = FakeKeyboardStatus(),
         extensionStatus: ExtensionStatusReading = FakeExtensionStatus(),
         keyboardHealth: FileKeyboardHealthStore? = nil,
+        keyboardDebug: FileKeyboardDebugStore? = nil,
+        readMemory: @escaping () -> MemoryReading? = { MemoryReading(footprintMB: 30, headroomMB: 1_000) },
         proStore: ProStore = MemoryProStore(),
         trialStore: TrialStore? = nil,
         practiceStore: PracticeStore? = nil,
@@ -118,7 +127,8 @@ struct AppEnvironment {
         AppEnvironment(appStateStore: appStateStore, settingsStore: settingsStore, wordStore: wordStore,
                        personalStore: personalStore, cloudSync: cloudSync,
                        keyboardStatus: keyboardStatus, extensionStatus: extensionStatus,
-                       keyboardHealth: keyboardHealth, proStore: proStore,
+                       keyboardHealth: keyboardHealth, keyboardDebug: keyboardDebug, readMemory: readMemory,
+                       proStore: proStore,
                        trialStore: trialStore, practiceStore: practiceStore,
                        sharedWords: sharedWords, sharedUploader: sharedUploader,
                        missedWords: missedWords, device: device, metrics: metrics, now: now,

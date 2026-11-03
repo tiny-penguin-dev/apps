@@ -362,14 +362,24 @@ public struct Layout: Sendable, Equatable {
                       keyHeight: keyHeight, gap: gap, bottomInset: below, placements: placements, top: top, rowGap: rowGap)
     }
 
+    /// How far into return the space bar reaches: a tap that just catches return's
+    /// left edge types a space, as thumbs aiming for space land a little right
+    /// (Gabriel, 3 Nov 2026). Only the touch area moves; both keys look the same.
+    public static let spaceReach: CGFloat = 12
+
     /// The key under a point. Forgiving like Apple's keyboard: the gaps between keys,
-    /// the edges of a row and the room under the bottom row count for the nearest key.
-    /// Nil above or below the keyboard.
+    /// the edges of a row and the room under the bottom row count for the nearest key,
+    /// by distance to its edge, so a wide key gets all of its own room. Return gives
+    /// up `spaceReach` beside space. Nil above or below the keyboard.
     public func key(at point: CGPoint) -> Key? {
         guard point.y >= 0, point.y <= height else { return nil }
         let rowIndex = min(3, max(0, Int((point.y - top + rowGap / 2) / (keyHeight + rowGap))))
         let row = placements.filter { $0.row == rowIndex }
-        guard let nearest = row.min(by: { abs($0.frame.midX - point.x) < abs($1.frame.midX - point.x) }) else { return nil }
+        func distance(_ frame: CGRect) -> CGFloat { max(0, frame.minX - point.x, point.x - frame.maxX) }
+        guard let nearest = row.min(by: { distance($0.frame) < distance($1.frame) }) else { return nil }
+        if nearest.key == .returnKey, row.contains(where: { $0.key == .space && distance($0.frame) <= Self.spaceReach }) {
+            return .space
+        }
         return nearest.key
     }
 

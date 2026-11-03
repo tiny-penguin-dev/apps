@@ -1,0 +1,324 @@
+<title>Astrotype Guesses Bar</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;700;800;900&display=swap">
+<style>
+/* Layout: one phone on a pale ice stage, a picker beside it (design, moment, phone). The bar is live: tap the guesses, the chip, the pencil, the keys while the field is open. Tokens are DESIGN.md's. */
+:root{
+  --stage:#E6F0F4; --bg:#F3F8FA; --card:#FFFFFF; --ink:#1E2945; --muted:#67748F; --line:#DCE6EC;
+  --accent:#139FB5; --accent-ink:#FFFFFF; --mint:#2FBF96; --ice:#D9EDF3;
+  --key:#FFFFFF; --key-ink:#1E2945; --key-dark:#C9D6DE; --kb:#DCE6EC; --bubble:#E9EEF2;
+  --font:ui-rounded,"SF Pro Rounded","Nunito",system-ui,sans-serif;
+  --spring:cubic-bezier(.34,1.56,.64,1);
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --stage:#0A1118; --bg:#111A24; --card:#1A2634; --ink:#EEF4F8; --muted:#97A6B8; --line:#2A3B4C;
+  --accent:#2FC6DC; --accent-ink:#06202A; --mint:#45D3AA; --ice:#1D3240;
+  --key:#2A3A4A; --key-ink:#EEF4F8; --key-dark:#1C2834; --kb:#131E29; --bubble:#1A2634; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --stage:#0A1118; --bg:#111A24; --card:#1A2634; --ink:#EEF4F8; --muted:#97A6B8; --line:#2A3B4C;
+  --accent:#2FC6DC; --accent-ink:#06202A; --mint:#45D3AA; --ice:#1D3240;
+  --key:#2A3A4A; --key-ink:#EEF4F8; --key-dark:#1C2834; --kb:#131E29; --bubble:#1A2634; color-scheme:dark}
+html,body{min-height:100%}
+body{background:var(--stage);color:var(--ink);font-family:var(--font);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.stage{display:flex;gap:32px;justify-content:center;align-items:flex-start;padding-block:24px;flex-wrap:wrap}
+.picker{display:flex;flex-direction:column;gap:4px;max-width:260px;min-width:0}
+.picker h1{font-size:28px;font-weight:900;margin:0;text-wrap:balance}
+.picker p{margin:0 0 6px;color:var(--muted);font-size:13px;line-height:1.45}
+.picker small{color:var(--muted);font-size:11px;letter-spacing:.06em;text-transform:uppercase;font-weight:800;margin-top:12px;padding-left:12px}
+.picker button{font:inherit;font-weight:700;font-size:14px;text-align:left;border:0;background:transparent;color:var(--muted);padding:7px 12px;border-radius:10px;cursor:pointer}
+.picker button[aria-current="true"]{background:var(--card);color:var(--ink)}
+.picker button:focus-visible,.phone button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.picker .rec{font-size:10px;font-weight:900;letter-spacing:.06em;background:var(--mint);color:var(--accent-ink);padding:2px 6px;border-radius:6px;margin-left:6px;vertical-align:1px}
+.pills{display:flex;gap:4px;flex-wrap:wrap;padding-left:8px}
+.pills button{padding:5px 10px;font-size:12px;background:var(--line)}
+.pills button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.why{background:var(--card);border-radius:14px;padding:10px 12px;font-size:13px;line-height:1.45;color:var(--ink);margin-top:10px}
+.why b{font-weight:900}
+.phone{width:390px;max-width:100%;height:700px;background:var(--bg);border-radius:48px;position:relative;overflow:hidden;
+  box-shadow:0 0 0 10px var(--ink),0 30px 60px rgba(20,30,60,.25);flex:none;display:flex;flex-direction:column}
+.phone.small{width:375px}
+@media (max-width:700px){.picker{max-width:100%}.phone{box-shadow:none;border-radius:32px}}
+.status{display:flex;justify-content:space-between;font-weight:800;font-size:15px;padding:16px 30px 0}
+.thread{flex:1;display:flex;flex-direction:column;justify-content:flex-end;gap:8px;padding:12px 16px}
+.msg{align-self:flex-start;background:var(--bubble);border-radius:18px;padding:9px 14px;font-size:16px;max-width:75%}
+.compose{display:flex;align-items:center;gap:8px;padding:0 12px 10px}
+.field{flex:1;border:1px solid var(--line);border-radius:20px;padding:9px 14px;font-size:16px;min-height:22px;background:var(--bg);line-height:1.35}
+.field .open{border-bottom:2px solid var(--accent)}
+.field .mark{background:var(--ice);border-radius:4px;padding:0 2px;margin:0 -2px}
+.field .caret{display:inline-block;width:2px;height:18px;background:var(--accent);vertical-align:-3px;animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+.send{width:32px;height:32px;border-radius:50%;background:var(--accent);flex:none}
+/* keyboard */
+.kbwrap{background:var(--kb);padding:6px 4px 26px;user-select:none;-webkit-user-select:none}
+.bar{height:44px;margin-bottom:6px;position:relative}
+.bar.squeeze{animation:squeeze .25s ease-out}
+@keyframes squeeze{50%{transform:scale(.97)}}
+.bar .grid{display:grid;grid-template-columns:var(--side,44px) minmax(0,1fr) var(--side,44px);align-items:center;height:100%;gap:4px;padding:0 4px}
+.bar .slot{display:flex;align-items:center;gap:0;height:100%}
+.bar .slot.l{justify-content:flex-start}.bar .slot.r{justify-content:flex-end}
+.bar .center{display:flex;justify-content:center;align-items:center;gap:6px;min-width:0;height:100%}
+.bar.fresh .center{animation:rise .25s ease-out}
+@keyframes rise{from{opacity:0;transform:translateY(4px)}}
+.g{font:inherit;font-weight:700;font-size:17px;border:0;background:transparent;color:var(--ink);padding:7px 10px;border-radius:16px;cursor:pointer;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:0 1 auto}
+.g.pill{background:var(--card);font-weight:900;box-shadow:0 1px 0 rgba(0,0,0,.08)}
+.g.alt{color:var(--muted)}
+.g.chip{background:var(--ice);font-weight:800;display:inline-flex;align-items:center;gap:5px;max-width:40%}
+.g.chip svg{flex:none}
+.g.chip span{overflow:hidden;text-overflow:ellipsis}
+.g.type{border:1.5px dashed var(--line);color:var(--muted);font-size:15px;display:inline-flex;align-items:center;gap:4px}
+.sep{flex:none;width:1px;height:22px;background:var(--line)}
+.icon{width:44px;height:44px;border:0;background:transparent;color:var(--muted);display:grid;place-items:center;cursor:pointer;border-radius:12px;flex:none;padding:0}
+.icon:active{background:var(--key-dark)}
+.icon svg{width:22px;height:22px}
+.save{font:inherit;font-weight:900;font-size:16px;border:0;border-radius:999px;background:var(--accent);color:var(--accent-ink);padding:7px 16px;cursor:pointer}
+.save[disabled]{opacity:.45}
+.ask{color:var(--muted);font-weight:700;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.typed{font-weight:900;font-size:17px;white-space:nowrap;overflow:hidden;direction:rtl;text-overflow:ellipsis}
+.typed i{display:inline-block;width:2px;height:18px;background:var(--accent);vertical-align:-3px;animation:blink 1s steps(1) infinite}
+/* "Today": the bar as it ships */
+.today{display:flex;align-items:center;justify-content:space-between;height:100%;padding:0 8px;gap:6px}
+.today .spread{flex:1;display:flex;justify-content:space-between;align-items:center;min-width:0;gap:6px}
+.today .fixl{font-size:11px;font-weight:900;letter-spacing:.06em;color:var(--accent);flex:none}
+.today .notit{font:inherit;font-weight:800;font-size:13px;color:var(--muted);border:0;background:none;display:flex;gap:4px;align-items:center;flex:none;cursor:pointer}
+.note{color:var(--muted);font-weight:700;font-size:14px;text-align:center;flex:1}
+.rows{display:flex;flex-direction:column;gap:9px}
+.krow{display:flex;justify-content:center;gap:5px}
+.key{flex:1 1 0;min-width:0;max-width:34px;height:44px;border-radius:7px;background:var(--key);color:var(--key-ink);font:inherit;font-weight:700;font-size:21px;border:0;padding:0;display:grid;place-items:center;
+  box-shadow:0 1px 0 rgba(0,0,0,.25);cursor:pointer}
+.key:active{background:var(--key-dark)}
+.key.fn{flex:1.4 1 0;max-width:46px;background:var(--key-dark);font-size:15px}
+.key.space{flex:5 1 0;max-width:none;font-size:14px;font-weight:800;color:var(--muted)}
+.key.ret{flex:2.2 1 0;max-width:84px;background:var(--key-dark);font-size:14px}
+.key svg{width:20px;height:20px}
+.legend{position:absolute;left:0;right:0;top:-22px;display:flex;justify-content:space-between;font-size:10px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:0 10px;pointer-events:none}
+.legend span{flex:1;text-align:center}.legend span:first-child{text-align:left;flex:0 0 60px}.legend span:last-child{text-align:right;flex:0 0 60px}
+.phone.labels .bar{margin-top:20px}
+@media (prefers-reduced-motion: reduce){.bar.fresh .center,.bar.squeeze,.field .caret,.typed i{animation:none}}
+</style>
+
+<div class="stage">
+  <div class="picker">
+    <h1>Guesses bar</h1>
+    <p>The strip above the keys, redesigned so each thing has one place: the words in the middle, always centred, and one button at each end: the globe on the left (on phones where we draw it), the pencil for "Not it?" on the right. Tap the words, the chip and the pencil, they work.</p>
+    <small>Design</small>
+    <button data-design="today">Today</button>
+    <button data-design="A">A: centred, with a swap chip</button>
+    <button data-design="B">B: centred, fixes behind the pencil <span class="rec">PICK</span></button>
+    <small>Moment</small>
+    <button data-scene="typing">Swiping a word</button>
+    <button data-scene="after">Right after a word</button>
+    <button data-scene="nonext">After a word, next words off</button>
+    <button data-scene="start">Start of a message</button>
+    <button data-scene="long">Long words</button>
+    <small>Phone</small>
+    <div class="pills">
+      <button id="globeBtn" data-toggle="globe">Our globe key (Home button, Duo)</button>
+      <button id="labelsBtn" data-toggle="labels">Show zones</button>
+    </div>
+    <div class="pills" style="margin-top:6px">
+      <button data-theme-set="light">Light</button>
+      <button data-theme-set="dark">Dark</button>
+      <button data-size="phone">Phone</button>
+      <button data-size="small">Small</button>
+    </div>
+    <div class="why" id="why"></div>
+  </div>
+
+  <div class="phone" id="phone">
+    <div class="status"><span>9:41</span><span>●●●</span></div>
+    <div class="thread">
+      <div class="msg">what's that noise next door?</div>
+    </div>
+    <div class="compose"><div class="field" id="field"></div><div class="send" aria-hidden="true"></div></div>
+    <div class="kbwrap">
+      <div class="bar" id="bar" role="toolbar" aria-label="Suggestions"></div>
+      <div class="rows" id="rows"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const ICON = {
+  emoji:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M8.5 14.5c1.8 2 5.2 2 7 0"/><circle cx="9" cy="10" r=".6" fill="currentColor"/><circle cx="15" cy="10" r=".6" fill="currentColor"/></svg>',
+  globe:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.2 3 14.8 0 18M12 3c-3 3.2-3 14.8 0 18"/></svg>',
+  pencil:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg>',
+  close:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+  swap:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h14l-4-4M20 16H6l4 4"/></svg>',
+  shift:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 4l8 8h-4v7H8v-7H4z"/></svg>',
+  back:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M9 5h11v14H9l-6-7z"/><path d="M12 9l5 6M17 9l-5 6" stroke-linecap="round"/></svg>',
+  ret:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 6v6H6M10 8l-4 4 4 4"/></svg>',
+};
+const WHY = {
+  today:'<b>Today.</b> FIX sits far left, the words spread to the edges, and "Not it?" is a third kind of thing at the right. It is hard to tell which words are for the last word and which are for the next one.',
+  A:'<b>A.</b> Words always sit together in the middle. The word you are typing is in the white pill in the centre. After a word, a chip with ⇄ swaps it for the best other reading; the next words follow the line. The pencil at the right opens "What did you mean?".',
+  B:'<b>B (recommended).</b> The middle only ever holds one kind of thing: words you could write now. Everything about fixing the last word lives behind the pencil: tap it and the bar shows the other readings, the word is highlighted in your text, and "Type it" is the last choice. One more tap to fix, but nothing to decode.',
+};
+const S = {design:'B', scene:'after', emoji:false, globe:false, labels:false, mode:null, typed:'', theme:null, size:'phone', fresh:false};
+// The text, per moment. readings[cur] is what is in the field.
+let W;
+function reset(){
+  S.mode=null; S.typed='';
+  W = {
+    typing:{before:'I keep hearing', guesses:['murdering','muttering','muttered'], best:1, swiped:true},
+    long:{before:'That was', guesses:['understandably','understanding','understandable'], best:0, swiped:true},
+    after:{before:'I keep hearing', readings:['murdering','muttering','mattering'], cur:0, next:['things','it','voices'], swiped:true},
+    nonext:{before:'I keep hearing', readings:['murdering','muttering','mattering'], cur:0, next:[], swiped:true},
+    start:{before:'', next:['I','Not','Just'], swiped:false},
+  }[S.scene];
+}
+reset();
+
+const $ = s => document.querySelector(s);
+function esc(t){return t.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+function btn(cls, html, act, label){return `<button class="${cls}" data-act="${act}"${label?` aria-label="${esc(label)}"`:''}>${html}</button>`}
+
+function renderField(){
+  let h = esc(W.before);
+  if (W.guesses){ h += ` <span class="open">${esc(W.guesses[W.best])}</span>`; }
+  else if (W.readings){ const w = esc(W.readings[W.cur]); h += ` ${S.mode ? `<span class="mark">${w}</span>` : w}`; }
+  if (W.extra) h += ' ' + esc(W.extra);
+  h += (h ? ' ' : '') + '<span class="caret"></span>';
+  $('#field').innerHTML = h;
+}
+
+// Today's bar, as it ships.
+function barToday(){
+  const notit = W.swiped && !S.mode ? `<button class="notit" data-act="field">${ICON.pencil.replace('<svg','<svg width="14" height="14"')}Not it?</button>` : '';
+  if (S.mode==='field') return barField();
+  let mid='';
+  if (W.guesses) mid = `<div class="spread">${W.guesses.map((g,i)=>btn('g'+(i===W.best?' pill':''),esc(g),'pick:'+i)).join('')}</div>`;
+  else if (W.readings && !W.next.length) mid = `<span class="fixl">FIX</span><div class="spread">${W.readings.map((g,i)=>i===W.cur?'':btn('g alt',esc(g),'swap:'+i)).join('')}</div>`;
+  else {
+    const fix = W.readings ? W.readings.findIndex((_,i)=>i!==W.cur) : -1;
+    const chip = fix>=0 ? btn('g chip',`<b style="font-size:11px;color:var(--accent)">FIX</b><span>${esc(W.readings[fix])}</span>`,'swap:'+fix)+'<span class="sep"></span>' : '';
+    const words = (fix>=0 ? W.next.slice(0,2) : W.next).map((g,i)=>btn('g',esc(g),'next:'+i)).join('');
+    mid = `<div class="spread">${chip}${words}</div>`;
+  }
+  return `<div class="today">${mid}${notit}</div>`;
+}
+
+function sides(left, right){
+  const n = Math.max(left, right);
+  return `--side:${Math.max(44, n*44)}px`;
+}
+
+function barField(){
+  const t = S.typed;
+  const center = t ? `<span class="typed">${esc(t)}<i></i></span>` : `<span class="ask">What did you mean?</span>`;
+  return `<div class="grid" style="--side:72px">
+    <div class="slot l">${btn('icon',ICON.close,'cancel','Cancel')}</div>
+    <div class="center">${center}</div>
+    <div class="slot r"><button class="save" data-act="save" ${t?'':'disabled'}>Save</button></div></div>`;
+}
+
+function barNew(){
+  if (S.mode==='field') return barField();
+  const canFix = W.swiped;
+  let left = '', right = '', center = '';
+  const nl0 = S.globe?1:0, nr0 = canFix?1:0;
+  if (S.mode==='fixrow'){
+    left = btn('icon',ICON.close,'cancel','Back');
+    const others = W.readings.map((_,i)=>i).filter(i=>i!==W.cur);
+    const alts = fit(others, W.readings, -1, 1, 0, 86).map(i=>btn('g',esc(W.readings[i]),'swap:'+i)).join('');
+    center = alts + btn('g type',ICON.pencil.replace('<svg','<svg width="14" height="14"')+'Type it','field','Type the word you meant');
+  } else {
+    if (S.globe) left = btn('icon',ICON.globe,'globe','Next keyboard');
+    if (canFix) right += btn('icon',ICON.pencil,S.design==='B'?'fixrow':'field','Not it? Fix the last word');
+    // Centre: one kind of thing, the best guess in the middle.
+    if (W.guesses){
+      const order = fit(middleFirst(W.guesses.length, W.best), W.guesses, W.best, nl0, nr0);
+      center = order.map(i=>btn('g'+(i===W.best?' pill':' alt'),esc(W.guesses[i]),'pick:'+i)).join('');
+    } else if (W.readings && !W.next.length){
+      const order = fit(middleFirst(W.readings.length, W.cur), W.readings, W.cur, nl0, nr0);
+      center = order.map(i=>btn('g'+(i===W.cur?' pill':' alt'),esc(W.readings[i]),i===W.cur?'noop':'swap:'+i)).join('');
+    } else {
+      const fix = (S.design==='A' && W.readings) ? W.readings.findIndex((_,i)=>i!==W.cur) : -1;
+      const chip = fix>=0 ? btn('g chip',ICON.swap+`<span>${esc(W.readings[fix])}</span>`,'swap:'+fix,'Swap last word for '+W.readings[fix])+'<span class="sep"></span>' : '';
+      const words = (fix>=0 ? W.next.slice(0,2) : W.next).map((g,i)=>btn('g',esc(g),'next:'+i)).join('');
+      center = chip + words;
+    }
+  }
+  const nl = left?1:0, nr = (canFix && S.mode!=='fixrow' ? 1:0);
+  return `<div class="grid" style="${sides(nl,nr)}">
+    <div class="slot l">${left}</div><div class="center">${center}</div><div class="slot r">${right}</div></div>`;
+}
+// Drop the outer guesses, never the chosen one, until the rest fit whole between the side buttons.
+function fit(order, words, chosen, nl, nr, reserved=0){
+  const width = (S.size==='small'?375:390) - 8 - 2*Math.max(44, Math.max(nl,nr)*44) - 8 - reserved;
+  const need = o => o.reduce((sum,i)=>sum + words[i].length*8.8 + 20 + 6, 0);
+  let o = [...order];
+  while (o.length>1 && need(o)>width){ const drop = o[0]===chosen || chosen<0 ? o.length-1 : 0; o.splice(drop,1); }
+  return o;
+}
+// Index order with the chosen one in the middle: [alt, chosen, alt].
+function middleFirst(n, chosen){
+  const others = [...Array(n).keys()].filter(i=>i!==chosen);
+  return others.length>=2 ? [others[0], chosen, others[1]] : [chosen, ...others];
+}
+
+function renderKeys(){
+  const r = ['qwertyuiop','asdfghjkl','zxcvbnm'];
+  const inBar = S.design!=='today';
+  const bottomEmoji = true;
+  const bottomGlobe = S.globe && !inBar;
+  $('#rows').innerHTML =
+    `<div class="krow">${[...r[0]].map(c=>`<button class="key" data-key="${c}">${c}</button>`).join('')}</div>`+
+    `<div class="krow" style="padding:0 16px">${[...r[1]].map(c=>`<button class="key" data-key="${c}">${c}</button>`).join('')}</div>`+
+    `<div class="krow"><button class="key fn" aria-label="Shift">${ICON.shift}</button>${[...r[2]].map(c=>`<button class="key" data-key="${c}">${c}</button>`).join('')}<button class="key fn" data-key="del" aria-label="Delete">${ICON.back}</button></div>`+
+    `<div class="krow"><button class="key fn">123</button>${bottomGlobe?`<button class="key fn" aria-label="Next keyboard">${ICON.globe}</button>`:''}${bottomEmoji?`<button class="key fn" aria-label="Emoji">${ICON.emoji}</button>`:''}<button class="key space" data-key="space">Astrotype</button><button class="key ret" data-key="ret" aria-label="Return">${ICON.ret}</button></div>`;
+}
+
+function render(){
+  document.querySelectorAll('[data-design]').forEach(b=>b.setAttribute('aria-current', b.dataset.design===S.design));
+  document.querySelectorAll('[data-scene]').forEach(b=>b.setAttribute('aria-current', b.dataset.scene===S.scene));
+  $('#globeBtn').setAttribute('aria-pressed', S.globe); $('#labelsBtn').setAttribute('aria-pressed', S.labels);
+  document.querySelectorAll('[data-theme-set]').forEach(b=>b.setAttribute('aria-pressed', (S.theme||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'))===b.dataset.themeSet));
+  document.querySelectorAll('[data-size]').forEach(b=>b.setAttribute('aria-pressed', S.size===b.dataset.size));
+  $('#phone').className = 'phone' + (S.size==='small'?' small':'') + (S.labels?' labels':'');
+  $('#why').innerHTML = WHY[S.design];
+  const bar = $('#bar');
+  bar.innerHTML = (S.design==='today' ? barToday() : barNew()) +
+    (S.labels && S.design!=='today' ? '<div class="legend"><span>Globe</span><span>Words, centred</span><span>Not it?</span></div>' : '');
+  bar.classList.toggle('fresh', S.fresh); S.fresh=false;
+  renderField(); renderKeys();
+}
+function squeeze(){const b=$('#bar');b.classList.remove('squeeze');void b.offsetWidth;b.classList.add('squeeze')}
+
+// After a word: the scene becomes "after" with that word written.
+function written(word, readings){
+  W = {before:(W.before?W.before+' ':'')+ (W.extra?W.extra+' ':'') , readings, cur:readings.indexOf(word), next:S.scene==='nonext'?[]:['things','it','voices'], swiped:true};
+  W.before = W.before.trim();
+}
+
+document.addEventListener('click', e=>{
+  const t = e.target.closest('button'); if(!t) return;
+  if (t.dataset.design){ S.design=t.dataset.design; reset(); render(); return; }
+  if (t.dataset.scene){ S.scene=t.dataset.scene; reset(); render(); return; }
+  if (t.dataset.toggle){ S[t.dataset.toggle]=!S[t.dataset.toggle]; render(); return; }
+  if (t.dataset.themeSet){ S.theme=t.dataset.themeSet; document.documentElement.dataset.theme=S.theme; render(); return; }
+  if (t.dataset.size){ S.size=t.dataset.size; render(); return; }
+  const act = t.dataset.act, key = t.dataset.key;
+  if (act){
+    const [a, n] = act.split(':'); const i = +n;
+    if (a==='pick'){ const g=W.guesses; const w=g[i]; W={before:W.before, readings:g, cur:i, next:['things','it','voices'], swiped:true}; S.mode=null; S.fresh=true; squeeze(); }
+    else if (a==='swap'){ W.cur=i; S.mode=null; squeeze(); }
+    else if (a==='next'){ const w=W.next[i]; W={before:[W.before, W.readings?W.readings[W.cur]:'', W.extra||'', w].filter(Boolean).join(' '), next:['in','again','all'], swiped:false}; S.mode=null; S.fresh=true; }
+    else if (a==='fixrow'){ S.mode='fixrow'; }
+    else if (a==='field'){ S.mode='field'; S.typed=''; }
+    else if (a==='cancel'){ S.mode=null; }
+    else if (a==='save'){ if(!S.typed) return; if (W.guesses){ W={before:W.before, readings:[S.typed], cur:0, next:['things','it'], swiped:false}; } else { W.readings=[S.typed, ...W.readings.filter(x=>x!==S.typed)]; W.cur=0; W.swiped=false; } S.mode=null; squeeze(); }
+    render(); return;
+  }
+  if (key && S.mode==='field'){
+    if (key==='del') S.typed=S.typed.slice(0,-1);
+    else if (key==='space'||key==='ret'){ if (S.typed){ t.dataset.key=''; document.querySelector('[data-act="save"]').click(); t.dataset.key=key; } return; }
+    else S.typed+=key;
+    render(); return;
+  }
+  if (key==='space' && W.guesses){ document.querySelector(`[data-act="pick:${W.best}"]`)?.click(); }
+});
+render();
+</script>

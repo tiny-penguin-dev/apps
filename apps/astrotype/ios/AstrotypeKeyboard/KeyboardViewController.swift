@@ -10,7 +10,10 @@ import UIKit
 /// extension's own first run. `Flags.extensionReadout` puts the Phase 1 readings in
 /// the bar for measuring on a phone. With Full Access and the app's "Share anonymous
 /// usage data" on, crashes go to Sentry (`KeyboardTelemetry`) and memory readings go
-/// to the app (`KeyboardHealthRecorder`); nothing typed goes anywhere.
+/// to the app (`KeyboardHealthRecorder`); nothing typed goes anywhere. With Full Access
+/// its memory readings also go to the App Group for the app's Debug page
+/// (`KeyboardDebugRecorder`), and Settings → Debug can turn on a tiny readout on the
+/// keys (`KeyboardView.stats`).
 final class KeyboardViewController: UIInputViewController {
     private var keyboard: KeyboardView?
     private var target: ProxyTarget?
@@ -26,6 +29,8 @@ final class KeyboardViewController: UIInputViewController {
     private var appearance = 0
     private let checks = ExtensionChecks()
     private var health: KeyboardHealthRecorder?
+    /// The memory readings for the app's Debug page (with Full Access, never sent).
+    private var debug: KeyboardDebugRecorder?
     private var edits = 0
     /// The last appearance the field asked for, and whether it only echoed the phone's
     /// light or dark mode (`followKeyboardAppearance`).
@@ -43,6 +48,7 @@ final class KeyboardViewController: UIInputViewController {
         // First, so a crash while loading is caught.
         KeyboardTelemetry.start(fullAccess: fullAccess)
         health = KeyboardHealthRecorder(fullAccess: fullAccess)
+        debug = KeyboardDebugRecorder(fullAccess: fullAccess)
         let (settingsStore, wordStore, personalStore) = Self.stores(fullAccess: fullAccess)
         // The languages turned on, or the phone's (features/languages), with their word
         // pairs. Pro is not known yet, so both load; the model drops to one when the
@@ -192,6 +198,7 @@ final class KeyboardViewController: UIInputViewController {
         keyboard?.showsGlobe = needsInputModeSwitchKey
         applyHeight(fresh: true)
         health?.appeared()
+        debug?.appeared()
         askedAppearance = nil
         followKeyboardAppearance()
         keyboard?.model.field = field
@@ -225,11 +232,13 @@ final class KeyboardViewController: UIInputViewController {
         isVisible = false
         keyboard?.model.savePersonalNow()
         health?.disappeared()
+        debug?.disappeared()
     }
 
     override func didReceiveMemoryWarning() {
         super.didReceiveMemoryWarning()
         health?.sample()
+        debug?.memoryWarning()
     }
 
     /// The field as the app describes it (features/field-types): its keyboard type,

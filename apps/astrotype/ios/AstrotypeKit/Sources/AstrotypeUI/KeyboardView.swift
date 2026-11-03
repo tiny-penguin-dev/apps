@@ -25,6 +25,9 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
     public let model: KeyboardModel
     public let bar = BarView()
     public let surface = KeySurfaceView()
+    /// The tiny memory readout in the keys' top corner, while
+    /// `KeyboardSettings.showsStats` is on (Settings → Debug). Never in the bar.
+    public let stats = StatsOverlayView()
     /// Keys the engine leaves to the host: the globe.
     public var onSystemKey: ((Key) -> Void)?
     /// Whether the bottom row has a globe key before the emoji key: the extension sets
@@ -72,11 +75,13 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         backgroundColor = Theme.ui(.kb)
         addSubview(bar)
         addSubview(surface)
+        addSubview(stats)
         surface.delegate = self
         // Held keys offer the accents of the languages being typed (features/languages).
         surface.alternates = { [weak model] key in Accents.alternates(for: key, languages: model?.activeLanguages ?? []) }
         surface.layout = model.layout
         bar.onChoose = { [weak self] index in self?.model.choose(guess: index) }
+        bar.onChooseFix = { [weak self] reading in self?.model.chooseFix(reading: reading) }
         bar.onBoost = { [weak self] index in self?.model.boost(guess: index) }
         bar.onForget = { [weak self] index in self?.model.forget(guess: index) }
         bar.onNotIt = { [weak self] in self?.model.beginCorrection() }
@@ -182,6 +187,14 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         } else {
             surface.isHidden = false
         }
+        // The stats sit over the top right of the keys, under the panel and the emoji
+        // page, and take no touches.
+        if stats.isRunning {
+            let width = min(surface.frame.width - 8, 240)
+            stats.frame = CGRect(x: surface.frame.maxX - width - 4, y: surface.frame.minY + 1, width: width, height: 11)
+            stats.isHidden = emojiPage != nil || panel != nil
+            bringSubviewToFront(stats)
+        }
         if let panel {
             // Over the keys and the guesses bar both: the bar has nothing to say while
             // the settings are open (Gabriel, 3 Nov 2026).
@@ -238,6 +251,10 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         surface.showsFlashes = model.keyboardSettings.trails
         surface.spaceSlideEnabled = model.keyboardSettings.spaceSlide
         surface.backspaceSwipeEnabled = model.keyboardSettings.backspaceSwipe
+        if stats.isRunning != model.keyboardSettings.showsStats {
+            stats.isRunning = model.keyboardSettings.showsStats
+            setNeedsLayout()
+        }
         panel?.allowsSplit = model.entitlement.allows(.splitLayout)
         panel?.showsSplit = model.layout.isWide
         panel?.allowsTwoLanguages = model.entitlement.allows(.twoLanguages)

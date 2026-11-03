@@ -1,0 +1,593 @@
+<title>Astrotype Next Word</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;700;800;900&display=swap">
+<style>
+/* Layout: one phone (390x844) on a pale ice stage with a screen picker beside it. The keyboard is real: tap, swipe, two thumbs on a phone. */
+:root{
+  --stage:#E6F0F4; --bg:#F3F8FA; --card:#FFFFFF; --ink:#1E2945; --muted:#67748F; --line:#DCE6EC;
+  --accent:#139FB5; --accent-ink:#FFFFFF; --left:#139FB5; --right:#FF6F86; --sun:#FFC24D; --mint:#2FBF96; --ice:#D9EDF3;
+  --key:#FFFFFF; --key-ink:#1E2945; --key-dark:#C9D6DE; --kb:#DCE6EC; --bar:#E8F0F4;
+  --font:ui-rounded,"SF Pro Rounded","Nunito",system-ui,sans-serif;
+  --r-lg:28px; --r-md:18px; --r-sm:12px;
+  --spring:cubic-bezier(.34,1.56,.64,1);
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --stage:#0A1118; --bg:#111A24; --card:#1A2634; --ink:#EEF4F8; --muted:#97A6B8; --line:#2A3B4C;
+  --accent:#2FC6DC; --accent-ink:#06202A; --left:#2FC6DC; --right:#FF8A9E; --sun:#FFCD66; --mint:#45D3AA; --ice:#1D3240;
+  --key:#2A3A4A; --key-ink:#EEF4F8; --key-dark:#1C2834; --kb:#131E29; --bar:#1A2634;; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --stage:#0A1118; --bg:#111A24; --card:#1A2634; --ink:#EEF4F8; --muted:#97A6B8; --line:#2A3B4C;
+  --accent:#2FC6DC; --accent-ink:#06202A; --left:#2FC6DC; --right:#FF8A9E; --sun:#FFCD66; --mint:#45D3AA; --ice:#1D3240;
+  --key:#2A3A4A; --key-ink:#EEF4F8; --key-dark:#1C2834; --kb:#131E29; --bar:#1A2634;; color-scheme:dark}
+html,body{height:100%}
+body{background:var(--stage);color:var(--ink);font-family:var(--font);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.stage{display:flex;gap:32px;justify-content:center;align-items:flex-start;padding-block:24px;flex-wrap:wrap}
+.picker{display:flex;flex-direction:column;gap:6px;max-width:230px;min-width:0}
+.picker h1{font-size:28px;font-weight:900;margin:0}
+.picker p{margin:0 0 10px;color:var(--muted);font-size:13px;line-height:1.45}
+.picker button{font:inherit;font-weight:700;font-size:14px;text-align:left;border:0;background:transparent;color:var(--muted);padding:7px 12px;border-radius:10px;cursor:pointer}
+.picker button[aria-current="true"]{background:var(--card);color:var(--ink)}
+.picker button:focus-visible,.phone button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.picker small{color:var(--muted);font-size:11px;letter-spacing:.06em;text-transform:uppercase;font-weight:800;margin-top:10px;padding-left:12px}
+.themes{display:flex;gap:4px;margin-top:8px}
+.themes button{padding:5px 10px;font-size:12px;background:var(--line)}
+.themes button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.phone{width:390px;max-width:100%;height:844px;background:var(--bg);border-radius:48px;position:relative;overflow:hidden;
+  box-shadow:0 0 0 10px var(--ink),0 30px 60px rgba(20,30,60,.25);flex:none;touch-action:none}
+@media (max-width:700px){.picker{max-width:100%;flex-direction:row;flex-wrap:wrap}.picker h1,.picker p{width:100%}.picker small{display:none}
+  .phone{box-shadow:none;border-radius:32px;height:820px}}
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;padding:58px 22px 30px;gap:16px;animation:in .45s var(--spring)}
+.screen.haskb{padding-bottom:0}
+@keyframes in{from{transform:translateX(30px);opacity:0}to{transform:none;opacity:1}}
+.status{position:absolute;top:14px;left:30px;right:30px;display:flex;justify-content:space-between;font-weight:800;font-size:15px;z-index:3}
+.h1{font-size:30px;font-weight:900;line-height:1.1;margin:0;text-wrap:balance}
+.h2{font-size:20px;font-weight:800;margin:0}
+.sub{color:var(--muted);font-size:16px;line-height:1.4;margin:0}
+.btn{font:inherit;font-weight:800;font-size:18px;border:0;border-radius:999px;padding:17px 22px;background:var(--accent);color:var(--accent-ink);cursor:pointer;
+  transition:transform .25s var(--spring);box-shadow:0 6px 0 color-mix(in srgb,var(--accent) 60%,#000 25%)}
+.btn:active{transform:translateY(3px) scale(.98);box-shadow:0 3px 0 color-mix(in srgb,var(--accent) 60%,#000 25%)}
+.btn.ghost{background:transparent;color:var(--muted);box-shadow:none;font-size:15px;padding:8px}
+.btn.small{font-size:14px;padding:10px 16px;box-shadow:0 4px 0 color-mix(in srgb,var(--accent) 60%,#000 25%)}
+.spacer{flex:1}
+.card{background:var(--card);border-radius:var(--r-md);padding:16px}
+.row{display:flex;align-items:center;gap:12px}
+.chip{display:inline-flex;align-items:center;gap:6px;font-weight:800;font-size:13px;padding:6px 10px;border-radius:999px;background:var(--ice);color:var(--ink)}
+.pro{font-size:10px;font-weight:900;letter-spacing:.08em;background:var(--sun);color:#3A2600;padding:3px 7px;border-radius:6px}
+.toggle{width:52px;height:32px;border-radius:999px;background:var(--line);border:0;position:relative;cursor:pointer;flex:none;transition:background .2s}
+.toggle::after{content:"";position:absolute;top:3px;left:3px;width:26px;height:26px;border-radius:50%;background:#fff;box-shadow:0 2px 4px rgba(0,0,0,.2);transition:transform .35s var(--spring)}
+.toggle[aria-pressed="true"]{background:var(--mint)}
+.toggle[aria-pressed="true"]::after{transform:translateX(20px)}
+.back{font:inherit;font-weight:800;color:var(--accent);background:none;border:0;font-size:17px;padding:0;cursor:pointer;align-self:flex-start}
+.list{display:flex;flex-direction:column;gap:10px}
+.sec{font-size:13px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:6px 0 -6px 4px}
+.scroll{overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:14px;margin:0 -22px;padding:0 22px 10px}
+.steps{display:flex;flex-direction:column;gap:10px;counter-reset:s}
+.steps div{display:flex;gap:12px;align-items:center;background:var(--card);border-radius:var(--r-md);padding:12px 14px;font-weight:700}
+.steps div::before{counter-increment:s;content:counter(s);width:28px;height:28px;border-radius:50%;background:var(--ice);display:grid;place-items:center;font-weight:900;flex:none}
+.steps b{color:var(--accent)}
+.seg{display:flex;background:var(--line);border-radius:999px;padding:4px}
+.seg button{flex:1;font:inherit;font-weight:800;font-size:14px;border:0;background:transparent;color:var(--muted);padding:9px 0;border-radius:999px;cursor:pointer;transition:background .2s}
+.seg button[aria-pressed="true"]{background:var(--card);color:var(--ink)}
+.big{font-size:64px;font-weight:900;font-variant-numeric:tabular-nums;line-height:1}
+.dots{display:flex;gap:6px;justify-content:center}
+.dots i{width:8px;height:8px;border-radius:50%;background:var(--line)}
+.dots i.on{background:var(--accent)}
+.price{font:inherit;color:inherit;text-align:left;border:3px solid transparent;cursor:pointer;display:flex;align-items:center;gap:12px;transition:transform .3s var(--spring),border-color .2s}
+.price[aria-pressed="true"]{border-color:var(--accent);transform:scale(1.02)}
+.price b{font-size:18px;display:block}
+.price span{color:var(--muted);font-size:13px}
+.price .amt{margin-left:auto;font-size:20px;font-weight:900;font-variant-numeric:tabular-nums}
+.perk{display:flex;gap:10px;align-items:center;font-weight:700;font-size:15px}
+.perk i{width:22px;height:22px;border-radius:50%;background:var(--mint);color:#fff;display:grid;place-items:center;font-style:normal;font-size:13px;flex:none}
+.slider{height:6px;border-radius:3px;background:var(--line);position:relative;flex:1}
+.slider::after{content:"";position:absolute;left:40%;top:-8px;width:22px;height:22px;border-radius:50%;background:var(--accent);box-shadow:0 2px 4px rgba(0,0,0,.2)}
+.week{display:flex;justify-content:space-between}
+.week div{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:12px;font-weight:800;color:var(--muted)}
+.week i{width:34px;height:34px;border-radius:50%;background:var(--line);display:grid;place-items:center;font-style:normal;color:#fff}
+.week i.y{background:var(--mint)}
+.fish{position:absolute;top:-30px;width:22px;height:12px;pointer-events:none;animation:fall 2.2s ease-in forwards}
+@keyframes fall{to{transform:translateY(900px) rotate(540deg)}}
+.shake{animation:shake .4s}
+@keyframes shake{25%{transform:translateX(-10px)}75%{transform:translateX(10px)}}
+/* art: generic graphics, a keyboard with two thumb trails */
+.art{display:block;margin:0 auto;overflow:visible}
+.art .trail{fill:none;stroke-width:10;stroke-linecap:round;stroke-linejoin:round;opacity:.9}
+.art .trail.L{stroke:var(--left)}.art .trail.R{stroke:var(--right)}
+.art .dot.L{fill:var(--left)}.art .dot.R{fill:var(--right)}
+.art.live .trail{stroke-dasharray:420;stroke-dashoffset:420;animation:draw 1.4s var(--spring) forwards}
+.art.live .trail.R{animation-delay:.35s}
+.art.live .dot{transform-origin:center;transform-box:fill-box;animation:pop .5s var(--spring) 1.2s both}
+.art.live .dot.R{animation-delay:1.55s}
+@keyframes draw{to{stroke-dashoffset:0}}
+@keyframes pop{from{transform:scale(0)}to{transform:scale(1)}}
+.art.float{animation:float 3s ease-in-out infinite}
+@keyframes float{50%{transform:translateY(-6px)}}
+.art .ray{stroke:var(--sun);stroke-width:8;stroke-linecap:round}
+.art.live .ray{transform-origin:100px 100px;animation:spin 14s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.zz{font-weight:900;fill:var(--muted);animation:zz 2.6s ease-in infinite;opacity:0}
+.zz:nth-of-type(2){animation-delay:1.3s}
+@keyframes zz{0%{opacity:0;transform:translate(0,0)}30%{opacity:1}100%{opacity:0;transform:translate(14px,-30px)}}
+/* sizes: small = iPhone Duo outer screen, phone = iPhone, wide = iPhone Duo inner screen */
+.sizes{display:flex;gap:4px;margin-top:8px}
+.sizes button{padding:5px 10px;font-size:12px;background:var(--line)}
+.sizes button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.phone.small{width:420px;height:700px;border-radius:40px}
+.phone.wide{width:744px;height:1024px;border-radius:40px}
+.phone.wide .screen{padding-left:40px;padding-right:40px}
+.phone.wide .scroll,.phone.wide .kbwrap,.phone.wide .compose{margin-left:-40px;margin-right:-40px}
+.phone.wide .scroll{padding-left:40px;padding-right:40px}
+.phone.wide .h1{font-size:36px}
+.phone.wide .cols{display:grid;grid-template-columns:1fr 1fr;align-content:start}
+.col{display:flex;flex-direction:column;gap:14px}
+.phone.wide .kbwrap{padding-left:16px;padding-right:16px}
+.phone.wide .krow{gap:8px}
+.phone.wide .key{max-width:58px;height:54px;font-size:24px}
+.phone.wide .key.wide{max-width:84px}.phone.wide .key.fn{max-width:76px}.phone.wide .key.ret{max-width:150px}.phone.wide .key.space{max-width:330px}
+.phone.wide .bub{max-width:60%}
+.phone.small .key{max-width:37px}
+.phone.small .key.wide{max-width:54px}.phone.small .key.fn{max-width:50px}.phone.small .key.ret{max-width:100px}.phone.small .key.space{max-width:214px}
+/* text field and conversation */
+.field{background:var(--card);border-radius:var(--r-md);padding:14px 16px;min-height:64px;font-size:18px;line-height:1.4;word-break:break-word}
+.field .open{text-decoration:underline;text-decoration-color:var(--accent);text-decoration-thickness:3px;text-underline-offset:4px}
+.field .caret{display:inline-block;width:2px;height:1.1em;background:var(--accent);vertical-align:text-bottom;animation:blink 1s steps(1) infinite;margin-left:1px}
+@keyframes blink{50%{opacity:0}}
+.prompt{font-size:15px;color:var(--muted);font-weight:700}
+.prompt b{color:var(--ink);font-size:22px;display:block;margin-top:2px}
+.convo{display:flex;flex-direction:column;gap:8px;flex:1;overflow:hidden}
+.bub{max-width:78%;padding:10px 14px;border-radius:20px;font-size:16px;line-height:1.35;background:var(--card)}
+.bub.me{align-self:flex-end;background:var(--accent);color:var(--accent-ink)}
+.compose{display:flex;gap:8px;align-items:flex-end;margin:0 -22px;padding:8px 14px;background:var(--bg)}
+.compose .field{flex:1;min-height:44px;padding:9px 14px;border-radius:22px;border:1px solid var(--line);font-size:17px}
+/* keyboard */
+.kbwrap{margin:0 -22px;margin-top:auto;position:relative;background:var(--kb);padding:8px 4px 24px;user-select:none;-webkit-user-select:none}
+.bar{display:flex;align-items:center;gap:6px;height:44px;padding:0 6px;margin-bottom:8px}
+.bar button{font:inherit;font-weight:700;font-size:17px;border:0;background:transparent;color:var(--ink);flex:1;padding:8px 6px;border-radius:10px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.bar button.top{background:var(--card);font-weight:900}
+.bar .note{flex:1;text-align:center;color:var(--muted);font-weight:700;font-size:14px}
+.bar .note b{color:var(--accent)}
+.bar .fixlabel{font-size:11px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:0 4px;flex:none}
+.bar .fix{flex:none;max-width:38%;display:flex;align-items:center;gap:4px;background:var(--ice);font-weight:800;padding:8px 10px}
+.bar .fix .fixlabel{padding:0 2px 0 0}
+.bar .sep{flex:none;width:1px;height:22px;background:var(--line)}
+.bar button.next{color:var(--ink);font-weight:700}
+.bar.fresh button.next{animation:nextin .25s ease-out}
+@keyframes nextin{from{opacity:0;transform:translateY(4px)}}
+.modes{display:flex;flex-direction:column;gap:2px}
+.modes button[aria-pressed="true"]{background:var(--card);color:var(--ink)}
+.rows{display:flex;flex-direction:column;gap:9px;position:relative}
+.krow{display:flex;justify-content:center;gap:6px}
+.key{flex:1 1 0;min-width:0;max-width:33px;height:44px;border-radius:7px;background:var(--key);color:var(--key-ink);font:inherit;font-weight:700;font-size:21px;border:0;padding:0;display:grid;place-items:center;
+  box-shadow:0 1px 0 rgba(0,0,0,.25);position:relative;transition:background .25s,color .25s,transform .15s var(--spring);touch-action:none}
+.key.wide{flex:1.45 1 0;max-width:48px;background:var(--key-dark);font-size:15px}
+.key.space{flex:5.7 1 0;max-width:190px;font-size:13px;font-weight:800;color:var(--muted)}
+.key.fn{flex:1.33 1 0;max-width:44px;background:var(--key-dark);font-size:14px}
+.key.ret{flex:2.66 1 0;max-width:88px;background:var(--key-dark);font-size:14px}
+.key.hitL{background:var(--left);color:#fff;transform:scale(1.06)}
+.key.hitR{background:var(--right);color:#fff;transform:scale(1.06)}
+.key.hintL{box-shadow:0 0 0 3px var(--left)}
+.key.hintR{box-shadow:0 0 0 3px var(--right)}
+.trails{position:absolute;inset:0;pointer-events:none;overflow:visible}
+.trails path{fill:none;stroke-width:9;stroke-linecap:round;stroke-linejoin:round;opacity:.85}
+.trails path.L{stroke:var(--left)}.trails path.R{stroke:var(--right)}
+.trails path.done{animation:fade 1.2s ease-out forwards}
+.trails circle{opacity:.9;animation:ping .6s ease-out forwards}
+.trails circle.L{fill:var(--left)}.trails circle.R{fill:var(--right)}
+@keyframes fade{to{opacity:0}}
+@keyframes ping{from{r:6}to{r:22;opacity:0}}
+.meter{display:flex;align-items:center;gap:10px}
+.meter .track{flex:1;height:10px;border-radius:5px;background:var(--line);overflow:hidden}
+.meter .track i{display:block;height:100%;width:52%;background:linear-gradient(90deg,var(--left),var(--right));border-radius:5px;animation:grow 1s var(--spring)}
+@keyframes grow{from{width:0}}
+.wordcards{display:flex;gap:8px}
+.wordcards div{flex:1;text-align:center;padding:12px 0;border-radius:var(--r-sm);background:var(--card);font-weight:900;font-size:18px}
+.wordcards div.done{background:var(--mint);color:#fff}
+.wordcards div.now{box-shadow:0 0 0 3px var(--accent)}
+@media (prefers-reduced-motion: reduce){*{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+</style>
+
+<div class="stage">
+  <nav class="picker" aria-label="Screens">
+    <h1>Astrotype</h1>
+    <p>Guess the next word: after each word the bar offers the likely next ones, so a tap writes "to" or "the" instead of a swipe. The keyboard works: type a word, then tap a next word. Guesses come from the real English word-pair model.</p>
+    <small>Before and after</small>
+    <button data-go="messages">12 · Messages, today (FIX)</button>
+    <button data-go="nextMsg">12 · Messages, with next words</button>
+    <button data-go="nextNew">New message (sentence start)</button>
+    <button data-go="prefs">9 · Keyboard settings</button>
+    <small>Bar after a word</small>
+    <div class="modes" role="group" aria-label="Bar after a word">
+      <button data-mode="A">A · Fix chip, then next words</button>
+      <button data-mode="B">B · FIX, then next words after a beat</button>
+      <button data-mode="C">C · Next words only (backspace to fix)</button>
+    </div>
+    <small>Size</small>
+    <div class="sizes" role="group" aria-label="Size">
+      <button data-size="small">Small</button><button data-size="">Phone</button><button data-size="wide">Wide</button>
+    </div>
+    <small>Theme</small>
+    <div class="themes" role="group" aria-label="Theme">
+      <button data-theme="">System</button><button data-theme="light">Light</button><button data-theme="dark">Dark</button>
+    </div>
+  </nav>
+  <div class="phone" id="phone" role="region" aria-label="Astrotype mockup"></div>
+</div>
+
+<script>
+const WORDS_EXTRA="keyboard hello thumbs thumb flippers typing faster fastest swipe swipes tapping astrotype twenty minutes tonight dinner tomorrow flipper cat bread hat";
+</script>
+<script>
+/* top 1,500 words from ml/export/lexicon.tsv, for the mockup's decoder */
+const WORDS="the to and of a in i is for that you it on with this was be as are have at he not by but from my or we an your all so his they me if one can will just like about up out what has when more do no were who had their there her which time get been would she new people how some also them now other its our than good only after first him into know see two make over think any then could back these us want because go well said way most much very where even should may here need really did right work year years being day too going before off why made still take got many never those life say world down great through last while best such love man home long look something use same used both every am come part state three around between always better find help high little old since another does own things under during game thing give house place school again next each mr without against end found must show big feel sure team ever family keep might please put money free second someone away left number city days lot name night play until company doing few let real called different having set thought done however getting god government group looking public top women business care start system times week already anything case nothing person today change enough everything full live making point read told yet bad four hard mean once support tell including music power seen states stop water based believe call head men national small took white came far job side though try went yes actually american later less line order party run says service country open season shit thank children everyone general trying united using area black following law makes together war whole car face five kind maybe per president story working course games health hope important least means news within able book early friends information local oh post thanks video young ago others social talk court fact given guys half hand level mind often single become body coming control death food guy hours office pay problem south true almost fuck history known large lost research room several started taking university win wrong along anyone else girl john matter pretty remember air bit friend hit needs nice playing probably saying understand yeah york class close comes idea international looks past possible wanted cause due happy human members months move question series wait woman ask community data late leave north saw special watch either fucking future light low million morning police short stay taken age buy deal rather reason red report soon third turn whether among check development form further heart minutes myself services yourself act although asked child fire fun living major media phone players art behind building easy gonna market near non plan political quite six talking west works according available education final former front kids list ready sometimes son street bring college current example experience heard london meet program type baby chance father march process song study word across action clear gave gets himself month outside self students words board cost cut dr field held instead main moment mother road seems thinking town wants de department energy fight fine force hear issue played points price re rest results running shows space summer term wife america beautiful date goes killed land miss project sex shot site strong account co especially eyes include june parents period position record similar total above club common died film happened knew lead likely military perfect personal security share st tv won april center county couple dead english happen hold industry inside issues online player private problems return rights sense star test view weeks break british companies event higher hour member middle needed present result sorry takes training wish answer boy design finally girls gold gone guess interest july king learn policy society added al alone average bank brought certain church east hands hot longer medical movie original park performance press received role sent themselves tried worked worth areas became bill books cool director exactly giving ground meeting provide questions relationship september sound source usually value evidence follow lives official ok production rate reading round save stand stuff tax whatever amount blue countries david drive eat fall fast federal feeling felt green league management match model picture size step trust central changes england forward groups hey key mom page paid range review science trade uk upon various attention brother cannot character chief cup football hate james led looked lower natural october property quality send style vote amazing august blood china complete dog economic hell involved itself language lord november oil related serious stage terms title add article attack born damn decided decision enjoy entire french january kill met perhaps poor release situation technology turned website written choice code considered continue council cover currently door election european events financial foreign hair increase legal lose michael pick race seem seven sign simple simply staff super union walk washington bed began built career changed crazy daily daughter december die difficult figure hospital knows loss modern ones paper parts popular published safe starting systems version voice whose writing army australia earth forget goal huge internet listen okay practice rules sea sir success towards waiting ways access base below created deep followed la lol mark missing offer pass professional released risk schools sleep table ten truth ball box build card cases dark district europe george india mine minister note percent piece products recent seeing straight visit wall wanna wrote allowed boys culture etc fans february gives growth included married officer pain paul places respect response river rock shall speak specific standard tonight write album century charge cold create effect eight except eye funny ii limited moving network peace provided recently required sales spent store student tomorrow track via watching weight addition ahead allow anti association beat brown capital chinese committee conference difference double expect gas island moved normal plans population potential pressure radio russian station text treatment western ass beginning california campaign certainly completely content credit cross described despite female focus hi husband ice individual interesting join kept leading loved message miles nearly particular previous quickly region reported section sort speed travel consider contact drop fair feet jesus kid link positive sale throughout tour welcome absolutely additional beyond conditions earlier extra forces immediately jobs leaving minute nature numbers quick sell significant studies unless winning agree canada clean computer construction episode favorite income justice levels manager movement photo posted safety san scene sold sounds spend statement sun teams ability announced asking calling coach collection continued costs definitely designed expected friday gun happens heavy includes knowledge particularly search subject train wide wow author centre claim dad developed fear fit generally german global goals gotta hotel interested judge lady leader letter lines material named nobody opportunity plus pre product regular secretary sister stories unit workers annual anymore bar battle brain contract degree families features finished floor france growing hurt image insurance majority meant opening opinion physical pro reach rule seriously sports stupid successful active administration approach australian biggest cancer civil dance defense direction independent master none reasons russia ship stock trump weekend wonder worst africa awesome band beach cash clearly commercial compared effort ended fan fighting imagine impact lack latest learning multiple older operation organization passed pictures protect secret senior spring sunday telling wear activities address analysis anyway bought calls choose christmas color commission competition details direct dream easily finish grand increased indian literally luck marriage names necessary patients resources rich skin speaking supposed sweet thus touch yesterday caught closed congress damage directly disease doctor doubt drink driving established facebook feels fish gay germany glad greater grow largest machine notice overall planning professor programs records reports shown sit trip associated basic captain carry cars crime effective effects explain fully highly holding japan laws male mrs parties plant reality smith spot texas winter worse advice agreement award block broken caused challenge characters christian comment equipment eventually helped holy killing lived lots nation otherwise peter prices primary purpose rates responsible shop showing sick teacher theory uses william agency avoid camera catch cell coast comments drug economy environment executive foot hall mass meaning mission nine officers operations politics pop produced ran saturday status therefore trial truly weather activity app application claims coffee complex condition division evening flight freedom google heat highest interview library located location murder obama offered putting queen seconds showed sitting standing stars walking accept actual appear attempt broke channel distance eating exchange fat fell finding glass learned losing mobile northern opened placed powerful prior protection reached receive religious ride robert royal screen serve signed slow species speech traffic tree types vs wearing whom wonderful agreed airport animals appears begin benefits bottom cities demand engine everybody famous ideas investment keeping lie notes partner plays raised runs sad solution songs sources southern square stopped structure thomas traditional twice wind worry americans appeared becomes brand bus cent chicago count covered critical digital forced fourth fresh lake mental mentioned".split(" ");
+</script>
+<script>
+/* ---------- state ---------- */
+const S={on:false,full:false,plan:"year",autospace:true,twoThumbs:true,theme:"",nextWord:true,mode:"A"};
+/* top three next words per previous word, from Resources/en/bigrams.bin (Tatoeba pairs), contractions left out */
+const NEXT={"sign":["of","the","that"],"rather":["than","not","be"],"read":["the","a","this"],"style":["of","is","and"],"ten":["years","minutes","thousand"],"gold":["and","is","medal"],"water":["is","in","and"],"ok":["if","to","with"],"street":["is","was","from"],"drop":["in","by","of"],"pretty":["good","sure","well"],"open":["the","to","your"],"texas":["is","and","accent"],"putting":["on","the","it"],"completely":["different","out","empty"],"said":["that","he","she"],"themselves":["in","to","with"],"certainly":["not","a","hope"],"keep":["your","the","it"],"increased":["in","by","the"],"trying":["to","not","hard"],"here":["for","to","in"],"online":["bullying","is","and"],"basic":["needs","human","unit"],"result":["of","in","is"],"low":["for","in","on"],"original":["plan","language","sentence"],"except":["for","me","the"],"finally":["found","got","arrived"],"property":["in","of","is"],"slow":["down","and","the"],"none":["of","the","in"],"have":["to","a","you"],"daily":["life","basis","routine"],"pictures":["of","in","on"],"watching":["tv","the","a"],"lots":["of","to","and"],"operations":["in","are","and"],"minute":["to","walk","of"],"focus":["on","more","of"],"goal":["is","of","in"],"private":["school","life","sector"],"track":["of","and","the"],"just":["a","want","like"],"lived":["in","here","a"],"local":["government","newspaper","people"],"situation":["is","in","has"],"away":["from","with","the"],"has":["a","been","to"],"wanted":["to","me","a"],"comes":["from","to","back"],"prices":["are","have","will"],"known":["as","for","to"],"couple":["of","more","in"],"follow":["the","me","him"],"hit":["the","by","me"],"benefits":["of","from","to"],"schools":["are","in","and"],"student":["in","is","at"],"break":["the","up","a"],"brother":["is","and","has"],"game":["of","is","was"],"camera":["is","for","with"],"security":["guard","guards","cameras"],"source":["of","is","software"],"march":["of","is","and"],"california":["is","and","to"],"son":["is","of","to"],"dead":["body","in","for"],"teams":["are","in","from"],"work":["in","for","on"],"gone":["to","out","there"],"football":["is","team","player"],"characters":["are","in","and"],"machine":["is","was","translation"],"europe":["and","is","has"],"whatever":["you","it","he"],"health":["is","and","organization"],"eventually":["be","got","died"],"few":["days","minutes","people"],"france":["is","and","in"],"found":["a","the","out"],"hear":["the","that","you"],"division":["of","and","in"],"learned":["to","a","how"],"mind":["if","to","is"],"mentioned":["in","it","that"],"seriously":["injured","thinking","consider"],"author":["of","is","has"],"wish":["i","that","you"],"town":["is","in","of"],"point":["of","in","out"],"therefore":["i","the","he"],"appeared":["to","in","on"],"fast":["as","food","asleep"],"imagine":["how","that","what"],"love":["with","you","to"],"otherwise":["i","the","he"],"sounds":["like","of","very"],"wrote":["a","the","this"],"safety":["of","is","and"],"needed":["to","a","help"],"particularly":["in","good","interested"],"base":["of","in","and"],"kid":["is","in","who"],"interest":["in","you","me"],"pass":["the","me","through"],"touch":["with","the","it"],"line":["of","is","for"],"success":["in","is","of"],"black":["and","cat","hair"],"men":["are","and","in"],"notice":["that","the","anything"],"common":["sense","in","with"],"king":["of","and","was"],"group":["of","is","in"],"studies":["in","at","the"],"policy":["is","of","was"],"miles":["away","from","per"],"brown":["hair","eyes","is"],"bottom":["of","line","bunk"],"winter":["is","in","and"],"lie":["to","down","about"],"yes":["or","to","and"],"thank":["you","god","me"],"child":["is","was","in"],"party":["was","is","for"],"driving":["a","licence","me"],"holding":["a","the","hands"],"association":["of","with","has"],"trust":["you","him","me"],"de":["janeiro","la","facto"],"almost":["every","never","all"],"killed":["by","the","in"],"album":["is","to","was"],"up":["to","the","with"],"count":["on","to","the"],"always":["been","be","wanted"],"details":["of","about","later"],"because":["of","i","he"],"was":["a","the","in"],"brought":["a","the","up"],"heavy":["rain","snow","for"],"fan":["of","is","on"],"page":["of","is","in"],"agency":["and","is","has"],"started":["to","a","talking"],"sex":["with","is","in"],"issues":["with","in","of"],"treatment":["for","of","is"],"majority":["of","in","country"],"difficult":["to","for","than"],"companies":["are","that","have"],"uk":["is","has","in"],"yesterday":["i","was","afternoon"],"lord":["said","god","is"],"lack":["of","the","empathy"],"between":["the","us","a"],"called":["the","a","me"],"writing":["a","in","the"],"changes":["in","to","are"],"wonderful":["time","day","thing"],"shows":["that","the","a"],"born":["in","and","on"],"country":["is","in","has"],"voice":["is","was","of"],"africa":["and","is","in"],"making":["a","the","it"],"william":["was","is","and"],"thumb":["and","is","with"],"sister":["is","has","to"],"cent":["of","more"],"sea":["is","level","of"],"fully":["understand","recovered","aware"],"lower":["the","than","your"],"take":["a","the","care"],"sort":["of","it","out"],"their":["own","children","parents"],"london":["is","to","for"],"due":["to","in","course"],"table":["is","and","for"],"fun":["of","to","in"],"period":["of","is","at"],"felt":["like","a","the"],"consider":["the","it","yourself"],"rate":["of","is","in"],"loved":["her","me","him"],"lot":["of","to","about"],"person":["who","in","i"],"degree":["in","of","murder"],"free":["to","time","of"],"january":["of","is","and"],"cities":["in","are","and"],"significant":["other","progress","role"],"size":["of","and","to"],"while":["i","the","you"],"fear":["of","that","the"],"against":["the","it","a"],"gonna":["be","have","get"],"forces":["of","are","to"],"learning":["berber","a","to"],"man":["is","who","in"],"names":["of","are","in"],"tell":["me","you","him"],"answer":["the","to","is"],"position":["to","of","in"],"takes":["a","to","place"],"russian":["is","language","and"],"direct":["sunlight","investment","order"],"worse":["than","and","for"],"down":["the","to","on"],"available":["in","for","to"],"land":["of","is","in"],"dark":["and","in","clouds"],"on":["the","a","his"],"huge":["mistake","amount","success"],"september":["of","is","and"],"not":["to","a","going"],"book":["is","in","about"],"engine":["is","running","was"],"market":["is","for","in"],"england":["is","and","in"],"clearly":["and","not","a"],"goals":["for","are","and"],"win":["the","this","a"],"german":["shepherd","is","and"],"nine":["years","in","hundred"],"changed":["the","his","my"],"late":["for","to","at"],"lost":["his","my","the"],"play":["the","with","tennis"],"literally":["means","the","nothing"],"risk":["of","that","it"],"seems":["to","that","like"],"ass":["off","and","in"],"caused":["by","the","a"],"self":["is","and","to"],"doctor":["told","is","advised"],"each":["other","of","day"],"jobs":["are","in","and"],"light":["on","of","is"],"whom":["i","you","did"],"looked":["at","like","around"],"placed":["the","in","on"],"rock":["and","band","music"],"look":["at","like","for"],"speed":["of","limit","up"],"life":["is","in","of"],"team":["is","of","has"],"partner":["in","is","are"],"her":["to","a","husband"],"include":["the","a","me"],"india":["is","and","has"],"gives":["me","us","a"],"secretary":["of","is","general"],"south":["africa","of","america"],"written":["in","by","a"],"under":["the","a","his"],"truly":["a","believe","love"],"stars":["in","are","and"],"came":["to","back","out"],"how":["to","many","much"],"wanna":["go","be","see"],"professor":["of","is","at"],"does":["not","it","the"],"june":["of","bug","beetle"],"germany":["is","and","was"],"father":["is","was","and"],"river":["is","in","flows"],"produced":["by","in","a"],"certain":["that","of","to"],"pain":["in","is","and"],"gay":["and","people","men"],"be":["a","able","in"],"conference":["room","in","is"],"asking":["for","me","you"],"top":["of","shelf","priority"],"someone":["else","who","to"],"it":["was","is","to"],"gotta":["go","do","be"],"protect":["the","you","her"],"pop":["music","round","star"],"recent":["years","studies","events"],"video":["games","game","on"],"coffee":["is","with","shop"],"industry":["is","in","and"],"now":["i","that","is"],"continued":["to","his","walking"],"released":["a","from","the"],"large":["number","as","and"],"nobody":["knows","can","is"],"parties":["are","and","have"],"beach":["is","with","was"],"easily":["be","get","distracted"],"showed":["up","me","the"],"poor":["man","people","and"],"events":["in","of","and"],"points":["of","to","in"],"explain":["it","to","the"],"buy":["a","that","some"],"<s>":["i","the","he"],"additional":["information","cost","details"],"president":["of","is","in"],"trump":["is","has","was"],"problem":["is","with","in"],"need":["to","a","you"],"committee":["is","of","was"],"waiting":["for","to","in"],"tapping":["on","his","sound"],"turn":["off","the","on"],"really":["want","like","think"],"given":["a","up","to"],"contact":["with","you","me"],"your":["own","favorite","life"],"dance":["with","floor","in"],"hope":["that","you","to"],"one":["of","who","is"],"calling":["me","the","you"],"production":["of","is","and"],"took":["a","the","off"],"college":["students","student","in"],"married":["to","a","in"],"itself":["to","is","in"],"playing":["the","with","in"],"potential":["to","for","of"],"attempt":["to","at","was"],"directly":["to","into","at"],"opening":["the","ceremony","a"],"get":["a","to","the"],"dinner":["with","tonight","at"],"french":["is","in","teacher"],"university":["of","in","student"],"week":["ago","in","to"],"me":["to","a","that"],"think":["that","i","you"],"best":["friend","to","way"],"learn":["to","how","berber"],"channel":["is","on","was"],"bus":["stop","to","is"],"bill":["is","was","gates"],"full":["of","moon","stop"],"previous":["one","day","life"],"too":["much","late","many"],"which":["is","one","he"],"around":["the","here","and"],"sir":["william","charles","henry"],"growth":["of","in","and"],"november":["of","is","and"],"leading":["to","a","the"],"social":["media","distancing","life"],"cool":["down","and","to"],"nation":["of","that","is"],"park":["street","is","in"],"eight":["years","hours","in"],"single":["word","day","person"],"press":["the","conference","this"],"subject":["to","of","is"],"from":["the","a","his"],"guy":["is","who","in"],"course":["of","i","you"],"features":["of","that","a"],"without":["a","you","any"],"books":["are","in","on"],"bed":["early","and","at"],"normal":["to","life","for"],"male":["and","or","giraffes"],"boy":["is","was","in"],"more":["than","time","money"],"leave":["the","me","it"],"episode":["of","is","was"],"along":["the","with","well"],"commercial":["fishing","drive","fish"],"spot":["for","on","to"],"soon":["as","be","after"],"opened":["the","his","a"],"captain":["of","is","was"],"tonight":["is","we","i"],"chance":["to","of","that"],"north":["africa","america","of"],"today":["is","i","was"],"early":["in","to","today"],"girl":["is","in","was"],"human":["beings","rights","being"],"throughout":["the","history","his"],"feel":["like","the","a"],"getting":["a","married","ready"],"sources":["of","are","by"],"education":["is","and","system"],"freedom":["of","is","to"],"process":["of","is","to"],"rates":["are","of","in"],"interested":["in","to","only"],"fans":["of","with","may"],"forced":["to","me","him"],"review":["the","of","your"],"case":["of","with","you"],"finding":["a","the","fault"],"army":["is","of","was"],"mental":["health","illness","and"],"feeling":["that","well","a"],"independent":["of","country","state"],"rights":["and","of","are"],"minutes":["to","ago","late"],"box":["is","of","was"],"should":["be","have","i"],"google":["translate","it","is"],"department":["of","store","is"],"society":["is","of","and"],"official":["language","languages","name"],"door":["open","and","to"],"includes":["a","the","an"],"hard":["to","for","work"],"tv":["in","show","is"],"blue":["eyes","sky","and"],"following":["the","me","day"],"fact":["that","is","from"],"although":["i","the","he"],"image":["of","is","and"],"prior":["to","engagement","commitment"],"until":["the","i","he"],"gun":["at","and","in"],"quickly":["as","and","got"],"and":["the","i","a"],"likely":["to","be","that"],"ones":["who","own","that"],"keyboard":["is","on","to"],"especially":["in","when","for"],"direction":["of","is","to"],"facebook":["account","page","is"],"simple":["as","to","and"],"house":["is","in","was"],"living":["in","room","here"],"with":["the","a","you"],"believe":["that","in","it"],"major":["in","problem","is"],"spring":["is","has","and"],"photo":["of","album","was"],"know":["that","what","how"],"beautiful":["woman","and","than"],"app":["on","for","is"],"challenge":["for","of","to"],"fucking":["with","cunt","hell"],"response":["to","was","is"],"fell":["asleep","in","into"],"ideas":["are","and","on"],"business":["in","is","to"],"fish":["in","and","is"],"further":["away","notice","than"],"third":["of","floor","time"],"leader":["of","is","in"],"comments":["on","about","are"],"shown":["that","in","you"],"want":["to","you","me"],"access":["to","the","is"],"perhaps":["you","i","the"],"places":["in","to","like"],"death":["is","of","was"],"indian":["ocean","and","food"],"parents":["are","to","and"],"plans":["to","for","are"],"of":["the","a","his"],"went":["to","out","back"],"back":["to","in","home"],"defense":["is","against","attorney"],"glad":["to","that","you"],"posted":["a","on","the"],"ball":["is","with","to"],"allow":["me","you","that"],"finish":["this","the","doing"],"anymore":["because","and","since"],"stupid":["to","things","thing"],"title":["of","is","for"],"actual":["problem","fact","price"],"professional":["musician","life","comic"],"claims":["that","to","he"],"civil":["war","rights","servant"],"sale":["of","today","on"],"speech":["was","is","in"],"according":["to","as"],"theory":["of","is","that"],"record":["of","for","the"],"expected":["to","it","that"],"rules":["of","are","to"],"oh":["my","no","yeah"],"ice":["cream","and","is"],"plant":["is","in","a"],"air":["conditioner","is","conditioning"],"since":["i","the","he"],"word":["for","of","is"],"god":["is","of","and"],"area":["of","is","in"],"taken":["to","a","the"],"act":["like","of","as"],"attack":["on","and","the"],"cancer":["is","and","in"],"station":["is","to","at"],"drug":["addict","is","addiction"],"probably":["be","not","going"],"that":["i","you","he"],"series":["of","is","was"],"greater":["than","the","part"],"doubt":["that","it","about"],"nothing":["to","but","is"],"conditions":["are","in","for"],"traditional":["chinese","japanese","medicine"],"power":["to","of","in"],"truth":["is","about","and"],"about":["the","it","that"],"political":["correctness","crisis","parties"],"long":["time","as","have"],"room":["is","for","was"],"above":["the","all","me"],"campaign":["to","against","for"],"search":["for","of","engine"],"hall":["was","is","of"],"brain":["is","and","to"],"example":["of","sentences","sentence"],"done":["that","it","this"],"airport":["to","is","in"],"hate":["you","to","it"],"largest":["city","country","cities"],"sold":["the","his","out"],"got":["a","to","the"],"design":["is","of","and"],"car":["is","was","and"],"effects":["of","on","are"],"glass":["of","is","and"],"body":["was","is","of"],"winning":["the","a","is"],"talk":["to","about","with"],"coast":["of","guard","is"],"return":["to","home","the"],"event":["is","starts","was"],"york":["city","is","times"],"advice":["from","is","to"],"knew":["that","i","what"],"cup":["of","is","and"],"oil":["and","is","prices"],"every":["day","morning","time"],"real":["name","life","estate"],"much":["as","time","money"],"where":["did","is","are"],"must":["be","have","not"],"lose":["weight","your","my"],"raised":["in","his","by"],"international":["language","space","law"],"stuff":["in","like","is"],"st":["century","of","is"],"announced":["that","the","a"],"agreement":["with","on","is"],"its":["a","not","time"],"typing":["on","the","any"],"exactly":["what","the","how"],"purpose":["of","in","to"],"art":["of","is","thou"],"provided":["by","for","that"],"english":["is","and","teacher"],"hand":["in","and","me"],"walking":["in","around","down"],"grow":["up","in","on"],"let":["me","you","him"],"but":["i","he","it"],"evening":["at","i","of"],"by":["the","a","myself"],"speak":["french","to","english"],"blood":["pressure","on","in"],"system":["is","of","that"],"mean":["to","that","it"],"looking":["for","at","forward"],"murder":["is","of","weapon"],"chief":["of","executive","said"],"bring":["me","the","your"],"collection":["of","is","to"],"mission":["to","is","was"],"many":["people","of","times"],"no":["one","longer","idea"],"established":["in","a","the"],"mrs":["miller","sato","jones"],"store":["is","for","was"],"price":["of","is","for"],"movie":["is","was","theater"],"older":["than","brother","sister"],"passed":["the","away","by"],"caught":["a","the","in"],"season":["is","for","of"],"individual":["has","is","and"],"police":["officer","are","station"],"coach":["is","gave","was"],"fighting":["for","the","a"],"appear":["to","in","on"],"location":["of","is","for"],"gave":["me","him","her"],"fat":["and","in","as"],"well":["as","be","have"],"future":["is","of","generations"],"left":["the","to","his"],"same":["thing","time","way"],"dog":["is","was","to"],"unit":["of","for","was"],"required":["to","for","in"],"end":["of","up","to"],"records":["of","are","in"],"critical":["of","condition","thinking"],"reading":["a","the","this"],"federal":["government","reserve","republic"],"screen":["is","was","and"],"gets":["up","a","dark"],"computer":["is","science","to"],"knowledge":["of","is","and"],"else":["to","is","do"],"positive":["for","attitude","and"],"general":["message","public","assembly"],"biggest":["problem","mistake","city"],"election":["is","of","was"],"could":["you","be","do"],"type":["of","to","is"],"square":["root","is","kilometers"],"traffic":["accident","jam","lights"],"chicago":["by","is","in"],"unless":["you","it","i"],"cold":["in","and","water"],"save":["the","you","money"],"when":["i","you","he"],"built":["a","in","on"],"shot":["at","the","a"],"activity":["is","in","of"],"sit":["down","in","here"],"david":["was","is","and"],"insurance":["company","policy","companies"],"once":["a","in","again"],"animals":["are","in","that"],"term":["for","of","is"],"letter":["to","from","in"],"types":["of","are"],"field":["of","is","trip"],"systems":["of","are","in"],"note":["of","that","on"],"performance":["of","was","in"],"signed":["the","a","up"],"next":["to","week","year"],"involved":["in","with","a"],"character":["of","is","in"],"cases":["of","in","where"],"whole":["life","world","day"],"red":["wine","and","light"],"teacher":["is","was","told"],"seconds":["to","of","in"],"shop":["is","in","to"],"medical":["school","treatment","care"],"set":["up","the","of"],"becomes":["a","the","more"],"capital":["of","city","is"],"reality":["is","and","of"],"cat":["is","was","in"],"any":["more","of","other"],"reports":["of","that","on"],"player":["in","is","on"],"travel":["to","by","around"],"research":["on","paper","and"],"feels":["like","good","a"],"robert":["was","is","and"],"tried":["to","doing","not"],"step":["back","on","in"],"them":["to","in","all"],"everything":["is","i","that"],"tax":["on","is","evasion"],"face":["of","was","the"],"will":["be","you","not"],"most":["of","people","important"],"sound":["of","like","very"],"across":["the","a","from"],"understand":["what","the","that"],"crazy":["about","to","for"],"successful":["in","business","businessman"],"australian":["aboriginal","outback","aborigines"],"faster":["than","and","to"],"seeing":["you","the","a"],"study":["french","of","in"],"james":["was","and","is"],"effect":["on","of","that"],"special":["forces","place","to"],"training":["is","to","for"],"version":["of","is","in"],"catch":["the","up","a"],"stopped":["to","working","and"],"april":["of","is","fools"],"complex":["and","than","numbers"],"losing":["his","my","weight"],"job":["is","in","to"],"sick":["of","and","in"],"test":["tomorrow","was","is"],"very":["good","well","much"],"followed":["the","by","him"],"politics":["is","and","in"],"ability":["to","of","in"],"million":["people","dollars","years"],"loss":["of","for","what"],"key":["to","in","is"],"works":["in","as","at"],"you":["have","want","can"],"cannot":["be","do","help"],"growing":["up","in","number"],"as":["a","i","the"],"years":["ago","old","of"],"others":["to","are","for"],"weeks":["ago","in","to"],"similar":["to","in","situation"],"hello":["to","and","everyone"],"trip":["to","was","with"],"supposed":["to","that"],"short":["of","time","and"],"students":["are","in","to"],"american":["and","history","dream"],"ways":["to","of","that"],"claim":["that","to","they"],"offered":["to","a","me"],"year":["is","in","of"],"decided":["to","not","that"],"member":["of","states","in"],"laws":["of","are","that"],"fit":["in","me","for"],"closed":["the","on","his"],"like":["to","a","that"],"never":["been","seen","be"],"already":["been","know","told"],"hair":["is","and","cut"],"avoid":["the","a","being"],"possible":["to","for","that"],"information":["about","is","on"],"code":["of","is","for"],"covered":["with","in","the"],"outside":["the","of","and"],"hospital":["for","in","to"],"worth":["it","the","a"],"energy":["to","and","is"],"address":["the","on","is"],"green":["tea","and","eyes"],"sleep":["in","on","with"],"total":["of","population","solar"],"spent":["the","a","all"],"exchange":["for","rate","of"],"perfect":["for","place","day"],"him":["to","a","in"],"office":["is","in","on"],"plays":["the","a","tennis"],"global":["warming","economy","economic"],"highest":["mountain","level","in"],"economic":["growth","crisis","development"],"whose":["name","car","is"],"cost":["of","me","you"],"create":["a","the","an"],"makes":["me","you","a"],"however":["you","hard","much"],"religious":["people","freedom","beliefs"],"service":["to","is","in"],"thinking":["about","of","that"],"weather":["is","was","will"],"make":["a","it","sure"],"walk":["to","in","on"],"among":["the","them","us"],"effective":["way","against","in"],"southern":["hemisphere","algeria","california"],"rest":["of","for","in"],"specific":["to","time","as"],"a":["lot","good","little"],"western":["sahara","countries","europe"],"july":["of","and","is"],"welcome":["to","here","back"],"support":["the","for","you"],"super":["bowl","cute","easy"],"mine":["is","in","are"],"compared":["to","with","the"],"beginning":["to","of","is"],"later":["than","in","on"],"things":["that","are","to"],"pick":["up","you","me"],"enjoy":["the","doing","your"],"cash":["register","on","in"],"beat":["the","him","me"],"list":["of","is","for"],"ever":["seen","been","had"],"miss":["the","you","my"],"appears":["to","that","in"],"so":["much","i","many"],"near":["the","here","a"],"heard":["the","a","that"],"times":["a","have","as"],"an":["hour","old","important"],"amazing":["how","in","that"],"hi":["to","there","for"],"morning":["and","i","of"],"cross":["the","this","your"],"russia":["is","and","has"],"state":["of","in","is"],"usually":["do","go","eat"],"doing":["that","this","it"],"modern":["art","society","technology"],"ground":["and","floor","for"],"during":["the","a","my"],"worst":["thing","of","enemy"],"then":["i","the","you"],"located":["in","on","at"],"commission":["of","has","estimates"],"instead":["of","he","i"],"giving":["up","me","you"],"george":["washington","is","w"],"together":["in","to","with"],"officers":["are","and","in"],"chinese":["food","characters","and"],"part":["of","in","with"],"before":["the","you","i"],"least":["three","one","once"],"royal":["family","palace","highness"],"war":["is","in","ii"],"saying":["that","is","anything"],"species":["of","in","are"],"care":["of","about","for"],"overall":["health","well","majority"],"michael":["was","is","has"],"if":["you","i","he"],"mr":["smith","brown","johnson"],"definitely":["not","a","going"],"fire":["in","broke","is"],"product":["of","is","was"],"moment":["of","to","i"],"everyone":["is","was","has"],"cars":["are","in","and"],"hours":["to","a","of"],"family":["is","and","to"],"programs":["are","do","to"],"showing":["off","up","me"],"keeping":["a","the","up"],"internet":["is","connection","access"],"activities":["of","are","and"],"thought":["that","you","it"],"message":["to","from","for"],"statement":["is","as","was"],"forget":["to","that","the"],"into":["the","a","his"],"san":["francisco","diego","marino"],"she":["was","is","said"],"those":["who","are","people"],"cause":["of","for","you"],"might":["be","not","have"],"wall":["is","of","and"],"far":["from","as","away"],"there":["are","is","was"],"big":["deal","mistake","problem"],"quick":["to","as","look"],"hotel":["is","in","room"],"holy":["spirit","book","month"],"floor":["is","of","and"],"months":["ago","in","of"],"church":["is","on","every"],"county":["fair","has"],"christmas":["is","tree","day"],"knows":["how","that","what"],"middle":["of","east","school"],"turned":["out","off","the"],"china":["is","and","has"],"month":["of","to","ago"],"twice":["as","a","the"],"at":["the","all","home"],"staff":["members","meeting","is"],"worry":["about","too","so"],"management":["of","and","is"],"something":["to","that","like"],"yet":["to","know","been"],"kids":["are","to","in"],"wind":["is","blew","was"],"help":["you","me","us"],"head":["of","and","to"],"order":["to","of","a"],"ride":["a","the","to"],"central":["europe","park","bank"],"bread":["and","is","with"],"kind":["of","to","enough"],"approach":["to","the","this"],"join":["the","us","me"],"time":["to","for","you"],"sure":["that","you","to"],"east":["of","and","indian"],"ago":["and","did","in"],"gas":["station","is","to"],"national":["park","anthem","parks"],"resources":["to","are","and"],"favorite":["color","kind","thing"],"idea":["what","of","to"],"is":["a","the","not"],"happened":["to","in","here"],"okay":["to","if","with"],"meeting":["was","will","room"],"disease":["is","and","that"],"city":["of","is","in"],"even":["if","though","know"],"longer":["than","a","do"],"new":["york","car","year"],"hands":["are","on","with"],"digital":["camera","age","world"],"hour":["to","ago","of"],"provide":["a","for","the"],"offer":["you","to","is"],"wearing":["a","the","my"],"award":["for","in","at"],"structure":["of","and","is"],"led":["to","the","by"],"extra":["time","money","for"],"responsible":["for","and","person"],"agreed":["to","with","on"],"different":["from","things","ways"],"the":["same","world","first"],"missing":["from","a","the"],"thing":["to","that","i"],"northern":["algeria","hemisphere","berber"],"natural":["resources","gas","that"],"front":["of","door","yard"],"four":["years","days","months"],"cell":["phone","phones","in"],"quality":["of","is","time"],"had":["a","to","no"],"solution":["to","is","for"],"kept":["the","his","on"],"necessary":["to","for","that"],"please":["tell","give","let"],"congress":["of","and","to"],"fight":["with","for","against"],"credit":["card","cards","for"],"calls":["for","me","to"],"ready":["to","for","by"],"brand":["new","of","is"],"two":["years","hours","of"],"block":["of","the","away"],"fourth":["floor","of","grade"],"mass":["of","media","destruction"],"wear":["a","the","that"],"visit":["the","boston","australia"],"annual":["income","report","growth"],"ran":["away","out","into"],"popular":["in","with","among"],"development":["of","and","in"],"luck":["to","with","is"],"february":["of","is","has"],"role":["in","of","model"],"damn":["it","about","you"],"grand":["canyon","piano","master"],"such":["a","as","an"],"generally":["speaking","have","a"],"united":["states","nations","kingdom"],"associated":["with","in"],"another":["one","way","chance"],"maybe":["you","we","i"],"all":["the","of","day"],"says":["he","she","that"],"council":["of","is","estate"],"average":["of","person","height"],"hat":["on","is","and"],"japan":["is","has","and"],"reason":["to","for","why"],"results":["of","are","in"],"tour":["of","guide","de"],"wide":["open","range","awake"],"place":["to","in","is"],"planning":["to","on","a"],"master":["of","english","a"],"nice":["to","and","day"],"i":["have","was","think"],"spend":["the","a","more"],"simply":["because","not","a"],"section":["of","chief","is"],"boys":["are","and","in"],"executive":["director","officer","order"],"to":["do","the","be"],"october":["of","twentieth","is"],"broke":["the","out","into"],"personal":["life","information","growth"],"deal":["with","of","to"],"eye":["on","contact","for"],"wonder":["if","what","whether"],"hurt":["you","her","me"],"form":["of","a","the"],"dad":["is","was","and"],"re":["not","going","a"],"songs":["in","are","of"],"patients":["with","are","who"],"club":["is","in","was"],"financial":["crisis","problems","aid"],"language":["is","of","in"],"coming":["to","back","from"],"own":["way","a","life"],"website":["is","for","to"],"families":["are","in","and"],"both":["of","the","sides"],"ahead":["of","and","with"],"half":["of","an","a"],"sports":["car","do","are"],"notes":["in","that","on"],"show":["me","you","up"],"library":["is","to","of"],"sell":["the","my","it"],"race":["is","was","for"],"days":["ago","of","are"],"condition":["is","that","of"],"add":["a","the","to"],"eating":["a","the","lunch"],"female":["students","giraffe","friends"],"road":["is","to","was"],"for":["the","a","you"],"see":["you","the","a"],"white":["house","and","wine"],"continue":["to","doing","this"],"sense":["of","to","that"],"less":["than","and","expensive"],"scene":["of","was","in"],"tree":["is","in","was"],"film":["is","was","in"],"stay":["in","here","at"],"higher":["than","education","and"],"present":["at","for","in"],"demand":["for","that","a"],"myself":["to","a","in"],"strong":["enough","and","as"],"going":["to","on","out"],"try":["to","it","doing"],"over":["the","there","to"],"number":["of","is","one"],"model":["of","for","plane"],"government":["is","has","of"],"weekend":["in","with","is"],"himself":["in","to","a"],"off":["the","his","at"],"telling":["me","you","the"],"interview":["for","with","tomorrow"],"earlier":["than","this","in"],"told":["me","you","him"],"within":["the","a","walking"],"became":["a","the","an"],"christian":["and","religion","or"],"based":["on","in","upon"],"la":["salle","carte","fontaine"],"program":["is","to","for"],"serious":["problem","about","illness"],"questions":["about","that","for"],"working":["on","in","for"],"better":["than","to","not"],"paid":["for","the","to"],"smith":["is","was","has"],"yourself":["to","a","in"],"august":["of","is","was"],"described":["as","the","in"],"drink":["a","coffee","beer"],"held":["in","the","a"],"anything":["to","about","else"],"wife":["is","and","was"],"games":["on","in","with"],"immediately":["after","ran","started"],"eyes":["and","are","of"],"mom":["is","and","was"],"equipment":["is","and","in"],"fresh":["air","water","fruit"],"go":["to","out","back"],"starting":["to","a","tomorrow"],"question":["is","of","that"],"per":["day","hour","cent"],"deep":["in","breath","into"],"often":["do","as","go"],"history":["of","is","and"],"levels":["of","in","are"],"woman":["is","in","was"],"use":["the","a","of"],"date":["with","of","was"],"received":["a","the","an"],"class":["is","in","today"],"beyond":["the","my","our"],"young":["people","man","to"],"john":["is","was","and"],"americans":["are","have","in"],"played":["a","the","with"],"various":["kinds","languages","types"],"worked":["hard","in","for"],"agree":["with","to","on"],"marriage":["is","was","to"],"published":["in","a","his"],"ended":["up","in","the"],"numbers":["of","are","in"],"runs":["a","the","on"],"company":["is","has","in"],"needs":["to","a","more"],"mark":["was","is","and"],"what":["i","you","is"],"groups":["of","in","are"],"meant":["to","for","by"],"card":["for","to","is"],"costs":["a","more","nothing"],"paul":["was","is","went"],"hot":["in","water","and"],"decision":["to","was","is"],"below":["the","zero","freezing"],"seven":["years","days","and"],"clear":["that","the","up"],"products":["are","of","to"],"project":["is","was","to"],"carry":["out","the","on"],"earth":["is","and","was"],"expect":["to","me","you"],"sitting":["on","in","at"],"who":["is","are","was"],"pay":["for","the","attention"],"relationship":["with","between","is"],"level":["of","is","in"],"stock":["market","exchange","of"],"related":["to","by","deaths"],"physical":["and","strength","activity"],"my":["father","life","mother"],"or":["not","a","the"],"peter":["is","and","was"],"evidence":["that","of","to"],"including":["the","a","berber"],"created":["a","by","the"],"trade":["with","and","in"],"investment":["in","is","and"],"high":["school","in","time"],"lives":["in","on","with"],"union":["of","is","has"],"washington":["was","state","d"],"weight":["of","is","and"],"made":["a","me","of"],"hold":["on","the","of"],"saw":["a","the","him"],"workers":["are","to","in"],"using":["the","a","it"],"though":["i","he","it"],"latest":["novel","news","version"],"us":["to","a","all"],"league":["of","baseball","is"],"quite":["a","well","an"],"building":["is","a","was"],"words":["are","in","to"],"these":["are","days","things"],"administration":["is","has","to"],"his":["own","father","life"],"people":["are","who","in"],"women":["are","and","in"],"broken":["into","the","down"],"side":["of","effects","by"],"issue":["of","is","in"],"running":["out","away","a"],"write":["a","to","in"],"peace":["and","in","be"],"why":["are","do","did"],"whether":["you","i","or"],"standing":["in","on","there"],"sad":["to","and","that"],"value":["of","in","to"],"century":["ago","ad","bc"],"than":["i","a","the"],"watch":["the","tv","a"],"trial":["for","and","is"],"towards":["the","him","me"],"tomorrow":["morning","is","afternoon"],"talking":["about","to","with"],"public":["health","opinion","transportation"],"way":["to","of","you"],"am":["i","not","a"],"enough":["to","money","for"],"girls":["are","in","to"],"despite":["the","being","his"],"charge":["of","my","for"],"seen":["a","the","him"],"plus":["two","one","five"],"bad":["for","news","weather"],"small":["town","for","and"],"moving":["to","in","out"],"music":["is","and","in"],"met":["him","her","a"],"article":["is","about","on"],"guys":["are","have","want"],"terms":["of","with","and"],"radio":["on","station","is"],"run":["out","away","for"],"content":["with","of","is"],"fall":["asleep","in","into"],"thanks":["for","to","a"],"heat":["is","of","and"],"summer":["vacation","is","in"],"night":["in","was","and"],"lead":["to","a","the"],"husband":["is","and","was"],"law":["is","of","school"],"move":["to","on","the"],"may":["be","i","have"],"daughter":["is","of","to"],"accept":["the","that","your"],"lines":["of","are","in"],"right":["now","to","away"],"director":["of","for","and"],"complete":["the","this","and"],"can":["you","i","be"],"behind":["the","him","a"],"alone":["in","at","with"],"organization":["is","for","of"],"center":["of","for","in"],"board":["the","games","of"],"current":["situation","is","political"],"culture":["is","and","of"],"america":["is","and","has"],"easy":["to","for","as"],"inside":["the","of","out"],"limited":["to","in","number"],"areas":["of","in","where"],"opinion":["is","on","of"],"movement":["of","in","is"],"they":["said","are","have"],"kill":["you","me","him"],"science":["fiction","is","and"],"analysis":["of","is","to"],"hell":["be","do","come"],"call":["me","the","you"],"happen":["to","again","in"],"six":["months","years","hours"],"funny":["at","story","stories"],"wait":["for","until","a"],"nearly":["all","a","as"],"absolutely":["no","nothing","sure"],"either":["of","you","way"],"begin":["to","with","at"],"thus":["the","saith","far"],"round":["the","to","here"],"build":["a","the","up"],"story":["is","of","to"],"impact":["on","of","the"],"comment":["on","was","section"],"choice":["but","of","is"],"considered":["a","to","the"],"children":["are","to","in"],"speaking":["french","in","to"],"percent":["of","in","discount"],"income":["is","tax","from"],"saturday":["night","morning","afternoon"],"bar":["is","and","in"],"find":["a","out","the"],"manager":["of","is","was"],"began":["to","in","his"],"choose":["to","a","the"],"sometimes":["i","it","you"],"text":["is","message","from"],"paper":["is","and","in"],"island":["is","of","in"],"happy":["to","with","about"],"range":["of","from","is"],"status":["quo","of","in"],"looks":["like","as","very"],"say":["that","it","anything"],"al":["qaeda","capone","gore"],"little":["bit","more","girl"],"rich":["in","and","man"],"post":["office","the","this"],"song":["is","in","for"],"officer":["in","is","asked"],"become":["a","an","the"],"included":["in","a","the"],"foreign":["language","languages","students"],"famous":["for","actor","as"],"via":["the","a","email"],"developed":["a","by","country"],"distance":["from","between","of"],"pressure":["on","is","to"],"eat":["a","the","it"],"reached":["the","a","for"],"force":["you","of","me"],"having":["a","fun","to"],"active":["in","at","volcanoes"],"data":["is","from","to"],"ii":["was","and","ended"],"report":["is","by","to"],"share":["a","the","of"],"shit":["about","on","out"],"bank":["account","is","of"],"phone":["number","is","call"],"currently":["in","working","living"],"hey":["you","guys","there"],"safe":["to","here","and"],"die":["in","for","of"],"live":["in","on","with"],"judge":["people","a","of"],"material":["is","and","for"],"sorry":["for","that","i"],"helped":["me","her","him"],"five":["years","minutes","days"],"friend":["of","is","in"],"lake":["is","in","was"],"thumbs":["up"],"added":["to","a","that"],"come":["to","back","here"],"baby":["is","was","in"],"old":["man","enough","woman"],"uses":["a","the","this"],"matter":["what","how","of"],"australia":["for","next","with"],"legal":["in","to","advice"],"are":["you","the","not"],"leaving":["the","for","a"],"problems":["with","are","in"],"still":["have","a","in"],"give":["me","you","up"],"cover":["the","up","your"],"change":["the","your","my"],"senior":["citizens","to","year"],"school":["in","is","today"],"technology":["is","has","to"],"fine":["with","now","tomorrow"],"start":["a","to","the"],"close":["to","the","your"],"send":["me","you","a"],"awesome":["to","time","at"],"used":["to","in","a"],"link":["between","to","and"],"some":["of","people","time"],"only":["one","a","the"],"friends":["with","are","in"],"space":["station","is","agency"],"been":["a","to","in"],"stop":["the","doing","being"],"world":["is","war","of"],"news":["of","for","is"],"dream":["is","of","about"],"upon":["the","a","him"],"respect":["for","the","to"],"parts":["of","for","are"],"able":["to","man","do"],"main":["character","street","thing"],"canada":["is","and","to"],"last":["night","time","year"],"cut":["the","down","off"],"designed":["to","for","a"],"listen":["to","carefully","and"],"obama":["is","was","has"],"skin":["is","and","of"],"clean":["the","up","your"],"region":["of","in","is"],"bit":["of","more","longer"],"home":["to","and","from"],"killing":["me","the","her"],"allowed":["to","in","me"],"sun":["is","was","and"],"final":["exam","decision","exams"],"do":["you","that","it"],"meaning":["of","to","in"],"match":["for","was","the"],"sunday":["morning","is","afternoon"],"british":["english","people","and"],"amount":["of","to","that"],"states":["and","is","of"],"through":["the","a","his"],"heart":["is","of","attack"],"means":["of","to","that"],"happens":["to","in","when"],"account":["of","for","is"],"name":["is","of","was"],"good":["at","idea","for"],"powerful":["than","army","and"],"community":["is","in","of"],"economy":["is","has","of"],"ask":["you","for","me"],"regular":["basis","clothes","intervals"],"contract":["is","with","was"],"military":["service","base","bases"],"protection":["of","from","against"],"view":["of","from","is"],"past":["the","three","few"],"stand":["up","by","on"],"interesting":["to","book","than"],"meet":["you","him","her"],"multiple":["times","languages","meanings"],"in":["the","a","my"],"network":["of","is","and"],"secret":["to","of","from"],"construction":["of","site","worker"],"difference":["between","in","to"],"stories":["about","are","of"],"fair":["to","and","share"],"straight":["to","away","home"],"we":["have","need","are"],"nature":["of","is","and"],"fastest":["way","growing","runner"],"damage":["to","the","was"],"friday":["night","the","to"],"this":["is","book","morning"],"countries":["in","are","have"],"increase":["in","the","of"],"star":["trek","of","in"],"jesus":["christ","was","is"],"wants":["to","a","me"],"drive":["a","to","you"],"centre":["of","for","open"],"sweet":["and","potatoes","dreams"],"vote":["for","in","on"],"anyone":["else","who","to"],"justice":["is","and","for"],"addition":["to","of","and"],"again":["and","in","tomorrow"],"did":["you","that","not"],"competition":["is","in","was"],"everybody":["is","was","knows"],"out":["of","the","to"],"three":["years","days","hours"],"effort":["to","into","and"],"won":["the","a","by"],"wrong":["with","to","way"],"figure":["out","it","this"],"picture":["of","is","was"],"our":["house","own","team"],"seem":["to","like","very"],"after":["the","a","all"],"stage":["of","fright","to"],"foot":["of","in","on"],"services":["to","are","and"],"would":["you","be","have"],"west":["bank","of","coast"],"players":["are","in","have"],"he":["was","is","has"],"check":["the","on","out"],"recently":["been","i","started"],"standard":["of","for","english"],"remember":["the","to","that"],"asked":["me","for","him"],"practice":["of","is","berber"],"career":["in","as","is"],"reach":["the","a","out"],"members":["of","are","to"],"twenty":["years","minutes","people"],"being":["a","so","in"],"december":["of","is","and"],"plan":["to","on","is"],"environment":["for","and","is"],"died":["in","of","a"],"were":["going","you","not"],"former":["president","self","soviet"],"piece":["of","is","to"],"particular":["about","to","that"],"receive":["a","the","an"],"primary":["school","care","and"],"first":["time","thing","of"],"true":["that","love","to"],"age":["of","as","is"],"battle":["of","was","against"],"flight":["to","was","is"],"operation":["was","is","in"],"important":["to","for","than"],"shall":["we","be","i"],"food":["is","and","for"],"rule":["to","of","the"],"guess":["i","what","that"],"media":["is","and","has"],"band":["is","of","played"],"sent":["to","me","a"],"other":["people","side","day"],"named":["after","the","his"],"taking":["a","the","care"],"opportunity":["to","for","of"],"mother":["is","was","tongue"],"district":["of","is","attorney"],"court":["of","to","has"],"fuck":["your","you","off"],"feet":["are","and","away"],"lady":["is","was","who"],"highly":["unlikely","of","recommend"],"release":["the","of","a"],"crime":["scene","is","rate"],"put":["the","on","it"],"ship":["is","was","has"],"minister":["of","is","said"],"second":["time","floor","language"],"double":["the","room","life"],"control":["of","over","the"],"day":["of","is","after"],"site":["is","of","for"],"serve":["as","the","you"],"entire":["life","world","day"],"color":["of","is","are"],"several":["times","years","hours"],"queen":["of","elizabeth","is"],"population":["of","is","in"],"european":["union","countries","parliament"],"action":["is","movie","to"],"goes":["to","on","out"],"reported":["that","the","to"],"actually":["a","do","have"],"sales":["are","of","have"],"great":["deal","time","job"],"moved":["to","into","in"],"attention":["to","of","on"],"forward":["to","and","in"],"also":["a","be","have"],"experience":["in","is","of"],"money":["to","for","in"],"bought":["a","this","some"],"application":["form","of","to"],"train":["station","is","was"],"finished":["the","doing","reading"],"reasons":["for","why","to"],"mobile":["phone","phones","number"],"thomas":["is","has","jefferson"]};
+const phone=document.getElementById("phone");
+const picker=document.querySelector(".picker");
+const DICT=(typeof WORDS==="undefined"?"the to and of a in i is you it that for on with":WORDS.join(" "))+" "+WORDS_EXTRA;
+const WL=[...new Set(DICT.split(" "))];
+const RANK=new Map(WL.map((w,i)=>[w,i]));
+
+/* ---------- art: generic graphics built from the keyboard itself. No mascot. ---------- */
+function art(kind="thumbs",size=170,cls="",label=""){
+  const keys=(y,n,w=16,g=5,x0)=>{const start=x0??(100-(n*w+(n-1)*g)/2);let o="";for(let i=0;i<n;i++)o+=`<rect x="${start+i*(w+g)}" y="${y}" width="${w}" height="${w}" rx="4" fill="var(--key)"/>`;return o};
+  const board=(y=78)=>`<rect x="18" y="${y-12}" width="164" height="100" rx="16" fill="var(--kb)"/>${keys(y,8)}${keys(y+22,7)}${keys(y+44,6)}<rect x="52" y="${y+66}" width="96" height="16" rx="5" fill="var(--key)"/>`;
+  const trails=`<path class="trail L" d="M44 83 Q58 128 74 105"/><circle class="dot L" cx="74" cy="105" r="8"/><path class="trail R" d="M160 83 Q128 90 132 128 Q150 134 118 150"/><circle class="dot R" cx="118" cy="150" r="8"/>`;
+  let body="";
+  if(kind==="thumbs")body=`${board()}${trails}`;
+  else if(kind==="rest")body=`<g opacity=".55">${board()}</g><text class="zz" x="140" y="60" font-size="24">z</text><text class="zz" x="156" y="44" font-size="18">z</text>`;
+  else if(kind==="cloud")body=`<path d="M58 118 a26 26 0 0 1 8 -50 a34 34 0 0 1 66 -6 a26 26 0 0 1 10 50 Z" fill="var(--card)" stroke="var(--line)" stroke-width="4"/>
+    <rect x="36" y="140" width="34" height="48" rx="7" fill="var(--kb)"/><rect x="42" y="148" width="22" height="30" rx="3" fill="var(--key)"/>
+    <rect x="118" y="150" width="60" height="38" rx="6" fill="var(--kb)"/><rect x="124" y="156" width="48" height="24" rx="3" fill="var(--key)"/>
+    <path class="trail L" d="M62 118 L54 140" stroke-width="7"/><path class="trail R" d="M138 118 L148 150" stroke-width="7"/>`;
+  else if(kind==="bolt")body=`<g class="ray"><line x1="100" y1="12" x2="100" y2="26"/><line x1="100" y1="174" x2="100" y2="188"/><line x1="12" y1="100" x2="26" y2="100"/><line x1="174" y1="100" x2="188" y2="100"/><line x1="38" y1="38" x2="48" y2="48"/><line x1="152" y1="152" x2="162" y2="162"/><line x1="162" y1="38" x2="152" y2="48"/><line x1="48" y1="152" x2="38" y2="162"/></g>
+    <circle cx="100" cy="100" r="58" fill="var(--sun)"/><path d="M108 58 L76 108 L100 108 L92 142 L124 92 L100 92 Z" fill="#3A2600"/>`;
+  else if(kind==="pro")body=`<rect x="40" y="40" width="120" height="120" rx="26" fill="var(--sun)"/><path d="M100 64 L111 90 L139 92 L117 110 L124 137 L100 122 L76 137 L83 110 L61 92 L89 90 Z" fill="#3A2600"/>
+    <path class="trail L" d="M14 156 Q30 100 62 128 Q74 140 60 156" stroke-width="8"/><circle class="dot L" cx="60" cy="156" r="7"/><path class="trail R" d="M186 44 Q170 100 138 72 Q126 60 140 44" stroke-width="8"/><circle class="dot R" cx="140" cy="44" r="7"/>`;
+  return `<svg class="art ${cls}" width="${size}" height="${size}" viewBox="0 0 200 200" role="img" aria-label="${label||"A keyboard with two thumb trails"}">${body}</svg>`;
+}
+const status=(dark=false)=>`<div class="status" style="${dark?"color:#fff":""}"><span>9:41</span><span>●●● ⌁ ▮</span></div>`;
+
+/* ---------- keyboard ---------- */
+const ROWS=["qwertyuiop","asdfghjkl","zxcvbnm"];
+function kbHTML(id){
+  const r=(s)=>[...s].map(k=>`<button class="key" data-k="${k}">${k}</button>`).join("");
+  return `<div class="kbwrap" id="${id}">
+    <div class="bar" data-bar></div>
+    <div class="rows" data-rows>
+      <svg class="trails" data-trails></svg>
+      <div class="krow">${r(ROWS[0])}</div>
+      <div class="krow">${r(ROWS[1])}</div>
+      <div class="krow"><button class="key wide" data-k="shift">⇧</button>${r(ROWS[2])}<button class="key wide" data-k="bs">⌫</button></div>
+      <div class="krow"><button class="key fn" data-k="123">123</button><button class="key fn" data-k="globe">🌐</button><button class="key space" data-k="space">Astrotype</button><button class="key ret" data-k="return">return</button></div>
+    </div></div>`;
+}
+function isSub(w,path){let i=0;for(const c of path){if(c===w[i])i++;if(i===w.length)return true}return false}
+function decode(pieces){
+  if(!pieces.length)return [];
+  const ps=[...pieces].sort((a,b)=>a.t0-b.t0);
+  const path=ps.map(p=>p.keys.join("")).join("");
+  const typed=ps.every(p=>p.tap)?ps.map(p=>p.keys[0]).join(""):null;
+  const first=path[0],last=path[path.length-1];
+  const out=[];
+  for(const w of WL){
+    if(w.length<2||w[0]!==first||w[w.length-1]!==last||w.length>path.length)continue;
+    if(!isSub(w,path))continue;
+    out.push(w);
+  }
+  out.sort((a,b)=>{const ca=a.length/path.length,cb=b.length/path.length;return (cb-ca)*3+(RANK.get(a)-RANK.get(b))/WL.length});
+  const res=[];
+  if(typed)res.push(typed);
+  for(const w of out){if(!res.includes(w))res.push(w);if(res.length>=3)break}
+  if(!res.length)res.push([...path].filter((c,i)=>c!==path[i-1]).join(""));
+  return res;
+}
+function mountKB(id,opts={}){
+  const root=document.getElementById(id);if(!root)return;
+  const field=opts.field?document.querySelector(opts.field):null;
+  const bar=root.querySelector("[data-bar]"),rowsEl=root.querySelector("[data-rows]"),trails=root.querySelector("[data-trails]");
+  const K={text:opts.text||"",pieces:[],cands:[],fix:null,shift:false,active:new Map(),timer:null,paused:false};
+  const keyAt=(x,y)=>{const el=document.elementFromPoint(x,y);return el&&el.closest&&el.closest(".key")};
+  const side=(x)=>x<root.getBoundingClientRect().left+root.offsetWidth/2?"L":"R";
+  const svgPt=(x,y)=>{const b=rowsEl.getBoundingClientRect();return [x-b.left,y-b.top]};
+  function render(){
+    if(field){field.innerHTML=(opts.prefix||"")+esc(K.text)+(K.cands.length?`<span class="open">${esc(cap(K.cands[0]))}</span>`:"")+`<span class="caret"></span>`}
+    if(K.pieces.length){bar.innerHTML=K.cands.map((c,i)=>`<button class="${i===0?"top":""}" data-c="${c}">${esc(cap(c))}</button>`).join("")}
+    else if(opts.next&&S.nextWord&&nextWords().length){
+      const nx=nextWords();const alt=K.fix&&K.fix.find(c=>c!==K.fix[0]);
+      const fresh=K.lastBar!==K.text;K.lastBar=K.text;bar.classList.toggle("fresh",fresh);
+      if(S.mode==="B"&&K.fix&&!K.fixGone){bar.innerHTML=`<span class="fixlabel">Fix</span>`+K.fix.map(c=>`<button data-fix="${c}">${esc(cap(c))}</button>`).join("");
+        clearTimeout(K.fixT);K.fixT=setTimeout(()=>{K.fixGone=true;render()},1000)}
+      else if(S.mode==="A"&&alt){bar.innerHTML=`<button class="fix" data-fix="${alt}" aria-label="Fix: ${esc(alt)}"><span class="fixlabel">Fix</span>${esc(cap(alt))}</button><span class="sep"></span>`+nx.slice(0,2).map(w=>`<button class="next" data-next="${w}">${esc(capN(w))}</button>`).join("")}
+      else bar.innerHTML=nx.map(w=>`<button class="next" data-next="${w}">${esc(capN(w))}</button>`).join("")}
+    else if(K.fix){bar.innerHTML=`<span class="fixlabel">Fix</span>`+K.fix.map(c=>`<button data-fix="${c}">${esc(cap(c))}</button>`).join("")}
+    else bar.innerHTML=`<div class="note">${opts.note||""}</div>`;
+    opts.onChange&&opts.onChange(K);
+  }
+  function prevWord(){const t=(opts.prefix||"")+K.text;if(/^\s*$|[.!?\n]\s*$/.test(t))return "<s>";if(!/\s$/.test(t)||/[,;:]\s*$/.test(t))return null;const m=t.match(/([A-Za-z']+)\s*$/);return m?m[1].toLowerCase().replace(/'/g,""):null}
+  function nextWords(){const p=prevWord();return p&&NEXT[p]?NEXT[p]:[]}
+  function capN(w){return prevWord()==="<s>"||w==="i"?w[0].toUpperCase()+w.slice(1):w}
+  const esc=s=>s.replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+  const cap=w=>K.shift||(opts.autoCap&&/^$|[.!?]\s*$/.test(K.text)&&K.text.trim()==="")?w[0].toUpperCase()+w.slice(1):w;
+  function commit(word,auto){
+    if(!word)return;K.text+=cap(word)+" ";K.fix=K.cands.length>1?K.cands.slice(0,3):null;K.fixGone=false;K.pieces=[];K.cands=[];K.shift=false;render();
+    if(auto){bar.style.transform="scale(.97)";setTimeout(()=>bar.style.transform="",150)}
+    opts.onCommit&&opts.onCommit(word,K);
+  }
+  function recompute(){K.cands=decode(K.pieces);render();clearTimeout(K.timer);
+    if(S.autospace&&K.pieces.length&&!K.active.size)K.timer=setTimeout(()=>commit(K.cands[0],true),opts.autospaceMs||900)}
+  function startPiece(pid,x,y,synthetic){
+    const key=keyAt(x,y);if(!key)return;const k=key.dataset.k;
+    if(k.length>1){K.active.set(pid,{fn:k,x0:x,key});key.classList.add("hitL");return}
+    if(opts.free&&[...K.active.values()].some(a=>!a.fn)){flash(`<b>Two thumbs</b> is in Astrotype Pro`);return}
+    const sd=side(x);const [sx,sy]=svgPt(x,y);
+    const p={id:pid,t0:performance.now(),keys:[k],last:key,sd,pts:[[sx,sy]],path:null,tap:true};
+    const el=document.createElementNS("http://www.w3.org/2000/svg","path");el.setAttribute("class",sd);el.setAttribute("d",`M${sx} ${sy}`);trails.appendChild(el);p.path=el;
+    key.classList.add("hit"+sd);K.active.set(pid,p);clearTimeout(K.timer);
+  }
+  function movePiece(pid,x,y){
+    const p=K.active.get(pid);if(!p)return;
+    if(p.fn){if(p.fn==="bs"&&p.x0-x>40&&!p.did){p.did=true;deleteWord()}return}
+    const [sx,sy]=svgPt(x,y);const [lx,ly]=p.pts[p.pts.length-1];
+    if(Math.hypot(sx-lx,sy-ly)<3)return;
+    p.pts.push([sx,sy]);p.path.setAttribute("d",p.path.getAttribute("d")+` L${sx} ${sy}`);
+    const key=keyAt(x,y);
+    if(key&&key.dataset.k.length===1&&key!==p.last){p.last.classList.remove("hitL","hitR");p.last=key;key.classList.add("hit"+p.sd);p.keys.push(key.dataset.k)}
+  }
+  function endPiece(pid){
+    const p=K.active.get(pid);if(!p)return;K.active.delete(pid);
+    if(p.fn){p.key.classList.remove("hitL");if(!p.did)fnKey(p.fn);return}
+    p.last.classList.remove("hitL","hitR");
+    const [sx,sy]=p.pts[0],[ex,ey]=p.pts[p.pts.length-1];
+    p.tap=p.keys.length===1&&Math.hypot(ex-sx,ey-sy)<18;
+    if(p.tap){p.path.remove();const c=document.createElementNS("http://www.w3.org/2000/svg","circle");c.setAttribute("class",p.sd);c.setAttribute("cx",sx);c.setAttribute("cy",sy);c.setAttribute("r",6);trails.appendChild(c);setTimeout(()=>c.remove(),700)}
+    else{p.path.classList.add("done");setTimeout(()=>p.path.remove(),1300)}
+    K.pieces.push(p);recompute();
+  }
+  function deleteWord(){if(K.pieces.length){K.pieces=[];K.cands=[];render();return}K.text=K.text.replace(/\S*\s*$/,"");K.fix=null;render()}
+  function fnKey(k){
+    if(k==="space"){if(K.pieces.length)commit(K.cands[0]);else{K.text+=" ";K.fix=null;render()}}
+    else if(k==="bs"){if(K.pieces.length){K.pieces.pop();recompute()}else{K.text=K.text.slice(0,-1);K.fix=null;render()}}
+    else if(k==="shift"){K.shift=!K.shift;render()}
+    else if(k==="return"){opts.onReturn?opts.onReturn(K):(K.text+="\n",render())}
+    else flash(`${k==="globe"?"Switches to the next keyboard (Apple's emoji keyboard)":"Numbers and symbols page (not drawn)"}`);
+  }
+  function flash(html){bar.innerHTML=`<div class="note">${html}</div>`;clearTimeout(K.flashT);K.flashT=setTimeout(render,1600)}
+  rowsEl.addEventListener("pointerdown",e=>{if(e.target.closest(".key")){e.preventDefault();startPiece(e.pointerId,e.clientX,e.clientY)}});
+  rowsEl.addEventListener("pointermove",e=>{if(K.active.has(e.pointerId))movePiece(e.pointerId,e.clientX,e.clientY)});
+  const up=e=>endPiece(e.pointerId);rowsEl.addEventListener("pointerup",up);rowsEl.addEventListener("pointercancel",up);
+  bar.addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;
+    if(b.dataset.c){commit(b.dataset.c)}
+    else if(b.dataset.fix){K.text=K.text.replace(/\S+\s$/,cap(b.dataset.fix)+" ");K.fix=null;render()}
+    else if(b.dataset.next){K.text+=capN(b.dataset.next)+" ";K.fix=null;render();bar.style.transform="scale(.97)";setTimeout(()=>bar.style.transform="",150)}});
+  /* replay: synthetic pieces drawn through the same engine, so trails and decoding are the real thing */
+  function center(k){const el=root.querySelector(`.key[data-k="${k}"]`),b=el.getBoundingClientRect();return [b.left+b.width/2,b.top+b.height/2]}
+  function replay(script){
+    const base=performance.now();let pid=9000;
+    for(const piece of script){
+      const id=pid++;const [k0]=piece.keys;const pts=piece.keys.map(center);
+      setTimeout(()=>{startPiece(id,...pts[0],true);
+        if(pts.length===1){setTimeout(()=>endPiece(id),90);return}
+        const steps=18*(pts.length-1);let i=0;
+        const tick=()=>{i++;const t=i/steps*(pts.length-1),a=Math.floor(t),f=t-a;const A=pts[Math.min(a,pts.length-1)],B=pts[Math.min(a+1,pts.length-1)];
+          movePiece(id,A[0]+(B[0]-A[0])*f,A[1]+(B[1]-A[1])*f);if(i<steps)setTimeout(tick,16);else setTimeout(()=>endPiece(id),60)};
+        setTimeout(tick,16)},piece.at);
+    }
+  }
+  render();return {K,replay,commit,render,hint:(k,sd)=>root.querySelector(`.key[data-k="${k}"]`).classList.add("hint"+sd)};
+}
+const DEMO_SOMETHING=[{at:200,keys:["s"]},{at:420,keys:["o","m"]},{at:700,keys:["e"]},{at:900,keys:["t","h","i","n","g"]}];
+
+/* ---------- screens ---------- */
+let kb=null;
+const screens={
+welcome:()=>`${status()}<div class="screen" style="text-align:center">
+  <div class="spacer"></div>${art("thumbs",220,"live")}
+  <h1 class="h1">Type with both thumbs.</h1>
+  <p class="sub">Tap with one, swipe with the other, mix them any way you like. Press space when the word looks right. We'll show you.</p>
+  <div class="spacer"></div><button class="btn" data-go="enable">Let's go</button></div>`,
+
+enable:()=>`${status()}<div class="screen">
+  <h1 class="h1">Turn on Astrotype</h1>
+  <p class="sub">iPhone keyboards switch on in Settings. It takes three taps, and I'll know when it's done.</p>
+  <div class="steps">
+    <div>Open <b>Settings</b> › General › Keyboard</div>
+    <div>Tap <b>Keyboards</b> › Add New Keyboard</div>
+    <div>Pick <b>Astrotype</b></div>
+  </div>
+  <div class="card row" id="enableState">${S.on?`<span class="chip" style="background:var(--mint);color:#fff">On</span><span style="font-weight:700">Astrotype is on. Hold 🌐 in any app to pick it.</span>`:`<span class="chip">Not on yet</span><span class="sub" style="font-size:14px">Come back here after Settings.</span>`}</div>
+  <div class="spacer"></div>
+  <button class="btn" id="openSettings">Open Settings</button>
+  <button class="btn ghost" data-go="sync">${S.on?"Next":"I'll do it later"}</button></div>`,
+
+sync:()=>`${status()}<div class="screen">
+  <div style="text-align:center">${art("cloud",130,"float","Words syncing through iCloud to a phone and a Mac")}</div>
+  <h1 class="h1">Keep your words everywhere</h1>
+  <p class="sub">Astrotype learns your words. With <b>Full Access</b> they sync over iCloud to your other devices, along with your settings. It also lets the keyboard send crash reports, if you share usage data. Nothing you type is ever sent anywhere.</p>
+  <div class="steps">
+    <div>Settings › Keyboards › <b>Astrotype</b></div>
+    <div>Turn on <b>Allow Full Access</b></div>
+  </div>
+  <div class="spacer"></div>
+  <button class="btn" data-go="try">Open Settings</button>
+  <button class="btn ghost" data-go="try">Skip for now</button></div>`,
+
+try:()=>`${status()}<div class="screen haskb">
+  <div class="row"><span class="chip">Try it · word 1 of 5</span><span class="spacer"></span><button class="btn ghost" data-go="home">Skip</button></div>
+  <div class="prompt">Type this word<b>something</b></div>
+  <div class="field" id="tryField"></div>
+  <p class="sub" style="font-size:14px"><span style="color:var(--left);font-weight:900">Left thumb</span> taps <b>s</b> and <b>e</b>. <span style="color:var(--right);font-weight:900">Right thumb</span> swipes <b>o→m</b>, then <b>t→h→i→n→g</b>. Space when it says something.</p>
+  <div class="row"><button class="btn small" id="showMe">Show me</button><span class="sub" style="font-size:13px">or just try it</span></div>
+  ${kbHTML("kbTry")}</div>`,
+
+home:()=>`${status()}<div class="screen">
+  <div class="row"><h1 class="h1">Both flippers, go.</h1><span class="spacer"></span>${art("thumbs",72,"live")}</div>
+  ${S.on?"":`<div class="card row" style="background:var(--sun);color:#3A2600"><b style="flex:1">Astrotype isn't on yet.</b><button class="btn small" data-go="enable" style="background:#3A2600;color:#fff;box-shadow:none">Turn on</button></div>`}
+  <div class="scroll cols">
+    <div class="col">
+    <div class="card" style="display:flex;flex-direction:column;gap:10px">
+      <div class="row"><b style="font-size:17px">Speed test</b><span class="spacer"></span><span class="chip">Best 47 wpm</span></div>
+      <div class="meter"><span class="sub" style="font-size:13px">Apple 31</span><div class="track"><i></i></div><span class="sub" style="font-size:13px">You 47</span></div>
+      <button class="btn small" data-go="speed" style="align-self:flex-start">Take the test</button>
+    </div>
+    <div class="card row"><div style="flex:1"><b>Pro trial</b><div class="sub" style="font-size:13px">11 days left. Two-thumb typing, gestures, layouts.</div></div><span class="pro">PRO</span></div>
+    </div>
+    <div class="col">
+    <div class="sec">Drills</div>
+    <div class="list">
+      <div class="card row"><i style="width:28px;height:28px;border-radius:50%;background:var(--mint);color:#fff;display:grid;place-items:center;font-style:normal">✓</i><div style="flex:1"><b>Two-letter swipes</b><div class="sub" style="font-size:13px">th, in, er, on</div></div></div>
+      <button class="card row" data-go="drill" style="font:inherit;color:inherit;text-align:left;border:0;cursor:pointer;width:100%"><i style="width:28px;height:28px;border-radius:50%;background:var(--ice);display:grid;place-items:center;font-style:normal;font-weight:900">2</i><div style="flex:1"><b>Switching thumbs</b><div class="sub" style="font-size:13px">Start left, finish right</div></div><span style="color:var(--accent);font-weight:900">›</span></button>
+      <div class="card row" style="opacity:.6"><i style="width:28px;height:28px;border-radius:50%;background:var(--ice);display:grid;place-items:center;font-style:normal;font-weight:900">3</i><div style="flex:1"><b>Doubled letters</b><div class="sub" style="font-size:13px">A tap inside a swipe</div></div></div>
+    </div>
+    <div class="sec">This week</div>
+    <div class="card week">${["M","T","W","T","F","S","S"].map((d,i)=>`<div><i class="${i<4?"y":""}">${i<4?"✓":""}</i>${d}</div>`).join("")}</div>
+    <div class="card row"><div style="flex:1"><b>Settings</b><div class="sub" style="font-size:13px">Autospace, gestures, layout, sync</div></div><button class="btn ghost" data-go="prefs">Open ›</button></div>
+    </div>
+  </div></div>`,
+
+speed:()=>`${status()}<div class="screen haskb">
+  <div class="row"><button class="back" data-go="home">‹ Home</button><span class="spacer"></span><span class="chip">0:14</span></div>
+  <h2 class="h2">Type this</h2>
+  <p class="sub" style="font-size:19px;line-height:1.5"><span id="speedDone" style="color:var(--mint);font-weight:800"></span><span id="speedLeft">the cat went to the store for some bread and came back with a hat</span></p>
+  <div class="field" id="speedField"></div>
+  ${kbHTML("kbSpeed")}</div>`,
+
+result:()=>`${status()}<div class="screen" style="text-align:center">
+  <div class="row"><button class="back" data-go="home">‹ Home</button></div>
+  <div class="spacer"></div>${art("bolt",170,"live","A lightning bolt")}
+  <div class="big">52</div><div class="sub" style="font-weight:800">words per minute</div>
+  <p class="sub">3 words needed a fix. That's 21 faster than Apple's keyboard and a new best.</p>
+  <div class="card row"><span class="chip">Best 52</span><span class="chip">5 days in a row</span><span class="spacer"></span><span style="font-weight:800;color:var(--muted)">Share</span></div>
+  <div class="spacer"></div>
+  <button class="btn" data-go="speed">Again</button><button class="btn ghost" data-go="home">Done</button></div>`,
+
+drill:()=>`${status()}<div class="screen haskb">
+  <div class="row"><button class="back" data-go="home">‹ Home</button><span class="spacer"></span><span class="chip">2 of 5</span></div>
+  <h2 class="h2">Switching thumbs</h2>
+  <p class="sub" style="font-size:15px"><span style="color:var(--left);font-weight:900">Left</span> swipes <b>w→e</b>, <span style="color:var(--right);font-weight:900">right</span> swipes <b>n→t</b>. Keys light up to show which thumb.</p>
+  <div class="wordcards"><div class="done">the</div><div class="now">went</div><div>there</div><div>point</div><div>hello</div></div>
+  <div class="field" id="drillField"></div>
+  ${kbHTML("kbDrill")}</div>`,
+
+prefs:()=>`${status()}<div class="screen">
+  <div class="row"><button class="back" data-go="home">‹ Home</button></div>
+  <h1 class="h1">Settings</h1>
+  <div class="scroll">
+    <div class="sec">Typing</div>
+    <div class="list">
+      <div class="card row"><div style="flex:1"><b>Two-thumb typing</b><div class="sub" style="font-size:13px">Both thumbs build one word</div></div><span class="pro">PRO</span><span class="toggle" role="switch" aria-label="Two-thumb typing" aria-pressed="true"></span></div>
+      <div class="card row"><div style="flex:1"><b>Autospace</b><div class="sub" style="font-size:13px">Write the word after a short pause</div></div><span class="toggle" role="switch" aria-label="Autospace" aria-pressed="${S.autospace}" data-set="autospace"></span></div>
+      <div class="card row"><span class="sub" style="font-size:13px;width:60px">Quick</span><div class="slider" role="slider" aria-label="Autospace delay" aria-valuenow="0.9"></div><span class="sub" style="font-size:13px;width:60px;text-align:right">Relaxed</span></div>
+      <div class="card row" style="box-shadow:0 0 0 3px var(--sun)"><div style="flex:1"><b>Guess the next word</b><div class="sub" style="font-size:13px">Likely next words in the bar after each word</div></div><span class="toggle" role="switch" aria-label="Guess the next word" aria-pressed="${S.nextWord}" data-set="nextWord"></span></div>
+      <div class="card row"><div style="flex:1"><b>Learned words</b><div class="sub" style="font-size:13px">214 words · forget or boost from the bar</div></div><span style="color:var(--accent);font-weight:900">›</span></div>
+    </div>
+    <div class="sec">Gestures</div>
+    <div class="list">
+      <div class="card row"><div style="flex:1"><b>Slide on space</b><div class="sub" style="font-size:13px">Move the cursor</div></div><span class="sub" style="font-weight:800">By word ›</span></div>
+      <div class="card row"><div style="flex:1"><b>Swipe left on ⌫</b><div class="sub" style="font-size:13px">Delete the last word</div></div><span class="toggle" role="switch" aria-label="Swipe on backspace" aria-pressed="true"></span></div>
+      <div class="card row"><div style="flex:1"><b>Edge swipes and snippets</b><div class="sub" style="font-size:13px">Punctuation off a key's edge, hold space for a snippet</div></div><span class="pro">PRO</span><span style="color:var(--accent);font-weight:900">›</span></div>
+    </div>
+    <div class="sec">Layout</div>
+    <div class="seg" role="group" aria-label="Layout"><button aria-pressed="true">Full</button><button>Left</button><button>Right</button><button>Split <span class="pro">PRO</span></button></div>
+    <div class="sec">Look</div>
+    <div class="list">
+      <div class="card row"><div style="flex:1"><b>Theme</b><div class="sub" style="font-size:13px">Ice · more in Pro</div></div><span style="width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,var(--left),var(--right))"></span></div>
+      <div class="card row"><div style="flex:1"><b>Trails and flashes</b></div><span class="toggle" role="switch" aria-label="Trails" aria-pressed="true"></span></div>
+      <div class="card row"><div style="flex:1"><b>Haptics</b></div><span class="toggle" role="switch" aria-label="Haptics" aria-pressed="true"></span></div>
+    </div>
+    <div class="sec">Sync</div>
+    <div class="card row"><div style="flex:1"><b>iCloud sync</b><div class="sub" style="font-size:13px">${S.full?"On. Words and settings follow you.":"Needs Full Access in Settings."}</div></div>${S.full?`<span class="chip" style="background:var(--mint);color:#fff">On</span>`:`<button class="btn small" data-go="sync">Turn on</button>`}</div>
+    <div class="card row" style="margin-top:4px"><div style="flex:1"><b>Astrotype Pro</b><div class="sub" style="font-size:13px">Trial · 11 days left</div></div><button class="btn small" data-go="pro">See Pro</button></div>
+  </div></div>`,
+
+pro:()=>`${status()}<div class="screen" style="text-align:center">
+  <div class="row"><button class="back" data-go="home">‹ Back</button></div>
+  ${art("pro",140,"live float","A gold star")}
+  <h1 class="h1">Astrotype Pro</h1>
+  <p class="sub">The fast keyboard, all of it.</p>
+  <div class="card" style="display:flex;flex-direction:column;gap:10px;text-align:left">
+    <div class="perk"><i>✓</i>Two-thumb typing: taps and swipes from both thumbs</div>
+    <div class="perk"><i>✓</i>Snippets, shortcuts and edge swipes</div>
+    <div class="perk"><i>✓</i>Split and one-handed layouts</div>
+    <div class="perk"><i>✓</i>Drills, history and themes</div>
+  </div>
+  <div class="list">
+    <button class="card price" aria-pressed="${S.plan==="year"}" data-plan="year"><div><b>Yearly</b><span>2 months free</span></div><span class="amt">$19.99</span></button>
+    <button class="card price" aria-pressed="${S.plan==="month"}" data-plan="month"><div><b>Monthly</b><span>Cancel anytime</span></div><span class="amt">$2.99</span></button>
+  </div>
+  <div class="spacer"></div>
+  <button class="btn" data-go="home">Start 14 days free</button>
+  <p class="sub" style="font-size:12px">Then ${S.plan==="year"?"$19.99 a year":"$2.99 a month"}. Renews automatically, cancel anytime.</p></div>`,
+
+trialover:()=>`${status()}<div class="screen" style="text-align:center">
+  <div class="spacer"></div>${art("rest",170,"","A keyboard resting")}
+  <h1 class="h1">Your trial ended</h1>
+  <p class="sub">Two-thumb typing, gestures and layouts are resting. The keyboard still works with taps and one-finger swipes, and your learned words are safe.</p>
+  <div class="card" style="text-align:left"><div class="perk"><i>✓</i>You typed 52 words per minute on the test, 21 faster than Apple's.</div></div>
+  <div class="spacer"></div>
+  <button class="btn" data-go="pro">Keep two-thumb typing</button>
+  <button class="btn ghost" data-go="home">Stay on the free keyboard</button></div>`,
+
+messages:()=>`${status()}<div class="screen haskb" style="gap:8px">
+  <div class="row" style="justify-content:center"><span class="chip">Larissa</span></div>
+  <div class="convo">
+    <div class="bub">Dinner at 7?</div>
+    <div class="bub me">Yes! Leaving the office now</div>
+    <div class="bub">How long will you be?</div>
+  </div>
+  <div class="compose"><div class="field" id="msgField"></div><button class="btn small" style="border-radius:50%;width:44px;height:44px;padding:0;flex:none">↑</button></div>
+  ${kbHTML("kbMsg")}</div>`,
+
+nextMsg:()=>screens.messages().replace("kbMsg","kbNext").replace('id="msgField"','id="nextField"'),
+nextNew:()=>`${status()}<div class="screen haskb" style="gap:8px">
+  <div class="row" style="justify-content:center"><span class="chip">New message</span></div>
+  <div class="convo"><p class="sub" style="font-size:14px">A new sentence: the bar offers the usual first words before anything is typed. After a period it starts again.</p></div>
+  <div class="compose"><div class="field" id="newField"></div><button class="btn small" style="border-radius:50%;width:44px;height:44px;padding:0;flex:none">↑</button></div>
+  ${kbHTML("kbNew")}</div>`,
+free:()=>`${status()}<div class="screen haskb" style="gap:8px">
+  <div class="row" style="justify-content:center"><span class="chip">Notes</span></div>
+  <div class="convo"><p class="sub" style="font-size:14px">Free keyboard: taps and one-finger swipes. A second thumb shows a gentle nudge to Pro instead of typing.</p></div>
+  <div class="field" id="freeField" style="flex:1"></div>
+  ${kbHTML("kbFree")}</div>`
+};
+
+/* ---------- navigation ---------- */
+function go(name,push=true){
+  if(!screens[name])name="welcome";
+  phone.innerHTML=screens[name]();
+  picker.querySelectorAll("[data-go]").forEach(b=>b.setAttribute("aria-current",b.dataset.go===name));
+  if(push)try{if(location.hash!=="#"+name)history.replaceState(null,"",location.pathname+location.search+"#"+name)}catch(e){}
+  after[name]&&after[name]();
+}
+const after={
+  enable(){document.getElementById("openSettings").onclick=()=>{S.on=true;go("enable",false);confetti()}},
+  try(){kb=mountKB("kbTry",{field:"#tryField",autoCap:false,note:"Tap or swipe. Space writes the word.",onCommit:(w)=>{if(w==="something"){confetti();setTimeout(()=>go("home"),1400)}}});
+    document.getElementById("showMe").onclick=()=>kb.replay(DEMO_SOMETHING);setTimeout(()=>kb&&kb.replay(DEMO_SOMETHING),900)},
+  speed(){const target="the cat went to the store for some bread and came back with a hat".split(" ");let i=0;
+    kb=mountKB("kbSpeed",{field:"#speedField",note:"Go!",onCommit:(w)=>{if(w===target[i]){i++;document.getElementById("speedDone").textContent=target.slice(0,i).join(" ")+" ";document.getElementById("speedLeft").textContent=target.slice(i).join(" ");if(i===target.length)go("result")}
+      else document.getElementById("speedField").classList.add("shake"),setTimeout(()=>document.getElementById("speedField").classList.remove("shake"),400)}})},
+  drill(){kb=mountKB("kbDrill",{field:"#drillField",note:"Left w→e, right n→t",onCommit:(w)=>{if(w==="went")confetti()}});kb.hint("w","L");kb.hint("e","L");kb.hint("n","R");kb.hint("t","R")},
+  messages(){kb=mountKB("kbMsg",{field:"#msgField",text:"About twenty ",autoCap:true,note:"Both thumbs, one word"});kb.K.fix=["twenty","twenty","twelve"];kb.render()},
+  nextMsg(){kb=mountKB("kbNext",{field:"#nextField",text:"About twenty ",autoCap:true,next:true,note:"Both thumbs, one word"});kb.K.fix=["twenty","twelve"];kb.render()},
+  nextNew(){kb=mountKB("kbNew",{field:"#newField",text:"",autoCap:true,next:true,note:"Both thumbs, one word"})},
+  free(){kb=mountKB("kbFree",{field:"#freeField",text:"Free mode ",autoCap:true,free:true,note:"One finger at a time"})},
+  pro(){phone.querySelectorAll("[data-plan]").forEach(b=>b.onclick=()=>{S.plan=b.dataset.plan;go("pro",false)})},
+  prefs(){phone.querySelectorAll(".toggle[data-set]").forEach(t=>t.onclick=()=>{S[t.dataset.set]=!S[t.dataset.set];t.setAttribute("aria-pressed",S[t.dataset.set])})},
+  result(){confetti()}
+};
+function confetti(){for(let i=0;i<18;i++){const f=document.createElement("div");f.className="fish";f.style.left=Math.random()*(phone.clientWidth-30)+"px";f.style.background=["var(--left)","var(--right)","var(--sun)","var(--mint)"][i%4];f.style.borderRadius="50% 0 50% 0";f.style.animationDelay=Math.random()*.6+"s";phone.appendChild(f);setTimeout(()=>f.remove(),3000)}}
+document.addEventListener("click",e=>{const b=e.target.closest("[data-go]");if(b){go(b.dataset.go)}});
+document.querySelectorAll(".themes button").forEach(b=>b.onclick=()=>{const t=b.dataset.theme;if(t)document.documentElement.setAttribute("data-theme",t);else document.documentElement.removeAttribute("data-theme");document.querySelectorAll(".themes button").forEach(x=>x.setAttribute("aria-pressed",x===b))});
+document.querySelector('.themes button[data-theme=""]').setAttribute("aria-pressed","true");
+document.querySelectorAll(".sizes button").forEach(b=>b.onclick=()=>{phone.className="phone "+b.dataset.size;document.querySelectorAll(".sizes button").forEach(x=>x.setAttribute("aria-pressed",x===b));go(location.hash.slice(1)||"welcome",false)});
+document.querySelector('.sizes button[data-size=""]').setAttribute("aria-pressed","true");
+document.querySelectorAll(".modes button").forEach(b=>b.onclick=()=>{S.mode=b.dataset.mode;document.querySelectorAll(".modes button").forEach(x=>x.setAttribute("aria-pressed",x===b));const h=location.hash.slice(1);go(h==="nextNew"?h:"nextMsg",false)});
+document.querySelector('.modes button[data-mode="A"]').setAttribute("aria-pressed","true");
+window.addEventListener("hashchange",()=>go(location.hash.slice(1),false));
+go((location.hash||"#nextMsg").slice(1),false);
+</script>

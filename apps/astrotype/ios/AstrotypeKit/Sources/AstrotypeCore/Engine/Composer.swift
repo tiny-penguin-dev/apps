@@ -549,7 +549,7 @@ public struct Composer: Sendable {
             return saveCorrection(time: time)
         case .symbol(let c):
             return press(character: c, time: time)
-        case .shift, .numbers, .symbols, .letters, .globe:
+        case .shift, .numbers, .symbols, .letters, .globe, .emoji:
             return []
         }
         return [.haptic(.key)]

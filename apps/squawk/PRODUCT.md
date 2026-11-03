@@ -177,7 +177,9 @@ These shape the design, so they're listed here, not just in the build doc.
   default sound. Sounds are about 30 seconds long.
 - Alarms with wake-up checks are scheduled one morning at a time, so the app has to
   re-plan the next morning after each one. If the phone is off for a few days, those
-  alarms might not be set. We should plan a few mornings ahead to be safe.
+  alarms might not be set. We should plan a few mornings ahead to be safe. We plan 5
+  mornings ahead, and the evening before the last one, a notification asks the person to
+  open Squawk so the next few get set.
 - Different times on some days fit AlarmKit well: each group of days with the same time
   becomes one weekly repeating alarm per ring.
 - App blocking (later) needs Apple's Screen Time permission and a special entitlement.

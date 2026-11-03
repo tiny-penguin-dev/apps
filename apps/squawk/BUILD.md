@@ -120,7 +120,9 @@ screen works at the largest text size and with VoiceOver.
   simulator can't ring, so phase 2 goes to TestFlight early and we test it for a few
   mornings before building more on it.
 - **Re-planning alarms with checks** depends on the app opening. Planning several
-  mornings ahead covers most cases; the mornings log will show if any are missed.
+  mornings ahead covers most cases, and a notification the evening before the last
+  planned morning asks the person to open the app. The mornings log will show if any
+  are missed.
 - **NFC needs its entitlement** and a real phone. Code scanning is the fallback for
   phones without a tag.
 - **No Xcode in Claude's container.** Every change is checked by the GitHub Actions build;

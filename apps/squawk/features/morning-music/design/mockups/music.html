@@ -1,0 +1,552 @@
+<title>Squawk Morning Music</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;700;800;900&display=swap">
+<style>
+/* Layout: one phone (390x844) centered on a dawn-sky stage, with a screen picker beside it. */
+:root{
+  --stage:#E9EEFB; --bg:#F4F7FF; --card:#FFFFFF; --ink:#1E2945; --muted:#6B7594; --line:#E1E7F5;
+  --accent:#FF8A4C; --accent-ink:#FFFFFF; --sun:#FFC24D; --coral:#FF5C63; --mint:#2FBF96; --ice:#DCE7FF;
+  --peng:#172239; --belly:#FFFFFF; --beak:#FFB020; --cheek:#FFB3B8;
+  --font:ui-rounded,"SF Pro Rounded","Nunito",system-ui,sans-serif;
+  --r-lg:28px; --r-md:18px; --r-sm:12px;
+  --spring:cubic-bezier(.34,1.56,.64,1);
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --stage:#0A0F20; --bg:#11182E; --card:#1B2443; --ink:#EEF2FF; --muted:#9AA5C6; --line:#28345A;
+  --accent:#FF9A5E; --accent-ink:#1A1206; --sun:#FFCD66; --coral:#FF6F75; --mint:#45D3AA; --ice:#24305A;
+  --peng:#2A3762; --belly:#F3F6FF; --beak:#FFBE3D; --cheek:#FF9BA2; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --stage:#0A0F20; --bg:#11182E; --card:#1B2443; --ink:#EEF2FF; --muted:#9AA5C6; --line:#28345A;
+  --accent:#FF9A5E; --accent-ink:#1A1206; --sun:#FFCD66; --coral:#FF6F75; --mint:#45D3AA; --ice:#24305A;
+  --peng:#2A3762; --belly:#F3F6FF; --beak:#FFBE3D; --cheek:#FF9BA2; color-scheme:dark}
+html,body{height:100%}
+body{background:var(--stage);color:var(--ink);font-family:var(--font);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.stage{display:flex;gap:32px;justify-content:center;align-items:flex-start;padding-block:24px;flex-wrap:wrap}
+.picker{display:flex;flex-direction:column;gap:6px;max-width:220px;min-width:0}
+.picker h1{font-size:28px;font-weight:900;margin:0}
+.picker p{margin:0 0 10px;color:var(--muted);font-size:13px;line-height:1.45}
+.picker button{font:inherit;font-weight:700;font-size:14px;text-align:left;border:0;background:transparent;color:var(--muted);padding:7px 12px;border-radius:10px;cursor:pointer}
+.picker button[aria-current="true"]{background:var(--card);color:var(--ink)}
+.picker button:focus-visible,.phone button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.picker small{color:var(--muted);font-size:11px;letter-spacing:.06em;text-transform:uppercase;font-weight:800;margin-top:10px;padding-left:12px}
+.phone{width:390px;max-width:100%;height:844px;background:var(--bg);border-radius:48px;position:relative;overflow:hidden;
+  box-shadow:0 0 0 10px var(--ink),0 30px 60px rgba(20,30,60,.25);flex:none}
+@media (max-width:700px){.picker{max-width:100%;flex-direction:row;flex-wrap:wrap}.picker h1,.picker p{width:100%}.picker small{display:none}
+  .phone{box-shadow:none;border-radius:32px;height:820px}}
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;padding:58px 22px 30px;gap:16px;animation:in .45s var(--spring)}
+@keyframes in{from{transform:translateX(30px);opacity:0}to{transform:none;opacity:1}}
+.status{position:absolute;top:14px;left:30px;right:30px;display:flex;justify-content:space-between;font-weight:800;font-size:15px;z-index:3}
+.h1{font-size:30px;font-weight:900;line-height:1.1;margin:0;text-wrap:balance}
+.h2{font-size:20px;font-weight:800;margin:0}
+.sub{color:var(--muted);font-size:16px;line-height:1.4;margin:0}
+.btn{font:inherit;font-weight:800;font-size:18px;border:0;border-radius:999px;padding:17px 22px;background:var(--accent);color:var(--accent-ink);cursor:pointer;
+  transition:transform .25s var(--spring);box-shadow:0 6px 0 color-mix(in srgb,var(--accent) 60%,#000 25%)}
+.btn:active{transform:translateY(3px) scale(.98);box-shadow:0 3px 0 color-mix(in srgb,var(--accent) 60%,#000 25%)}
+.btn.ghost{background:transparent;color:var(--muted);box-shadow:none;font-size:15px;padding:8px}
+.spacer{flex:1}
+.card{background:var(--card);border-radius:var(--r-md);padding:16px}
+.row{display:flex;align-items:center;gap:12px}
+.chip{display:inline-flex;align-items:center;gap:6px;font-weight:800;font-size:13px;padding:6px 10px;border-radius:999px;background:var(--ice);color:var(--ink)}
+.dot{width:10px;height:10px;border-radius:50%;flex:none}
+.pro{font-size:10px;font-weight:900;letter-spacing:.08em;background:var(--sun);color:#3A2600;padding:3px 7px;border-radius:6px}
+.toggle{width:52px;height:32px;border-radius:999px;background:var(--line);border:0;position:relative;cursor:pointer;flex:none;transition:background .2s}
+.toggle::after{content:"";position:absolute;top:3px;left:3px;width:26px;height:26px;border-radius:50%;background:#fff;box-shadow:0 2px 4px rgba(0,0,0,.2);transition:transform .35s var(--spring)}
+.toggle[aria-pressed="true"]{background:var(--mint)}
+.toggle[aria-pressed="true"]::after{transform:translateX(20px)}
+.toggle.wob{animation:wob .4s var(--spring)}
+@keyframes wob{30%{transform:scaleX(1.12)}60%{transform:scaleX(.95)}}
+.timeline{display:flex;gap:6px;flex-wrap:wrap}
+.timeline .chip{animation:pop .5s var(--spring) backwards}
+.timeline .chip:nth-child(2){animation-delay:.08s}.timeline .chip:nth-child(3){animation-delay:.16s}.timeline .chip:nth-child(4){animation-delay:.24s}
+@keyframes pop{from{transform:scale(.4);opacity:0}}
+.back{font:inherit;font-weight:800;color:var(--accent);background:none;border:0;font-size:17px;padding:0;cursor:pointer;align-self:flex-start}
+.list{display:flex;flex-direction:column;gap:10px}
+.sec{font-size:13px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:6px 0 -6px 4px}
+.scroll{overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:14px;margin:0 -22px;padding:0 22px 10px}
+/* penguin */
+.peng{display:block;margin:0 auto}
+.peng .body{animation:breathe 3.2s ease-in-out infinite;transform-origin:50% 90%}
+@keyframes breathe{50%{transform:scale(1.03,.97)}}
+.peng.wave .wing-r{animation:wave .6s ease-in-out infinite alternate;transform-origin:144px 106px}
+@keyframes wave{from{transform:rotate(-10deg)}to{transform:rotate(-55deg)}}
+.peng.hop{animation:hop .7s var(--spring) infinite alternate}
+@keyframes hop{to{transform:translateY(-10px)}}
+.peng.waddle{animation:waddle .9s var(--spring) both}
+@keyframes waddle{0%{transform:translateX(-160px) rotate(-8deg)}40%{transform:translateX(-40px) rotate(8deg)}70%{transform:translateX(10px) rotate(-4deg)}100%{transform:none}}
+.zz{font-weight:900;fill:var(--muted);animation:zz 2.6s ease-in infinite;opacity:0}
+.zz:nth-of-type(2){animation-delay:1.3s}
+@keyframes zz{0%{opacity:0;transform:translate(0,0)}30%{opacity:1}100%{opacity:0;transform:translate(14px,-30px)}}
+.ice{fill:var(--ice)}
+/* time picker */
+.timepick{display:flex;justify-content:center;align-items:center;gap:6px;font-size:76px;font-weight:900;font-variant-numeric:tabular-nums}
+.wheel{display:flex;flex-direction:column;align-items:center}
+.wheel button{font:inherit;font-size:20px;background:none;border:0;color:var(--muted);cursor:pointer;padding:4px 18px}
+.wheel span{line-height:1}
+.ampm{font-size:22px;font-weight:900;color:var(--muted);align-self:flex-end;margin-bottom:34px}
+.days{display:flex;justify-content:space-between;gap:4px}
+.days button{font:inherit;font-weight:900;width:42px;height:42px;border-radius:50%;border:0;background:var(--card);color:var(--muted);cursor:pointer;transition:transform .3s var(--spring)}
+.days button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.days button:active{transform:scale(.88)}
+/* style cards */
+.style{font:inherit;text-align:left;color:inherit;border:3px solid transparent;cursor:pointer;display:flex;flex-direction:column;gap:8px;transition:transform .3s var(--spring),border-color .2s}
+.style[aria-pressed="true"]{border-color:var(--accent);transform:scale(1.02)}
+.style b{font-size:18px}
+.style span{color:var(--muted);font-size:14px}
+/* home */
+.hero{position:relative;border-radius:var(--r-lg);padding:18px 18px 0;background:linear-gradient(180deg,color-mix(in srgb,var(--ice) 60%,var(--bg)),var(--ice));overflow:hidden}
+.bubble{position:absolute;right:16px;top:18px;background:var(--card);border-radius:16px;padding:8px 12px;font-weight:800;font-size:13px;box-shadow:0 4px 10px rgba(20,30,60,.08)}
+.bubble::after{content:"";position:absolute;left:-6px;bottom:10px;border:6px solid transparent;border-right-color:var(--card);border-left:0}
+.big{font-size:56px;font-weight:900;font-variant-numeric:tabular-nums;line-height:1}
+.alarm{display:flex;flex-direction:column;gap:10px;cursor:pointer;border:0;font:inherit;color:inherit;text-align:left;width:100%}
+.fab{position:absolute;right:22px;bottom:30px;width:62px;height:62px;border-radius:50%;padding:0;font-size:34px;line-height:1}
+/* ringing (iOS-drawn) */
+.ring{background:radial-gradient(circle at 50% 20%,#3B2A4F,#0B0D16 70%);color:#fff;align-items:center;text-align:center}
+.ring .note{position:absolute;top:44px;left:16px;right:16px;font-size:11px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#ffffff99}
+.ring .t{font-size:96px;font-weight:300;font-family:-apple-system,system-ui,sans-serif;margin-top:60px;letter-spacing:-2px}
+.ring .alarmbtns{display:flex;flex-direction:column;gap:12px;width:100%}
+.ring .ab{font:inherit;font-family:-apple-system,system-ui,sans-serif;font-weight:600;font-size:19px;border:0;border-radius:999px;padding:18px;color:#fff;cursor:pointer;display:flex;justify-content:center;gap:8px}
+.pulse{animation:pulse 1s ease-in-out infinite}
+@keyframes pulse{50%{transform:scale(1.04)}}
+/* check */
+.scan{height:230px;border-radius:var(--r-lg);background:var(--card);position:relative;overflow:hidden;display:grid;place-items:center}
+.tagdot{width:90px;height:90px;border-radius:50%;background:var(--ice);display:grid;place-items:center;font-weight:900;color:var(--muted)}
+.wavering{position:absolute;width:90px;height:90px;border-radius:50%;border:3px solid var(--accent);animation:ringout 1.6s ease-out infinite}
+.wavering:nth-child(2){animation-delay:.8s}
+@keyframes ringout{to{transform:scale(2.4);opacity:0}}
+.keypad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.keypad button{font:inherit;font-size:26px;font-weight:800;background:var(--card);color:var(--ink);border:0;border-radius:var(--r-md);padding:14px 0;cursor:pointer;transition:transform .2s var(--spring)}
+.keypad button:active{transform:scale(.92)}
+.answer{font-size:44px;font-weight:900;text-align:center;font-variant-numeric:tabular-nums;min-height:52px;border-bottom:3px dashed var(--line)}
+.shake{animation:shake .4s}
+@keyframes shake{25%{transform:translateX(-10px)}75%{transform:translateX(10px)}}
+/* morning */
+.week{display:flex;justify-content:space-between}
+.week div{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:12px;font-weight:800;color:var(--muted)}
+.week i{width:34px;height:34px;border-radius:50%;background:var(--line);display:grid;place-items:center;font-style:normal;color:#fff}
+.week i.y{background:var(--mint)}.week i.m{background:var(--sun)}
+.fish{position:absolute;top:-30px;width:22px;height:12px;pointer-events:none;animation:fall 2.2s ease-in forwards}
+@keyframes fall{to{transform:translateY(900px) rotate(540deg)}}
+.game{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:12px;background:var(--ice);border-radius:var(--r-lg)}
+.choices{display:flex;gap:10px}
+.choices button{flex:1;font:inherit;font-size:24px;font-weight:900;background:var(--card);color:var(--ink);border:0;border-radius:var(--r-md);padding:14px 0;cursor:pointer}
+.step{display:flex;gap:12px;align-items:center}
+.step .grip{color:var(--muted);font-weight:900;letter-spacing:-2px}
+.step .meta{flex:1;min-width:0}
+.step .meta b{display:block;font-size:17px}
+.step .meta span{color:var(--muted);font-size:13px}
+.seg{display:flex;background:var(--line);border-radius:999px;padding:4px}
+.seg button{flex:1;font:inherit;font-weight:800;font-size:14px;border:0;background:transparent;color:var(--muted);padding:9px 0;border-radius:999px;cursor:pointer;transition:background .2s}
+.seg button[aria-pressed="true"]{background:var(--card);color:var(--ink);box-shadow:0 2px 6px rgba(20,30,60,.12)}
+.perk{display:flex;gap:12px;align-items:center;font-weight:700}
+.perk i{width:30px;height:30px;border-radius:10px;background:var(--ice);display:grid;place-items:center;font-style:normal;color:var(--accent);font-weight:900;flex:none}
+.sheet{position:absolute;inset:auto 12px 20px;background:var(--card);border-radius:24px;padding:20px;text-align:center;box-shadow:0 20px 50px rgba(0,0,0,.3);animation:up .4s var(--spring);display:flex;flex-direction:column;gap:10px;z-index:5}
+.scrim{position:absolute;inset:0;background:rgba(10,15,30,.35);z-index:4}
+@keyframes up{from{transform:translateY(120%)}}
+.sheet .sbtn{font:inherit;font-family:-apple-system,system-ui,sans-serif;font-size:17px;font-weight:600;border:0;background:none;color:#0A84FF;padding:10px;cursor:pointer;border-top:1px solid var(--line)}
+/* steps (new) */
+.size{display:flex;gap:4px;background:var(--line);border-radius:999px;padding:3px;margin:4px 0 6px}
+.size button{flex:1;text-align:center;padding:6px 8px;font-size:12px}
+.size button[aria-pressed="true"]{background:var(--card);color:var(--ink)}
+.phone[data-size="small"]{width:375px;height:667px}
+.phone[data-size="wide"]{width:720px;height:820px}
+.phone[data-size="wide"] .screen{padding-left:max(22px,calc(50% - 280px));padding-right:max(22px,calc(50% - 280px))}
+.phone[data-size="wide"] .scroll{margin:0 calc(-1 * max(22px,calc(50% - 280px)));padding:0 max(22px,calc(50% - 280px)) 10px}
+.tl{position:relative;display:flex;flex-direction:column;gap:10px}
+.tl::before{content:"";position:absolute;left:21px;top:20px;bottom:20px;width:3px;border-radius:2px;background:linear-gradient(var(--sun),var(--accent),var(--coral))}
+.stp{position:relative;display:flex;gap:12px;align-items:flex-start;background:var(--card);border-radius:var(--r-md);padding:14px 14px 14px 46px;border:0;font:inherit;color:inherit;text-align:left;cursor:pointer;width:100%;animation:pop .5s var(--spring) backwards}
+.stp::before{content:"";position:absolute;left:14px;top:18px;width:17px;height:17px;border-radius:50%;background:var(--card);border:4px solid var(--dotc,var(--accent))}
+.stp.wake{box-shadow:0 0 0 3px var(--accent)}
+.stp .when{min-width:64px}
+.stp .when b{display:block;font-size:20px;font-weight:900;font-variant-numeric:tabular-nums}
+.stp .when span{font-size:12px;font-weight:800;color:var(--muted)}
+.stp .what{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}
+.thing{display:flex;align-items:center;gap:8px;font-weight:800;font-size:14px}
+.thing span{color:var(--muted);font-weight:700}
+.ic{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;flex:none;background:var(--ice);color:var(--ink)}
+.ic svg{width:16px;height:16px}
+.ic.ring{background:color-mix(in srgb,var(--accent) 22%,var(--card));color:var(--accent)}
+.ic.light{background:color-mix(in srgb,var(--sun) 35%,var(--card));color:color-mix(in srgb,var(--sun) 40%,var(--ink))}
+.ic.check{background:color-mix(in srgb,var(--mint) 25%,var(--card));color:var(--mint)}
+.add{border:2px dashed var(--line);background:transparent;font:inherit;font-weight:800;color:var(--accent);cursor:pointer;border-radius:var(--r-md);padding:12px;text-align:center;display:flex;gap:6px;align-items:center;justify-content:center}
+.adds{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.up{background:linear-gradient(135deg,color-mix(in srgb,var(--sun) 30%,var(--card)),var(--card));border-radius:var(--r-md);padding:14px;display:flex;flex-direction:column;gap:8px;border:0;font:inherit;color:inherit;text-align:left;cursor:pointer;width:100%}
+.stepper{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.stepper button{font:inherit;font-size:24px;font-weight:900;width:52px;height:52px;border-radius:50%;border:0;background:var(--card);color:var(--ink);cursor:pointer;transition:transform .2s var(--spring)}
+.stepper button:active{transform:scale(.9)}
+.stepper .val{text-align:center}
+.stepper .val b{display:block;font-size:40px;font-weight:900;font-variant-numeric:tabular-nums}
+.opt{display:flex;align-items:center;gap:12px;padding:12px 4px;border:0;border-top:1px solid var(--line);background:none;font:inherit;color:inherit;text-align:left;cursor:pointer;width:100%}
+.opt:first-of-type{border-top:0}
+.opt b{flex:1}
+.glow{width:130px;height:130px;border-radius:50%;margin:0 auto;display:grid;place-items:center;transition:box-shadow .4s,background .4s}
+.slider{display:flex;flex-direction:column;gap:6px}
+.slider label{display:flex;justify-content:space-between;font-weight:800}
+.slider input{width:100%;accent-color:var(--accent)}
+.room{font-size:13px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:8px 0 0 4px}
+.dev{display:flex;align-items:center;gap:12px;background:var(--card);border-radius:var(--r-md);padding:12px 14px;border:0;font:inherit;color:inherit;cursor:pointer;width:100%;text-align:left}
+.dev[aria-pressed="true"]{box-shadow:0 0 0 3px var(--accent)}
+.dev b{flex:1}
+/* guided setup */
+.gtop{display:flex;align-items:center;gap:10px}
+.gdots{flex:1;display:flex;justify-content:center;gap:6px}
+.gdots i{width:8px;height:8px;border-radius:99px;background:var(--line);transition:width .35s var(--spring),background .2s}
+.gdots i.on{width:22px;background:var(--accent)}.gdots i.done{background:color-mix(in srgb,var(--accent) 45%,var(--line))}
+.gq{display:flex;gap:12px;align-items:flex-end}
+.gq .h1{flex:1;font-size:27px}
+.choice{display:flex;flex-direction:column;gap:6px;background:var(--card);border:3px solid transparent;border-radius:var(--r-md);padding:14px 16px;font:inherit;color:inherit;text-align:left;cursor:pointer;width:100%;transition:transform .25s var(--spring),border-color .2s;animation:pop .45s var(--spring) backwards}
+.choice:nth-child(2){animation-delay:.05s}.choice:nth-child(3){animation-delay:.1s}.choice:nth-child(4){animation-delay:.15s}
+.choice:active{transform:scale(.97)}
+.choice[aria-pressed="true"]{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 8%,var(--card))}
+.choice .row b{flex:1;font-size:17px}
+.choice .sub{font-size:14px}
+.mini{display:flex;gap:4px;flex-wrap:wrap}
+.mini span{font-size:12px;font-weight:800;padding:3px 8px;border-radius:99px;background:var(--ice);color:var(--ink);display:inline-flex;gap:4px;align-items:center}
+.mini .ic{width:16px;height:16px;border-radius:5px}.mini .ic svg{width:11px;height:11px}
+.tick{width:24px;height:24px;border-radius:50%;border:2px solid var(--line);flex:none;display:grid;place-items:center;color:var(--accent-ink)}
+.choice[aria-pressed="true"] .tick{background:var(--accent);border-color:var(--accent)}
+.skipall{font:inherit;font-weight:800;font-size:15px;color:var(--muted);background:none;border:0;cursor:pointer;padding:4px 0}
+.note2{font-size:13px;color:var(--muted);background:var(--ice);border-radius:var(--r-sm);padding:10px 12px;line-height:1.4}
+/* Sunrise lights (new) */
+.ic.sunrise{background:linear-gradient(160deg,color-mix(in srgb,var(--sun) 45%,var(--card)),color-mix(in srgb,var(--accent) 30%,var(--card)));color:color-mix(in srgb,var(--accent) 70%,var(--ink))}
+.ramp{display:flex;align-items:flex-end;gap:3px;height:34px;padding:0 2px}
+.ramp i{flex:1;border-radius:4px 4px 2px 2px;min-height:3px;transition:height .45s var(--spring),background .3s}
+.ramp.big{height:70px;gap:4px}
+.rampcap{display:flex;justify-content:space-between;font-size:12px;font-weight:800;color:var(--muted);font-variant-numeric:tabular-nums}
+.what .ramp{height:20px;gap:2px;margin:-2px 0 2px 34px}
+.sky{flex:none;position:relative;height:190px;border-radius:var(--r-lg);overflow:hidden;display:grid;place-items:center;transition:background .3s}
+.sky .clock{position:absolute;top:12px;left:14px;font-weight:900;font-size:15px;font-variant-numeric:tabular-nums;color:var(--ink);background:color-mix(in srgb,var(--card) 70%,transparent);padding:4px 10px;border-radius:99px}
+.sky .lamp{width:96px;height:96px;border-radius:50%;display:grid;place-items:center;transition:box-shadow .3s,background .3s}
+.sky .play{position:absolute;right:12px;bottom:12px;font:inherit;font-weight:900;font-size:14px;border:0;border-radius:99px;padding:8px 14px;background:var(--card);color:var(--accent);cursor:pointer}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.pair .slider label{font-size:14px}
+.lenrow{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.lenrow button{font:inherit;font-size:22px;font-weight:900;width:44px;height:44px;border-radius:50%;border:0;background:var(--bg);color:var(--ink);cursor:pointer}
+.lenrow .val{text-align:center;flex:1}
+.lenrow .val b{display:block;font-size:30px;font-weight:900;font-variant-numeric:tabular-nums}
+.lenrow .val span{font-size:13px;color:var(--muted);font-weight:700}
+.shimmer{animation:shim 1.2s ease-out}
+@keyframes shim{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--sun) 80%,transparent)}100%{box-shadow:0 0 0 18px transparent}}
+/* Morning music (new) */
+.ic.music{background:color-mix(in srgb,var(--coral) 22%,var(--card));color:var(--coral)}
+.ic.homepod{background:var(--ice);color:var(--ink)}
+.art{width:48px;height:48px;border-radius:12px;flex:none;display:grid;place-items:center;color:#fff;font-weight:900;font-size:18px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.15)}
+.art.big{width:64px;height:64px;border-radius:14px;font-size:24px}
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.tile{display:flex;flex-direction:column;gap:6px;border:0;background:none;font:inherit;color:inherit;text-align:left;cursor:pointer;padding:0;transition:transform .25s var(--spring)}
+.tile .art{width:100%;height:auto;aspect-ratio:1;border-radius:16px;font-size:26px}
+.tile b{font-size:13px;line-height:1.2}
+.tile[aria-pressed="true"] .art{box-shadow:0 0 0 3px var(--bg),0 0 0 6px var(--accent)}
+.tile:active{transform:scale(.95)}
+.pl{display:flex;align-items:center;gap:12px;border:0;background:none;font:inherit;color:inherit;text-align:left;cursor:pointer;width:100%;padding:8px 0;border-top:1px solid var(--line)}
+.pl:first-child{border-top:0}
+.pl .meta{flex:1;min-width:0}.pl .meta b{display:block;font-size:16px}.pl .meta span{font-size:13px;color:var(--muted);font-weight:700}
+.pl .tick{color:var(--accent-ink)}
+.pl[aria-pressed="true"] .tick{background:var(--accent);border-color:var(--accent)}
+.search{display:flex;align-items:center;gap:8px;background:var(--card);border-radius:999px;padding:11px 16px;color:var(--muted);font-weight:700}
+.np{display:flex;flex-direction:column;gap:12px;text-align:left;animation:pop .5s var(--spring) backwards .2s}
+.np .bars{display:flex;gap:3px;align-items:flex-end;height:16px}
+.np .bars i{width:4px;border-radius:2px;background:var(--coral);animation:eq .9s ease-in-out infinite alternate}
+.np .bars i:nth-child(2){animation-delay:.2s}.np .bars i:nth-child(3){animation-delay:.45s}
+.np.paused .bars i{animation:none;height:4px}
+@keyframes eq{from{height:4px}to{height:16px}}
+.np .ctrls{display:flex;gap:10px}
+.np .ctrls button{font:inherit;font-weight:800;border:0;border-radius:999px;cursor:pointer}
+.np .pp{width:48px;height:48px;background:var(--ice);color:var(--ink);font-size:18px;flex:none}
+.np .air{flex:1;display:flex;align-items:center;justify-content:center;gap:8px;background:var(--ink);color:var(--bg);font-size:16px;padding:0 16px;min-height:48px;transition:transform .25s var(--spring)}
+.np .air:active{transform:scale(.97)}
+.np .air.on{background:color-mix(in srgb,var(--mint) 22%,var(--card));color:var(--ink)}
+.notes{position:relative;height:0}
+.notes span{position:absolute;font-size:22px;font-weight:900;color:var(--coral);opacity:0;animation:note 2.8s ease-in infinite}
+.notes span:nth-child(2){animation-delay:.9s;color:var(--accent)}.notes span:nth-child(3){animation-delay:1.8s;color:var(--mint)}
+@keyframes note{0%{opacity:0;transform:translate(0,0) rotate(-10deg)}25%{opacity:1}100%{opacity:0;transform:translate(26px,-70px) rotate(14deg)}}
+@media (prefers-reduced-motion: reduce){.notes span,.np .bars i{animation:none}}
+/* iOS-drawn sheets: AirPlay picker and permission alert */
+.ios{font-family:-apple-system,system-ui,sans-serif}
+.route{position:absolute;inset:auto 12px 20px;background:color-mix(in srgb,var(--card) 92%,#888);backdrop-filter:blur(20px);border-radius:28px;padding:18px;z-index:5;animation:up .4s var(--spring);display:flex;flex-direction:column;gap:2px}
+.route .rnote{font-size:11px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+.route button{display:flex;align-items:center;gap:12px;border:0;background:none;font:inherit;font-size:17px;color:var(--ink);text-align:left;padding:10px 6px;cursor:pointer;border-radius:12px}
+.route button:hover{background:color-mix(in srgb,var(--ink) 6%,transparent)}
+.route button b{flex:1;font-weight:500}
+.route .rc{width:22px;height:22px;border-radius:50%;border:2px solid var(--line);flex:none}
+.route button[aria-pressed="true"] .rc{background:#0A84FF;border-color:#0A84FF;box-shadow:inset 0 0 0 4px var(--card)}
+.alert{position:absolute;left:50%;top:50%;width:270px;transform:translate(-50%,-50%);background:color-mix(in srgb,var(--card) 94%,#888);border-radius:16px;text-align:center;z-index:5;overflow:hidden;animation:fadein .25s}
+@keyframes fadein{from{opacity:0;transform:translate(-50%,-50%) scale(1.1)}}
+.alert .at{padding:18px 16px 14px;display:flex;flex-direction:column;gap:6px}
+.alert .at b{font-size:17px}.alert .at span{font-size:13px;line-height:1.35}
+.alert .ab2{display:flex;border-top:1px solid var(--line)}
+.alert .ab2 button{flex:1;font:inherit;font-size:17px;border:0;background:none;color:#0A84FF;padding:11px;cursor:pointer}
+.alert .ab2 button+button{border-left:1px solid var(--line);font-weight:600}
+/* Home app guide */
+.hstep{display:flex;gap:12px;align-items:flex-start;background:var(--card);border-radius:var(--r-md);padding:14px;animation:pop .45s var(--spring) backwards}
+.hstep:nth-child(2){animation-delay:.06s}.hstep:nth-child(3){animation-delay:.12s}.hstep:nth-child(4){animation-delay:.18s}.hstep:nth-child(5){animation-delay:.24s}
+.hstep .n{width:28px;height:28px;border-radius:50%;background:var(--ice);font-weight:900;display:grid;place-items:center;flex:none;font-size:14px}
+.hstep .n.done{background:var(--mint);color:#fff}
+.hstep .t{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}
+.hstep .t b{font-size:16px}
+.hstep .t span{font-size:14px;color:var(--muted);line-height:1.35}
+.copy{display:inline-flex;gap:6px;align-items:center;font:inherit;font-weight:900;font-size:15px;border:0;border-radius:10px;padding:6px 10px;background:color-mix(in srgb,var(--accent) 16%,var(--card));color:var(--ink);cursor:pointer;align-self:flex-start}
+.catch{display:flex;gap:12px;align-items:flex-start;background:color-mix(in srgb,var(--sun) 22%,var(--card));border-radius:var(--r-md);padding:14px;font-size:14px;line-height:1.4}
+.catch b{display:block;font-size:15px;margin-bottom:2px}
+.toast{position:absolute;left:50%;bottom:110px;transform:translateX(-50%);background:var(--ink);color:var(--bg);font-weight:800;font-size:14px;padding:10px 16px;border-radius:999px;z-index:6;animation:pop .4s var(--spring)}
+
+</style>
+
+<div class="stage">
+  <nav class="picker" aria-label="Screens">
+    <h1>Morning music</h1>
+    <p>Your playlist starts when you're up, and one tap sends it to a HomePod. Plus a walkthrough for music at a set time, set up in the Home app. Tap through the phone, or jump to a screen.</p>
+    <div class="size" role="group" aria-label="Screen size"><button data-size="small" aria-pressed="false">Small</button><button data-size="phone" aria-pressed="true">Phone</button><button data-size="wide" aria-pressed="false">Wide</button></div>
+    <small>Setting it up</small>
+    <button data-go="up">When you're up</button>
+    <button data-go="addup">Add something</button>
+    <button data-go="access">Apple Music access</button>
+    <button data-go="music">Pick your music</button>
+    <button data-go="nomusic">No Apple Music</button>
+    <button data-go="edit">Edit alarm</button>
+    <small>In the morning</small>
+    <button data-go="ring">Alarm ringing</button>
+    <button data-go="morning">Good morning</button>
+    <button data-go="airplay">Pick a speaker</button>
+    <small>Music before you're up</small>
+    <button data-go="hguide">Home app intro</button>
+    <button data-go="hsteps">Home app steps</button>
+  </nav>
+  <div class="phone" id="phone" role="region" aria-label="Squawk app"></div>
+</div>
+
+<script>
+const pad=n=>String(n).padStart(2,"0");
+function fmt(h,m){const hh=((h+11)%12)+1;return hh+":"+pad(m)}
+function at(off){let t=S.h*60+S.m+off;t=(t+1440)%1440;return fmt(Math.floor(t/60),t%60)}
+function offLabel(o){return o<0?-o+" min before":o>0?o+" min after":"Wake-up time"}
+const warmName=w=>w<34?"warm":w<67?"soft white":"daylight";
+const cap=s=>s[0].toUpperCase()+s.slice(1);
+/* The light changes Squawk sets up: at most 10 jumps, whole minutes, brightness eases in. */
+function points(sr){const n=Math.min(sr.len,10);const out=[];
+  for(let k=0;k<=n;k++){const t=k/n;const off=Math.round(t*sr.len);if(out.length&&out[out.length-1].off===off)continue;
+    out.push({off,b:Math.round(sr.b0+(sr.b1-sr.b0)*t*t),w:Math.round(sr.w0+(sr.w1-sr.w0)*t)})}return out}
+function lightColor(w,b){const warm=[255,170,80],soft=[255,226,168],day=[236,243,255];const t=w/100;
+  const mix=(a,c,u)=>a.map((x,i)=>Math.round(x+(c[i]-x)*u));const c=t<.5?mix(warm,soft,t*2):mix(soft,day,(t-.5)*2);return `rgb(${c.join(",")})`}
+function rampBars(sr,cls="ramp"){return `<div class="${cls}" aria-hidden="true">${points(sr).map(p=>`<i style="height:${Math.max(8,p.b)}%;background:${lightColor(p.w)}"></i>`).join("")}</div>`}
+const ICON={
+  ring:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a1.5 1.5 0 0 1 1.5 1.5v.6A6.5 6.5 0 0 1 18.5 10.5v4.3l1.8 2.6a.9.9 0 0 1-.8 1.4H4.5a.9.9 0 0 1-.8-1.4l1.8-2.6v-4.3a6.5 6.5 0 0 1 5-6.4v-.6A1.5 1.5 0 0 1 12 2Zm-2.5 18h5a2.5 2.5 0 0 1-5 0Z"/></svg>',
+  light:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a7 7 0 0 1 4.2 12.6c-.7.5-1.2 1.3-1.2 2.2v.2H9v-.2c0-.9-.5-1.7-1.2-2.2A7 7 0 0 1 12 2Zm-3 17h6v1a2 2 0 0 1-2 2h-2a2 2 0 0 1-2-2v-1Z"/></svg>',
+  sunrise:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 9a6 6 0 0 1 6 6H6a6 6 0 0 1 6-6Zm-1-6h2v3h-2V3ZM4.2 6.6l1.4-1.4 2.1 2.1-1.4 1.4-2.1-2.1Zm12.1.7 2.1-2.1 1.4 1.4-2.1 2.1-1.4-1.4ZM2 17h20v2H2v-2Z"/></svg>',
+  scene:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 4h14a3 3 0 0 1 3 3v10a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3Zm5 4.5v7l6-3.5-6-3.5Z"/></svg>',
+  plug:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 2a1 1 0 0 1 1 1v4h6V3a1 1 0 1 1 2 0v4h1a1 1 0 0 1 1 1v3a7 7 0 0 1-6 6.9V21a1 1 0 1 1-2 0v-3.1A7 7 0 0 1 5 11V8a1 1 0 0 1 1-1h1V3a1 1 0 0 1 1-1Z"/></svg>',
+  blinds:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 3h18v2H3V3Zm1 4h16v2H4V7Zm0 4h16v2H4v-2Zm7 4h2v4.2a2 2 0 1 1-2 0V15Z"/></svg>',
+  house:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3 2 11.5h3V21h5v-6h4v6h5v-9.5h3L12 3Z"/></svg>',
+  check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>'};
+const ic=k=>`<span class="ic ${k}" aria-hidden="true">${ICON[k]}</span>`;
+function srDetail(sr){return `${sr.len} min · ${sr.b0}% → ${sr.b1}%`}
+function thingSR(t){return `<div class="thing">${ic(t.k)}<div style="min-width:0">${t.name}${t.v?`<span style="display:block;font-size:13px">${t.v}</span>`:""}</div></div>`}
+function steps(){const st=[{off:0,wake:true,things:[{k:"ring",name:"Morning squawk",v:"until you scan the tag"}]},{off:-10,things:[{k:"ring",name:"Little peep",v:"soft"}]}];
+  if(S.sr.on){const ex=st.find(x=>x.off===S.sr.off);const t={k:"sunrise",name:"Bedroom lamp",v:srDetail(S.sr),sr:true};ex?ex.things.unshift(t):st.push({off:S.sr.off,things:[t]})}
+  return st.sort((a,b)=>a.off-b.off)}
+function dotColor(st){return st.wake?"var(--accent)":st.off<0?"var(--sun)":"var(--coral)"}
+function stepCard(st){return `<button class="stp${st.wake?" wake":""}" style="--dotc:${dotColor(st)}" data-step="${st.off}">
+  <div class="when"><b>${at(st.off)}</b><span>${offLabel(st.off)}</span></div>
+  <div class="what">${st.things.map(t=>thing(t)+(t.sr?rampBars(S.sr):"")).join("")}${st.wake?thing({k:"check",name:"Scan the tag",v:"Bathroom mirror"}):""}</div></button>`}
+const statusSR=()=>`<div class="status"><span>9:41</span><span>●●● ▮</span></div>`;
+/* Penguin, drawn with shapes so every part can move. mood: sleep | awake | proud | grumpy | faint */
+/* Squawk: penguin 2 (rounded bottom, legs to the edge), beak B, mouth F. Cheeks only when proud. */
+const P_BODY="M50 96 A50 50 0 0 1 150 96 V170 Q150 188 132 188 H68 Q50 188 50 170 Z";
+const P_WING="M57 103 C42 115 36 140 40 161 C49 156 56 142 60 127 Z";
+const P_WING_R=P_WING.replace(/(-?\d+(\.\d+)?) (-?\d+(\.\d+)?)/g,(_,x,__,y)=>`${200-x} ${y}`);
+function penguin(mood="awake",size=170,cls=""){
+  const W="var(--belly)",P="var(--peng)",lx=82,rx=118,y=90;
+  const eyes={
+    sleep:`<path d="M${lx-9} ${y} q9 7 18 0 M${rx-9} ${y} q9 7 18 0" stroke="${W}" stroke-width="5" fill="none" stroke-linecap="round"/>`,
+    awake:`<circle cx="${lx}" cy="${y}" r="10" fill="${W}"/><circle cx="${rx}" cy="${y}" r="10" fill="${W}"/><circle cx="${lx+2}" cy="${y+1}" r="5" fill="${P}"/><circle cx="${rx+2}" cy="${y+1}" r="5" fill="${P}"/><circle cx="${lx+4}" cy="${y-2}" r="1.8" fill="${W}"/><circle cx="${rx+4}" cy="${y-2}" r="1.8" fill="${W}"/>`,
+    proud:`<path d="M${lx-9} ${y+3} q9 -10 18 0 M${rx-9} ${y+3} q9 -10 18 0" stroke="${W}" stroke-width="5" fill="none" stroke-linecap="round"/>`,
+    grumpy:`<circle cx="${lx}" cy="${y}" r="10" fill="${W}"/><circle cx="${rx}" cy="${y}" r="10" fill="${W}"/><circle cx="${lx+1}" cy="${y+3}" r="4.5" fill="${P}"/><circle cx="${rx-1}" cy="${y+3}" r="4.5" fill="${P}"/><path d="M${lx-12} ${y-14} L${lx+12} ${y-4} L${lx+12} ${y-16}Z M${rx+12} ${y-14} L${rx-12} ${y-4} L${rx-12} ${y-16}Z" fill="${P}"/>`,
+    squawk:`<circle cx="${lx}" cy="${y}" r="11" fill="${W}"/><circle cx="${rx}" cy="${y}" r="11" fill="${W}"/><circle cx="${lx}" cy="${y}" r="3.5" fill="${P}"/><circle cx="${rx}" cy="${y}" r="3.5" fill="${P}"/>`,
+    faint:`<path d="M${lx-6} ${y-6} l12 12 M${lx+6} ${y-6} l-12 12 M${rx-6} ${y-6} l12 12 M${rx+6} ${y-6} l-12 12" stroke="${W}" stroke-width="4.5" stroke-linecap="round"/>`
+  }[mood];
+  const by=104,B="var(--beak)";
+  const beak=mood==="squawk"
+    ?`<path d="M89 ${by+2} Q100 ${by+4} 111 ${by+2} Q108 ${by+15} 100.8 ${by+22} Q100 ${by+23} 99.2 ${by+22} Q92 ${by+15} 89 ${by+2}Z" fill="#4A1526"/><ellipse cx="100" cy="${by+15.5}" rx="5" ry="3" fill="#FF7D8C"/><path d="M88 ${by+3} Q93 ${by+17} 99 ${by+27} Q100 ${by+28.5} 101 ${by+27} Q107 ${by+17} 112 ${by+3} Q107 ${by+14} 100 ${by+21.5} Q93 ${by+14} 88 ${by+3}Z" fill="${B}"/><path d="M88 ${by} Q100 ${by-2} 112 ${by} L101.6 ${by+10.5} Q100 ${by+12.5} 98.4 ${by+10.5}Z" fill="${B}"/>`
+    :`<path d="M91.5 ${by} Q100 ${by-1.5} 108.5 ${by} L101.6 ${by+14.5} Q100 ${by+17} 98.4 ${by+14.5} Z" fill="${B}"/>`;
+  const up=mood==="proud"||mood==="squawk"?30:0;
+  const cheeks=mood==="proud"?`<circle cx="66" cy="110" r="6" fill="var(--cheek)" opacity=".85"/><circle cx="134" cy="110" r="6" fill="var(--cheek)" opacity=".85"/>`:"";
+  const cap=mood==="sleep"?`<path d="M64 70 Q100 0 140 64 Q100 52 64 70Z" fill="var(--accent)"/><circle cx="146" cy="62" r="9" fill="var(--sun)"/>`:"";
+  const zz=mood==="sleep"?`<text class="zz" x="152" y="40" font-size="22">z</text><text class="zz" x="164" y="28" font-size="16">z</text>`:"";
+  return `<svg class="peng ${cls}" width="${size}" height="${size}" viewBox="0 0 200 200" role="img" aria-label="Squawk the penguin, ${mood}">
+    <ellipse cx="100" cy="192" rx="50" ry="6" fill="rgba(20,30,60,.12)"/>
+    <g class="body">
+      <path d="${P_WING}" fill="${P}" transform="rotate(${up} 56 106)"/>
+      <g class="wing-r"><path d="${P_WING_R}" fill="${P}" transform="rotate(${-up} 144 106)"/></g>
+      <path d="${P_BODY}" fill="${P}"/>
+      <path d="M70 188 V140 A30 30 0 0 1 130 140 V188 Z" fill="${W}"/>
+      <path d="M90 188 V176 A10 10 0 0 1 110 176 V188 Z" fill="${P}"/>
+      ${eyes}${beak}${cheeks}${cap}
+      <ellipse cx="80" cy="189" rx="13" ry="5" fill="${B}"/><ellipse cx="120" cy="189" rx="13" ry="5" fill="${B}"/>
+    </g>${zz}</svg>`;
+}
+Object.assign(ICON,{
+  music:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 3v12.5a3.5 3.5 0 1 1-2-3.16V7.3l-8 1.6v8.6A3.5 3.5 0 1 1 8 14.34V5.5a1 1 0 0 1 .8-.98l10-2A1 1 0 0 1 20 3Z"/></svg>',
+  homepod:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c3.9 0 7 1.6 7 4.5v11c0 2.9-3.1 4.5-7 4.5s-7-1.6-7-4.5v-11C5 3.6 8.1 2 12 2Zm0 2c-2.9 0-5 1.1-5 2.2S9.1 8.5 12 8.5s5-1.1 5-2.3S14.9 4 12 4Z"/></svg>',
+  airplay:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 3h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-2.2l-1.7-2H20V5H4v10h3.9l-1.7 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm8 10 6 8H6l6-8Z"/></svg>',
+  iphone:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 2h8a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Zm2 17v1h4v-1h-4Z"/></svg>'});
+const fishSvg=c=>`<svg viewBox="0 0 22 12" width="22" height="12"><path d="M0 6 Q8 -2 16 6 Q8 14 0 6Z M16 6 L22 1 L22 11Z" fill="${c}"/></svg>`;
+function confetti(){const p=document.getElementById("phone");const cols=["var(--accent)","var(--sun)","var(--mint)","var(--coral)"];
+  if(matchMedia("(prefers-reduced-motion: reduce)").matches)return;
+  for(let i=0;i<22;i++){const f=document.createElement("div");f.className="fish";f.innerHTML=fishSvg(cols[i%4]);
+    f.style.left=Math.random()*(p.clientWidth-20)+"px";f.style.animationDelay=Math.random()*.6+"s";f.style.animationDuration=1.6+Math.random()*1.2+"s";p.appendChild(f);setTimeout(()=>f.remove(),3500)}}
+const status=(light)=>`<div class="status" style="${light?"color:#fff":""}"><span>9:41</span><span>●●● ▮</span></div>`;
+
+/* Fake Apple Music library for the mockup. */
+const LIB=[
+  {id:"morning",name:"Morning Mix",by:"Made for you",c:"linear-gradient(135deg,#FF8A4C,#FF5C63)",g:"☀"},
+  {id:"chill",name:"Coffee & Chill",by:"Apple Music",c:"linear-gradient(135deg,#8A6A4C,#C79A6B)",g:"☕"},
+  {id:"radio",name:"Apple Music 1",by:"Radio station",c:"linear-gradient(135deg,#1E2945,#5263A8)",g:"1"},
+  {id:"bossa",name:"Bossa Nova Mornings",by:"Playlist · 48 songs",c:"linear-gradient(135deg,#2FBF96,#7FDCC0)",g:"♪"},
+  {id:"up",name:"Get Up!",by:"Your playlist · 22 songs",c:"linear-gradient(135deg,#FFC24D,#FF8A4C)",g:"↑"},
+  {id:"quiet",name:"Quiet Piano",by:"Playlist · 60 songs",c:"linear-gradient(135deg,#6B7594,#AEB8D6)",g:"♩"}];
+const S={h:7,m:0,music:"morning",shuffle:true,hasMusic:true,route:"iphone",playing:true,asked:false,hoff:-10,hdone:[]};
+const pick=()=>LIB.find(x=>x.id===S.music);
+const art=(x,cls="art")=>`<span class="${cls}" style="background:${x.c}" aria-hidden="true">${x.g}</span>`;
+const thing=t=>`<div class="thing">${ic(t.k)}<div style="min-width:0">${t.name}${t.v?`<span style="display:block;font-size:13px">${t.v}</span>`:""}</div></div>`;
+const ROUTES=[["iphone","This iPhone","iphone"],["kitchen","Kitchen HomePod","homepod"],["bedroom","Bedroom HomePod","homepod"]];
+const routeName=()=>ROUTES.find(r=>r[0]===S.route)[1];
+const days="Weekdays";
+const back=(to,label)=>`<button class="back" data-go="${to}">‹ ${label}</button>`;
+
+const screens={
+edit:()=>`${status()}<div class="screen">
+  <div class="row">${back("edit","Alarms")}<span class="spacer"></span><button class="back">Save</button></div>
+  <div class="scroll">
+  <div class="timepick" style="font-size:56px"><span>${fmt(S.h,S.m)}</span><span class="ampm" style="margin-bottom:22px">AM</span></div>
+  <div class="sec">Steps</div>
+  <div class="tl">
+    <button class="stp" style="--dotc:var(--sun)"><div class="when"><b>${at(-10)}</b><span>10 min before</span></div><div class="what">${thing({k:"ring",name:"Little peep",v:"soft"})}</div></button>
+    <button class="stp wake"><div class="when"><b>${at(0)}</b><span>Wake-up time</span></div><div class="what">${thing({k:"ring",name:"Morning squawk"})}</div></button>
+  </div>
+  <button class="up" data-go="up"><div class="row"><b style="flex:1">When you're up</b><span>›</span></div>
+    ${S.music?thing({k:"music",name:pick().name,v:"starts when you're up"}):""}${thing({k:"blinds",name:"Bedroom blinds",v:"open"})}</button>
+  ${S.hset?`<div class="card row">${ic("homepod")}<div style="flex:1"><b>Music before you're up</b><div class="sub" style="font-size:13px">Set up in the Home app · ${at(S.hoff)} ${days}</div></div><button class="back" style="font-size:15px" data-go="hguide">Help</button></div>`:""}
+  </div></div>`,
+
+up:()=>`${status()}<div class="screen">
+  <div class="row">${back("edit","Edit alarm")}<span class="spacer"></span><button class="back" data-go="edit">Done</button></div>
+  <h1 class="h1">When you're up</h1>
+  <p class="sub" style="font-size:15px">Runs when your morning ends: you finish the wake-up check, tap "I'm up", or open Squawk after the last ring.</p>
+  <div class="card list">
+    ${S.music?`<button class="row" style="border:0;background:none;font:inherit;color:inherit;padding:0;cursor:pointer;text-align:left" data-go="music">${art(pick())}<div style="flex:1;min-width:0"><b style="display:block">${pick().name}</b><span class="sub" style="font-size:13px">Plays when you're up${S.shuffle?" · shuffled":""}</span></div><span class="sub">›</span></button>`:""}
+    <div class="row">${thing({k:"blinds",name:"Bedroom blinds",v:"open"})}<span class="spacer"></span><button class="back" style="color:var(--muted)" aria-label="Remove Bedroom blinds">✕</button></div></div>
+  <button class="add" data-go="addup">+ Add something</button>
+  ${S.music?`<p class="note2">With music on, "I'm up" opens Squawk so the music can start. Tap AirPlay there to play it on a HomePod.</p>`:`<p class="note2">This runs from your phone, so it works without a Home hub.</p>`}</div>`,
+
+addup:()=>`${screens.up()}<div class="scrim" data-go="up"></div><div class="sheet" style="text-align:left;gap:0" role="dialog" aria-label="Add to When you're up">
+  <b class="h2" style="margin-bottom:6px">Add to "When you're up"</b>
+  <button class="opt" data-act="addmusic">${ic("music")}<b>Music<span class="sub" style="display:block;font-size:13px;font-weight:700">A playlist from Apple Music</span></b><span class="pro">PRO</span><span>›</span></button>
+  <button class="opt">${ic("scene")}<b>Home scene</b><span class="pro">PRO</span><span>›</span></button>
+  <button class="opt">${ic("house")}<b>Home control<span class="sub" style="display:block;font-size:13px;font-weight:700">Lights, plugs and blinds</span></b><span class="pro">PRO</span><span>›</span></button>
+  <button class="opt" data-go="hguide">${ic("homepod")}<b>Music before you're up<span class="sub" style="display:block;font-size:13px;font-weight:700">On a HomePod at a set time, in the Home app</span></b><span class="pro">PRO</span><span>›</span></button></div>`,
+
+music:()=>`${status()}<div class="screen">
+  <div class="row">${back("up","When you're up")}<span class="spacer"></span><button class="back" data-act="savemusic">Done</button></div>
+  <div class="gq" style="align-items:center"><h1 class="h1">Pick your morning music</h1>${penguin("awake",64)}</div>
+  <div class="scroll">
+  <div class="search" aria-hidden="true">⌕ Search Apple Music</div>
+  <div class="sec">Recently played</div>
+  <div class="tiles">${LIB.slice(0,3).map(x=>`<button class="tile" aria-pressed="${S.music===x.id}" data-m="${x.id}">${art(x)}<b>${x.name}</b></button>`).join("")}</div>
+  <div class="sec">Your playlists</div>
+  <div class="card" style="padding:6px 14px">${LIB.slice(3).map(x=>`<button class="pl" aria-pressed="${S.music===x.id}" data-m="${x.id}">${art(x)}<div class="meta"><b>${x.name}</b><span>${x.by}</span></div><span class="tick">✓</span></button>`).join("")}</div>
+  <div class="card row"><b style="flex:1">Shuffle</b><button class="toggle" role="switch" aria-label="Shuffle" aria-pressed="${S.shuffle}" data-act="shuffle"></button></div>
+  <p class="note2">It starts on this iPhone when you're up. Tap AirPlay on the good-morning screen to send it to a HomePod.</p>
+  </div></div>`,
+
+access:()=>`${screens.music()}<div class="scrim"></div><div class="alert ios" role="alertdialog" aria-label="Apple Music access">
+  <div class="at"><b>"Squawk" Would Like to Access Apple Music</b><span>So Squawk can play your playlist when you wake up.</span></div>
+  <div class="ab2"><button data-act="deny">Don't Allow</button><button data-act="allow">Allow</button></div></div>`,
+
+nomusic:()=>`${status()}<div class="screen" style="text-align:center">
+  ${back("up","Back")}
+  <div class="spacer"></div>${penguin("awake",130)}
+  <h1 class="h1">Morning music uses Apple Music</h1>
+  <p class="sub">Squawk plays your playlists through Apple Music. It looks like you don't have it on this iPhone yet.</p>
+  <div class="spacer"></div>
+  <button class="btn" data-act="trymusic">Try Apple Music</button>
+  <button class="btn ghost" data-go="up">Not now</button></div>`,
+
+ring:()=>`${status(true)}<div class="screen ring">
+  <div class="note">Drawn by iOS (AlarmKit). We set the title, buttons, color and sound.</div>
+  <div class="t">${at(0)}</div>
+  <div style="font-size:22px;font-weight:600;font-family:-apple-system,system-ui,sans-serif">Work days</div>
+  <div class="spacer"></div>
+  <div class="alarmbtns">
+    <button class="ab pulse" style="background:var(--accent)" data-act="imup">☀ I'm up</button>
+    <button class="ab" style="background:#ffffff26">zᶻ Snooze</button></div>
+  <p style="font-size:13px;color:#ffffffaa;margin:0">With morning music on, "I'm up" opens Squawk<br>and starts ${pick().name}.</p></div>`,
+
+morning:()=>{const x=pick(),air=S.route!=="iphone";return `${status()}<div class="screen" style="text-align:center">
+  <div class="spacer"></div>
+  <div class="notes" aria-hidden="true" style="width:190px;margin:0 auto"><span style="left:150px;top:10px">♪</span><span style="left:20px;top:30px">♫</span><span style="left:160px;top:60px">♩</span></div>
+  ${penguin("proud",170,"hop")}
+  <h1 class="h1">Rise and waddle!</h1>
+  <p class="sub">Up at ${at(0)}, on the first ring.</p>
+  <div class="card np${S.playing?"":" paused"}" aria-label="Now playing">
+    <div class="row">${art(x,"art big")}<div style="flex:1;min-width:0"><span class="sub" style="font-size:12px;font-weight:900;letter-spacing:.06em;text-transform:uppercase">${S.playing?"Now playing":"Paused"}</span><b style="display:block;font-size:18px">${x.name}</b>
+      <span class="sub" style="font-size:13px;font-weight:800">${air?"On "+routeName():"On this iPhone"}</span></div><div class="bars" aria-hidden="true"><i></i><i></i><i></i></div></div>
+    <div class="ctrls"><button class="pp" data-act="pp" aria-label="${S.playing?"Pause":"Play"}">${S.playing?"❚❚":"▶"}</button>
+      <button class="air${air?" on":""}" data-go="airplay">${ICON.airplay.replace('<svg','<svg width="18" height="18"')}${air?routeName():"Play on HomePod"}</button></div></div>
+  <div class="row" style="justify-content:center;gap:8px;flex-wrap:wrap"><span class="chip">Blinds opening</span></div>
+  <div class="spacer"></div><button class="btn" data-go="edit">Start my day</button></div>`},
+
+airplay:()=>`${screens.morning()}<div class="scrim" data-go="morning"></div><div class="route ios" role="dialog" aria-label="Choose a speaker">
+  <span class="rnote">Drawn by iOS (AirPlay picker)</span>
+  ${ROUTES.map(([id,n,k])=>`<button aria-pressed="${S.route===id}" data-route="${id}">${ic(k)}<b>${n}</b><span class="rc"></span></button>`).join("")}</div>`,
+
+hguide:()=>`${status()}<div class="screen">
+  <div class="row">${back("addup","Back")}</div>
+  <div class="gq" style="align-items:center"><h1 class="h1">Music before you're up</h1>${penguin("awake",70)}</div>
+  <p class="sub" style="font-size:15px">Want a playlist on your HomePod before the alarm? Apple only lets the Home app play music on a schedule, so you set this one up there. Squawk shows you how.</p>
+  <div class="sec">Start the music</div>
+  <div class="card stepper"><button data-act="h-" aria-label="Five minutes earlier">−</button><div class="val"><b>${at(S.hoff)}</b><span class="sub">${S.hoff<0?-S.hoff+" min before":S.hoff===0?"at wake-up time":S.hoff+" min after"} · ${days}</span></div><button data-act="h+" aria-label="Five minutes later">+</button></div>
+  <div class="catch"><span style="flex:none">${penguin("grumpy",56)}</span><div><b>One catch</b>This automation is yours, not Squawk's. If you skip a morning or change the alarm, the music still plays at ${at(S.hoff)} until you change it in the Home app.</div></div>
+  <div class="spacer"></div><button class="btn" data-go="hsteps">Show me how</button></div>`,
+
+hsteps:()=>{const st=[
+  ["Open the Home app and tap +","Then Add Automation, and A Time of Day Occurs.",null],
+  ["Set the time and days",`Pick ${at(S.hoff)} and ${days}.`,`${at(S.hoff)} · ${days}`],
+  ["Pick your HomePod","Choose the speaker, then Play Audio.",null],
+  ["Pick the music","Choose Morning Mix (or anything) and turn on Repeat if you like.",null]];
+  return `${status()}<div class="screen">
+  <div class="row">${back("hguide","Back")}<span class="spacer"></span><button class="back" data-act="hfinish">Done</button></div>
+  <h1 class="h1">In the Home app</h1>
+  <div class="scroll"><div class="list">${st.map(([b,s,c],i)=>`<div class="hstep"><span class="n${S.hdone.includes(i)?" done":""}">${S.hdone.includes(i)?"✓":i+1}</span><div class="t"><b>${b}</b><span>${s}</span>${c?`<button class="copy" data-act="copy">${c}</button>`:""}</div></div>`).join("")}</div>
+  <p class="note2">Squawk can't see or change this automation, so it won't follow skips or time changes. Change it in the Home app when your alarm changes.</p></div>
+  <button class="btn" data-act="openhome">Open the Home app</button></div>`}
+};
+
+const phone=document.getElementById("phone");let current="up";
+function go(name){if(!screens[name])name="up";phone.innerHTML=screens[name]();current=name;
+  document.querySelectorAll(".picker button").forEach(b=>b.setAttribute("aria-current",b.dataset.go===name));
+  try{history.replaceState(null,"","#"+name)}catch(e){} if(name==="morning"&&!go.quiet)setTimeout(confetti,150);go.quiet=false}
+function toast(t){const d=document.createElement("div");d.className="toast";d.textContent=t;phone.appendChild(d);setTimeout(()=>d.remove(),1800)}
+document.addEventListener("click",e=>{const t=e.target.closest("[data-go],[data-act],[data-size],[data-m],[data-route]");if(!t)return;const d=t.dataset;
+  if(d.go){go(d.go);return}
+  if(d.size){phone.dataset.size=d.size;document.querySelectorAll(".size button").forEach(b=>b.setAttribute("aria-pressed",b===t));return}
+  if(d.m){S.music=d.m;go(current);return}
+  if(d.route){S.route=d.route;go.quiet=true;go("morning");return}
+  const a=d.act;
+  if(a==="addmusic"){if(!S.asked){go("access");return}go("music");return}
+  if(a==="allow"){S.asked=true;go("music");return}
+  if(a==="deny"){S.asked=true;go("nomusic");return}
+  if(a==="trymusic"){toast("Opens Apple's Apple Music offer");return}
+  if(a==="savemusic"){go("up");return}
+  if(a==="shuffle"){S.shuffle=!S.shuffle;t.setAttribute("aria-pressed",S.shuffle);return}
+  if(a==="imup"){S.playing=true;go("morning");return}
+  if(a==="pp"){S.playing=!S.playing;go.quiet=true;go("morning");return}
+  if(a==="h-"||a==="h+"){S.hoff=Math.max(-60,Math.min(30,S.hoff+(a==="h+"?5:-5)));go("hguide");return}
+  if(a==="copy"){toast("Copied "+at(S.hoff));return}
+  if(a==="openhome"){S.hdone=[0,1,2,3];toast("Opens the Home app");setTimeout(()=>go("hsteps"),700);return}
+  if(a==="hfinish"){S.hset=true;go("edit");return}
+});
+function route(){go((location.hash||"#up").slice(1))}
+addEventListener("hashchange",()=>{const n=location.hash.slice(1);if(n!==current)route()});
+route();
+</script>

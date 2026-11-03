@@ -26,9 +26,8 @@ Status: Draft
   - *Both at once.* With two languages on, the keyboard guesses from both word lists
     together, so "see you mañana" needs no switching. The word pairs keep each
     language's words with its own kind: after "el" the Spanish guess wins, after "the"
-    the English one. There is no language key and nothing to switch. (This is the open
-    choice on the thread; the other way is one language at a time, switched by holding
-    space.)
+    the English one. There is no language key and nothing to switch (Gabriel,
+    3 Nov 2026, over one language at a time switched with a key).
   - *Accents come by themselves.* You swipe or tap the plain letters and the keyboard
     writes the word with its accents: c-a-n-c-i-o-n gives "canción", a-n-o gives "año"
     when "año" is likelier there than "ano". The guess bar shows the accented word, and
@@ -73,11 +72,9 @@ Status: Draft
     worse than English ones.
 
 - **Open questions for Gabriel:**
-  1. Both languages at once, or switching with a key? (Asked on the thread; this draft
-     assumes both at once.)
-  2. Should Spanish be Pro, as PRODUCT.md says, or free? Free makes Astrotype a full
+  1. Should Spanish be Pro, as PRODUCT.md says, or free? Free makes Astrotype a full
      keyboard for Spanish speakers who never pay; Pro keeps the free set as it is.
-  3. On a Spanish phone, should Spanish start on with English, or should the person turn
+  2. On a Spanish phone, should Spanish start on with English, or should the person turn
      it on?
 
 ## Design

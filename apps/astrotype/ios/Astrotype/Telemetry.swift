@@ -41,8 +41,9 @@ enum Telemetry {
     }
 
     /// Counts something that happened, like `Telemetry.count("setup.keyboard_on")`.
-    static func count(_ name: String, _ attributes: [String: String] = [:]) {
-        SentrySDK.metrics.count(name, value: 1, options: options(attributes))
+    static func count(_ name: String, by amount: Int = 1, _ attributes: [String: String] = [:]) {
+        guard amount > 0 else { return }
+        SentrySDK.metrics.count(name, value: UInt(amount), options: options(attributes))
     }
 
     /// Records a duration in seconds, like how long setup took.

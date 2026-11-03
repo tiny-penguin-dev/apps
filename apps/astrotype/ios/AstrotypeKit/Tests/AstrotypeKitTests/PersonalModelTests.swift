@@ -194,9 +194,41 @@ import Testing
         #expect(settled.first?.word == words[other])
         #expect(settled.first?.fixedFrom == words[chosen])
         #expect(settled.first?.source == .fixed)
+        // Not the first guess, for the first-guess count.
+        #expect(settled.first?.firstGuess == words[0].lowercased())
+        #expect(settled.first?.pecked == false)
+        #expect(settled.first?.word != settled.first?.firstGuess)
         // A lone swipe teaches where it started, lightly.
         #expect(settled.first?.touches.count == 1)
         #expect(settled.first?.touches.first?.weight == 0.3)
+    }
+
+    @Test func aWordPickedOverTheFirstGuessIsNotTheFirstGuess() {
+        var composer = ContextMatcherTests.composer()
+        Synth.swipe(&composer, "pot")
+        guard case .guesses(let words, _) = composer.state.bar, words.count > 1 else {
+            Issue.record("no guesses: \(composer.state.bar)"); return
+        }
+        _ = composer.choose(guess: 1, time: 1)
+        let effects = Synth.tap(&composer, "a", at: 2)
+        let settled = effects.compactMap { effect -> SettledWord? in
+            if case .settled(let word) = effect { word } else { nil }
+        }
+        #expect(settled.first?.word == words[1].lowercased())
+        #expect(settled.first?.source == .swiped)
+        #expect(settled.first?.firstGuess == words[0].lowercased())
+    }
+
+    @Test func aKeptGuessIsTheFirstGuess() {
+        var composer = ContextMatcherTests.composer()
+        let t = Synth.taps(&composer, "hope")
+        _ = composer.press(.space, time: t)
+        let effects = Synth.tap(&composer, "s", at: t + 1)
+        let settled = effects.compactMap { effect -> SettledWord? in
+            if case .settled(let word) = effect { word } else { nil }
+        }
+        #expect(settled.first?.firstGuess == "hope")
+        #expect(settled.first?.pecked == true)
     }
 
     @Test func aReopenedWordDoesNotSettle() {

@@ -184,7 +184,10 @@ This is the product, so it gets its own section.
 - **Not in the mockup, in the build:** slide on space to move the cursor, the numbers
   page, edge swipes, snippets, the globe key switching keyboards. Held keys show their
   accents in a row above the key (á on a, ñ on n, ¿ on ?, when Spanish is on); slide
-  along and lift to type one (features/languages, 3 Nov 2026).
+  along and lift to type one (features/languages, 3 Nov 2026). Like Apple's, a finger
+  that slides off `123` brings up the numbers page under it, types the number or symbol
+  it lifts on and goes back to the letters; holding `123` still opens the settings
+  (Gabriel, 3 Nov 2026).
 
 ## Flows
 

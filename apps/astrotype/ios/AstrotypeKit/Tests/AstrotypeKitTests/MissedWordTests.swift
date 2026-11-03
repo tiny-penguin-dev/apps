@@ -41,6 +41,24 @@ import Testing
         }.first
     }
 
+    /// Gabriel saved "second" and closed the keyboard (3 Nov 2026): the miss has to be
+    /// kept then, not at a next word that never comes.
+    @Test func aMissSettlesWhenTheKeyboardHides() throws {
+        var composer = Synth.composer()
+        _ = Synth.swipe(&composer, "sold")
+        composer.beginCorrection()
+        _ = Self.taps(&composer, "second", at: 1)
+        _ = composer.saveCorrection(time: 3)
+        let word = try #require(Self.settled(composer.keyboardWillHide()))
+        #expect(word.word == "second")
+        #expect(word.missed)
+        // Once only.
+        #expect(Self.settled(Synth.swipe(&composer, "the", at: 4)) == nil)
+        // An open word is left alone.
+        #expect(composer.keyboardWillHide().isEmpty)
+        #expect(composer.state.openWord != nil)
+    }
+
     @Test func notItReplacesTheOpenWord() throws {
         var composer = Synth.composer()
         var field = Field()

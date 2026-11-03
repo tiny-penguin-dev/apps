@@ -230,7 +230,7 @@ final class KeyboardViewController: UIInputViewController {
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         isVisible = false
-        keyboard?.model.savePersonalNow()
+        keyboard?.model.keyboardWillHide()
         health?.disappeared()
         debug?.disappeared()
     }

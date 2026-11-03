@@ -574,6 +574,18 @@ public struct Composer: Sendable {
         refreshState()
     }
 
+    /// The keyboard is going away: the last word is final, so a "Not it?" miss saved
+    /// just before is kept now rather than at the next word, which may never come in
+    /// this extension. An open word is left as it is.
+    public mutating func keyboardWillHide() -> [Effect] {
+        cancelCorrection()
+        guard !hasOpenWord, committed != nil else { return [] }
+        let effects = settle()
+        state.bar = .idle
+        refreshState()
+        return effects
+    }
+
     /// Back to the bar as it was, nothing changed.
     public mutating func cancelCorrection(time: TimeInterval = 0) {
         guard correction != nil else { return }

@@ -5,7 +5,7 @@ centred, and small buttons at the two ends, so it is obvious what each part does
 
 ## Product
 
-Status: Draft
+Status: Approved 2026-11-03 (Gabriel: "I like your change of using a pencil on the right and the text in the middle. So go for that."; option B)
 
 - **The problem:** Gabriel (3 Nov 2026): "It's confusing what each thing is." Today the
   bar mixes three kinds of things in one row and spreads them to the edges: a FIX label
@@ -48,14 +48,13 @@ Status: Draft
   stacked layout but follows the same rules (one kind of word at a time, the pencil
   under them). Later: nothing planned.
 - **What we measure:** no new metrics. `nextword.picked` and `miss.saved` already show
-  whether people use next words and the pencil; we watch them before and after. Under
-  option B, add a count of fixes picked from the fix row (`bar.fix_picked`) so we can
-  see if the extra tap costs us fixes.
-- **Open question** for Gabriel: option A or B (the mockup shows both; B recommended).
+  whether people use next words and the pencil; we watch them before and after. Fixes
+  picked from the fix row count as fixes as before (`KeyboardModel.onFix`).
+- **Decided:** option B (Gabriel, 3 Nov 2026). The emoji key does not move.
 
 ## Design
 
-Status: Draft
+Status: Approved 2026-11-03 (with the product, option B)
 
 - **Mockups:** `design/mockups/guesses-bar.html` (Artifact link:
   https://claude.ai/artifact/7fGTgXpYQFUrw4qv4o3Cxn). "Our globe key" shows a phone
@@ -89,7 +88,7 @@ Status: Draft
   "Type it". No other new copy.
 - **Design system:** the existing guess button (plain and pill), the ice chip and the
   hairline. New: a bar icon button (44 pt, `muted` SF Symbol, `keyDark` when pressed)
-  used for the globe, pencil and ✕, and the dashed "Type it" chip (`line` border).
+  used for the globe, pencil and ✕, and the outlined "Type it" chip (1.5 pt `line` border).
   Option A's chip swaps the "FIX" text for the `arrow.left.arrow.right` symbol in
   `accent`. No new tokens.
 - **Sizes:** the bar is the same height everywhere. On the small phone the middle drops
@@ -103,17 +102,24 @@ Status: Draft
 
 ## Build
 
-Status: Not started
+Status: Approved 2026-11-03 (built in the same PR, as with the other bar features)
 
 - **Approach:** `BarView` only, plus a small model change for option B. The bar becomes
   three views (left slot, middle stack, right slot) laid out by `BarView`; the middle
   stack is centred on the bar's width and drops outer guesses to fit. The space bar
   work (PR #105) adds a small `leadingKey` (globe) hook to `BarView`; this redesign
   places it in the left slot.
-- **Core pieces:** option B adds `Composer.Bar.fixing([String], chosen: Int)` (the fix
-  row), entered by `Composer.beginFix()` from the pencil and left by a pick, ✕ or any
-  key; `Bar.next` then no longer needs its `fix` payload shown, but keeps it so the fix
-  row knows the readings. Tested in `ComposerTests` and `MissedWordTests`.
+- **Core pieces:** no new bar state. The fix row is the bar's own view state over
+  `Bar.next`'s `fix` readings (closed again by ✕ or any change to the bar).
+  `Composer.chooseFix(reading:)` takes the reading to put in (default: the best other
+  one, as before), and next words always get all three slots
+  (`settings.guessCount`), since the readings no longer take one. Tested in
+  `NextWordTests`.
+
+  ```swift
+  bar.onChooseFix = { reading in model.chooseFix(reading: reading) }
+  bar.leadingKey = globe   // features/space-bar sets it
+  ```
 - **Phases:** one PR: the three-zone layout and the chosen option, with DESIGN.md "The
   bar" updated. Done when: on a phone the words sit centred in every state, the pencil
   works, and nothing is cut off on the small size or the largest text size.

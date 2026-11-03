@@ -143,7 +143,7 @@ import Testing
         #expect(field.text == "I \(next) ")
     }
 
-    @Test func aWordWithOtherReadingsKeepsAFixChip() {
+    @Test func aWordWithOtherReadingsKeepsItsFixes() {
         var field = Field(autoCapitalize: false)
         field.swipe("pot")
         field.press(.space)
@@ -152,8 +152,8 @@ import Testing
             Issue.record("expected next words, got \(field.composer.state.bar)")
             return
         }
-        // One next word fewer, to leave room for the chip.
-        #expect(words.count == 2)
+        // All three next words: the readings wait behind the pencil (features/guesses-bar).
+        #expect(words.count == 3)
         #expect(fix[chosen] == "put")
         let offered = field.composer.state.bar.fixChoice ?? ""
         #expect(!offered.isEmpty && offered != "put")
@@ -164,6 +164,15 @@ import Testing
         #expect(!field.next.isEmpty)
         field.apply(field.composer.chooseFix())
         #expect(field.text == "put ")
+        // A reading picked from the pencil's row goes in; the one in the field does nothing.
+        guard case .next(_, let readings, let now) = field.composer.state.bar, readings.count > 1 else {
+            Issue.record("expected readings, got \(field.composer.state.bar)")
+            return
+        }
+        #expect(field.composer.chooseFix(reading: now).isEmpty)
+        let other = readings.indices.last { $0 != now } ?? now
+        field.apply(field.composer.chooseFix(reading: other))
+        #expect(field.text == "\(readings[other]) ")
     }
 
     @Test func aTouchClearsTheNextWords() {

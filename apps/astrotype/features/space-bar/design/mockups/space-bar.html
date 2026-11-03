@@ -1,0 +1,215 @@
+<title>Astrotype Wider Space</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;700;800;900&display=swap">
+<style>
+/* Same tokens and keyboard classes as features/emoji/design/mockups/emoji.html. One phone, a picker of the three options beside it. */
+:root{
+  --stage:#E6F0F4; --bg:#F3F8FA; --card:#FFFFFF; --ink:#1E2945; --muted:#67748F; --line:#DCE6EC;
+  --accent:#139FB5; --accent-ink:#FFFFFF; --left:#139FB5; --right:#FF6F86; --sun:#FFC24D; --ice:#D9EDF3;
+  --key:#FFFFFF; --key-ink:#1E2945; --key-dark:#C9D6DE; --kb:#DCE6EC;
+  --font:ui-rounded,"SF Pro Rounded","Nunito",system-ui,sans-serif;
+  --emoji:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif;
+  --spring:cubic-bezier(.34,1.56,.64,1);
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --stage:#0A1118; --bg:#111A24; --card:#1A2634; --ink:#EEF4F8; --muted:#97A6B8; --line:#2A3B4C;
+  --accent:#2FC6DC; --accent-ink:#06202A; --left:#2FC6DC; --right:#FF8A9E; --sun:#FFCD66; --ice:#1D3240;
+  --key:#2A3A4A; --key-ink:#EEF4F8; --key-dark:#1C2834; --kb:#131E29; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --stage:#0A1118; --bg:#111A24; --card:#1A2634; --ink:#EEF4F8; --muted:#97A6B8; --line:#2A3B4C;
+  --accent:#2FC6DC; --accent-ink:#06202A; --left:#2FC6DC; --right:#FF8A9E; --sun:#FFCD66; --ice:#1D3240;
+  --key:#2A3A4A; --key-ink:#EEF4F8; --key-dark:#1C2834; --kb:#131E29; color-scheme:dark}
+html,body{height:100%;margin:0}
+body{background:var(--stage);color:var(--ink);font-family:var(--font);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.stage{display:flex;gap:32px;justify-content:center;align-items:flex-start;padding-block:24px;flex-wrap:wrap}
+.picker{display:flex;flex-direction:column;gap:6px;max-width:260px;min-width:0}
+.picker h1{font-size:28px;font-weight:900;margin:0}
+.picker p{margin:0 0 10px;color:var(--muted);font-size:13px;line-height:1.45}
+.picker button{font:inherit;font-weight:700;font-size:14px;text-align:left;border:0;background:transparent;color:var(--muted);padding:7px 12px;border-radius:10px;cursor:pointer}
+.picker button[aria-current="true"]{background:var(--card);color:var(--ink)}
+.picker button:focus-visible,.phone button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.picker small{color:var(--muted);font-size:11px;letter-spacing:.06em;text-transform:uppercase;font-weight:800;margin-top:10px;padding-left:12px}
+.seg{display:flex;gap:4px;margin-top:4px;flex-wrap:wrap}
+.seg button{padding:5px 10px;font-size:12px;background:var(--line)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.rec{display:inline-block;font-size:10px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;background:var(--sun);color:#1E2945;border-radius:999px;padding:2px 7px;margin-left:6px;vertical-align:2px}
+.phone{width:390px;max-width:100%;height:844px;background:var(--bg);border-radius:48px;position:relative;overflow:hidden;
+  box-shadow:0 0 0 10px var(--ink),0 30px 60px rgba(20,30,60,.25);flex:none;touch-action:manipulation}
+.phone.se{width:375px;height:667px;border-radius:28px}
+@media (max-width:700px){.picker{max-width:100%}.phone{box-shadow:none;border-radius:32px}}
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;padding:58px 22px 0;gap:8px}
+.phone.se .screen{padding-top:34px}
+.status{position:absolute;top:14px;left:30px;right:30px;display:flex;justify-content:space-between;font-weight:800;font-size:15px;z-index:3}
+.phone.se .status{top:6px;font-size:13px}
+.convo{display:flex;flex-direction:column;gap:8px;flex:1;overflow:hidden;justify-content:flex-end}
+.bub{max-width:78%;padding:10px 14px;border-radius:20px;font-size:16px;line-height:1.35;background:var(--card)}
+.bub.me{align-self:flex-end;background:var(--accent);color:var(--accent-ink)}
+.compose{display:flex;gap:8px;align-items:flex-end;margin:0 -22px;padding:8px 14px;background:var(--bg)}
+.field{flex:1;min-height:44px;padding:9px 14px;border-radius:22px;border:1px solid var(--line);background:var(--card);font-size:17px;line-height:1.4;word-break:break-word}
+.field .caret{display:inline-block;width:2px;height:1.1em;background:var(--accent);vertical-align:text-bottom;animation:blink 1s steps(1) infinite;margin-left:1px}
+.field .e{font-family:var(--emoji)}
+@keyframes blink{50%{opacity:0}}
+.send{font:inherit;font-weight:900;border:0;border-radius:50%;width:44px;height:44px;background:var(--accent);color:var(--accent-ink);flex:none}
+.callout{flex:none;border:1.5px dashed var(--line);border-radius:18px;padding:10px 14px;font-size:13px;line-height:1.45;color:var(--muted)}
+.callout b{color:var(--ink)}
+
+/* keyboard */
+.kbwrap{margin:0 -22px;position:relative;background:var(--kb);padding:8px 4px 0;user-select:none;-webkit-user-select:none}
+.bar{display:flex;align-items:center;gap:4px;height:44px;padding:0 2px;margin-bottom:8px}
+.guesses{flex:1;display:flex;align-items:center;justify-content:space-around;min-width:0}
+.g{font-weight:700;font-size:16px;padding:6px 12px;border-radius:999px;white-space:nowrap}
+.g.top{background:var(--card)}
+.notit{font-size:12px;font-weight:800;color:var(--muted);white-space:nowrap;padding:0 6px}
+.barkey{flex:none;width:40px;height:36px;border:0;border-radius:10px;background:transparent;color:var(--ink);display:grid;place-items:center;cursor:pointer;padding:0}
+.barkey:active{background:var(--key-dark)}
+.barkey svg{width:24px;height:24px}
+.barkey.new,.key.new{box-shadow:0 0 0 3px var(--sun)}
+.rows{display:flex;flex-direction:column;gap:9px}
+.krow{display:flex;justify-content:center;gap:6px}
+.key{flex:1 1 0;min-width:0;max-width:33px;height:44px;border-radius:7px;background:var(--key);color:var(--key-ink);font:inherit;font-weight:700;font-size:21px;border:0;padding:0;display:grid;place-items:center;
+  box-shadow:0 1px 0 rgba(0,0,0,.25);position:relative;cursor:pointer;transition:background .15s}
+.key:active{background:var(--left);color:#fff}
+.key.wide{flex:1.45 1 0;max-width:48px;background:var(--key-dark);font-size:15px}
+.key.space{flex:5.7 1 0;max-width:none;font-size:13px;font-weight:800;color:var(--muted);transition:flex .35s var(--spring)}
+.key.fn{flex:1.33 1 0;max-width:44px;background:var(--key-dark);font-size:14px}
+.key.ret{flex:2.66 1 0;max-width:88px;background:var(--key-dark);font-size:14px}
+.key svg{width:22px;height:22px}
+.width{position:absolute;left:50%;transform:translateX(-50%);bottom:-2px;font-size:10px;font-weight:900;color:var(--accent);letter-spacing:.04em}
+.sys{height:44px;display:flex;justify-content:space-between;align-items:center;padding:0 22px;color:var(--muted)}
+.sys svg{width:24px;height:24px}
+.homebtn{height:10px}
+
+/* held-123 panel (features/settings), cut down to its top */
+.panel{position:absolute;left:4px;right:4px;top:8px;bottom:0;background:var(--bg);border-radius:14px 14px 0 0;padding:12px;display:flex;flex-direction:column;gap:10px;animation:rise .2s var(--spring);z-index:4;box-shadow:0 -6px 20px rgba(20,30,60,.12)}
+.panel .head{display:flex;justify-content:space-between;align-items:center;font-weight:900;font-size:15px}
+.panel .done{font:inherit;font-weight:800;font-size:14px;border:0;background:var(--accent);color:var(--accent-ink);border-radius:999px;padding:6px 14px;cursor:pointer}
+.jump{display:flex;gap:8px}
+.jump button{flex:1;display:flex;align-items:center;justify-content:center;gap:8px;height:48px;border:0;border-radius:14px;background:var(--card);color:var(--ink);font:inherit;font-weight:800;font-size:15px;cursor:pointer}
+.jump button svg{width:22px;height:22px}
+.jump button.new{box-shadow:0 0 0 3px var(--sun)}
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.tile{height:58px;border-radius:14px;background:var(--card);display:flex;align-items:flex-end;padding:8px;font-size:11px;font-weight:800;color:var(--muted)}
+.tile.on{background:var(--accent);color:var(--accent-ink)}
+.sl{height:30px;border-radius:10px;background:var(--card);opacity:.7}
+@keyframes rise{from{transform:translateY(12px);opacity:0}}
+.toast{position:absolute;left:50%;top:-38px;transform:translateX(-50%);background:var(--ink);color:var(--bg);font-weight:800;font-size:13px;padding:6px 12px;border-radius:999px;white-space:nowrap;animation:rise .2s var(--spring)}
+@media (prefers-reduced-motion: reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+</style>
+
+<div class="stage">
+  <nav class="picker" aria-label="Options">
+    <h1>Wider space</h1>
+    <p>Three ways to give space more room. Tap the emoji key (or hold <b>123</b> where it's gone). Widths are for the phone shown.</p>
+    <small>Option</small>
+    <button data-opt="today">Today: emoji on the row</button>
+    <button data-opt="bar">A. Emoji in the guesses bar <span class="rec">Pick</span></button>
+    <button data-opt="hold">B. Only under a held 123</button>
+    <small>Phone</small>
+    <div class="seg" id="phones">
+      <button data-phone="faceid">Face ID iPhone</button>
+      <button data-phone="se">Home button (SE)</button>
+    </div>
+    <small>Theme</small>
+    <div class="seg" id="themes">
+      <button data-theme="auto">Auto</button><button data-theme="light">Light</button><button data-theme="dark">Dark</button>
+    </div>
+  </nav>
+  <div class="phone" id="phone"></div>
+</div>
+
+<script>
+const I = {
+  smiley:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M8.5 14.5c1 1.4 2.2 2 3.5 2s2.5-.6 3.5-2"/><circle cx="9" cy="10" r=".6" fill="currentColor"/><circle cx="15" cy="10" r=".6" fill="currentColor"/></svg>`,
+  globe:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.6 2.6 3.8 5.6 3.8 9s-1.2 6.4-3.8 9c-2.6-2.6-3.8-5.6-3.8-9S9.4 5.6 12 3z"/></svg>`,
+  mic:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg>`,
+  shift:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 4l8 8h-4.5v7h-7v-7H4z"/></svg>`,
+  bs:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"><path d="M8 5h12v14H8l-6-7z"/><path d="M12 9.5l5 5M17 9.5l-5 5"/></svg>`,
+  pencil:`<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M4 20l4-1 11-11-3-3L5 16z"/></svg>`
+};
+// Space bar widths in points, from Layout.qwerty's numbers (fnKey 1.33 units, return 2.66).
+const WIDTH = {
+  faceid:{today:186, bar:237, hold:237},
+  se:{today:126, bar:224, hold:175}
+};
+const NOTES = {
+  today:{faceid:`<b>Today.</b> 123, emoji, space, return. iOS draws its own globe under the keyboard.`,
+         se:`<b>Today, Home button phone.</b> iOS draws no globe here, so ours sits beside emoji and space is short.`},
+  bar:{faceid:`<b>A. Emoji in the bar.</b> The emoji key moves to the left end of the guesses bar. The row is 123, space, return, so space is about <b>27% wider</b>.`,
+       se:`<b>A, Home button phone.</b> Emoji on the left of the bar, our globe on the right. Space is about <b>78% wider</b>.`},
+  hold:{faceid:`<b>B. Only under a held 123.</b> No emoji key anywhere: hold <b>123</b> and tap Emoji at the top of the panel. Same row as A.`,
+        se:`<b>B, Home button phone.</b> Apple asks for a visible next-keyboard key on these phones, so our globe stays on the row. Emoji is under a held 123.`}
+};
+let opt="bar", phone="faceid", panel=false, toast="";
+
+function letters(){
+  const r=["qwertyuiop","asdfghjkl","zxcvbnm"];
+  const k=c=>`<button class="key">${c}</button>`;
+  return `<div class="krow">${[...r[0]].map(k).join("")}</div>
+  <div class="krow" style="padding:0 16px">${[...r[1]].map(k).join("")}</div>
+  <div class="krow"><button class="key wide" aria-label="Shift">${I.shift}</button>${[...r[2]].map(k).join("")}<button class="key wide" aria-label="Delete">${I.bs}</button></div>`;
+}
+function kb(){
+  const se=phone==="se";
+  const rowEmoji = opt==="today";
+  const rowGlobe = se && (opt==="today"||opt==="hold");
+  const barEmoji = opt==="bar";
+  const barGlobe = se && opt==="bar";
+  const w=WIDTH[phone][opt], base=WIDTH[phone].today;
+  const grow = opt==="today" ? "" : ` <span style="color:var(--accent)">+${Math.round((w/base-1)*100)}%</span>`;
+  const bar = `<div class="bar">
+      ${barEmoji?`<button class="barkey new" data-act="emoji" aria-label="Emoji">${I.smiley}</button>`:""}
+      <div class="guesses"><span class="g top">morning</span><span class="g">more</span><span class="g">moving</span></div>
+      <span class="notit">Not it? ${I.pencil}</span>
+      ${barGlobe?`<button class="barkey new" aria-label="Next keyboard">${I.globe}</button>`:""}
+    </div>`;
+  const bottom = `<div class="krow">
+      <button class="key fn" data-act="hold" aria-label="Numbers, hold for settings">123</button>
+      ${rowGlobe?`<button class="key fn" aria-label="Next keyboard">${I.globe}</button>`:""}
+      ${rowEmoji?`<button class="key fn" data-act="emoji" aria-label="Emoji">${I.smiley}</button>`:""}
+      <button class="key space">space ${w} pt${grow}</button>
+      <button class="key ret">return</button></div>`;
+  const pnl = panel?`<div class="panel">
+      <div class="head">Keyboard <button class="done" data-act="close">Done</button></div>
+      <div class="jump">
+        <button class="new" data-act="emoji">${I.smiley} Emoji</button>
+        ${se&&opt!=="hold"?"":""}
+      </div>
+      <div class="tiles"><div class="tile on">Autospace</div><div class="tile on">Guesses bar</div><div class="tile on">Haptics</div><div class="tile">Trails</div></div>
+      <div class="sl"></div><div class="sl"></div>
+    </div>`:"";
+  return `<div class="kbwrap">${toast?`<div class="toast">${toast}</div>`:""}${bar}<div class="rows">${letters()}${bottom}</div>${pnl}
+    ${se?`<div class="homebtn"></div>`:`<div class="sys">${I.globe}${I.mic}</div>`}</div>`;
+}
+function render(){
+  document.querySelectorAll("[data-opt]").forEach(b=>b.setAttribute("aria-current",b.dataset.opt===opt));
+  document.querySelectorAll("[data-phone]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.phone===phone));
+  const el=document.getElementById("phone");
+  el.className="phone"+(phone==="se"?" se":"");
+  el.innerHTML=`<div class="status"><span>9:41</span><span>●●● ▮</span></div>
+  <div class="screen"><div class="callout">${NOTES[opt][phone]}</div>
+    <div class="convo"><div class="bub">Breakfast tomorrow?</div><div class="bub me">Yes! Same place?</div></div>
+    <div class="compose"><div class="field">Good mor<span class="caret"></span></div><button class="send" aria-label="Send">↑</button></div>
+    ${kb()}</div>`;
+}
+document.addEventListener("click",e=>{
+  const b=e.target.closest("button"); if(!b) return;
+  if(b.dataset.opt){opt=b.dataset.opt;panel=false;toast="";render();return}
+  if(b.dataset.phone){phone=b.dataset.phone;panel=false;toast="";render();return}
+  if(b.dataset.theme){const t=b.dataset.theme;if(t==="auto")delete document.documentElement.dataset.theme;else document.documentElement.dataset.theme=t;
+    document.querySelectorAll("[data-theme]").forEach(x=>x.setAttribute("aria-pressed",x===b));return}
+  const a=b.dataset.act;
+  if(a==="emoji"){panel=false;toast="Emoji page opens";render();setTimeout(()=>{toast="";render()},1200)}
+  if(a==="close"){panel=false;render()}
+});
+// Hold 123 for the panel (or click it in the mockup when the emoji key is gone).
+let t;
+document.addEventListener("pointerdown",e=>{const b=e.target.closest('[data-act="hold"]');if(b)t=setTimeout(()=>{panel=true;render()},450)});
+document.addEventListener("pointerup",e=>{clearTimeout(t);const b=e.target.closest('[data-act="hold"]');if(b&&opt==="hold"&&!panel){panel=true;render()}});
+document.querySelector('[data-theme="auto"]').setAttribute("aria-pressed","true");
+const q=new URLSearchParams(location.search);
+if(q.get("opt"))opt=q.get("opt"); if(q.get("phone"))phone=q.get("phone"); if(q.get("panel"))panel=true;
+if(q.get("theme"))document.documentElement.dataset.theme=q.get("theme");
+render();
+</script>

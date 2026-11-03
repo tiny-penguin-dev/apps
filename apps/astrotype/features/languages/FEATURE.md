@@ -120,7 +120,7 @@ separate design round; the screens below reuse existing components)
 
 ## Build
 
-Status: Approved 2026-11-03 (with the design, at Gabriel's request)
+Status: Approved 2026-11-03 (with the design, at Gabriel's request). Built: Phases A to C, 3 Nov 2026.
 
 - **Approach:** the trie stays a to z and learns spellings. A word is stored under its
   plain letters (the key the thumbs actually hit: "cancion"), and the node keeps the
@@ -201,3 +201,15 @@ at a time. Pro types in two at once." under them on the free keyboard. Learned a
 personal words are keyed by their plain letters too, so "mañana" counts as
 "manana" in the personal model. Not done: VoiceOver for the callout (VoiceOver types
 the plain key, as before).
+
+**Phase C (2026-11-03).** Settings has a Languages page (a link under Keyboard, its
+subtitle the languages that are on): a switch per language, the last one on can't be
+turned off, and on the free keyboard turning one on turns the other off (a choice of
+one rather than asking for Pro, so free people can still move to Spanish; the
+footnote says Pro types in two). When the trial ended with two on, a row at the top
+says which one is off, with "See Pro". Setup asks "Which languages do you type in?"
+after Turn on, only on a phone that lists both and before anyone chose; both start
+ticked. About credits Tatoeba's Spanish sentences and wordfreq's word lists.
+`languages.enabled` counts each choice with the set. PRODUCT.md (section 6, Later,
+the metrics) and DESIGN.md (screen 9, the keyboard, first launch) now say all this.
+

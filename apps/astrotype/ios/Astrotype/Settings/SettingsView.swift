@@ -7,7 +7,7 @@ import SwiftUI
 /// goes on the page it belongs to: what a touch does is Typing, what you see or feel is
 /// Appearance, what the keyboard remembers is Your words.
 enum SettingsPage: Hashable, CaseIterable {
-    case typing, appearance, words, privacy, about
+    case typing, languages, appearance, words, privacy, about
 }
 
 /// DESIGN.md screen 9: the main page of Settings. Status tiles (keyboard, sync, Pro),
@@ -76,6 +76,7 @@ struct SettingsView: View {
             SectionLabel("Keyboard").padding(.top, Theme.Space.m)
             SettingsGroup {
                 link(.typing, "Typing", subtitle: "Autospace, real words, gestures", symbol: "keyboard", tint: Theme.right)
+                link(.languages, "Languages", subtitle: languagesSubtitle, symbol: "character.bubble", tint: Theme.sun)
                 link(.appearance, "Appearance",
                      subtitle: "Height \(Int((model.keyboardSettings.heightScale * 100).rounded()))%, guesses bar, trails, split",
                      symbol: "paintpalette", tint: Theme.left)
@@ -178,6 +179,10 @@ struct SettingsView: View {
             return "Trial · \(days) day\(days == 1 ? "" : "s") left"
         case .free: return "Two thumbs, split layouts and drills"
         }
+    }
+
+    private var languagesSubtitle: String {
+        model.activeLanguages.map { Language.names[$0] ?? $0 }.joined(separator: ", ")
     }
 
     private var wordsSubtitle: String {

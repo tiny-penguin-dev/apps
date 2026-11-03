@@ -17,6 +17,7 @@ struct SettingsPageView: View {
                     .accessibilityAddTraits(.isHeader)
                 switch page {
                 case .typing: TypingSettings(model: model, path: $path)
+                case .languages: LanguagesSettings(model: model, path: $path)
                 case .appearance: AppearanceSettings(model: model, path: $path)
                 case .words: WordsSettings(model: model, path: $path)
                 case .privacy: PrivacySettings(model: model, path: $path)
@@ -37,6 +38,7 @@ struct SettingsPageView: View {
     private var title: String {
         switch page {
         case .typing: "Typing"
+        case .languages: "Languages"
         case .appearance: "Appearance"
         case .words: "Your words"
         case .privacy: "Privacy and sharing"
@@ -86,6 +88,42 @@ private struct TypingSettings: View {
             SettingsToggle("Swipe left on ⌫", subtitle: "Delete the last word", symbol: "delete.left",
                            tint: Theme.right, isOn: $model.keyboardSettings.backspaceSwipe)
         }
+    }
+}
+
+/// The languages the keyboard types in (features/languages): a switch each, any one
+/// free, two at once Pro, and a line when the trial ended with two on.
+private struct LanguagesSettings: View {
+    @Bindable var model: AppModel
+    @Binding var path: [HomeView.Route]
+
+    var body: some View {
+        let allowsTwo = model.entitlement.allows(.twoLanguages)
+        let active = model.activeLanguages
+        if let off = model.languageOffWithoutPro {
+            SettingsGroup {
+                SettingsRow("\(Language.names[off] ?? off) is off", subtitle: "Pro types in both at once.",
+                            symbol: "star.fill", tint: Theme.sun) {
+                    Button("See Pro") { path.append(.pro) }.buttonStyle(.small)
+                }
+            }
+        }
+        SettingsGroup {
+            ForEach(Language.bundledCodes, id: \.self) { code in
+                SettingsToggle(Language.names[code] ?? code, subtitle: Language.englishNames[code],
+                               symbol: "character.bubble", tint: code == "en" ? Theme.left : Theme.right,
+                               isOn: Binding(get: { active.contains(code) }, set: { model.setLanguage(code, on: $0) }))
+                    .disabled(active == [code])
+            }
+        }
+        GroupFootnote(allowsTwo
+                      ? "With two on, Astrotype guesses from both. No switching."
+                      : "One language at a time: turning one on turns the other off. Pro types in two at once.")
+        if !allowsTwo, model.languageOffWithoutPro == nil {
+            Button("See Pro") { path.append(.pro) }.buttonStyle(.small)
+        }
+        GroupFootnote("Hold a, e, i, o, u or n for its accents, and ? or ! for ¿ and ¡. You can also just swipe the plain letters: the accents go in by themselves.")
+            .padding(.top, Theme.Space.s)
     }
 }
 
@@ -240,8 +278,10 @@ private struct AboutSettings: View {
     var body: some View {
         SettingsGroup {
             SettingsRow("Version", subtitle: DeviceInfo.appVersion, symbol: "info.circle", tint: Theme.ice)
-            SettingsRow("Word pairs", subtitle: "Built from Tatoeba's English sentences (tatoeba.org, CC BY 2.0 FR)",
+            SettingsRow("Word pairs", subtitle: "Built from Tatoeba's English and Spanish sentences (tatoeba.org, CC BY 2.0 FR)",
                         symbol: "text.quote", tint: Theme.ice)
+            SettingsRow("Word lists", subtitle: "From wordfreq by Robyn Speer (CC BY-SA 4.0)",
+                        symbol: "text.book.closed", tint: Theme.ice)
         }
     }
 }

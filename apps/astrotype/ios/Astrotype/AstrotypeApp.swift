@@ -63,6 +63,9 @@ struct RootView: View {
             case .turnOn:
                 TurnOnView(model: model, inSetup: true)
                     .transition(slide)
+            case .languages:
+                LanguagesSetupView(model: model)
+                    .transition(slide)
             case .sync:
                 SyncView(model: model, inSetup: true)
                     .transition(slide)

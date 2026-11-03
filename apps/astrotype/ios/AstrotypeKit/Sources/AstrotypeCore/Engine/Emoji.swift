@@ -179,6 +179,11 @@ public struct EmojiHistory: Codable, Sendable, Equatable {
         return bases.map(tone(for:))
     }
 
+    /// How much `base` is used now (its fading count), 0 when never: search ranks by it.
+    public func weight(of base: String, now: Date) -> Double {
+        uses[base].map { Self.faded($0, at: now) } ?? 0
+    }
+
     private static func faded(_ use: Use, at time: Date) -> Double {
         let days = max(0, time.timeIntervalSince(use.last) / 86_400)
         return use.count * pow(0.5, days / halfLifeDays)

@@ -52,8 +52,7 @@ go as proposed until he says otherwise)
 - **Scope:**
   - *This version:* the emoji key, the page, categories, frequently used, skin tones,
     in other apps and in the app's own practice fields.
-  - *Later:* searching emoji by name (needs a text field inside the keyboard and the
-    emoji names, about 200 KB per language), emoji suggestions in the guesses bar while
+  - *Later:* searching emoji by name (built as `features/emoji-search`), emoji suggestions in the guesses bar while
     typing ("pizza" offers 🍕), syncing frequently used with iCloud, a long-press menu of
     keyboards on our globe key (Home button phones).
   - *Never:* stickers, GIFs or Memoji (third-party keyboards can't reach them), or

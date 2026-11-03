@@ -211,11 +211,18 @@ This is the product, so it gets its own section.
   "Two thumbs is in Astrotype Pro" for 1.6 s. Nothing shakes, nothing is lost.
 - **Emoji page** (`features/emoji`, [mockup](features/emoji/design/mockups/emoji.html),
   [screens](features/emoji/design/screens/03-emoji.png)): the emoji key swaps the bar and
-  the keys for a sideways grid, five rows high: Frequently used, then Apple's eight
-  categories, a gap between sections and no titles (they cost a column). A strip below has `ABC`, a button per
+  the keys for a "Search emoji" field over a sideways grid, four rows high: Frequently
+  used, then Apple's eight categories, a gap between sections and no titles (they cost a
+  column). A strip below has `ABC`, a button per
   category (the one in view highlighted) and delete. Tapping types the emoji (an open
   word goes in first, with its space; nothing after the emoji). Holding a hand or a
   person opens the skin tones; the pick is kept for that emoji.
+- **Emoji search** (`features/emoji-search`, [mockup](features/emoji-search/design/mockups/emoji-search.html),
+  [screens](features/emoji-search/design/screens/04-found.png)): tapping the field
+  brings the letters back with the field and a row of results above them, one row
+  taller than the keyboard with its bar. Taps and swipes write into the field (never
+  learned); results update as you type, by name, then keyword, then use. The smiley key
+  and `done` go back to the page.
 - **Field types** (features/field-types, 3 Nov 2026): the keyboard follows the field,
   like Apple's. 123, the globe or emoji key and return keep their place (where both
   the globe and emoji are shown, the field's row keeps only the globe); the field's keys take

@@ -127,3 +127,21 @@ Status: Approved 2026-11-03 (Gabriel in the thread: "Build it"; the open questio
 - **Metrics:** none.
 - **Last step:** fold this feature into `PRODUCT.md` and `DESIGN.md`, and remove search
   from Later in `features/emoji/FEATURE.md`.
+
+## Notes as it shipped
+
+- 3 Nov 2026: one PR. `EmojiNames` reads `Resources/emoji/names-en.tsv` and
+  `names-es.tsv` (108 and 94 KB, every emoji in the list named) built by
+  `ml/emoji/build_names.py` from CLDR's `annotations` and `annotationsDerived`.
+  `EmojiSearch` keeps an index of every folded word to the emoji it names (first word
+  of the name 3, rest of the name 2, keyword 1; a whole word scores one more than the
+  start of one) and adds up the words of the search, all of which have to fit. It is
+  built when search first opens, for the languages on then. While search is open,
+  `KeyboardModel` points the engine at a `SearchTarget` (text in memory) with
+  `Field.emojiSearch` (guesses as usual, never learns, return says "done"), and gives
+  the host's field back when it closes; a result goes straight into the app.
+- The bottom row while searching is the usual `123`, emoji, space, `done` (the mockup's
+  `ABC` key there would have needed a new row); the smiley key and `done` go back to the
+  page, and `ABC` on the page goes to the letters.
+- The grid keeps the emoji size five rows had (four rows fit under the field with a
+  little room to spare).

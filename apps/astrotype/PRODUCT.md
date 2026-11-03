@@ -197,7 +197,8 @@ These shape the design, so they are listed here, not only in the build doc.
 - **No dictation.** Third-party keyboards cannot use Apple's microphone button.
 - **Emoji**: Astrotype has its own emoji page (`features/emoji`), so nobody switches to
   Apple's keyboard for one. Where iOS draws its own globe under the keyboard (Face ID
-  iPhones) the emoji key takes our globe's place; Home button phones keep both.
+  iPhones) the emoji key takes our globe's place; Home button phones keep both. Emoji
+  search finds them by name in English and Spanish (`features/emoji-search`).
 - **Haptics and key sounds** may need Full Access on some iOS versions. We check in the
   build stage and fall back to visual feedback.
 - **Multitouch works** inside keyboard extensions. Nintype did two-thumb input there in
@@ -234,7 +235,7 @@ items easy:
   languages are built into the app, about 2 MB each, not downloaded, since the keyboard
   can only read downloads with Full Access).
 - Themes and milestones.
-- Emoji search, emoji suggestions while typing, and Frequently used synced with iCloud
+- Emoji suggestions while typing, and Frequently used synced with iCloud
   (`features/emoji`).
 
 ### Never

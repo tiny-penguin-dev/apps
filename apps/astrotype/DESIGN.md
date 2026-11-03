@@ -112,8 +112,10 @@ code (`AstrotypeKit/Theme`, `docs/building.md` rule 1). Screens only use these.
 
 Not drawn yet (simple, same style): the numbers and symbols pages, the in-keyboard
 settings panel (under a held `123`: four quick tiles, autospace, guesses bar, haptics
-and trails, plus split on a wide screen, and four sliders, height, real words, split
-words and autospace's wait; the rest is in the app; `features/settings`, 3 Nov 2026,
+and trails, plus split on a wide screen, a Languages row that opens the list of
+languages with a tick on each one that's on, and four sliders, height, real words, split
+words and autospace's wait; it covers the guesses bar too, which has nothing to say
+while it's open (Gabriel, 3 Nov 2026); the rest is in the app; `features/settings`, 3 Nov 2026,
 [panel](features/settings/design/screens/09-panel.png)), learned
 words list, snippets editor, one-handed layouts, the milestone sheet. The split layout
 (an option on wide screens, Gabriel, 1 Nov 2026) is exactly Apple's: Q to T, A to G

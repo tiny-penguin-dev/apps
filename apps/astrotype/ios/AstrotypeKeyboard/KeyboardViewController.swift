@@ -79,6 +79,18 @@ final class KeyboardViewController: UIInputViewController {
         // The guesses bar going on or off, or the split, changes the height to ask for.
         keyboard.onHeightChange = { [weak self] _ in self?.view.setNeedsLayout() }
         view.addSubview(keyboard)
+        // Pinned with constraints, not placed by frame: iOS works the keyboard's height
+        // out from the constraints inside its view, and ignored the height constraint
+        // below while the keys were frame-based. It took it only when the settings panel
+        // (built with constraints) was added (Gabriel, 3 Nov 2026: "Opened at 224 of the
+        // 264 pt asked, still 224 after asking again", then it grew when 123 was held).
+        keyboard.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            keyboard.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            keyboard.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            keyboard.topAnchor.constraint(equalTo: view.topAnchor),
+            keyboard.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+        ])
         self.keyboard = keyboard
 
         if fullAccess {
@@ -193,7 +205,7 @@ final class KeyboardViewController: UIInputViewController {
         // menu opened, and asking again right away was not enough). So ask now, and
         // again after the slide has ended, as long as the height is still off.
         applyHeight(fresh: true)
-        view.setNeedsLayout()
+        nudgeLayout()
         let this = appearance
         for delay in [0.15, 0.4, 0.8, 1.5] {
             Task { @MainActor [weak self] in
@@ -268,11 +280,10 @@ final class KeyboardViewController: UIInputViewController {
         guard width > 0, let keyboard else { return }
         keyboard.showsGlobe = needsInputModeSwitchKey
         let height = applyHeight(fresh: false) ?? keyboard.height(forWidth: width)
-        // The keyboard view takes whatever iOS grants, edge to edge (iOS adds the margins
-        // around it): the keys sit at the bottom where Apple's are, and shrink if iOS
-        // grants less than asked.
+        // The keyboard view takes whatever iOS grants, edge to edge (pinned in
+        // `viewDidLoad`; iOS adds the margins around it): the keys sit at the bottom where
+        // Apple's are, and shrink if iOS grants less than asked.
         let granted = view.bounds.height
-        keyboard.frame = CGRect(x: 0, y: 0, width: width, height: granted > 0 ? granted : height)
         checks.sized(granted: granted, wanted: height, width: width, screenWidth: view.window?.windowScene?.screen.bounds.width ?? 0)
         askAgainIfShort(granted: granted, wanted: height)
         if isVisible, openedAt == nil, granted > 0 { openedAt = (granted, height) }
@@ -286,7 +297,7 @@ final class KeyboardViewController: UIInputViewController {
         let asked = keyboard.height(forWidth: view.bounds.width)
         if abs(got - asked) > 0.5 {
             applyHeight(fresh: true)
-            view.setNeedsLayout()
+            nudgeLayout()
         }
         guard last, let openedAt, abs(openedAt.got - openedAt.asked) > 0.5 else { return }
         keyboard.heightStory = "Opened at \(Int(openedAt.got)) of the \(Int(openedAt.asked.rounded())) pt asked, "
@@ -311,6 +322,28 @@ final class KeyboardViewController: UIInputViewController {
             heightConstraint = constraint
         }
         return height
+    }
+
+    /// Does what opening the settings panel did, the one thing that made iOS take the
+    /// height: a change to the constraints inside the view. Tells the keys their size
+    /// changed and adds and removes an empty view held by constraints.
+    private func nudgeLayout() {
+        keyboard?.invalidateIntrinsicContentSize()
+        let probe = UIView()
+        probe.isHidden = true
+        probe.isUserInteractionEnabled = false
+        probe.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(probe)
+        NSLayoutConstraint.activate([
+            probe.topAnchor.constraint(equalTo: view.topAnchor),
+            probe.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            probe.widthAnchor.constraint(equalToConstant: 0),
+            probe.heightAnchor.constraint(equalToConstant: 0),
+        ])
+        view.setNeedsUpdateConstraints()
+        view.setNeedsLayout()
+        view.layoutIfNeeded()
+        probe.removeFromSuperview()
     }
 
     /// When the keyboard is on screen but shorter or taller than it asked for, asks

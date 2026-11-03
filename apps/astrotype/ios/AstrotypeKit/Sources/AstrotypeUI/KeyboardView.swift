@@ -161,7 +161,10 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
             surface.frame = CGRect(x: 0, y: top, width: width, height: keys)
         }
         if let panel {
-            panel.frame = surface.frame
+            // Over the keys and the guesses bar both: the bar has nothing to say while
+            // the settings are open (Gabriel, 3 Nov 2026).
+            bar.isHidden = true
+            panel.frame = CGRect(x: 0, y: top, width: width, height: max(0, bounds.height - top))
             panel.granted = (bounds.height, wanted)
             bringSubviewToFront(panel)
         }
@@ -228,11 +231,13 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         panel.heightStory = heightStory
         addSubview(panel)
         self.panel = panel
+        setNeedsLayout()
     }
 
     public func hideSettings() {
         panel?.removeFromSuperview()
         panel = nil
+        setNeedsLayout()
     }
 
     // MARK: KeySurfaceDelegate

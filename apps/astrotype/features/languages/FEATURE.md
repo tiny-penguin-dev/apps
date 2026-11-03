@@ -196,8 +196,9 @@ letter is kept: the guesses must have it (`Matcher` searches its plain key and k
 only words with the picked letters in order, or the taps as typed when none has
 them). ¿ and ¡ come only from the hold, not a key of their own on the symbols page
 (the page stays as it is). After ¿ or ¡ the next word starts a sentence: a capital
-and `<s>` context. The in-keyboard panel has a tile per language, with "One language
-at a time. Pro types in two at once." under them on the free keyboard. Learned and
+and `<s>` context. The in-keyboard panel has a Languages row (the ones on, and a chevron)
+that opens a list with a tick per language, and "One language at a time. Pro types in
+two at once." under it on the free keyboard (tiles wrapped the names, Gabriel, 3 Nov 2026). Learned and
 personal words are keyed by their plain letters too, so "mañana" counts as
 "manana" in the personal model. Not done: VoiceOver for the callout (VoiceOver types
 the plain key, as before).

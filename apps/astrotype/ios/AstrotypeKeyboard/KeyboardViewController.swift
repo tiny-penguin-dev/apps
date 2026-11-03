@@ -20,6 +20,10 @@ final class KeyboardViewController: UIInputViewController {
     /// Fresh height constraints sent since the keyboard last appeared (`askAgainIfShort`).
     private var heightRetries = 0
     private var isVisible = false
+    /// What iOS gave when the keyboard last opened, for the settings panel's note.
+    private var openedAt: (got: CGFloat, asked: CGFloat)?
+    /// Bumped on each appearance, so re-asks left over from the last one stop.
+    private var appearance = 0
     private let checks = ExtensionChecks()
     private var health: KeyboardHealthRecorder?
     private var edits = 0
@@ -164,11 +168,23 @@ final class KeyboardViewController: UIInputViewController {
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
         isVisible = true
-        // iOS only takes a new height once the keyboard is on screen; before that it can
-        // keep its own, and the keyboard opened short until something laid it out again
-        // (Gabriel, 3 Nov 2026: it grew when the 123 menu opened).
+        appearance += 1
+        openedAt = nil
+        keyboard?.heightStory = nil
+        // iOS only takes a new height once the keyboard is on screen, and seems to drop
+        // one sent while it is still sliding the keyboard in; the keyboard opened short
+        // until something laid it out again (Gabriel, 3 Nov 2026: it grew when the 123
+        // menu opened, and asking again right away was not enough). So ask now, and
+        // again after the slide has ended, as long as the height is still off.
         applyHeight(fresh: true)
         view.setNeedsLayout()
+        let this = appearance
+        for delay in [0.15, 0.4, 0.8, 1.5] {
+            Task { @MainActor [weak self] in
+                try? await Task.sleep(for: .seconds(delay))
+                self?.askAgainIfOff(appearance: this, last: delay == 1.5)
+            }
+        }
     }
 
     override func viewWillDisappear(_ animated: Bool) {
@@ -222,6 +238,22 @@ final class KeyboardViewController: UIInputViewController {
         keyboard.frame = CGRect(x: 0, y: 0, width: width, height: granted > 0 ? granted : height)
         checks.sized(granted: granted, wanted: height, width: width, screenWidth: view.window?.windowScene?.screen.bounds.width ?? 0)
         askAgainIfShort(granted: granted, wanted: height)
+        if isVisible, openedAt == nil, granted > 0 { openedAt = (granted, height) }
+    }
+
+    /// A timed re-ask after the keyboard appeared: asks again if iOS still gives a
+    /// different height, and on the last one writes down how the opening went.
+    private func askAgainIfOff(appearance: Int, last: Bool) {
+        guard appearance == self.appearance, isVisible, let keyboard else { return }
+        let got = view.bounds.height
+        let asked = keyboard.height(forWidth: view.bounds.width)
+        if abs(got - asked) > 0.5 {
+            applyHeight(fresh: true)
+            view.setNeedsLayout()
+        }
+        guard last, let openedAt, abs(openedAt.got - openedAt.asked) > 0.5 else { return }
+        keyboard.heightStory = "Opened at \(Int(openedAt.got)) of the \(Int(openedAt.asked.rounded())) pt asked, "
+            + (abs(got - asked) > 0.5 ? "still \(Int(got)) after asking again." : "then grew to it.")
     }
 
     /// Asks iOS for the keyboard's height with a constraint on the view. `fresh` swaps in

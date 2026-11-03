@@ -178,6 +178,12 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
     /// What the bar says when idle, unless the host set its own note.
     public var usesDefaultNote = true
 
+    /// How the last opening went when iOS did not give the height asked for at first,
+    /// from the host, for the settings panel to show. Nil when it did.
+    public var heightStory: String? {
+        didSet { panel?.heightStory = heightStory }
+    }
+
     private func render() {
         bar.bar = model.state.bar
         if usesDefaultNote {
@@ -219,6 +225,7 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         panel.onDone = { [weak self] in self?.hideSettings() }
         panel.frame = surface.frame
         panel.granted = (bounds.height, height)
+        panel.heightStory = heightStory
         addSubview(panel)
         self.panel = panel
     }

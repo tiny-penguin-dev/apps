@@ -41,6 +41,11 @@ public final class SettingsPanelView: UIView {
     public var granted: (got: CGFloat, asked: CGFloat) = (0, 0) {
         didSet { if granted != oldValue { render() } }
     }
+    /// How the keyboard's last opening went, when iOS first gave it a different height
+    /// (from the host). Shown under the sliders while the opening height is being fixed.
+    public var heightStory: String? {
+        didSet { if heightStory != oldValue { render() } }
+    }
 
     private static let headerHeight: CGFloat = 48
 
@@ -255,8 +260,10 @@ public final class SettingsPanelView: UIView {
         wait.alpha = settings.autospace ? 1 : 0.45
 
         let short = granted.got > 0 && granted.got < granted.asked - 0.5
-        note.text = short ? "iOS gave the keyboard \(Int(granted.got)) of the \(Int(granted.asked.rounded())) pt it asked for, so the keys are shorter." : nil
-        note.isHidden = !short
+        let lines = [short ? "iOS gave the keyboard \(Int(granted.got)) of the \(Int(granted.asked.rounded())) pt it asked for, so the keys are shorter." : nil,
+                     heightStory].compactMap { $0 }
+        note.text = lines.isEmpty ? nil : lines.joined(separator: " ")
+        note.isHidden = lines.isEmpty
     }
 
     private func percent(_ value: Double) -> String { "\(Int((value * 100).rounded()))%" }

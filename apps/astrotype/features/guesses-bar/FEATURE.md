@@ -16,14 +16,16 @@ Status: Draft
 - **Who wants it:** everyone. The bar is on screen for every word.
 - **Basics or powerful:** basics. No new setting.
 - **How it works:** the bar has three zones that never move:
-  - *Left end:* one button. The emoji key (from the wider space bar plan,
-    `features/space-bar`, PR #105), or ✕ while fixing a word.
+  - *Left end:* one button. The globe (next keyboard) on phones where our keyboard
+    draws it (whenever iOS asks us for one: Home-button iPhones, the iPhone Duo), from the wider space bar plan
+    (`features/space-bar`, PR #105; Gabriel, 3 Nov 2026). Empty on phones where iOS
+    draws its own globe. ✕ while fixing a word. The emoji key stays in the bottom row
+    next to 123.
   - *Middle:* the words, packed together and centred on the keyboard, never spread to
     the edges. Only one kind at a time: guesses for the word you're swiping, or likely
     next words. When a word is being guessed, the one space writes sits in the white
     pill in the centre, the other guesses either side of it.
-  - *Right end:* the pencil ("Not it?") after a swiped word, and on Home-button
-    iPhones the globe after it.
+  - *Right end:* the pencil ("Not it?") after a swiped word.
 - **Fixing the last word** is the choice for Gabriel:
   - **Option A, a swap chip:** after a word, the best other reading sits first in the
     middle as a chip with a ⇄ swap mark (replacing the "FIX" text), a hairline, then
@@ -56,7 +58,8 @@ Status: Draft
 Status: Draft
 
 - **Mockups:** `design/mockups/guesses-bar.html` (Artifact link:
-  https://claude.ai/artifact/7fGTgXpYQFUrw4qv4o3Cxn). Pick a design (Today, A, B) and a
+  https://claude.ai/artifact/7fGTgXpYQFUrw4qv4o3Cxn). "Our globe key" shows a phone
+  where we draw the globe. Pick a design (Today, A, B) and a
   moment, then tap the words, the chip and the pencil; the keys type into the "What did
   you mean?" field. "Show zones" labels the three parts.
 - **What changes:**
@@ -70,13 +73,14 @@ Status: Draft
   - *Pencil tapped* (B only, the fix row): ![](design/screens/05-B-fixrow.png)
   - *"What did you mean?"* (A and B, as today, now with ✕ in the left slot): ![](design/screens/08-B-field.png)
 - **Layout rules:**
-  - The two end slots are each 44 pt wide (one icon button, 44 pt touch target). When
-    one end holds two buttons (pencil and globe), both ends widen to 88 pt so the middle
-    stays centred on the keyboard. An empty end stays empty; nothing slides into it.
+  - The two end slots are each 44 pt wide (one icon button, 44 pt touch target), the
+    same width on both sides so the middle stays centred on the keyboard. An empty end
+    stays empty; nothing slides into it. The "What did you mean?" field widens both
+    ends to fit ✕ and Save.
   - Words in the middle hug their text with 6 pt between them, at most three. The
     chosen guess is in the centre. When three don't fit whole, the outer guesses drop
     one at a time (never the chosen one) rather than truncating, so a long word is
-    never cut ([long words, small phone, with globe](design/screens/09-B-long-small-globe.png)).
+    never cut ([long words, small phone, with our globe](design/screens/09-B-long-small-globe.png)).
   - The idle note ("Both thumbs, one word") and the "Two thumbs is in Astrotype Pro"
     notice centre in the middle zone, with the ends as they are.
 - **Motion and copy:** new next words rise in over 0.25 s as today. Picking from the
@@ -85,13 +89,14 @@ Status: Draft
   "Type it". No other new copy.
 - **Design system:** the existing guess button (plain and pill), the ice chip and the
   hairline. New: a bar icon button (44 pt, `muted` SF Symbol, `keyDark` when pressed)
-  used for emoji, pencil, globe and ✕, and the dashed "Type it" chip (`line` border).
+  used for the globe, pencil and ✕, and the dashed "Type it" chip (`line` border).
   Option A's chip swaps the "FIX" text for the `arrow.left.arrow.right` symbol in
   `accent`. No new tokens.
 - **Sizes:** the bar is the same height everywhere. On the small phone the middle drops
   guesses rather than cut words. Wide screens and the split keyboard put the guesses in
-  a column, where the emoji and globe go back to the bottom row (PR #105).
+  a column, where the globe goes back next to 123 (PR #105).
 - **Dark:** ![](design/screens/10-B-after-dark.png)
+- **With our globe** (Home-button iPhones, the iPhone Duo): ![](design/screens/12-B-after-globe.png)
 - **Accessibility:** VoiceOver reads the bar as "Suggestions": left button, the words
   in order, right buttons. Pencil: "Not it? Fix the last word". The fix row's words get
   the hint "Replaces the last word". Dynamic Type scales the words one step as today.
@@ -103,7 +108,8 @@ Status: Not started
 - **Approach:** `BarView` only, plus a small model change for option B. The bar becomes
   three views (left slot, middle stack, right slot) laid out by `BarView`; the middle
   stack is centred on the bar's width and drops outer guesses to fit. The space bar
-  thread's emoji and globe buttons go into the slots (coordinated with PR #105).
+  work (PR #105) adds a small `leadingKey` (globe) hook to `BarView`; this redesign
+  places it in the left slot.
 - **Core pieces:** option B adds `Composer.Bar.fixing([String], chosen: Int)` (the fix
   row), entered by `Composer.beginFix()` from the pencil and left by a pick, ✕ or any
   key; `Bar.next` then no longer needs its `fix` payload shown, but keeps it so the fix
@@ -111,6 +117,6 @@ Status: Not started
 - **Phases:** one PR: the three-zone layout and the chosen option, with DESIGN.md "The
   bar" updated. Done when: on a phone the words sit centred in every state, the pencil
   works, and nothing is cut off on the small size or the largest text size.
-- **Risks:** emoji and globe in the bar depend on PR #105 landing; until then the left
-  slot is empty and the globe stays in the bottom row.
+- **Risks:** the globe in the bar comes from PR #105; until it lands the left slot is
+  empty and the globe stays in the bottom row.
 - **Last step:** fold this into `DESIGN.md` "The bar" and screen 12.

@@ -102,7 +102,7 @@ body{background:var(--stage);color:var(--ink);font-family:var(--font);
 <div class="stage">
   <div class="picker">
     <h1>Guesses bar</h1>
-    <p>The strip above the keys, redesigned so each thing has one place: the words in the middle, always centred, and buttons at the two ends. Tap the words, the chip and the pencil, they work.</p>
+    <p>The strip above the keys, redesigned so each thing has one place: the words in the middle, always centred, and one button at each end: the globe on the left (on phones where we draw it), the pencil for "Not it?" on the right. Tap the words, the chip and the pencil, they work.</p>
     <small>Design</small>
     <button data-design="today">Today</button>
     <button data-design="A">A: centred, with a swap chip</button>
@@ -115,8 +115,7 @@ body{background:var(--stage);color:var(--ink);font-family:var(--font);
     <button data-scene="long">Long words</button>
     <small>Phone</small>
     <div class="pills">
-      <button id="emojiBtn" data-toggle="emoji">Emoji in bar</button>
-      <button id="globeBtn" data-toggle="globe">Home button (globe)</button>
+      <button id="globeBtn" data-toggle="globe">Our globe key (Home button, Duo)</button>
       <button id="labelsBtn" data-toggle="labels">Show zones</button>
     </div>
     <div class="pills" style="margin-top:6px">
@@ -157,7 +156,7 @@ const WHY = {
   A:'<b>A.</b> Words always sit together in the middle. The word you are typing is in the white pill in the centre. After a word, a chip with ⇄ swaps it for the best other reading; the next words follow the line. The pencil at the right opens "What did you mean?".',
   B:'<b>B (recommended).</b> The middle only ever holds one kind of thing: words you could write now. Everything about fixing the last word lives behind the pencil: tap it and the bar shows the other readings, the word is highlighted in your text, and "Type it" is the last choice. One more tap to fix, but nothing to decode.',
 };
-const S = {design:'B', scene:'after', emoji:true, globe:false, labels:false, mode:null, typed:'', theme:null, size:'phone', fresh:false};
+const S = {design:'B', scene:'after', emoji:false, globe:false, labels:false, mode:null, typed:'', theme:null, size:'phone', fresh:false};
 // The text, per moment. readings[cur] is what is in the field.
 let W;
 function reset(){
@@ -219,14 +218,14 @@ function barNew(){
   if (S.mode==='field') return barField();
   const canFix = W.swiped;
   let left = '', right = '', center = '';
-  const nl0 = S.emoji?1:0, nr0 = (canFix?1:0) + (S.globe?1:0);
+  const nl0 = S.globe?1:0, nr0 = canFix?1:0;
   if (S.mode==='fixrow'){
     left = btn('icon',ICON.close,'cancel','Back');
     const others = W.readings.map((_,i)=>i).filter(i=>i!==W.cur);
-    const alts = fit(others, W.readings, -1, 1, S.globe?1:0, 86).map(i=>btn('g',esc(W.readings[i]),'swap:'+i)).join('');
+    const alts = fit(others, W.readings, -1, 1, 0, 86).map(i=>btn('g',esc(W.readings[i]),'swap:'+i)).join('');
     center = alts + btn('g type',ICON.pencil.replace('<svg','<svg width="14" height="14"')+'Type it','field','Type the word you meant');
   } else {
-    if (S.emoji) left = btn('icon',ICON.emoji,'emoji','Emoji');
+    if (S.globe) left = btn('icon',ICON.globe,'globe','Next keyboard');
     if (canFix) right += btn('icon',ICON.pencil,S.design==='B'?'fixrow':'field','Not it? Fix the last word');
     // Centre: one kind of thing, the best guess in the middle.
     if (W.guesses){
@@ -242,8 +241,7 @@ function barNew(){
       center = chip + words;
     }
   }
-  if (S.globe) right += btn('icon',ICON.globe,'globe','Next keyboard');
-  const nl = left?1:0, nr = (canFix && S.mode!=='fixrow' ? 1:0) + (S.globe?1:0);
+  const nl = left?1:0, nr = (canFix && S.mode!=='fixrow' ? 1:0);
   return `<div class="grid" style="${sides(nl,nr)}">
     <div class="slot l">${left}</div><div class="center">${center}</div><div class="slot r">${right}</div></div>`;
 }
@@ -264,7 +262,7 @@ function middleFirst(n, chosen){
 function renderKeys(){
   const r = ['qwertyuiop','asdfghjkl','zxcvbnm'];
   const inBar = S.design!=='today';
-  const bottomEmoji = !inBar || !S.emoji;
+  const bottomEmoji = true;
   const bottomGlobe = S.globe && !inBar;
   $('#rows').innerHTML =
     `<div class="krow">${[...r[0]].map(c=>`<button class="key" data-key="${c}">${c}</button>`).join('')}</div>`+
@@ -276,14 +274,14 @@ function renderKeys(){
 function render(){
   document.querySelectorAll('[data-design]').forEach(b=>b.setAttribute('aria-current', b.dataset.design===S.design));
   document.querySelectorAll('[data-scene]').forEach(b=>b.setAttribute('aria-current', b.dataset.scene===S.scene));
-  $('#emojiBtn').setAttribute('aria-pressed', S.emoji); $('#globeBtn').setAttribute('aria-pressed', S.globe); $('#labelsBtn').setAttribute('aria-pressed', S.labels);
+  $('#globeBtn').setAttribute('aria-pressed', S.globe); $('#labelsBtn').setAttribute('aria-pressed', S.labels);
   document.querySelectorAll('[data-theme-set]').forEach(b=>b.setAttribute('aria-pressed', (S.theme||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'))===b.dataset.themeSet));
   document.querySelectorAll('[data-size]').forEach(b=>b.setAttribute('aria-pressed', S.size===b.dataset.size));
   $('#phone').className = 'phone' + (S.size==='small'?' small':'') + (S.labels?' labels':'');
   $('#why').innerHTML = WHY[S.design];
   const bar = $('#bar');
   bar.innerHTML = (S.design==='today' ? barToday() : barNew()) +
-    (S.labels && S.design!=='today' ? '<div class="legend"><span>Button</span><span>Words, centred</span><span>Buttons</span></div>' : '');
+    (S.labels && S.design!=='today' ? '<div class="legend"><span>Globe</span><span>Words, centred</span><span>Not it?</span></div>' : '');
   bar.classList.toggle('fresh', S.fresh); S.fresh=false;
   renderField(); renderKeys();
 }

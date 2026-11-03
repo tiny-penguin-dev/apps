@@ -1,0 +1,426 @@
+<title>Astrotype Settings Redesign</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;700;800;900&display=swap">
+<style>
+/* Layout: one phone on a pale ice stage with a screen picker beside it. Tokens and components are Astrotype's (DESIGN.md "Design system"), same names as the app mockup. New: Group, IconTile, QuickTile, KeyboardPreview. */
+:root{
+  --stage:#E6F0F4; --bg:#F3F8FA; --card:#FFFFFF; --ink:#1E2945; --muted:#67748F; --line:#DCE6EC;
+  --accent:#139FB5; --accent-ink:#FFFFFF; --left:#139FB5; --right:#FF6F86; --sun:#FFC24D; --mint:#2FBF96; --ice:#D9EDF3;
+  --key:#FFFFFF; --key-ink:#1E2945; --key-dark:#C9D6DE; --kb:#DCE6EC; --danger:#E0526A;
+  --font:ui-rounded,"SF Pro Rounded","Nunito",system-ui,sans-serif;
+  --r-lg:28px; --r-md:18px; --r-sm:12px;
+  --spring:cubic-bezier(.34,1.56,.64,1);
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --stage:#0A1118; --bg:#111A24; --card:#1A2634; --ink:#EEF4F8; --muted:#97A6B8; --line:#2A3B4C;
+  --accent:#2FC6DC; --accent-ink:#06202A; --left:#2FC6DC; --right:#FF8A9E; --sun:#FFCD66; --mint:#45D3AA; --ice:#1D3240;
+  --key:#2A3A4A; --key-ink:#EEF4F8; --key-dark:#1C2834; --kb:#131E29; --danger:#FF7A8E; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --stage:#0A1118; --bg:#111A24; --card:#1A2634; --ink:#EEF4F8; --muted:#97A6B8; --line:#2A3B4C;
+  --accent:#2FC6DC; --accent-ink:#06202A; --left:#2FC6DC; --right:#FF8A9E; --sun:#FFCD66; --mint:#45D3AA; --ice:#1D3240;
+  --key:#2A3A4A; --key-ink:#EEF4F8; --key-dark:#1C2834; --kb:#131E29; --danger:#FF7A8E; color-scheme:dark}
+html,body{height:100%}
+body{background:var(--stage);color:var(--ink);font-family:var(--font);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+*{box-sizing:border-box}
+.stage{display:flex;gap:32px;justify-content:center;align-items:flex-start;padding-block:24px;flex-wrap:wrap}
+.picker{display:flex;flex-direction:column;gap:6px;max-width:240px;min-width:0}
+.picker h1{font-size:28px;font-weight:900;margin:0}
+.picker p{margin:0 0 10px;color:var(--muted);font-size:13px;line-height:1.45}
+.picker button{font:inherit;font-weight:700;font-size:14px;text-align:left;border:0;background:transparent;color:var(--muted);padding:7px 12px;border-radius:10px;cursor:pointer}
+.picker button[aria-current="true"]{background:var(--card);color:var(--ink)}
+.picker small{color:var(--muted);font-size:11px;letter-spacing:.06em;text-transform:uppercase;font-weight:800;margin-top:10px;padding-left:12px}
+.picker button:focus-visible,.phone :focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.seg-mini{display:flex;gap:4px;margin-top:4px;padding-left:8px}
+.seg-mini button{padding:5px 10px;font-size:12px;background:var(--line)}
+.seg-mini button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.phone{width:390px;max-width:100%;height:844px;background:var(--bg);border-radius:48px;position:relative;overflow:hidden;
+  box-shadow:0 0 0 10px var(--ink),0 30px 60px rgba(20,30,60,.25);flex:none}
+.phone.small{width:420px;height:700px;border-radius:40px}
+.phone.wide{width:744px;height:1024px;border-radius:40px}
+@media (max-width:700px){.picker{max-width:100%;flex-direction:row;flex-wrap:wrap;align-items:center}.picker h1,.picker p{width:100%}.picker small{display:none}
+  .phone,.phone.small{box-shadow:none;border-radius:32px}.phone.wide{display:none}}
+.status{position:absolute;top:14px;left:30px;right:30px;display:flex;justify-content:space-between;font-weight:800;font-size:15px;z-index:3}
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;padding:54px 0 0;animation:in .4s var(--spring)}
+@keyframes in{from{transform:translateX(24px);opacity:0}to{transform:none;opacity:1}}
+.nav{display:flex;align-items:center;padding:0 22px;height:40px;flex:none}
+.back{font:inherit;font-weight:800;color:var(--accent);background:none;border:0;font-size:17px;padding:0;cursor:pointer}
+.scroll{overflow-y:auto;flex:1;padding:0 22px 40px;display:flex;flex-direction:column;gap:8px}
+.phone.wide .scroll{padding:0 40px 40px}
+.h1{font-size:30px;font-weight:900;line-height:1.1;margin:4px 0 10px;text-wrap:balance}
+.phone.wide .h1{font-size:36px}
+.sub{color:var(--muted);font-size:13px;line-height:1.4;margin:0}
+.spacer{flex:1}
+.cols{display:flex;flex-direction:column;gap:8px}
+.col{display:flex;flex-direction:column;gap:8px;min-width:0}
+.phone.wide .cols{display:grid;grid-template-columns:1fr 1fr;gap:0 24px;align-items:start}
+
+/* SectionLabel */
+.sec{font-size:13px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:14px 0 0 6px;display:flex;align-items:center;gap:6px}
+/* Group: one card, several rows, hairlines between (new) */
+.group{background:var(--card);border-radius:var(--r-md);overflow:hidden}
+.group>.r+.r,.group>.r+.sl,.group>.sl+.r,.group>.sl+.sl,.group>.preview+.sl{border-top:1px solid var(--line)}
+.foot{color:var(--muted);font-size:13px;line-height:1.4;margin:2px 6px 0}
+/* Row */
+.r{display:flex;align-items:center;gap:12px;padding:11px 14px;min-height:52px;width:100%;font:inherit;color:inherit;text-align:left;background:none;border:0}
+button.r{cursor:pointer}
+button.r:active{background:color-mix(in srgb,var(--line) 50%,transparent)}
+.r .t{flex:1;min-width:0}
+.r .t b{display:block;font-size:16px;font-weight:800}
+.r .t span{display:block;color:var(--muted);font-size:13px;line-height:1.35;margin-top:1px}
+.r .val{color:var(--muted);font-weight:700;font-size:15px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.chev{color:var(--muted);font-weight:900;font-size:18px;margin-left:-4px}
+.r.danger .t b{color:var(--danger)}
+/* IconTile (new): a small rounded square with a glyph, colored by what the row is about */
+.ic{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;flex:none;color:#fff;font-size:15px;font-weight:900}
+.ic svg{width:18px;height:18px;stroke:#fff;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.ic.teal{background:var(--left)}.ic.coral{background:var(--right)}.ic.mint{background:var(--mint)}.ic.sun{background:var(--sun)}.ic.sun svg{stroke:#3A2600}
+.ic.navy{background:#5B6B8C}.ic.ice{background:var(--ice)}.ic.ice svg{stroke:var(--ink)}
+/* Slider row */
+.sl{padding:10px 14px 14px;display:flex;flex-direction:column;gap:8px}
+.sl .top{display:flex;align-items:baseline;gap:8px}
+.sl .top b{font-size:16px;font-weight:800;flex:1}
+.sl .top .val{color:var(--ink);font-weight:900;font-variant-numeric:tabular-nums}
+.sl .ends{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:13px;font-weight:700}
+.sl.indent{padding-left:56px}
+input[type=range]{flex:1;min-width:0;accent-color:var(--accent);height:28px}
+.dim{opacity:.45;pointer-events:none}
+/* Toggle */
+.toggle{width:52px;height:32px;border-radius:999px;background:var(--line);border:0;position:relative;cursor:pointer;flex:none;transition:background .2s;padding:0}
+.toggle::after{content:"";position:absolute;top:3px;left:3px;width:26px;height:26px;border-radius:50%;background:#fff;box-shadow:0 2px 4px rgba(0,0,0,.2);transition:transform .35s var(--spring)}
+.toggle[aria-checked="true"]{background:var(--mint)}
+.toggle[aria-checked="true"]::after{transform:translateX(20px)}
+.toggle:disabled{opacity:.4;cursor:default}
+.pro{font-size:10px;font-weight:900;letter-spacing:.08em;background:var(--sun);color:#3A2600;padding:3px 7px;border-radius:6px}
+.chip{display:inline-flex;align-items:center;gap:6px;font-weight:800;font-size:13px;padding:6px 10px;border-radius:999px;background:var(--ice);color:var(--ink);white-space:nowrap}
+.chip.on{background:var(--mint);color:#fff}
+.btn{font:inherit;font-weight:800;border:0;border-radius:999px;background:var(--accent);color:var(--accent-ink);cursor:pointer;font-size:14px;padding:9px 15px;
+  box-shadow:0 4px 0 color-mix(in srgb,var(--accent) 60%,#000 25%);transition:transform .25s var(--spring)}
+.btn:active{transform:translateY(2px)}
+.seg{display:flex;background:var(--line);border-radius:999px;padding:4px;margin:0 14px 12px}
+.seg button{flex:1;font:inherit;font-weight:800;font-size:14px;border:0;background:transparent;color:var(--muted);padding:8px 0;border-radius:999px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--card);color:var(--ink)}
+/* Status card at the top (new) */
+.statusgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.stat{background:var(--card);border-radius:var(--r-md);padding:12px;display:flex;flex-direction:column;gap:8px;border:0;font:inherit;color:inherit;text-align:left;cursor:pointer;min-width:0}
+.stat b{font-size:14px;font-weight:800;line-height:1.2}
+.stat span{font-size:12px;color:var(--muted);font-weight:700;line-height:1.25}
+.stat .dot{width:8px;height:8px;border-radius:50%;background:var(--mint);display:inline-block;margin-right:5px;vertical-align:1px}
+.stat .dot.warn{background:var(--sun)}
+/* KeyboardPreview (new): the keyboard at the chosen height, live */
+.preview{padding:14px 14px 12px;display:flex;justify-content:center;background:var(--bg)}
+.mini{width:100%;max-width:300px;background:var(--kb);border-radius:14px;padding:6px 4px 8px;display:flex;flex-direction:column;gap:4px;transition:all .35s var(--spring)}
+.mini .mbar{height:18px;display:flex;gap:4px;padding:0 6px;align-items:center;transition:all .3s}
+.mini .mbar i{flex:1;height:12px;border-radius:5px;background:transparent}
+.mini .mbar i.top{background:var(--card)}
+.mini .mbar em{font-style:normal;font-size:10px;color:var(--muted);font-weight:800;flex:1;text-align:center}
+.mini .mrow{display:flex;gap:3px;justify-content:center}
+.mini .mrow s{flex:1;max-width:24px;border-radius:4px;background:var(--key);box-shadow:0 1px 0 rgba(0,0,0,.2);transition:height .35s var(--spring)}
+.mini .mrow s.fn{background:var(--key-dark);max-width:34px}
+.mini .mrow s.sp{max-width:130px;flex:5}
+.mini .mrow s.L{background:var(--left)}.mini .mrow s.R{background:var(--right)}
+/* Messages backdrop for the keyboard panel */
+.convo{flex:1;display:flex;flex-direction:column;gap:8px;padding:8px 22px;overflow:hidden;justify-content:flex-end}
+.bub{max-width:78%;padding:10px 14px;border-radius:20px;font-size:16px;line-height:1.35;background:var(--card)}
+.bub.me{align-self:flex-end;background:var(--accent);color:var(--accent-ink)}
+.compose{display:flex;gap:8px;padding:8px 14px}
+.compose div{flex:1;min-height:40px;padding:9px 14px;border-radius:22px;border:1px solid var(--line);font-size:17px;background:var(--card)}
+.kb{background:var(--kb);padding:8px 4px 26px;flex:none}
+.kbar{height:40px;display:flex;align-items:center;justify-content:center;color:var(--muted);font-weight:700;font-size:14px;margin-bottom:6px}
+.keys{display:flex;flex-direction:column;gap:8px;transition:height .3s}
+.krow{display:flex;justify-content:center;gap:5px}
+.key{flex:1 1 0;max-width:34px;border-radius:7px;background:var(--key);color:var(--key-ink);font-weight:700;font-size:20px;display:grid;place-items:center;box-shadow:0 1px 0 rgba(0,0,0,.25);border:0;font-family:inherit}
+.key.fn{background:var(--key-dark);font-size:14px;max-width:46px;flex:1.35 1 0}
+.key.space{flex:5.5 1 0;max-width:190px;font-size:13px;color:var(--muted);font-weight:800}
+.key.ret{flex:2.6 1 0;max-width:88px;background:var(--key-dark);font-size:14px}
+.key.held{box-shadow:0 0 0 3px var(--accent)}
+.phone.wide .key{max-width:58px;font-size:24px}.phone.wide .key.fn{max-width:76px}.phone.wide .key.space{max-width:330px}.phone.wide .key.ret{max-width:150px}
+.hint{position:absolute;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);font-weight:800;font-size:13px;padding:8px 12px;border-radius:999px;white-space:nowrap;pointer-events:none;animation:in .4s var(--spring)}
+/* In-keyboard panel, new */
+.panel{background:var(--kb);display:flex;flex-direction:column;overflow:hidden}
+.ph{display:flex;align-items:center;height:48px;padding:0 12px 0 16px;flex:none}
+.ph b{font-size:17px;font-weight:900;flex:1}
+.done{font:inherit;font-weight:800;font-size:15px;border:0;border-radius:999px;background:var(--accent);color:var(--accent-ink);padding:6px 18px;cursor:pointer}
+.pbody{overflow-y:auto;padding:0 12px 10px;display:flex;flex-direction:column;gap:10px}
+.tiles{display:grid;grid-template-columns:repeat(var(--n,4),1fr);gap:8px}
+/* QuickTile (new): a square switch, like Control Center */
+.qt{background:var(--key);border:0;border-radius:var(--r-sm);padding:10px 6px 8px;display:flex;flex-direction:column;align-items:center;gap:5px;font:inherit;color:var(--ink);cursor:pointer;min-width:0;transition:background .2s,transform .25s var(--spring)}
+.qt:active{transform:scale(.95)}
+.qt svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.qt span{font-size:12px;font-weight:800;line-height:1.15;text-align:center}
+.qt[aria-checked="true"]{background:var(--accent);color:var(--accent-ink)}
+.qt[aria-checked="false"] svg{opacity:.6}
+.pcard{background:var(--key);border-radius:var(--r-sm)}
+.prow{display:flex;align-items:center;gap:10px;padding:0 12px;min-height:44px}
+.prow+.prow{border-top:1px solid var(--kb)}
+.prow b{font-size:15px;font-weight:800;width:84px;flex:none}
+.prow .val{width:46px;text-align:right;color:var(--muted);font-weight:700;font-size:15px;font-variant-numeric:tabular-nums}
+.pfoot{display:flex;align-items:center;gap:8px;justify-content:center;color:var(--muted);font-size:13px;font-weight:700;padding:2px 0 0}
+/* old panel */
+.oldrow{display:flex;align-items:center;gap:10px;padding:0 12px;min-height:44px;font-size:15px;font-weight:700}
+.oldrow+.oldrow{border-top:1px solid var(--kb)}
+.oldcard .oldrow input{max-width:150px}
+/* before screen */
+.oc{background:var(--card);border-radius:var(--r-md);padding:12px 14px;display:flex;align-items:center;gap:12px}
+.oc .t b{font-size:16px;font-weight:800;display:block}.oc .t span{color:var(--muted);font-size:13px;line-height:1.35}
+.tag{position:absolute;top:58px;right:22px;z-index:4;font-size:11px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;background:var(--ink);color:var(--bg);padding:4px 8px;border-radius:6px}
+@media (prefers-reduced-motion: reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+</style>
+
+<div class="stage">
+  <nav class="picker" aria-label="Screens">
+    <h1>Settings</h1>
+    <p>The new Settings in the app, and the short list under a held 123 in the keyboard. Switches and sliders work. "Today" shows how it looks now, for comparison.</p>
+    <small>New</small>
+    <button data-go="settings">Settings</button>
+    <button data-go="privacy">Privacy and sharing</button>
+    <button data-go="panel">Keyboard: hold 123</button>
+    <small>Today</small>
+    <button data-go="old-settings">Settings today</button>
+    <button data-go="old-panel">Keyboard panel today</button>
+    <small>Size</small>
+    <div class="seg-mini" role="group" aria-label="Size">
+      <button data-size="small">Small</button><button data-size="">Phone</button><button data-size="wide">Wide</button>
+    </div>
+    <small>Theme</small>
+    <div class="seg-mini" role="group" aria-label="Theme">
+      <button data-theme="">System</button><button data-theme="light">Light</button><button data-theme="dark">Dark</button>
+    </div>
+  </nav>
+  <div class="phone" id="phone" role="region" aria-label="Astrotype Settings mockup"></div>
+</div>
+
+<script>
+const S={autospace:true,delay:0.9,strict:80,height:100,bar:true,underline:false,trails:true,haptics:true,
+  spaceSlide:true,bsSwipe:true,split:false,extra:false,learn:true,usage:true,practice:false,corrections:false,panelOpen:true,forget:0};
+
+const I={ /* glyphs drawn as tiny SVGs, so the mockup has no icon font */
+  thumbs:'<svg viewBox="0 0 24 24"><path d="M5 18c2-6 4-9 6-9"/><path d="M19 18c-2-6-4-9-6-9"/></svg>',
+  space:'<svg viewBox="0 0 24 24"><path d="M4 11v4h16v-4"/></svg>',
+  check:'<svg viewBox="0 0 24 24"><path d="M5 12l4 4 10-10"/></svg>',
+  height:'<svg viewBox="0 0 24 24"><path d="M12 3v18M8 7l4-4 4 4M8 17l4 4 4-4"/></svg>',
+  bar:'<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="5" rx="2"/><path d="M3 15h18M3 19h18"/></svg>',
+  underline:'<svg viewBox="0 0 24 24"><path d="M7 4v7a5 5 0 0 0 10 0V4M5 20h14"/></svg>',
+  trails:'<svg viewBox="0 0 24 24"><path d="M4 18c3-9 8-12 16-12"/><circle cx="20" cy="6" r="1.5"/></svg>',
+  haptics:'<svg viewBox="0 0 24 24"><rect x="8" y="4" width="8" height="16" rx="2"/><path d="M4 9v6M20 9v6"/></svg>',
+  cursor:'<svg viewBox="0 0 24 24"><path d="M12 4v16M8 8l-4 4 4 4M16 8l4 4-4 4"/></svg>',
+  del:'<svg viewBox="0 0 24 24"><path d="M9 6h11v12H9l-6-6z"/><path d="M12 10l4 4M16 10l-4 4"/></svg>',
+  split:'<svg viewBox="0 0 24 24"><rect x="2" y="7" width="8" height="10" rx="2"/><rect x="14" y="7" width="8" height="10" rx="2"/></svg>',
+  book:'<svg viewBox="0 0 24 24"><path d="M5 4h10a4 4 0 0 1 4 4v12H9a4 4 0 0 1-4-4z"/></svg>',
+  brain:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M8 12h8M12 8v8"/></svg>',
+  lock:'<svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>',
+  star:'<svg viewBox="0 0 24 24"><path d="M12 3l2.6 5.6 6 .6-4.5 4 1.3 6L12 16l-5.4 3.2 1.3-6-4.5-4 6-.6z"/></svg>',
+  restore:'<svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 3-6.2M4 4v4h4"/></svg>',
+  info:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></svg>',
+  chart:'<svg viewBox="0 0 24 24"><path d="M5 20V10M12 20V4M19 20v-7"/></svg>',
+  send:'<svg viewBox="0 0 24 24"><path d="M4 12l16-8-6 16-2-6z"/></svg>',
+  fix:'<svg viewBox="0 0 24 24"><path d="M5 19l4-1 10-10-3-3L6 15z"/></svg>',
+  eye:'<svg viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>',
+  words:'<svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h10M4 17h13"/></svg>',
+  wait:'<svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2M9 2h6"/></svg>'
+};
+const phone=document.getElementById("phone");
+const picker=document.querySelector(".picker");
+const status=()=>`<div class="status"><span>9:41</span><span>●●● ⌁ ▮</span></div>`;
+const wide=()=>phone.classList.contains("wide");
+const tg=(key,label,dis=false)=>`<button class="toggle" role="switch" aria-label="${label}" aria-checked="${S[key]}" data-t="${key}" ${dis?"disabled":""}></button>`;
+const ic=(name,color)=>`<span class="ic ${color}" aria-hidden="true">${I[name]}</span>`;
+const row=(o)=>`<${o.go?`button data-go="${o.go}"`:"div"} class="r ${o.cls||""}">${o.icon?ic(o.icon,o.color):""}<div class="t"><b>${o.title}</b>${o.sub?`<span>${o.sub}</span>`:""}</div>${o.end||""}${o.go?'<span class="chev" aria-hidden="true">›</span>':""}</${o.go?"button":"div"}>`;
+
+function mini(){
+  const h=Math.round(22*S.height/100);
+  const r=(n,cls="")=>Array.from({length:n},(_,i)=>`<s class="${cls}" style="height:${h}px"></s>`).join("");
+  return `<div class="mini" aria-label="Keyboard at ${S.height}%" role="img">
+    ${S.bar?`<div class="mbar"><i></i><i class="top"></i><i></i></div>`:""}
+    <div class="mrow">${r(10)}</div><div class="mrow">${r(9)}</div>
+    <div class="mrow"><s class="fn" style="height:${h}px"></s>${r(7)}<s class="fn" style="height:${h}px"></s></div>
+    <div class="mrow"><s class="fn" style="height:${h}px"></s><s class="fn" style="height:${h}px"></s><s class="sp" style="height:${h}px"></s><s class="fn" style="height:${h}px"></s></div>
+  </div>`;
+}
+
+const screens={
+settings(){
+  const typing=`<div class="sec">Typing</div>
+    <div class="group">
+      ${row({icon:"thumbs",color:"coral",title:"Two-thumb typing",sub:"Taps and swipes from both thumbs, in one word",end:'<span class="pro">PRO</span>'})}
+      ${row({icon:"space",color:"teal",title:"Autospace",sub:"Puts a swiped word in after a pause",end:tg("autospace","Autospace")})}
+      <div class="sl indent ${S.autospace?"":"dim"}" id="delayRow"><div class="ends">Quick<input type="range" id="delay" min="0.1" max="1.5" step="0.1" value="${S.delay}" aria-label="Autospace wait">Relaxed<span class="val" style="color:var(--ink);width:40px;text-align:right" id="delayV">${S.delay.toFixed(1)} s</span></div></div>
+      <div class="sl"><div class="top"><b>Real words</b><span class="val" id="strictV">${S.strict}%</span></div>
+        <div class="ends">As tapped<input type="range" id="strict" min="0" max="100" value="${S.strict}" aria-label="Real words">Words only</div></div>
+    </div>
+    <p class="foot">Real words: how sure the keyboard must be before it swaps letters you tapped for a word. At 100% it only types real words.</p>`;
+  const keyboard=`<div class="sec">Keyboard</div>
+    <div class="group">
+      <div class="preview" id="preview">${mini()}</div>
+      <div class="sl"><div class="top"><b>Height</b><span class="val" id="heightV">${S.height}%</span></div>
+        <div class="ends">Shorter<input type="range" id="height" min="80" max="120" step="5" value="${S.height}" aria-label="Keyboard height">Taller</div></div>
+      ${row({icon:"bar",color:"teal",title:"Guesses bar",sub:"Above the keys on a phone",end:tg("bar","Guesses bar")})}
+      ${row({icon:"trails",color:"coral",title:"Trails and flashes",sub:"Off saves battery",end:tg("trails","Trails and flashes")})}
+      ${row({icon:"haptics",color:"navy",title:"Haptics",end:tg("haptics","Haptics")})}
+      ${row({icon:"underline",color:"navy",title:"Underline the open word",sub:"In other apps",end:tg("underline","Underline the open word")})}
+    </div>
+    <p class="foot">At 100% every key sits where Apple's does. The guesses bar adds to the height.</p>`;
+  const gestures=`<div class="sec">Gestures</div>
+    <div class="group">
+      ${row({icon:"cursor",color:"teal",title:"Slide on space",sub:"Move the cursor",end:tg("spaceSlide","Slide on space")})}
+      ${row({icon:"del",color:"coral",title:"Swipe left on ⌫",sub:"Delete the last word",end:tg("bsSwipe","Swipe left on delete")})}
+    </div>`;
+  const wideGroup=`<div class="sec">Wide screens <span class="pro">PRO</span></div>
+    <div class="group">
+      ${row({icon:"split",color:"sun",title:"Layout",sub:"On the iPhone Duo's inner screen"})}
+      <div class="seg" role="group" aria-label="Layout on wide screens"><button aria-pressed="${!S.split}" data-split="0">Full</button><button aria-pressed="${S.split}" data-split="1">Split</button></div>
+      ${S.split?row({title:"Extra letters on split",sub:"Y H B on the left, T F C on the right, for swiping across",end:tg("extra","Extra letters on split")}):""}
+    </div>`;
+  const words=`<div class="sec">Your words</div>
+    <div class="group">
+      ${row({icon:"book",color:"mint",title:"Learned words",go:"settings",end:'<span class="val">214</span>'})}
+      ${row({icon:"brain",color:"mint",title:"Learns from you",sub:S.learn?"1,208 word pairs, thumbs mapped":"Off. Learns nothing, uses nothing.",end:tg("learn","Learns from you")})}
+      <button class="r danger" id="forget"><div class="t"><b>${S.forget===0?"Forget what it learned":S.forget===1?"Tap again to forget":"Forgotten"}</b><span>Word pairs and thumb spots, on every device. Learned words stay.</span></div></button>
+    </div>`;
+  const more=`<div class="sec">More</div>
+    <div class="group">
+      ${row({icon:"lock",color:"navy",title:"Privacy and sharing",sub:S.practice?"Sending practice sessions":"Nothing you type is sent",go:"privacy"})}
+      ${row({icon:"star",color:"sun",title:"Astrotype Pro",sub:"Trial · 11 days left",go:"settings"})}
+      ${row({icon:"restore",color:"ice",title:"Restore purchases",end:'<button class="btn">Restore</button>'})}
+      ${row({icon:"info",color:"ice",title:"About",sub:"Version 2.0 (214) · word pairs from Tatoeba",go:"settings"})}
+    </div>`;
+  return `${status()}<div class="screen">
+    <div class="nav"><button class="back" data-go="settings">‹ Home</button></div>
+    <div class="scroll">
+      <h1 class="h1">Settings</h1>
+      <div class="statusgrid">
+        <button class="stat"><b>Keyboard</b><span><i class="dot"></i>On</span></button>
+        <button class="stat"><b>iCloud sync</b><span><i class="dot"></i>Synced 2 min ago</span></button>
+        <button class="stat"><b>Pro trial</b><span><i class="dot warn"></i>11 days left</span></button>
+      </div>
+      <div class="cols"><div class="col">${typing}${keyboard}</div><div class="col">${gestures}${wideGroup}${words}${more}</div></div>
+    </div></div>`;
+},
+privacy(){
+  return `${status()}<div class="screen">
+    <div class="nav"><button class="back" data-go="settings">‹ Settings</button></div>
+    <div class="scroll" style="max-width:${wide()?"560px":"none"};margin:0 auto;width:100%">
+      <h1 class="h1">Privacy and sharing</h1>
+      <p class="sub" style="font-size:15px;margin:0 6px">Nothing you type in other apps is ever sent. These are the few things you can choose to share.</p>
+      <div class="sec">Crash reports</div>
+      <div class="group">${row({icon:"chart",color:"navy",title:"Share anonymous usage data",sub:"Crashes and counts, like how many people turn the keyboard on",end:tg("usage","Share anonymous usage data")})}</div>
+      <div class="sec">Help tune the keyboard</div>
+      <div class="group">
+        ${row({icon:"send",color:"teal",title:"Send practice sessions",sub:"Words from speed tests and drills, with your thumb paths",end:tg("practice","Send practice sessions")})}
+        ${row({icon:"fix",color:"coral",title:"Include corrections",sub:S.practice?"The word you wrote and the one you meant":"Turn on practice sessions first",end:tg("corrections","Include corrections",!S.practice)})}
+        ${row({icon:"eye",color:"mint",title:"What gets shared",sub:"3 words waiting. See them before they go.",go:"privacy"})}
+        ${row({icon:"words",color:"mint",title:"Practice words",sub:"Common words, one at a time, no timer",go:"privacy"})}
+      </div>
+      <p class="foot">Sent one word at a time with no name attached, so nobody can read a sentence back.</p>
+    </div></div>`;
+},
+panel(){
+  const tiles=[["autospace","Autospace","space"],["bar","Guesses bar","bar"],["haptics","Haptics","haptics"],["trails","Trails","trails"]];
+  if(wide())tiles.push(["split","Split","split"]);
+  const h=Math.round(46*S.height/100);
+  return `${status()}<div class="screen">
+    <div class="nav" style="justify-content:center"><span class="chip">Larissa</span></div>
+    <div class="convo"><div class="bub">Dinner at 7?</div><div class="bub me">Yes! Leaving the office now</div><div class="bub">How long will you be?</div></div>
+    <div class="compose"><div>About twenty</div></div>
+    <div class="kb">
+      ${S.panelOpen?`<div class="panel" style="min-height:${(S.bar?46:0)+4*h+24}px">
+        <div class="ph"><b>Keyboard settings</b><button class="done" id="done">Done</button></div>
+        <div class="pbody">
+          <div class="tiles" style="--n:${tiles.length}">${tiles.map(([k,l,g])=>`<button class="qt" role="switch" aria-checked="${S[k]}" data-t="${k}">${I[g]}<span>${l}</span></button>`).join("")}</div>
+          <div class="pcard">
+            <div class="prow"><b>Height</b><input type="range" id="height" min="80" max="120" step="5" value="${S.height}" aria-label="Keyboard height"><span class="val" id="heightV">${S.height}%</span></div>
+            <div class="prow"><b>Real words</b><input type="range" id="strict" min="0" max="100" value="${S.strict}" aria-label="Real words"><span class="val" id="strictV">${S.strict}%</span></div>
+            <div class="prow ${S.autospace?"":"dim"}" id="delayRow"><b>Wait</b><input type="range" id="delay" min="0.1" max="1.5" step="0.1" value="${S.delay}" aria-label="Autospace wait"><span class="val" id="delayV">${S.delay.toFixed(1)} s</span></div>
+          </div>
+          <div class="pfoot">More in the Astrotype app</div>
+        </div></div>`
+      :`${S.bar?`<div class="kbar">Both thumbs, one word</div>`:""}<div class="keys">${keysHTML(h)}</div>`}
+    </div>
+    ${S.panelOpen?"":`<div class="hint" style="bottom:${S.bar?300:250}px">Hold 123 for keyboard settings</div>`}
+  </div>`;
+},
+"old-settings"(){
+  const oc=(t,s,end="")=>`<div class="oc"><div class="t" style="flex:1"><b>${t}</b><span>${s}</span></div>${end}</div>`;
+  const tog=(on)=>`<span class="toggle" aria-checked="${on}" style="pointer-events:none"></span>`;
+  return `${status()}<div class="screen"><span class="tag">Today</span>
+    <div class="nav"><span class="back">‹ Home</span></div>
+    <div class="scroll" style="gap:10px">
+      <h1 class="h1">Settings</h1>
+      <div class="sec">Typing</div>
+      ${oc("Two-thumb typing","On. Taps and swipes from both thumbs, mixed in one word.",'<span class="pro">PRO</span>')}
+      ${oc("Autospace","Write a swiped word after a short pause",tog(true))}
+      <div class="oc"><span class="sub">Quick</span><input type="range" disabled><span class="sub">Relaxed</span></div>
+      ${oc("Real words","How sure the keyboard must be of a real word before it puts one in for letters you tapped. At 100% it only ever types real words.",'<b style="font-size:20px">80%</b>')}
+      <div class="oc"><span class="sub">As tapped</span><input type="range" disabled><span class="sub">Words only</span></div>
+      ${oc("Learned words","214 words the keyboard learned from you.",'<span class="btn">Open</span>')}
+      ${oc("Learns from you","Your word pairs and where your thumbs land, kept on this phone.",tog(true))}
+      <div class="sec">Gestures</div>
+      ${oc("Slide on space","Move the cursor",tog(true))}
+      ${oc("Swipe left on ⌫","Delete the last word",tog(true))}
+      <div class="sec">Layout</div>
+      ${oc("Keyboard height","At 100% every key sits where Apple's keyboard has it, so your thumbs already know the way. The guesses bar adds to it.",'<b style="font-size:20px">100%</b>')}
+      <div class="oc"><span class="sub">Shorter</span><input type="range" disabled><span class="sub">Taller</span></div>
+      ${oc("Underline the word you're typing","In other apps. Off types it as plain text, which keeps spaces where they belong in every app.",tog(false))}
+      ${oc("Guesses bar","Above the keys on a phone. Off gives the keys its room. On a wide screen the guesses sit beside the keys.",tog(true))}
+      <p class="sub" style="text-align:center;margin-top:8px">…then Look and feel, Keyboard, Astrotype Pro, Privacy (5 rows) and About, 30 rows in all.</p>
+    </div></div>`;
+},
+"old-panel"(){
+  const or=(l,end)=>`<div class="oldrow"><span style="flex:1">${l}</span>${end}</div>`;
+  const t=(on)=>`<span class="toggle" aria-checked="${on}" style="pointer-events:none"></span>`;
+  const sl=(v)=>`<input type="range" disabled style="flex:1"><span class="sub" style="width:40px;text-align:right">${v}</span>`;
+  return `${status()}<div class="screen"><span class="tag">Today</span>
+    <div class="nav" style="justify-content:center"><span class="chip">Larissa</span></div>
+    <div class="convo"><div class="bub">Dinner at 7?</div><div class="bub me">Yes! Leaving the office now</div></div>
+    <div class="compose"><div>About twenty</div></div>
+    <div class="kb"><div class="panel" style="height:300px">
+      <div class="ph"><b>Keyboard settings</b><span class="done">Done</span></div>
+      <div class="pbody">
+        <div class="pcard oldcard">${or("Autospace",t(true))}${or("Delay",sl("0.9 s"))}${or("Real words",sl("80%"))}</div>
+        <div class="pcard oldcard">${or("Height",sl("100%"))}${or("Trails",t(true))}${or("Guesses bar",t(true))}${or("Split on wide screens",t(false))}</div>
+        <div class="pcard oldcard">${or("Learn from my typing",t(true))}${or('<span style="color:var(--danger)">Forget what it learned</span>',"")}</div>
+      </div></div></div>
+  </div>`;
+}
+};
+function keysHTML(h){
+  const r=s=>[...s].map(k=>`<span class="key" style="height:${h}px">${k}</span>`).join("");
+  return `<div class="krow">${r("qwertyuiop")}</div><div class="krow">${r("asdfghjkl")}</div>
+  <div class="krow"><span class="key fn" style="height:${h}px">⇧</span>${r("zxcvbnm")}<span class="key fn" style="height:${h}px">⌫</span></div>
+  <div class="krow"><button class="key fn held" style="height:${h}px" id="k123" aria-label="Hold for keyboard settings">123</button><span class="key fn" style="height:${h}px">🌐</span><span class="key space" style="height:${h}px">Astrotype</span><span class="key ret" style="height:${h}px">return</span></div>`;
+}
+
+let current="settings";
+function go(name,push=true){
+  if(!screens[name])name="settings";
+  const keep=name===current?(phone.querySelector(".scroll")?.scrollTop||0):0;
+  current=name;
+  phone.innerHTML=screens[name]();
+  if(keep){const sc=phone.querySelector(".scroll");if(sc){sc.style.animation="none";sc.scrollTop=keep}phone.querySelector(".screen").style.animation="none"}
+  picker.querySelectorAll("[data-go]").forEach(b=>b.setAttribute("aria-current",b.dataset.go===name));
+  if(push)try{history.replaceState(null,"","#"+name)}catch(e){}
+  wire();
+}
+function rerender(){go(current,false)}
+function wire(){
+  phone.querySelectorAll("[data-t]").forEach(t=>t.onclick=e=>{e.stopPropagation();if(t.disabled)return;const k=t.dataset.t;S[k]=!S[k];if(k==="practice"&&!S.practice)S.corrections=false;rerender()});
+  phone.querySelectorAll("[data-split]").forEach(b=>b.onclick=()=>{S.split=b.dataset.split==="1";rerender()});
+  const bind=(id,key,fmt,live)=>{const el=phone.querySelector("#"+id);if(!el)return;el.oninput=()=>{S[key]=+el.value;phone.querySelector("#"+id+"V").textContent=fmt(S[key]);live&&live()}};
+  bind("delay","delay",v=>v.toFixed(1)+" s");
+  bind("strict","strict",v=>v+"%");
+  bind("height","height",v=>v+"%",()=>{const p=phone.querySelector("#preview");if(p)p.innerHTML=mini()});
+  const f=phone.querySelector("#forget");if(f)f.onclick=()=>{if(S.forget<2){S.forget++;rerender()}};
+  const d=phone.querySelector("#done");if(d)d.onclick=()=>{S.panelOpen=false;rerender()};
+  const k=phone.querySelector("#k123");
+  if(k){let t;const start=e=>{e.preventDefault();t=setTimeout(()=>{S.panelOpen=true;rerender()},450)};const stop=()=>clearTimeout(t);
+    k.addEventListener("pointerdown",start);k.addEventListener("pointerup",stop);k.addEventListener("pointerleave",stop);
+    k.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){S.panelOpen=true;rerender()}})}
+}
+document.addEventListener("click",e=>{const b=e.target.closest("[data-go]");if(b){if(b.dataset.go==="panel")S.panelOpen=true;go(b.dataset.go)}});
+const seg=(sel,attr,apply)=>{const bs=document.querySelectorAll(sel);bs.forEach(b=>b.onclick=()=>{apply(b.dataset[attr]);bs.forEach(x=>x.setAttribute("aria-pressed",x===b))});bs.forEach(b=>{if(b.dataset[attr]==="")b.setAttribute("aria-pressed","true")})};
+seg("[data-size]","size",v=>{phone.className="phone "+v;rerender()});
+seg("[data-theme]","theme",v=>{if(v)document.documentElement.setAttribute("data-theme",v);else document.documentElement.removeAttribute("data-theme")});
+window.addEventListener("hashchange",()=>go(location.hash.slice(1),false));
+go((location.hash||"#settings").slice(1),false);
+</script>

@@ -100,7 +100,8 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
     /// The height to ask the host for at a width: the keys where Apple's are (at the
     /// person's height), plus the bar when it sits on top.
     public func height(forWidth width: CGFloat) -> CGFloat {
-        let keys = Layout.qwerty(width: width, split: model.splitOnWide, extraLetters: extraLetters, globe: showsGlobe, scale: scale)
+        let keys = Layout.qwerty(width: width, split: model.splitOnWide, extraLetters: extraLetters, globe: showsGlobe, scale: scale,
+                                 bottom: model.field.bottomRow)
         return barPlace(for: keys) == .top ? Self.barHeight + keys.height : keys.height
     }
 
@@ -132,16 +133,19 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         let width = bounds.width
         guard width > 0 else { return }
         let split = model.splitOnWide
-        let natural = Layout.qwerty(width: width, split: split, extraLetters: extraLetters, globe: showsGlobe, scale: scale)
+        let bottom = model.field.bottomRow
+        let natural = Layout.qwerty(width: width, split: split, extraLetters: extraLetters, globe: showsGlobe, scale: scale,
+                                    bottom: bottom)
         let place = barPlace(for: natural)
         let barOnTop = place == .top
         let room = bounds.height - (barOnTop ? Self.barHeight : 0)
         let fill: CGFloat? = room > 0 ? min(room, natural.height) : nil
         if model.layout.width != width || model.layout.split != natural.split || model.layout.extraLetters != natural.extraLetters
-            || model.layout.globe != showsGlobe || fill != keysHeight || place != self.place {
+            || model.layout.globe != showsGlobe || model.layout.bottomRow != bottom || fill != keysHeight || place != self.place {
             keysHeight = fill
             self.place = place
-            model.layout = Layout.qwerty(width: width, split: split, extraLetters: extraLetters, globe: showsGlobe, height: fill)
+            model.layout = Layout.qwerty(width: width, split: split, extraLetters: extraLetters, globe: showsGlobe, height: fill,
+                                         bottom: bottom)
             surface.layout = pageLayout(width: width, height: fill)
         }
         let wanted = height
@@ -190,7 +194,7 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
 
     private func pageLayout(width: CGFloat, height: CGFloat?) -> Layout {
         Layout.qwerty(width: width, page: page, split: model.splitOnWide, extraLetters: extraLetters, globe: showsGlobe,
-                      height: height)
+                      height: height, bottom: model.field.bottomRow)
     }
 
     /// The split's extra letters, as set.
@@ -206,9 +210,19 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         didSet { panel?.heightStory = heightStory }
     }
 
+    /// The field the keys were last set up for: a new one opens on its page.
+    private var shownField: Field?
+
     private func render() {
         let wasCorrecting = { if case .correcting = self.bar.bar { true } else { false } }()
         bar.canCorrect = model.state.canCorrect
+        if shownField != model.field {
+            shownField = model.field
+            page = model.field.startPage
+            setNeedsLayout()
+        }
+        surface.returnKey = model.field.returnKey
+        surface.returnEnabled = model.returnEnabled
         bar.bar = model.state.bar
         // Saved from "Not it?": the commit squeeze (DESIGN.md "Commit").
         if wasCorrecting, case .idle = model.state.bar, !model.state.canCorrect {
@@ -229,6 +243,7 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         panel?.allowsTwoLanguages = model.entitlement.allows(.twoLanguages)
         if model.layout.split != (model.splitOnWide && model.layout.isWide)
             || model.layout.extraLetters != (model.layout.split && extraLetters) || barPlace(for: model.layout) != place
+            || model.layout.bottomRow != model.field.bottomRow
             || height != asked { setNeedsLayout() }
     }
 
@@ -344,8 +359,12 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
             model.press(character: c)
         case .space:
             model.press(.space)
-            // Like Apple's keyboard, a space on the numbers page goes back to the letters.
-            page = .letters
+            // Like Apple's keyboard, a space on the numbers page goes back to the
+            // letters, except in a number field, which lives on the numbers page.
+            if model.field.startPage == .letters { page = .letters }
+        case .returnKey:
+            // A return key that waits for text does nothing until there is some.
+            if model.returnEnabled { model.press(.returnKey) }
         default:
             model.press(key)
         }
@@ -372,7 +391,7 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         // (a number, a symbol, space, return, backspace, off the keys) goes back.
         switch key {
         case .symbols, .letters, .numbers: break
-        default: page = .letters
+        default: page = model.field.startPage
         }
     }
 

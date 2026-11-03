@@ -66,6 +66,7 @@ code (`AstrotypeKit/Theme`, `docs/building.md` rule 1). Screens only use these.
 | `ice` | `#D9EDF3` | `#1D3240` | chips, step numbers |
 | `key` / `keyDark` | `#FFFFFF` / `#C9D6DE` | `#2A3A4A` / `#1C2834` | letter keys / function keys |
 | `kb` | `#DCE6EC` | `#131E29` | keyboard background |
+| `returnAction` | `#007AFF` | `#0A84FF` | a return key that acts ("go", "search"), Apple's blue |
 
 - Type: `title` 30 pt black, `heading` 20 pt heavy, `body` 16 pt, `small` 13 pt, `big`
   64 pt tabular (the speed number), `key` 21 pt bold. All SF Pro Rounded, all Dynamic
@@ -192,6 +193,19 @@ This is the product, so it gets its own section.
   category (the one in view highlighted) and delete. Tapping types the emoji (an open
   word goes in first, with its space; nothing after the emoji). Holding a hand or a
   person opens the skin tones; the pick is kept for that emoji.
+- **Field types** (features/field-types, 3 Nov 2026): the keyboard follows the field,
+  like Apple's. 123, the globe or emoji key and return keep their place (where both
+  the globe and emoji are shown, the field's row keeps only the globe); the field's keys take
+  space's room on the letters page: @ and . in an email or username field, . / and
+  .com (no space) in a web address, . in a web search, @ and # in a social post (on a
+  split keyboard the keys share out between the halves). A number field opens on the
+  123 page. Return shows the app's word ("go", "search", "send", "done"...) in lower
+  case, on Apple's blue for an action and grey for "next", and is dimmed while a field
+  that waits for text is empty. In addresses, numbers and codes taps are typed
+  exactly, with no autospace, no space after a guess, no ". " on a double space and
+  no capitals; swipes are still guessed. A field with corrections off types taps
+  exactly but keeps autospace. Capitals follow the field (none, words, sentences, all).
+  Mockup: `features/field-types/design/mockups/field-types.html`.
 - **Not in the mockup, in the build:** slide on space to move the cursor, the numbers
   page, edge swipes, snippets, the globe key switching keyboards. Held keys show their
   accents in a row above the key (á on a, ñ on n, ¿ on ?, when Spanish is on); slide

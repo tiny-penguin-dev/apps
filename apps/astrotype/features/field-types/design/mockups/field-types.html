@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Astrotype field types</title>
+<style>
+/* One phone on a pale stage, a field picker beside it. The keyboard's bottom row and return
+   key follow the field, as in FEATURE.md. Taps type with the field's rules; swipes are not
+   drawn here (the main mockup has them). */
+:root{
+  --stage:#E6F0F4; --ink:#1E2945; --muted:#67748F; --card:#FFFFFF; --line:#DCE6EC; --accent:#139FB5; --accent-ink:#FFFFFF; --ice:#D9EDF3;
+  --app:#FFFFFF; --app-ink:#111111; --app-muted:#8A8A8E; --app-field:#EFEFF4; --app-line:#E3E3E8;
+  --kb:#D3D6DC; --key:#FFFFFF; --key-ink:#111111; --key-fn:#AEB3BD; --return-action:#007AFF; --left:#139FB5;
+  --font:ui-rounded,"SF Pro Rounded","Nunito",system-ui,sans-serif;
+  --sys:-apple-system,"SF Pro Text",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --stage:#0A1118; --ink:#EEF4F8; --muted:#97A6B8; --card:#1A2634; --line:#2A3B4C; --accent:#2FC6DC; --accent-ink:#06202A; --ice:#1D3240;
+  --app:#000000; --app-ink:#F2F2F7; --app-muted:#8D8D93; --app-field:#1C1C1E; --app-line:#2C2C2E;
+  --kb:#1F1F21; --key:#464646; --key-ink:#F2F2F7; --key-fn:#2E2E30; --return-action:#0A84FF; --left:#2FC6DC; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --stage:#0A1118; --ink:#EEF4F8; --muted:#97A6B8; --card:#1A2634; --line:#2A3B4C; --accent:#2FC6DC; --accent-ink:#06202A; --ice:#1D3240;
+  --app:#000000; --app-ink:#F2F2F7; --app-muted:#8D8D93; --app-field:#1C1C1E; --app-line:#2C2C2E;
+  --kb:#1F1F21; --key:#464646; --key-ink:#F2F2F7; --key-fn:#2E2E30; --return-action:#0A84FF; --left:#2FC6DC; color-scheme:dark}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%}
+body{background:var(--stage);color:var(--ink);font-family:var(--font);display:flex;gap:28px;justify-content:center;align-items:flex-start;padding:24px 16px;flex-wrap:wrap}
+.panel{width:280px;max-width:100%;display:flex;flex-direction:column;gap:14px}
+.panel h1{font-size:24px;font-weight:900;margin:0}
+.panel p{margin:0;color:var(--muted);font-size:14px;line-height:1.4}
+.group{background:var(--card);border-radius:18px;padding:10px;display:flex;flex-direction:column;gap:4px}
+.group .label{font-size:11px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:2px 6px 4px}
+.opt{font:inherit;font-weight:700;font-size:15px;text-align:left;border:0;background:transparent;color:var(--ink);padding:9px 10px;border-radius:12px;cursor:pointer}
+.opt[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.row{display:flex;gap:4px;flex-wrap:wrap}
+.row .opt{flex:1;text-align:center}
+.rules{font-size:13px;color:var(--muted);line-height:1.45;padding:4px 6px}
+.rules b{color:var(--ink)}
+
+.phone{width:390px;max-width:100%;height:844px;background:var(--app);border-radius:48px;position:relative;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(30,41,69,.18)}
+.phone.small{width:420px;height:700px;border-radius:40px}
+.phone.wide{width:744px;height:1024px;border-radius:40px}
+.status{height:54px;flex:none}
+.app{flex:1;display:flex;flex-direction:column;padding:0 16px;color:var(--app-ink);font-family:var(--sys);min-height:0}
+.app .title{font-size:17px;font-weight:600;text-align:center;padding:6px 0 14px}
+.app .hint{color:var(--app-muted);font-size:13px;padding:10px 2px}
+.field{display:flex;align-items:center;gap:8px;background:var(--app-field);border-radius:12px;padding:11px 12px;font-size:17px;min-height:44px;word-break:break-all}
+.field.plain{background:transparent;border-bottom:1px solid var(--app-line);border-radius:0;padding:12px 2px}
+.field .lbl{color:var(--app-muted);flex:none}
+.field .txt{white-space:pre-wrap}
+.field .open{text-decoration:underline;text-decoration-color:var(--left);text-decoration-thickness:2px;text-underline-offset:3px}
+.field .ph{color:var(--app-muted)}
+.caret{display:inline-block;width:2px;height:21px;background:var(--return-action);vertical-align:-4px;animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+.sent{margin-top:12px;font-size:13px;color:var(--app-muted);min-height:18px}
+
+.kb{flex:none;background:var(--kb);padding:6px 0 30px;user-select:none;-webkit-user-select:none;touch-action:manipulation}
+.bar{height:44px;display:flex;align-items:center;gap:6px;padding:0 8px;margin-bottom:6px;font-family:var(--sys)}
+.bar .g{flex:1;text-align:center;font-size:16px;color:var(--key-ink);padding:8px 4px;border-radius:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar .g.top{background:var(--key);font-weight:600}
+.rows{display:flex;flex-direction:column;gap:10px;align-items:center}
+.krow{display:flex;gap:6px}
+.key{height:44px;border:0;border-radius:8.5px;background:var(--key);color:var(--key-ink);font-family:var(--sys);font-size:23px;padding:0;display:grid;place-items:center;cursor:pointer;box-shadow:0 1px 0 rgba(0,0,0,.18);transition:transform .15s}
+.key.fn{background:var(--key-fn);font-size:16px}
+.key.sym{font-size:21px}
+.key.small{font-size:16px}
+.key.space{font-size:15px;color:var(--key-ink)}
+.key.action{background:var(--return-action);color:#fff}
+.key.waiting{opacity:.4;cursor:default}
+.key.hit{background:var(--left);color:#fff;transform:scale(1.06)}
+.phone.wide .key{height:54px}
+.badge{position:absolute;top:14px;left:50%;transform:translateX(-50%);font:700 11px var(--font);letter-spacing:.06em;text-transform:uppercase;background:var(--ice);color:var(--ink);padding:5px 10px;border-radius:999px}
+</style>
+</head>
+<body>
+<div class="panel">
+  <h1>Field types</h1>
+  <p>The keyboard follows the field: its bottom row, its return key, and whether taps are typed exactly. Tap the keys to try each one.</p>
+  <div class="group" id="fields"><div class="label">Field</div></div>
+  <div class="group"><div class="label">Keyboard</div>
+    <div class="row"><button class="opt" data-before="0">With this feature</button><button class="opt" data-before="1">Today</button></div></div>
+  <div class="group"><div class="label">Size</div>
+    <div class="row"><button class="opt" data-size="small">Small</button><button class="opt" data-size="">Phone</button><button class="opt" data-size="wide">Wide</button></div></div>
+  <div class="group"><div class="label">Look</div>
+    <div class="row"><button class="opt" data-theme="">Auto</button><button class="opt" data-theme="light">Light</button><button class="opt" data-theme="dark">Dark</button></div></div>
+  <div class="group"><div class="label">This field</div><div class="rules" id="rules"></div></div>
+</div>
+
+<div class="phone" id="phone">
+  <div class="status"></div>
+  <div class="badge" id="badge"></div>
+  <div class="app" id="app"></div>
+  <div class="kb" id="kb"></div>
+</div>
+
+<script>
+// Each field as an app would describe it, and what the keyboard makes of it (FEATURE.md "How it works").
+const FIELDS = {
+  message:  {name:"Message", app:"Messages", label:"", ph:"iMessage", plain:false, kind:"text", ret:null, caps:"sentences", demo:"See you at the "},
+  email:    {name:"Email", app:"New Message", label:"To:", ph:"", plain:true, kind:"email", ret:"next", caps:"none", demo:"gabriel@lanata"},
+  url:      {name:"Web address", app:"Safari", label:"", ph:"Search or enter website", plain:false, kind:"url", ret:"go", caps:"none", demo:"tinypenguin.dev/astro"},
+  search:   {name:"Web search", app:"Search", label:"🔍", ph:"Search", plain:false, kind:"search", ret:"search", wait:true, caps:"none", demo:"two thumb keyboard"},
+  social:   {name:"Social", app:"New Post", label:"", ph:"What's happening?", plain:true, kind:"social", ret:"send", wait:true, caps:"sentences", demo:"Typing with both thumbs "},
+  numbers:  {name:"Numbers", app:"Tip", label:"Amount", ph:"0.00", plain:true, kind:"numbers", ret:"done", caps:"none", demo:"42.5"},
+  username: {name:"Username", app:"Sign In", label:"", ph:"Username", plain:false, kind:"email", ret:"next", caps:"none", demo:"gabriel_l"},
+};
+const KINDS = {
+  text:    {row:["space"], literal:false, autospace:true,  rules:"<b>Text.</b> As today: guesses, autospace, capitals."},
+  email:   {row:["space","@","."], literal:true, autospace:false, rules:"<b>Email.</b> @ and . on the bottom row. Taps typed exactly, no autospace, no capitals, nothing learned. Swipes still guess, with no space after."},
+  url:     {row:[".","/",".com"], literal:true, autospace:false, rules:"<b>Web address.</b> . / and .com instead of space. Taps typed exactly, no autospace, no capitals, nothing learned."},
+  search:  {row:["space","."], literal:false, autospace:false, rules:"<b>Web search.</b> A dot by space, guesses as usual, no autospace. Return says search and waits for text."},
+  social:  {row:["space","@","#"], literal:false, autospace:true, rules:"<b>Social.</b> @ and # by space, everything else as usual. Return says send and waits for text."},
+  numbers: {row:["space"], literal:true, autospace:false, page:"numbers", rules:"<b>Numbers.</b> Opens on the 123 page. ABC goes to the letters, typed exactly."},
+};
+const ACTION = new Set(["go","search","send","join","done","route","continue","emergency call"]);
+const ROWS = ["qwertyuiop","asdfghjkl","zxcvbnm"];
+const NUM_ROWS = ["1234567890","-/:;()$&@\"",".,?!'"];
+const SAY = {"@":"at",".":"dot","/":"slash",".com":"dot com","#":"hash"};
+
+const q = new URLSearchParams(location.search);
+const S = {field:q.get("f")||"message", before:q.get("before")==="1", size:q.get("size")||"", theme:q.get("theme")||"",
+  text:"", open:"", page:"letters", shift:false, timer:null, sent:""};
+
+function cfg(){ const f=FIELDS[S.field]; if(S.before) return {...f, kind:"text", ret:null, wait:false, caps:"sentences"}; return f }
+function kind(){ return KINDS[cfg().kind] }
+
+function reset(demo){
+  const f=cfg(), k=kind();
+  S.text = demo ? f.demo : ""; S.open=""; S.sent="";
+  S.page = (k.page && !S.before) ? k.page : "letters";
+  if(demo && !k.literal && f.kind!=="search" && !S.before){ /* leave the last word open, as when typing */ }
+  if(demo && S.before && FIELDS[S.field].kind==="email"){ S.text="Gabriel @lanata"; }
+  if(demo && S.before && FIELDS[S.field].kind==="url"){ S.text="Tinypenguin. Dev/ astro"; }
+  autoShift();
+}
+function autoShift(){
+  const f=cfg(), t=S.text+S.open;
+  if(f.caps==="sentences") S.shift = t.length===0 || /[.!?]\s$/.test(t);
+  else S.shift=false;
+}
+
+// Key widths from one unit, like Layout.qwerty(width:).
+function geometry(){
+  const W = document.getElementById("phone").clientWidth, gap=6;
+  const unit = Math.min(64, Math.floor((W - 8 - 9*gap)/10));
+  return {W, gap, unit, row: 10*unit + 9*gap};
+}
+
+function key(label, k, w, cls=""){ return `<button class="key ${cls}" data-k="${k}" style="width:${w}px" aria-label="${SAY[k]||label}">${label}</button>` }
+
+function render(){
+  if(S.theme) document.documentElement.dataset.theme = S.theme; else delete document.documentElement.dataset.theme;
+  document.getElementById("phone").className = "phone "+S.size;
+  const f=cfg(), k=kind(), g=geometry(), u=g.unit;
+  document.getElementById("badge").textContent = S.before ? "Today" : "With field types";
+
+  // The app and its field.
+  const shown = S.text + S.open;
+  document.getElementById("app").innerHTML = `
+    <div class="title">${f.app}</div>
+    <div class="field ${f.plain?"plain":""}">${f.label?`<span class="lbl">${f.label}</span>`:""}
+      <span class="txt">${esc(S.text)}<span class="open">${esc(S.open)}</span></span>${shown?"":`<span class="ph">${f.ph}</span>`}<span class="caret"></span></div>
+    <div class="sent">${S.sent}</div>`;
+
+  // Bar: guesses for an open word (typed words only here; the real one ranks swipes).
+  const bar = S.open ? `<div class="g top">${esc(S.open)}</div><div class="g">${esc(S.open)}s</div><div class="g">${esc(S.open)}'s</div>` : "";
+
+  // Rows.
+  let rows="";
+  const fn=Math.round(1.33*u), wide=Math.round(1.45*u), ret=Math.round(2.66*u);
+  if(S.page==="letters"){
+    const L=s=>[...s].map(c=>key(S.shift?c.toUpperCase():c, c, u)).join("");
+    rows += `<div class="krow">${L(ROWS[0])}</div><div class="krow">${L(ROWS[1])}</div>`;
+    rows += `<div class="krow" style="width:${g.row}px;justify-content:space-between">${key("⇧","shift",wide,"fn")}<span class="krow">${L(ROWS[2])}</span>${key("⌫","bs",wide,"fn")}</div>`;
+  } else {
+    const N=s=>[...s].map(c=>key(c, c, u, "sym")).join("");
+    rows += `<div class="krow">${N(NUM_ROWS[0])}</div><div class="krow">${N(NUM_ROWS[1])}</div>`;
+    const mid=g.row-2*wide-2*g.gap, p=Math.floor((mid-4*g.gap)/5);
+    rows += `<div class="krow" style="width:${g.row}px;justify-content:space-between">${key("#+=","noop",wide,"fn small")}${[...NUM_ROWS[2]].map(c=>key(c,c,p,"sym")).join("")}${key("⌫","bs",wide,"fn")}</div>`;
+  }
+  // Bottom row: 123 and globe and return keep their place; the field's keys share space's room.
+  const extra = k.row.filter(x=>x!=="space");
+  const hasSpace = k.row.includes("space");
+  const restGaps = 3 + extra.length - (hasSpace?0:1);
+  const room = g.row - 2*fn - ret - restGaps*g.gap;
+  let bottom = key(S.page==="letters"?"123":"ABC", "page", fn, "fn small") + key("🌐","globe",fn,"fn small");
+  if(hasSpace){
+    const sw = room - extra.length*u;
+    bottom += key("Astrotype","space",sw,"space");
+    extra.forEach(x=>bottom += key(x,x,u,"sym"));
+  } else { // web address: . / .com, .com twice as wide
+    const part=Math.floor(room/4);
+    bottom += key(".",".",part,"sym")+key("/","/",part,"sym")+key(".com",".com",room-2*part,"small");
+  }
+  const retLabel = f.ret || "⏎";
+  const waiting = f.wait && !(S.text+S.open).trim();
+  const retCls = "fn small" + (ACTION.has(f.ret)?" action":"") + (waiting?" waiting":"");
+  bottom += key(retLabel,"return",ret,retCls);
+  rows += `<div class="krow">${bottom}</div>`;
+
+  document.getElementById("kb").innerHTML = `<div class="bar">${bar}</div><div class="rows">${rows}</div>`;
+  document.getElementById("rules").innerHTML = S.before
+    ? "<b>Today.</b> Every field gets the same keyboard: autospace, capitals and guesses run, @ and . are on the 123 page, return is always the arrow."
+    : k.rules + (f.ret ? ` Return reads <b>${f.ret}</b>${ACTION.has(f.ret)?" on blue":""}${f.wait?", dimmed until there is text":""}.` : "");
+
+  // Picker state.
+  document.querySelectorAll("[data-field]").forEach(b=>b.setAttribute("aria-pressed", b.dataset.field===S.field));
+  document.querySelectorAll("[data-before]").forEach(b=>b.setAttribute("aria-pressed", (b.dataset.before==="1")===S.before));
+  document.querySelectorAll("[data-size]").forEach(b=>b.setAttribute("aria-pressed", b.dataset.size===S.size));
+  document.querySelectorAll("[data-theme]").forEach(b=>b.setAttribute("aria-pressed", b.dataset.theme===S.theme));
+}
+function esc(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;")}
+
+// Typing, with the field's rules.
+function commit(withSpace){
+  if(!S.open) return;
+  S.text += S.open + (withSpace ? " " : ""); S.open="";
+}
+function armAutospace(){
+  clearTimeout(S.timer);
+  if(!kind().autospace || kind().literal) return;
+  S.timer = setTimeout(()=>{ commit(true); autoShift(); render() }, 900);
+}
+function press(k){
+  const f=cfg(), K=kind();
+  if(k==="return" && f.wait && !(S.text+S.open).trim()) return;
+  clearTimeout(S.timer);
+  switch(k){
+    case "shift": S.shift=!S.shift; break;
+    case "page": S.page = S.page==="letters" ? "numbers" : "letters"; break;
+    case "globe": case "noop": break;
+    case "bs":
+      if(S.open) S.open=S.open.slice(0,-1); else S.text=S.text.slice(0,-1);
+      autoShift(); break;
+    case "space":
+      if(S.open){ commit(true) }
+      else if(/ $/.test(S.text) && !K.literal && f.caps==="sentences"){ S.text=S.text.replace(/ $/,". ") }
+      else S.text+=" ";
+      autoShift(); break;
+    case "return":
+      commit(false); S.text=S.text.replace(/ $/,"");
+      S.sent = f.ret ? `Return: ${f.ret}` : "Return: new line";
+      if(f.ret && f.ret!=="next"){ S.text=""; }
+      autoShift(); break;
+    default: {
+      const ch = S.shift ? k.toUpperCase() : k;
+      const isLetter = /^[a-z]$/.test(k);
+      if(isLetter && !K.literal){ S.open += ch; armAutospace() }
+      else if(isLetter){ S.text += ch }
+      else { commit(false); S.text = S.text.replace(/ $/, K.literal ? "" : " ") + k }
+      if(f.caps!=="sentences" || isLetter) S.shift=false; else autoShift();
+    }
+  }
+  render();
+}
+document.getElementById("kb").addEventListener("pointerdown", e=>{
+  const b=e.target.closest(".key"); if(!b) return; e.preventDefault();
+  b.classList.add("hit"); setTimeout(()=>{ press(b.dataset.k) }, 90);
+});
+
+// Picker.
+const fieldsEl=document.getElementById("fields");
+for(const [id,f] of Object.entries(FIELDS)) fieldsEl.insertAdjacentHTML("beforeend", `<button class="opt" data-field="${id}">${f.name}</button>`);
+document.querySelector(".panel").addEventListener("click", e=>{
+  const b=e.target.closest(".opt"); if(!b) return;
+  if(b.dataset.field){ S.field=b.dataset.field; reset(false) }
+  if(b.dataset.before){ S.before=b.dataset.before==="1"; reset(false) }
+  if(b.dataset.size!==undefined){ S.size=b.dataset.size }
+  if(b.dataset.theme!==undefined){ S.theme=b.dataset.theme }
+  render();
+});
+window.addEventListener("resize", render);
+reset(q.get("demo")==="1"); render();
+</script>
+</body>
+</html>

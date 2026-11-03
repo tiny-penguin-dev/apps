@@ -194,7 +194,7 @@ final class KeyboardViewController: UIInputViewController {
         health?.appeared()
         askedAppearance = nil
         followKeyboardAppearance()
-        keyboard?.model.learningAllowed = fieldAllowsLearning
+        keyboard?.model.field = field
         keyboard?.model.contextChanged()
     }
 
@@ -232,22 +232,51 @@ final class KeyboardViewController: UIInputViewController {
         health?.sample()
     }
 
-    /// Whether this field may teach the keyboard (features/smart-matching): never a
-    /// password, an address, a code or a number, nor a field that turned
-    /// autocorrection off.
-    private var fieldAllowsLearning: Bool {
+    /// The field as the app describes it (features/field-types): its keyboard type,
+    /// content, return key, capitals and corrections, read into `Field`, which decides
+    /// the bottom row, the return key, exact taps, autospace and whether to learn.
+    private var field: Field {
         let proxy = textDocumentProxy
-        if proxy.isSecureTextEntry == true || proxy.autocorrectionType == .no { return false }
-        switch proxy.keyboardType ?? .default {
-        case .URL, .emailAddress, .numberPad, .phonePad, .namePhonePad, .decimalPad, .asciiCapableNumberPad, .numbersAndPunctuation:
-            return false
-        default:
-            break
+        let keyboard: Field.KeyboardType = switch proxy.keyboardType ?? .default {
+        case .emailAddress: .email
+        case .URL: .url
+        case .webSearch: .webSearch
+        case .twitter: .twitter
+        case .numberPad, .decimalPad, .asciiCapableNumberPad, .numbersAndPunctuation: .numbers
+        case .phonePad, .namePhonePad: .phone
+        default: .default
         }
-        let quiet: Set<UITextContentType> = [.username, .password, .newPassword, .oneTimeCode, .emailAddress, .URL,
-                                             .creditCardNumber, .telephoneNumber, .postalCode]
-        if let type = proxy.textContentType.flatMap({ $0 }), quiet.contains(type) { return false }
-        return true
+        let type = proxy.textContentType.flatMap { $0 }
+        let codes: Set<UITextContentType> = [.oneTimeCode, .creditCardNumber, .telephoneNumber, .postalCode]
+        let content: Field.Content =
+            type == .emailAddress ? .email
+            : type == .URL ? .url
+            : type == .username ? .username
+            : type == .password || type == .newPassword ? .password
+            : type.map(codes.contains) == true ? .code
+            : .other
+        let returnKey: Field.ReturnKey = switch proxy.returnKeyType ?? .default {
+        case .go: .go
+        case .google, .yahoo, .search: .search
+        case .join: .join
+        case .next: .next
+        case .route: .route
+        case .send: .send
+        case .done: .done
+        case .emergencyCall: .emergencyCall
+        case .continue: .continue
+        default: .return
+        }
+        let capitals: Field.Capitals = switch proxy.autocapitalizationType ?? .sentences {
+        case .none: .none
+        case .words: .words
+        case .allCharacters: .all
+        default: .sentences
+        }
+        return Field(keyboard: keyboard, content: content, returnKey: returnKey, capitals: capitals,
+                     corrects: proxy.autocorrectionType != .no,
+                     returnNeedsText: proxy.enablesReturnKeyAutomatically ?? false,
+                     secure: proxy.isSecureTextEntry ?? false)
     }
 
     /// Light or dark as the app asked for its keyboard, like Apple's keyboard does, and
@@ -367,7 +396,7 @@ final class KeyboardViewController: UIInputViewController {
     override func textDidChange(_ textInput: UITextInput?) {
         super.textDidChange(textInput)
         followKeyboardAppearance()
-        keyboard?.model.learningAllowed = fieldAllowsLearning
+        keyboard?.model.field = field
         keyboard?.model.contextChanged()
         edits += 1
         if edits % 5 == 0 {
@@ -417,6 +446,7 @@ final class ProxyTarget: TextTarget {
         proxy.insertText(text)
     }
     func deleteBackward() { proxy.deleteBackward() }
+    var hasText: Bool { proxy.hasText }
 
     func mark(_ text: String) {
         guard text != open else { return }

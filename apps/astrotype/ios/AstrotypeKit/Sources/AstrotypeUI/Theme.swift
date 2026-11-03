@@ -10,7 +10,8 @@ import UIKit
 public enum Theme {
     /// A colour with a light and a dark value (0xRRGGBB).
     public enum Tone: CaseIterable, Sendable {
-        case bg, card, ink, muted, line, accent, accentInk, left, right, sun, sunInk, mint, ice, danger, slate, key, keyDark, keyInk, kb, keyPressed
+        case bg, card, ink, muted, line, accent, accentInk, left, right, sun, sunInk, mint, ice, danger, slate, key, keyDark, keyInk, kb, keyPressed,
+             returnAction
 
         var values: (light: UInt32, dark: UInt32) {
             switch self {
@@ -38,6 +39,9 @@ public enum Theme {
             case .keyInk: (0x000000, 0xFFFFFF)
             case .kb: (0xD1D3D9, 0x1F1F1F)
             case .keyPressed: (0xC4C6CC, 0x6B6B6B)
+            // Apple's system blue, for a return key that acts ("go", "search", "send"),
+            // as on Apple's keyboard (features/field-types).
+            case .returnAction: (0x007AFF, 0x0A84FF)
             }
         }
     }

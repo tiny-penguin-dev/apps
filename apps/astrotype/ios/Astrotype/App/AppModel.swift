@@ -127,6 +127,26 @@ final class AppModel {
         if let newest = KeyboardHealth.report(due, to: environment.metrics) { state.keyboardHealthSent = newest }
     }
 
+    // MARK: Debug
+
+    /// The keyboard's last memory readings (Settings → Debug), as last read. Nil until
+    /// the keyboard has run with Full Access.
+    private(set) var keyboardDebug: KeyboardDebug?
+    /// The keyboard's recent sessions as kept for Sentry (only with sharing on), newest first.
+    private(set) var keyboardSessions: [KeyboardHealth.Session] = []
+    /// The app's own memory, as last read.
+    private(set) var appMemory: MemoryReading?
+
+    /// Re-reads the keyboard's memory and the app's own, for the Debug page (each second
+    /// while it is open).
+    func reloadDebug() {
+        let debug = environment.keyboardDebug?.load()
+        if debug != keyboardDebug { keyboardDebug = debug }
+        let sessions = Array((environment.keyboardHealth?.load()?.sessions ?? []).reversed())
+        if sessions != keyboardSessions { keyboardSessions = sessions }
+        appMemory = environment.readMemory()
+    }
+
     /// Whether the keyboard has run with Full Access, as far as the app can tell.
     var isFullAccessOn: Bool { extensionStatus?.fullAccess == true }
 

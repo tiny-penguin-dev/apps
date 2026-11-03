@@ -119,8 +119,16 @@ private struct LanguagesSettings: View {
             }
         }
         GroupFootnote(allowsTwo
-                      ? "With two on, Astrotype guesses from both. No switching."
+                      ? "With two on, the first word can be either. Once a word shows which language you're writing, the rest of the sentence keeps to it. No switching."
                       : "One language at a time: turning one on turns the other off. Pro types in two at once.")
+        if allowsTwo, active.count > 1 {
+            SettingsGroup {
+                SettingsToggle("Mix in one sentence", subtitle: "Guess from both languages for every word",
+                               symbol: "shuffle", tint: Theme.sun, isOn: $model.keyboardSettings.mixesLanguages)
+            }
+            .padding(.top, Theme.Space.m)
+            GroupFootnote("For when you switch languages mid-sentence. Off keeps each sentence to one language, so words from the other one don't sneak in.")
+        }
         if !allowsTwo, model.languageOffWithoutPro == nil {
             Button("See Pro") { path.append(.pro) }.buttonStyle(.small)
         }

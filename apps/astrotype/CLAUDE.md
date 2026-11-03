@@ -49,7 +49,7 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
       makes of it: bottom row, return key, exact taps, spacing, capitals, learning), `Language` (one
       language's files from `Resources/<code>/`: `Lexicon`, the trie from
       `lexicon.tsv`, and `NgramModel`, the word pairs from `bigrams.bin`; English and
-      Spanish, `Language.bundled(["en", "es"])` for both at once; accented words sit
+      Spanish, `Language.bundled(["en", "es"])` for both at once, a sentence keeping to the first language it shows (`Language.lock(for:)`, `Composer.lockedLanguage`, unless `mixesLanguages`); accented words sit
       under their plain letters, `Lexicon.fold`, and `Matcher` writes the accents back), `Flags`, and `Engine/`: `Composer` (touches in, effects out, pure,
       time passed in), `Matcher` (pieces to ranked candidates: trie search plus DTW,
       two-thumb orderings and split swipes, the words before the open one from

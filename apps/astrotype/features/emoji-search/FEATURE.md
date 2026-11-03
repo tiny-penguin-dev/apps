@@ -9,7 +9,7 @@ Later.
 
 ## Product
 
-Status: Draft
+Status: Approved 2026-11-03 (Gabriel in the thread: "Build it"; the open questions go as proposed)
 
 - **The problem:** there are about 1,900 emoji. Frequently used covers the everyday
   ones, but anything else means scrolling sideways and scanning. Apple's keyboard has
@@ -51,7 +51,7 @@ Status: Draft
 
 ## Design
 
-Status: Draft
+Status: Approved 2026-11-03 (Gabriel in the thread: "Build it"; the open questions go as proposed)
 
 - **Mockups:** `design/mockups/emoji-search.html` (Artifact link:
   https://claude.ai/artifact/T8Vi21XSm1E6vMN9WMCxnE). Tap "Search emoji", type, tap a
@@ -93,7 +93,7 @@ Status: Draft
 
 ## Build
 
-Status: Draft
+Status: Approved 2026-11-03 (Gabriel in the thread: "Build it"; the open questions go as proposed)
 
 - **Approach:** a search mode of the shared `KeyboardView`, so the app's practice fields
   get it too. Names, keywords and ranking are pure and tested in `AstrotypeCore`; the

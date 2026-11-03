@@ -92,7 +92,7 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
       `next`), argument parsing over `AstrotypeCore` and nothing else.
     - `AstrotypeUI`: the design system (`Theme` tokens, `Components`, `Art`) and the
       keyboard's views: `KeyboardView` (bar plus keys, the pages, the settings panel;
-      owns a `KeyboardModel`), `BarView`, `KeySurfaceView` (touch stream, flashes,
+      owns a `KeyboardModel`), `BarView` (left key, centred words, the pencil and its fix row), `KeySurfaceView` (touch stream, flashes,
       trails, rings, and the gestures: space slide, backspace swipe and hold, "123"
       hold, the slide from "123" to a number or symbol, and a held letter's accents, `AccentCallout`), `SettingsPanelView`,
       `EmojiPageView` (the emoji page and its `TonePicker`), `KeyboardModel` (applies the composer's effects to a
@@ -137,7 +137,9 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
   `missed-words` (the bar's "Not it?": type the word meant, learn from the swipe, keep
   it for debugging; built),
   `field-types` (the keyboard following email, web, search and number fields),
-  `next-word` (the likely next words on the bar after each word, with the FIX chip).
+  `next-word` (the likely next words on the bar after each word, with the FIX chip),
+  `guesses-bar` (the bar in three parts: globe key left, words centred, pencil right with the
+  fix row behind it; built 3 Nov 2026).
 - `design/`: the mockup (`mockups/astrotype.html`, the keyboard in it works), the
   screen captures the design doc links, the icon's SVGs (`icon/`) and
   `appstore/make-screenshots.mjs`, which renders the store screenshots from the mockup

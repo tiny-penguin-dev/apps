@@ -11,7 +11,7 @@ to remove it or move it."
 
 ## Product
 
-Status: Draft (as Gabriel described it in the thread; approved when he says merge)
+Status: Approved 2026-11-03 (Gabriel: "Merge")
 
 - **The problem:** where iOS draws no globe of its own (Home button iPhones, and the
   iPhone Duo, Gabriel, 3 Nov 2026), our bottom row is `123`, globe, emoji, space,
@@ -37,7 +37,7 @@ Status: Draft (as Gabriel described it in the thread; approved when he says merg
 
 ## Design
 
-Status: Draft
+Status: Approved 2026-11-03 (Gabriel: "Merge")
 
 - **Mockup:** `design/mockups/space-bar.html` (Artifact link:
   https://claude.ai/artifact/KbrM45mHqsnCDTf5UNYM4A).
@@ -57,7 +57,7 @@ Status: Draft
 
 ## Build
 
-Status: Draft
+Status: Approved 2026-11-03 (built with the design, Gabriel: "Merge")
 
 - [x] `BarView.showsGlobe` and `onGlobe`: the button at the leading end.
 - [x] `KeyboardView`: the globe goes in the bar when the bar is on top, else on the row

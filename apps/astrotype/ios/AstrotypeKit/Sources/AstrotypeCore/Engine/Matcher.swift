@@ -142,6 +142,9 @@ public struct Matcher: Sendable {
     public var maxEditCost = 1.4
     /// Two pieces that landed this close together are tried in both orders.
     public var swapWindow: TimeInterval = 0.12
+    /// Score per squared key width between where a tap landed and the centre of the
+    /// key its letter is on, as for pecked letters (`EditCosts.distance`).
+    public var tapWeight = 0.25
     /// What a letter taken a whole `swapWindow` after its finger had moved on costs,
     /// when both thumbs swipe at once (`together`): less for less.
     public var latePenalty = 0.2
@@ -945,11 +948,13 @@ public struct Matcher: Sendable {
         let letters = Array(word)
         // The letters each swipe contributed, across all of its segments.
         var swipes: [(points: [CGPoint], letters: [Character])] = []
+        var taps: [(point: CGPoint, letter: Character)] = []
         var sources: [Int: Int] = [:]
         var offset = 0
         for (i, segment) in segments.enumerated() {
             let count = counts[i]
             defer { offset += count }
+            if segment.isTap, count > 0, let point = segment.points.first { taps.append((point, letters[offset])) }
             guard !segment.isTap, count > 0 else { continue }
             if let slot = sources[segment.source] {
                 swipes[slot].letters += letters[offset..<(offset + count)]
@@ -958,12 +963,13 @@ public struct Matcher: Sendable {
                 swipes.append((segment.points, Array(letters[offset..<(offset + count)])))
             }
         }
-        return score(word: word, prior: prior, swipes: swipes)
+        return score(word: word, prior: prior, swipes: swipes, taps: taps)
     }
 
     /// A word's score from the letters each swipe gave it: how far each swipe strayed
     /// from the path through its letters, and what the word is worth on its own.
-    func score(word: String, prior: Float, swipes: [(points: [CGPoint], letters: [Character])]) -> Double {
+    func score(word: String, prior: Float, swipes: [(points: [CGPoint], letters: [Character])],
+               taps: [(point: CGPoint, letter: Character)] = []) -> Double {
         let unit = Double(layout.distanceUnit)
         var distance = 0.0
         var weight = 0
@@ -981,7 +987,15 @@ public struct Matcher: Sendable {
             weight += count
         }
         let path = weight > 0 ? distance / Double(weight) : 0
-        return -pathWeight * path + priorWeight * Double(prior) + contextWeight * contextBonus(for: word, prior: prior)
+        // Where each tap landed against the key its letter is on: a tap at the edge of
+        // "g" reads as "f" more easily than one in the middle.
+        var missed = 0.0
+        for tap in taps {
+            guard let frame = layout.frame(of: .letter(tap.letter), on: layout.side(at: tap.point)) else { continue }
+            let d = Double(Geometry.distance(tap.point, CGPoint(x: frame.midX, y: frame.midY))) / unit
+            missed += tapWeight * d * d
+        }
+        return -pathWeight * path - missed + priorWeight * Double(prior) + contextWeight * contextBonus(for: word, prior: prior)
             + personalBonus(for: word, prior: prior) + learned.weight(of: word)
     }
 

@@ -140,11 +140,16 @@ extension Matcher {
                 } else {
                     let letters = Array(word)
                     var swipes: [(points: [CGPoint], letters: [Character])] = []
-                    for (p, piece) in pieces.enumerated() where !piece.isTap {
+                    var taps: [(point: CGPoint, letter: Character)] = []
+                    for (p, piece) in pieces.enumerated() {
                         let mine = owners.indices.filter { owners[$0] == Int8(p) }.map { letters[$0] }
-                        swipes.append((piece.points, mine))
+                        if piece.isTap {
+                            if let point = piece.points.first, let letter = mine.first { taps.append((point, letter)) }
+                        } else {
+                            swipes.append((piece.points, mine))
+                        }
                     }
-                    path = score(word: word, prior: fixedPrior?(word) ?? own, swipes: swipes)
+                    path = score(word: word, prior: fixedPrior?(word) ?? own, swipes: swipes, taps: taps)
                     scored[word, default: []].append((owners, path))
                 }
                 let value = path - nearPenalty * Double(entry.standIns) - latePenalty * entry.late / max(slack, 0.01)

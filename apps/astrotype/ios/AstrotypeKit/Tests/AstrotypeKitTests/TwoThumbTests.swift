@@ -119,3 +119,25 @@ import Testing
         }
     }
 }
+
+/// Where a tap landed counts: a tap inside "g" but off its centre, then "ather"
+/// swiped, is "gather" (it was "father", the commoner word a neighbour away).
+@Suite struct TapPlaceTests {
+    static func guess(tapAt offset: Double) -> String? {
+        let unit = Synth.layout.frame(of: .letter("q"))!.width
+        var composer = ContextMatcherTests.composer()
+        let g = Synth.center("g")
+        let point = CGPoint(x: g.x - offset * unit, y: g.y)
+        _ = composer.touchDown(id: 1, at: point, time: 0)
+        _ = composer.touchUp(id: 1, at: point, time: 0.08)
+        Synth.play(&composer, [.swipe("ather", id: 2, from: 0.2, to: 0.6)])
+        return composer.state.openWord
+    }
+
+    @Test func aTapInsideItsKeyKeepsItsLetter() {
+        #expect(Self.guess(tapAt: 0.2) == "gather")
+        #expect(Self.guess(tapAt: 0.35) == "gather")
+        // Over the edge, on "f": the letter it landed on.
+        #expect(Self.guess(tapAt: 0.6) == "father")
+    }
+}

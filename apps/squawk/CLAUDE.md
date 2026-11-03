@@ -55,7 +55,9 @@ Squawk is in the **Build** stage. Read `PRODUCT.md`, `DESIGN.md` and `BUILD.md` 
   `Squawk/Home/`: `HomeAccess` (permission, hub, devices; created lazily since it shows
   the iOS prompt) and `HomeSync`, the only code that writes to HomeKit: action sets plus
   triggers named "Squawk · …", remembered in UserDefaults and re-synced on every
-  reschedule. Sunrise lights (`features/sunrise-lights/FEATURE.md`) are a `HomeAction`
+  reschedule. HomeKit refuses changes while the app is in the background ("Request not
+  handled", e.g. after "I'm up" or Snooze on the lock screen), so `HomeAccess` holds that
+  sync and runs it, with a fresh plan, the next time the app is active. Sunrise lights (`features/sunrise-lights/FEATURE.md`) are a `HomeAction`
   of kind `.sunrise` with a `Sunrise` (length, start/end brightness and warmth); HomeKit
   can't fade, so `Alarm.homeSteps` spreads each one into up to 10 timed light changes and
   `HomePlanner` plans from `homeSteps`, not `steps`. "+" on Home opens the guided setup (`Screens/NewAlarmFlow.swift`, answers

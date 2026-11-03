@@ -1,6 +1,7 @@
 import Foundation
 @preconcurrency import HomeKit
 import SquawkKit
+import UIKit
 
 /// The only code that writes to HomeKit. Turns planned Home steps into automations the
 /// Home hub runs (an action set plus a trigger, named like "Squawk · Wake up · 6:30"),
@@ -9,6 +10,11 @@ import SquawkKit
 /// It remembers which automations it made. Each sync removes the ones that are no longer
 /// planned or have changed, and adds the missing ones, so editing an alarm updates its
 /// automations, deleting it removes them, and one changed in the Home app comes back.
+///
+/// HomeKit only takes changes while the app is in the foreground. In the background
+/// (a reschedule from "I'm up" or Snooze on the lock screen) it answers "Request not
+/// handled", so a sync stops there and says it didn't finish; `HomeAccess` runs it again
+/// the next time the app is active.
 @MainActor
 final class HomeSync {
     /// What Squawk made for one planned step.
@@ -20,20 +26,35 @@ final class HomeSync {
 
     private static let madeKey = "home.automations"
     private var syncing = false
-    private var again = false
+    /// The newest plan asked for while a sync was running.
+    private var next: (plan: [PlannedHomeStep], home: HMHome)?
 
-    /// Makes the home's automations match the plan.
-    func sync(_ plan: [PlannedHomeStep], in home: HMHome) async {
-        if syncing { again = true; return }
+    /// Makes the home's automations match the plan. A plan asked for during a sync
+    /// replaces any older waiting one and runs right after. Returns false when the app
+    /// left the foreground before the home matched the plan.
+    @discardableResult
+    func sync(_ plan: [PlannedHomeStep], in home: HMHome) async -> Bool {
+        next = (plan, home)
+        if syncing { return true }
         syncing = true
         defer { syncing = false }
-        repeat {
-            again = false
-            await syncOnce(plan, in: home)
-        } while again
+        while let job = next {
+            next = nil
+            guard Self.canWrite, await syncOnce(job.plan, in: job.home) else {
+                next = nil
+                return false
+            }
+        }
+        return true
     }
 
-    private func syncOnce(_ plan: [PlannedHomeStep], in home: HMHome) async {
+    /// HomeKit refuses changes from an app that isn't in the foreground.
+    static var canWrite: Bool {
+        UIApplication.shared.applicationState == .active
+    }
+
+    /// One pass. Returns false if it stopped because the app went to the background.
+    private func syncOnce(_ plan: [PlannedHomeStep], in home: HMHome) async -> Bool {
         var made = load()
         let wanted = Dictionary(plan.map { ($0.id.uuidString, $0) }, uniquingKeysWith: { a, _ in a })
 
@@ -56,8 +77,13 @@ final class HomeSync {
 
         // Add what's missing.
         for step in plan where made[step.id.uuidString] == nil {
+            guard Self.canWrite else { save(made); return false }
             do {
                 made[step.id.uuidString] = try await add(step, to: home)
+            } catch let error where Self.isBackground(error) {
+                // Not a real failure: the app left the foreground. The next sync adds it.
+                save(made)
+                return false
             } catch {
                 Telemetry.count("home.sync_failed", ["reason": reason(error)])
                 Telemetry.report(error)
@@ -65,6 +91,7 @@ final class HomeSync {
             save(made)
         }
         save(made)
+        return true
     }
 
     private func remove(trigger: HMTrigger?, actionSet: UUID?, from home: HMHome) async {
@@ -203,9 +230,26 @@ final class HomeSync {
     }
 
     private func reason(_ error: Error) -> String {
-        if let error = error as? HMError { return "hm\(error.code.rawValue)" }
         if error is HomeSyncError { return "nothing" }
-        return "other"
+        if Self.isBackground(error) { return "background" }
+        let error = error as NSError
+        switch error.domain {
+        case HMErrorDomain: return "hm\(error.code)"
+        case Self.hmfDomain: return "hmf\(error.code)"
+        default: return "other"
+        }
+    }
+
+    /// HomeKit's internal error domain. Code 2, "Request not handled", is what it
+    /// answers when the app isn't in the foreground.
+    private static let hmfDomain = "HMFErrorDomain"
+
+    /// True for HomeKit refusing a change because the app isn't in the foreground.
+    static func isBackground(_ error: Error) -> Bool {
+        let error = error as NSError
+        if error.domain == hmfDomain, error.code == 2 { return true }
+        if let underlying = error.userInfo[NSUnderlyingErrorKey] as? Error { return isBackground(underlying) }
+        return false
     }
 
     // MARK: Memory

@@ -24,6 +24,11 @@ public struct Language: Sendable {
     /// The single languages this one is made of.
     public var codes: [String] { code.split(separator: "+").map(String.init) }
 
+    /// For several languages at once, each one on its own (same order as `codes`), so
+    /// the keyboard can keep to one once a sentence shows which (`lock(for:)`). Empty
+    /// for a single language.
+    public var parts: [Language] = []
+
     public init(code: String, lexicon: Lexicon, ngrams: NgramModel? = nil) {
         self.code = code
         self.lexicon = lexicon
@@ -57,13 +62,54 @@ public struct Language: Sendable {
         guard codes.count > 1 else { return try bundled(codes.first ?? "en") }
         var lists: [[Lexicon.Entry]] = []
         var models: [NgramModel] = []
+        var parts: [Language] = []
         for code in codes {
-            lists.append(try Lexicon.readEntries(from: resource("lexicon", "tsv", language: code)))
-            if let url = try? resource("bigrams", "bin", language: code), let model = try? NgramModel(contentsOf: url) {
-                models.append(model)
-            }
+            let entries = try Lexicon.readEntries(from: resource("lexicon", "tsv", language: code))
+            lists.append(entries)
+            let model = (try? resource("bigrams", "bin", language: code)).flatMap { try? NgramModel(contentsOf: $0) }
+            if let model { models.append(model) }
+            parts.append(Language(code: code, lexicon: Lexicon(entries: entries), ngrams: model))
         }
-        return Language(code: codes.joined(separator: "+"), lexicon: Lexicon(entries: combined(lists)), ngramModels: models)
+        var both = Language(code: codes.joined(separator: "+"), lexicon: Lexicon(entries: combined(lists)), ngramModels: models)
+        both.parts = parts
+        return both
+    }
+
+    // MARK: Keeping to one language
+
+    /// How many times commoner a word must be in one language than in every other for
+    /// it to say which language the sentence is in: "que", "the", "gracias" do; "no",
+    /// "me", "a", "come", "real" (common in both) don't.
+    public static let sureRatio: Float = 30
+
+    /// The language `word` clearly belongs to (`sureRatio`), or nil when it could be
+    /// either, or is in none. Always nil for a single language.
+    public func sureLanguage(of word: String) -> String? {
+        let key = Lexicon.fold(word)
+        guard parts.count > 1, !key.isEmpty else { return nil }
+        // log P(word) in each language; a language without the word is -infinity.
+        let logs = parts.map { part in
+            part.lexicon.logPrior(of: key).map { $0 + part.lexicon.logProbabilityOffset } ?? -.infinity
+        }
+        guard let best = logs.indices.max(by: { logs[$0] < logs[$1] }), logs[best].isFinite else { return nil }
+        let margin = log(Self.sureRatio)
+        for (i, other) in logs.enumerated() where i != best && logs[best] - other < margin { return nil }
+        return parts[best].code
+    }
+
+    /// The language a sentence is in: the first of its words that clearly belongs to
+    /// one (`sureLanguage(of:)`). Nil while none does, so the next word may be either.
+    /// The first sure word decides: later words don't switch it back and forth
+    /// (Gabriel, 3 Nov 2026).
+    public func lock(for sentence: [String]) -> String? {
+        guard parts.count > 1 else { return nil }
+        for word in sentence { if let code = sureLanguage(of: word) { return code } }
+        return nil
+    }
+
+    /// The single language `code` of this one, or this one when it isn't part of it.
+    public func part(_ code: String?) -> Language {
+        parts.first { $0.code == code } ?? self
     }
 
     /// Word lists merged so each language counts the same whatever its counts add up

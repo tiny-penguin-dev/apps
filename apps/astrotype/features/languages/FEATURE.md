@@ -39,7 +39,11 @@ Status: Approved 2026-11-03
     together, so "see you mañana" needs no switching. The word pairs keep each
     language's words with its own kind: after "el" the Spanish guess wins, after "the"
     the English one. There is no language key and nothing to switch (Gabriel,
-    3 Nov 2026, over one language at a time switched with a key).
+    3 Nov 2026, over one language at a time switched with a key). The first word of a
+    sentence can be either; once a word shows which language the sentence is in, the
+    rest of it keeps to that one, with no switching back and forth. A "Mix in one
+    sentence" switch (off by default) keeps both for every word, for people who mix
+    them (Gabriel, 3 Nov 2026).
   - *Accents come by themselves.* You swipe or tap the plain letters and the keyboard
     writes the word with its accents: c-a-n-c-i-o-n gives "canción", a-n-o gives "año"
     when "año" is likelier there than "ano". The guess bar shows the accented word, and
@@ -99,7 +103,9 @@ separate design round; the screens below reuse existing components)
   each named in its own language ("English", "Español") with the other name under it
   ("Spanish"). Free with one on, turning another on asks for Pro (the usual Pro sheet,
   "Type in two languages at once"); turning the only one off is not possible. Under the
-  list: "With two on, Astrotype guesses from both. No switching." After a trial ends
+  list: "With two on, the first word can be either. Once a word shows which language
+  you're writing, the rest of the sentence keeps to it. No switching." With two on,
+  a "Mix in one sentence" switch below it (off). After a trial ends
   with two on, a line at the top: "Español is off. Pro types in both at once." with
   a Pro button.
 - **In-keyboard settings panel** (for people without Full Access): the same switches
@@ -214,3 +220,18 @@ ticked. About credits Tatoeba's Spanish sentences and wordfreq's word lists.
 `languages.enabled` counts each choice with the set. PRODUCT.md (section 6, Later,
 the metrics) and DESIGN.md (screen 9, the keyboard, first launch) now say all this.
 
+**One language per sentence (2026-11-03).** Gabriel asked that two languages not mix:
+the first word may be either, then the sentence keeps to one. `Language.bundled([..])`
+keeps each language's own trie and pairs (`parts`) beside the merged one.
+`Language.sureLanguage(of:)` says a word belongs to a language when it is at least 30
+times commoner there than in the other ("que", "the", "gracias" do; "no", "me", "a",
+"come", "real" don't), and `lock(for:)` takes the first such word of the sentence.
+`Composer` reads the sentence from the text before the cursor
+(`WordContext.sentence(before:)`) every time it changes and gives the matcher that
+language's trie and pairs alone, or the merged ones while no word is sure. So a new
+sentence, a fixed word or a moved cursor decide again, and a later word from the
+other language doesn't switch it. `KeyboardSettings.mixesLanguages` ("Mix in one
+sentence" on the Languages page, only with two on; off by default) keeps the merged
+ones for every word. Locked, the straight-swipe fixtures come out as with one
+language: English 50 of 50, Spanish 19 of 20. Costs a second copy of each trie in
+memory with two on (about as much again as the merged one).

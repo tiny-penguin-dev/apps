@@ -27,6 +27,11 @@ public struct PersonalModel: Codable, Sendable, Equatable {
     /// A thumb's landing statistics stop growing here, so the mean keeps following the
     /// person (an exponential average over about this many touches).
     public static let maxTouchWeight: Float = 120
+    /// Remembered swipes (features/missed-words): points per shape, shapes per word,
+    /// and words per shard, the oldest going first.
+    public static let shapePoints = 16
+    public static let maxShapesPerWord = 3
+    public static let maxShapeWords = 300
 
     /// A count that fades: its value as of `day` (days since 2001-01-01).
     public struct Count: Codable, Sendable, Equatable {
@@ -94,6 +99,24 @@ public struct PersonalModel: Codable, Sendable, Equatable {
         }
     }
 
+    /// A swipe the keyboard missed and the person typed the word for with "Not it?"
+    /// (features/missed-words): `shapePoints` points along it, as fractions of the
+    /// keyboard's width and height, so it fits any phone's keys.
+    public struct Shape: Codable, Sendable, Equatable {
+        /// x, y, x, y… rounded to 0.001.
+        public var xy: [Float]
+        public var day: Int
+
+        public init(points: [CGPoint], day: Int) {
+            xy = points.flatMap { [Float(($0.x * 1000).rounded() / 1000), Float(($0.y * 1000).rounded() / 1000)] }
+            self.day = day
+        }
+
+        public var points: [CGPoint] {
+            stride(from: 0, to: xy.count - 1, by: 2).map { CGPoint(x: CGFloat(xy[$0]), y: CGFloat(xy[$0 + 1])) }
+        }
+    }
+
     /// What one device learned.
     public struct Shard: Codable, Sendable, Equatable {
         /// When this shard started learning: a forget after this drops it.
@@ -104,10 +127,23 @@ public struct PersonalModel: Codable, Sendable, Equatable {
         public var pairs: [String: Count] = [:]
         /// Keyed `"l:e"` (left thumb, key e) or `"r:e"`.
         public var touches: [String: TouchStat] = [:]
+        /// Remembered swipes per word (plain letters), oldest first.
+        public var shapes: [String: [Shape]] = [:]
 
         public init(since: Date) {
             self.since = since
             self.changed = since
+        }
+
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            since = try c.decode(Date.self, forKey: .since)
+            changed = try c.decode(Date.self, forKey: .changed)
+            words = try c.decodeIfPresent([String: Count].self, forKey: .words) ?? [:]
+            pairs = try c.decodeIfPresent([String: Count].self, forKey: .pairs) ?? [:]
+            touches = try c.decodeIfPresent([String: TouchStat].self, forKey: .touches) ?? [:]
+            // Shards written before missed words have none.
+            shapes = try c.decodeIfPresent([String: [Shape]].self, forKey: .shapes) ?? [:]
         }
     }
 
@@ -119,7 +155,9 @@ public struct PersonalModel: Codable, Sendable, Equatable {
 
     public init() {}
 
-    public var isEmpty: Bool { shards.values.allSatisfy { $0.words.isEmpty && $0.pairs.isEmpty && $0.touches.isEmpty } }
+    public var isEmpty: Bool {
+        shards.values.allSatisfy { $0.words.isEmpty && $0.pairs.isEmpty && $0.touches.isEmpty && $0.shapes.isEmpty }
+    }
 
     /// Days since 2001-01-01, the clock counts fade by.
     public static func day(of date: Date) -> Int {
@@ -146,6 +184,15 @@ public struct PersonalModel: Codable, Sendable, Equatable {
             var stat = shard.touches[key] ?? TouchStat()
             stat.add(dx: Float(touch.dx), dy: Float(touch.dy), weight: touch.weight)
             shard.touches[key] = stat
+        }
+        if let shape = word.shape, shape.count == Self.shapePoints {
+            var kept = shard.shapes[lower] ?? []
+            kept.append(Shape(points: shape, day: today))
+            shard.shapes[lower] = Array(kept.suffix(Self.maxShapesPerWord))
+            if shard.shapes.count > Self.maxShapeWords {
+                let newest = shard.shapes.sorted { ($0.value.last?.day ?? 0) > ($1.value.last?.day ?? 0) }.prefix(Self.maxShapeWords)
+                shard.shapes = Dictionary(uniqueKeysWithValues: newest.map { ($0.key, $0.value) })
+            }
         }
         Self.prune(&shard.words, max: Self.maxWords, today: today)
         Self.prune(&shard.pairs, max: Self.maxPairs, today: today)
@@ -297,12 +344,16 @@ public struct SettledWord: Sendable, Equatable {
     public var touches: [Touch]
     /// The word's touches in touch-down order.
     public var strokes: [Stroke]
+    /// For a miss swiped in one stroke: the swipe as `PersonalModel.shapePoints` points,
+    /// fractions of the keyboard's width and height, to remember for the word.
+    public var shape: [CGPoint]?
     /// The person typed this word with "Not it?" over the swipe's guess (`fixedFrom`):
     /// the keyboard missed it (features/missed-words).
     public var missed: Bool
 
     public init(word: String, previous: String?, source: Source, fixedFrom: String? = nil, firstGuess: String? = nil,
-                pecked: Bool? = nil, touches: [Touch] = [], strokes: [Stroke] = [], missed: Bool = false) {
+                pecked: Bool? = nil, touches: [Touch] = [], strokes: [Stroke] = [], missed: Bool = false,
+                shape: [CGPoint]? = nil) {
         self.word = word
         self.previous = previous
         self.source = source
@@ -312,6 +363,7 @@ public struct SettledWord: Sendable, Equatable {
         self.touches = touches
         self.strokes = strokes
         self.missed = missed
+        self.shape = shape
     }
 }
 
@@ -335,6 +387,14 @@ public struct PersonalIndex: Sendable, Equatable {
     public private(set) var totalWords: Float = 0
     /// Per thumb, per letter: where the key's centre is for this person, in key units.
     private var offsets: [String: KeyOffset] = [:]
+    /// Swipes the keyboard missed, with the word the person meant (`PersonalModel.Shape`).
+    public private(set) var shapes: [RememberedShape] = []
+
+    public struct RememberedShape: Sendable, Equatable {
+        public var word: String
+        /// Fractions of the keyboard's width and height.
+        public var points: [CGPoint]
+    }
 
     public init() {}
 
@@ -352,9 +412,14 @@ public struct PersonalIndex: Sendable, Equatable {
         }
         totalWords = words.values.reduce(0, +)
         offsets = Self.offsets(from: touches)
+        for id in model.shards.keys.sorted() {
+            for (word, kept) in model.shards[id]!.shapes.sorted(by: { $0.key < $1.key }) {
+                shapes += kept.map { RememberedShape(word: word, points: $0.points) }
+            }
+        }
     }
 
-    public var isEmpty: Bool { words.isEmpty && pairs.isEmpty && offsets.isEmpty }
+    public var isEmpty: Bool { words.isEmpty && pairs.isEmpty && offsets.isEmpty && shapes.isEmpty }
 
     public func wordCount(_ word: String) -> Float { words[word] ?? 0 }
 

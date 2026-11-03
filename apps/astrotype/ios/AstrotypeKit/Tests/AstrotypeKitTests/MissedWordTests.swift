@@ -137,4 +137,88 @@ import Testing
         #expect(tally.missed == 1)
         #expect(tally.swiped == 1 && tally.swipedFirst == 0)
     }
+
+    // MARK: Phase B, remembered shapes
+
+    /// A sloppy swipe: each turn misses its key's centre, then the corners are cut
+    /// (a moving average over `window` points either side), as a fast thumb does.
+    static func sloppy(_ word: String, seed: UInt64, window: Int = 10) -> [CGPoint] {
+        let layout = Synth.layout
+        let unit = layout.frame(of: .letter("q"))!
+        var typing = SeededGenerator(seed: seed)
+        func gauss() -> CGFloat {
+            let u = max(1e-9, Double.random(in: 0..<1, using: &typing)), v = Double.random(in: 0..<1, using: &typing)
+            return CGFloat(sqrt(-2 * log(u)) * cos(2 * .pi * v))
+        }
+        let aims = word.map { letter -> CGPoint in
+            let f = layout.frame(of: .letter(letter))!
+            return CGPoint(x: f.midX + gauss() * 0.2 * unit.width, y: f.midY + gauss() * 0.16 * unit.height)
+        }
+        let path = Geometry.walk(aims, step: 4)
+        return path.indices.map { i in
+            let near = path[max(0, i - window)...min(path.count - 1, i + window)]
+            return CGPoint(x: near.map(\.x).reduce(0, +) / CGFloat(near.count), y: near.map(\.y).reduce(0, +) / CGFloat(near.count))
+        }
+    }
+
+    static func swipe(_ composer: inout Composer, _ path: [CGPoint], at time: TimeInterval) -> [Composer.Effect] {
+        var effects = composer.touchDown(id: 1, at: path[0], time: time)
+        for (i, point) in path.enumerated().dropFirst() {
+            effects += composer.touchMoved(id: 1, to: point, time: time + 0.5 * Double(i) / Double(path.count))
+        }
+        return effects + composer.touchUp(id: 1, at: path[path.count - 1], time: time + 0.5)
+    }
+
+    static func guess(_ path: [CGPoint], personal: PersonalIndex = PersonalIndex()) -> String? {
+        var composer = Composer(language: ContextMatcherTests.english, layout: Synth.layout, settings: Replay.settings)
+        composer.personal = personal
+        _ = swipe(&composer, path, at: 0)
+        return composer.state.openWord
+    }
+
+    /// Gabriel's "second" (3 Nov 2026): a swipe that cuts the corners comes out "song".
+    /// Saved once with Not it?, the next sloppy swipes like it give "second".
+    @Test func aSavedMissTeachesTheShape() throws {
+        let seed = try #require((1...200).first { Self.guess(Self.sloppy("second", seed: $0)) != "second" })
+        var composer = Composer(language: ContextMatcherTests.english, layout: Synth.layout, settings: Replay.settings)
+        _ = Self.swipe(&composer, Self.sloppy("second", seed: seed), at: 0)
+        composer.beginCorrection()
+        for letter in "second" { _ = composer.press(.letter(letter), time: 1) }
+        _ = composer.saveCorrection(time: 2)
+        let settled = try #require(Self.settled(Synth.swipe(&composer, "the", at: 3)))
+        let shape = try #require(settled.shape)
+        #expect(shape.count == PersonalModel.shapePoints)
+
+        var learner = PersonalLearner(model: PersonalModel(), device: "phone", now: Date())
+        let learned = learner.learn(settled, now: Date())
+        #expect(learned)
+        #expect(learner.index.shapes.map(\.word) == ["second"])
+        // It survives the trip through the file and iCloud.
+        let data = try JSONEncoder().encode(learner.model)
+        let decoded = try JSONDecoder().decode(PersonalModel.self, from: data)
+        #expect(decoded.shards["phone"]?.shapes == learner.model.shards["phone"]?.shapes)
+
+        var before = 0, after = 0
+        for other in UInt64(300)..<330 {
+            let path = Self.sloppy("second", seed: other)
+            if Self.guess(path) == "second" { before += 1 }
+            if Self.guess(path, personal: learner.index) == "second" { after += 1 }
+        }
+        #expect(after >= 24, "\(before) → \(after) of 30")
+        #expect(after >= before + 5)
+        // Words that start and end elsewhere are left alone.
+        for word in ["song", "sold", "send", "should", "sound", "said", "spend"] {
+            for other in UInt64(1)...5 {
+                let path = Self.sloppy(word, seed: other, window: 4)
+                #expect(Self.guess(path, personal: learner.index) == Self.guess(path), "\(word) \(other)")
+            }
+        }
+    }
+
+    @Test func oldShardsReadWithoutShapes() throws {
+        let json = #"{"version":1,"shards":{"a":{"since":0,"changed":0,"words":{"hi":[1,9000]},"pairs":{},"touches":{}}}}"#
+        let model = try JSONDecoder().decode(PersonalModel.self, from: Data(json.utf8))
+        #expect(model.shards["a"]?.shapes.isEmpty == true)
+        #expect(model.shards["a"]?.words["hi"] != nil)
+    }
 }

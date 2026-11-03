@@ -66,8 +66,6 @@ Status: Approved 2026-11-03 (Gabriel: "Build it and merge automatically")
 - **What we measure** (anonymous, with "Share anonymous usage data", sent by the app
   like `guess.words`, never from the extension):
   - `miss.saved` (count): how often swipes fail badly enough to need it. Falling over time means the matcher improves.
-  - `miss.shape_hit` (count): later swipes that a remembered shape got right. Shows
-    whether learning from misses works.
   - Nothing about which words.
 - **Decided** (Gabriel, 3 Nov 2026)
   1. **Not it?** shows only after a swiped word.
@@ -144,7 +142,7 @@ Status: Approved 2026-11-03 (with the design, at Gabriel's request)
 - **Risks:** the shape match must stay inside the matcher's time budget (a handful of
   DTWs per lift); a wrong miss saved must not stick forever (delete in the list, and
   "Forget" clears it).
-- **Metrics:** `miss.saved` and `miss.shape_hit` go with the keyboard health counts the
+- **Metrics:** `miss.saved` goes with the keyboard health counts the
   app already sends (`KeyboardHealthRecorder`), in Phases A and B.
 - **Last step:** fold this into `PRODUCT.md` and `DESIGN.md`.
 
@@ -155,3 +153,13 @@ Status: Approved 2026-11-03 (with the design, at Gabriel's request)
   misses kept by the extension in `KeyboardFiles.misses` (App Group with Full Access);
   `GuessTally.missed` sends `miss.saved` with the keyboard health counts.
   `MissedWordTests`.
+- **Phase B** (3 Nov 2026): `PersonalModel.Shape` (16 points, fractions of the keys'
+  width and height) in each shard's `shapes`, three per word, 300 words;
+  `SettledWord.shape`, made by the composer for a one-stroke miss on unsplit keys;
+  `PersonalIndex.shapes`; `Matcher.remembered` puts a word first when a lone swipe
+  starts and ends within `shapeEnds` (0.7 key) of a remembered one and its DTW
+  distance is under `shapeRadius` (0.5 key), ahead of the best guess by up to
+  `shapeLift` (0.3). On made-up sloppy swipes of "second" that came out "song", one
+  saved miss took the next 40 from 23 right to 37; "song", "sold", "send" and the like
+  stayed as they were. `miss.shape_hit` was dropped: the bar can't tell which guesses
+  a shape decided without more bookkeeping than it's worth.

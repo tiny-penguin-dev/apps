@@ -49,6 +49,10 @@ public struct Composer: Sendable {
         /// How sure the keyboard must be that pecked letters are two words with the
         /// space missed before it writes them split (`Matcher.splitStrictness`).
         public var splitStrictness = 0.8
+        /// With two languages on, guess from both for every word, for people who mix
+        /// them in one sentence. Off (the default), a sentence keeps to the first
+        /// language it shows (`Language.lock(for:)`, Gabriel 3 Nov 2026).
+        public var mixesLanguages = false
         public init() {}
     }
 
@@ -152,6 +156,7 @@ public struct Composer: Sendable {
         didSet {
             matcher.strictness = settings.strictness
             matcher.splitStrictness = settings.splitStrictness
+            if settings.mixesLanguages != oldValue.mixesLanguages { relock(force: true) }
         }
     }
     public var layout: Layout {
@@ -167,6 +172,13 @@ public struct Composer: Sendable {
     /// The language (or languages, "en+es") the dictionary is in; nil when built from a
     /// bare dictionary.
     public private(set) var languageCode: String?
+    /// With two languages on, the one this sentence keeps to, once a word showed which
+    /// (`Language.lock(for:)`); nil while the next word may be either, and always nil
+    /// with one language or `Settings.mixesLanguages`.
+    public private(set) var lockedLanguage: String?
+    /// The languages typed in, every one of them (the matcher may hold just the
+    /// locked one).
+    private var language: Language?
 
     private var open: [Int: Open] = [:]
     private var casing: Casing = .lower
@@ -206,6 +218,7 @@ public struct Composer: Sendable {
         self.settings = settings
         self.matcher = Matcher(language: language, layout: layout, learned: learned)
         self.languageCode = language.code
+        self.language = language
         matcher.strictness = settings.strictness
         matcher.splitStrictness = settings.splitStrictness
         refreshState()
@@ -307,10 +320,23 @@ public struct Composer: Sendable {
     /// The languages being typed in changed: the dictionary and word pairs swap, and an
     /// open word is guessed again from them.
     public mutating func setLanguage(_ language: Language, time: TimeInterval = 0) -> [Effect] {
-        matcher.dictionary = language.lexicon
-        matcher.ngramModels = language.ngramModels
+        self.language = language
         languageCode = language.code
+        relock(force: true)
         return hasOpenWord && correction == nil ? reguess(time: time) : []
+    }
+
+    /// Keeps the matcher to the sentence's language once a word showed it, and to every
+    /// language while none has (or with `mixesLanguages`). Read from the text before
+    /// the cursor, so a new sentence, a fixed word or a moved cursor decide again.
+    private mutating func relock(force: Bool = false) {
+        guard let language else { return }
+        let code = settings.mixesLanguages ? nil : language.lock(for: WordContext.sentence(before: contextBefore))
+        guard force || code != lockedLanguage else { return }
+        lockedLanguage = code
+        let typing = language.part(code)
+        matcher.dictionary = typing.lexicon
+        matcher.ngramModels = typing.ngramModels
     }
 
     public mutating func touchCancelled(id: Int, time: TimeInterval) -> [Effect] {
@@ -593,6 +619,7 @@ public struct Composer: Sendable {
         // The cursor moved, or the app changed the text: that space is gone from under it.
         if let before, !before.hasSuffix(" ") { autoSpaced = false }
         matcher.context = WordContext.words(before: contextBefore)
+        relock()
         refreshState()
     }
 

@@ -266,7 +266,6 @@ public final class SettingsPanelView: UIView {
         stack.backgroundColor = Theme.ui(.key)
         stack.layer.cornerRadius = Theme.Radius.sm
         stack.layer.cornerCurve = .continuous
-        stack.clipsToBounds = true
         for (index, row) in rows.enumerated() {
             if index > 0 {
                 let line = UIView()
@@ -515,7 +514,12 @@ private final class LinkRow: UIControl {
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 
     override var isHighlighted: Bool {
-        didSet { backgroundColor = isHighlighted ? Theme.ui(.keyPressed) : .clear }
+        didSet {
+            // Rounded like the card, which no longer clips its rows.
+            layer.cornerRadius = Theme.Radius.sm
+            layer.cornerCurve = .continuous
+            backgroundColor = isHighlighted ? Theme.ui(.keyPressed) : .clear
+        }
     }
 }
 
@@ -571,7 +575,12 @@ private final class CheckRow: UIControl {
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 
     override var isHighlighted: Bool {
-        didSet { backgroundColor = isHighlighted ? Theme.ui(.keyPressed) : .clear }
+        didSet {
+            // Rounded like the card, which no longer clips its rows.
+            layer.cornerRadius = Theme.Radius.sm
+            layer.cornerCurve = .continuous
+            backgroundColor = isHighlighted ? Theme.ui(.keyPressed) : .clear
+        }
     }
 }
 

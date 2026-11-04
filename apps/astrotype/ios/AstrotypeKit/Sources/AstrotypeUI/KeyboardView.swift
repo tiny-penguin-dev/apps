@@ -224,8 +224,11 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         }
         if let panel {
             // Over the keys and the guesses bar both: the bar has nothing to say while
-            // the settings are open (Gabriel, 3 Nov 2026).
+            // the settings are open (Gabriel, 3 Nov 2026). The keys hide too: the panel
+            // is see-through so the glass shows, and the letters showed through with it
+            // (Gabriel, 4 Nov 2026).
             bar.isHidden = true
+            surface.isHidden = true
             panel.frame = CGRect(x: 0, y: top, width: width, height: max(0, bounds.height - top))
             panel.granted = (bounds.height, wanted)
             bringSubviewToFront(panel)

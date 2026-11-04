@@ -656,7 +656,6 @@ final class AccentCallout: UIView {
             label.font = UIFont.systemFont(ofSize: 23, weight: .regular)
             label.layer.cornerRadius = Theme.Radius.key
             label.layer.cornerCurve = .continuous
-            label.clipsToBounds = true
             addSubview(label)
             views.append(label)
         }
@@ -685,7 +684,8 @@ final class AccentCallout: UIView {
 
     private func refresh() {
         for (i, label) in views.enumerated() {
-            label.backgroundColor = i == selected ? Theme.ui(.accent) : .clear
+            // On the layer, so the corner rounds it without clipping the label.
+            label.layer.backgroundColor = i == selected ? Theme.ui(.accent).resolvedColor(with: traitCollection).cgColor : nil
             label.textColor = Theme.ui(i == selected ? .accentInk : .keyInk)
         }
     }

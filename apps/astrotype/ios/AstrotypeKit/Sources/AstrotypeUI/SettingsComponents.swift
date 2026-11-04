@@ -33,7 +33,6 @@ public struct SettingsGroup<Content: View>: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Theme.card, in: RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
-        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
         .foregroundStyle(Theme.ink)
     }
 }
@@ -181,7 +180,9 @@ public struct SettingsLink: View {
                         .accessibilityHidden(true)
                 }
             }
-            .background(selected ? Theme.accent.opacity(0.14) : .clear)
+            // Rounded like the group, which no longer clips its rows.
+            .background(selected ? Theme.accent.opacity(0.14) : .clear,
+                        in: RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
         }
         .buttonStyle(SettingsPressStyle())
         .accessibilityAddTraits(selected ? .isSelected : [])
@@ -381,7 +382,8 @@ public struct KeyboardPreview: View {
 struct SettingsPressStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .background(configuration.isPressed ? Theme.line.opacity(0.5) : .clear)
+            .background(configuration.isPressed ? Theme.line.opacity(0.5) : .clear,
+                        in: RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
             .contentShape(Rectangle())
     }
 }

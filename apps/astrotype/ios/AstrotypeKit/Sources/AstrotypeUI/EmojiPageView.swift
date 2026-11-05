@@ -58,7 +58,7 @@ final class EmojiPageView: UIView, UICollectionViewDataSource, UICollectionViewD
 
     init(catalog: EmojiCatalog) {
         self.catalog = catalog
-        collection = UICollectionView(frame: .zero, collectionViewLayout: UICollectionViewFlowLayout())
+        collection = FadingCollectionView(frame: .zero, collectionViewLayout: UICollectionViewFlowLayout())
         super.init(frame: .zero)
         backgroundColor = .clear
 
@@ -469,6 +469,14 @@ final class TonePicker: UIView {
             button.isHighlighted = point.map { button.frame.contains($0) } ?? false
             button.alpha = button.isHighlighted ? 0.6 : 1
         }
+    }
+}
+
+/// The emoji grid, fading out at the left and right where there are more emoji.
+private final class FadingCollectionView: UICollectionView {
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        fadeEdges(.horizontal)
     }
 }
 #endif

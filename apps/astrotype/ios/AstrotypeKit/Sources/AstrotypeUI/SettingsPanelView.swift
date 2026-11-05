@@ -640,10 +640,15 @@ private final class SliderRow: UIStackView {
 }
 
 /// Lets a drag that starts on a tile scroll the list, while a drag on a slider still
-/// moves the slider.
+/// moves the slider. The content fades out at the top and bottom where there is more.
 private final class PanelScrollView: UIScrollView {
     override func touchesShouldCancel(in view: UIView) -> Bool {
         !(view is UISlider)
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        fadeEdges(.vertical, length: 24)
     }
 }
 #endif

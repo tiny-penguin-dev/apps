@@ -121,7 +121,7 @@ final class EmojiSearchView: UIView {
     static let height = KeyboardView.barHeight * 2
 
     let field = SearchField(placeholder: "Search emoji")
-    private let row = UIScrollView()
+    private let row = FadingRow()
     private let none = UILabel()
     private var buttons: [UIButton] = []
     private var shown: [(form: String, base: String)] = []
@@ -205,6 +205,14 @@ final class EmojiSearchView: UIView {
             x += size + 2
         }
         row.contentSize = CGSize(width: x + 4, height: bar)
+    }
+}
+
+/// The results' row, fading out at the left and right where there are more.
+private final class FadingRow: UIScrollView {
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        fadeEdges(.horizontal)
     }
 }
 #endif

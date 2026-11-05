@@ -100,7 +100,8 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
       `tune` (`Tuning`'s search over `Matcher.Weights`), `synth` (`SyntheticTyping`'s
       made-up words to measure against), `prompts`,
       `next`), argument parsing over `AstrotypeCore` and nothing else.
-    - `AstrotypeUI`: the design system (`Theme` tokens, `Components`, `Art`) and the
+    - `AstrotypeUI`: the design system (`Theme` tokens, `Components`, `Art`, `EdgeFade`: a scroll
+      view's `fadeEdges`, used by the settings panel and both emoji rows) and the
       keyboard's views: `KeyboardView` (bar plus keys, the pages, the settings panel,
       the `StatsOverlayView` memory line in the keys' top corner while
       `KeyboardSettings.showsStats` is on; owns a `KeyboardModel`), `BarView` (left key, centred words, the pencil and its fix row), `KeySurfaceView` (touch stream, flashes,

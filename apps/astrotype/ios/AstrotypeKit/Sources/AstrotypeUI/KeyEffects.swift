@@ -1,9 +1,9 @@
 #if canImport(UIKit)
 import AstrotypeCore
 import UIKit
-
-/// Where flow stands, for the meter, the combo badge and the level pop
-/// (`FlowHUDView`, features/customization "Flow").
+/// Where flow stands: the level, the combo count the space bar shows, and progress
+/// (features/customization "Flow").
+/// (the space bar's combo count, features/customization "Flow").
 public struct FlowState: Equatable, Sendable {
     /// Flow is on in the effects.
     public var isOn: Bool

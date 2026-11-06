@@ -31,11 +31,8 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
     /// A small red dot in the keys' top left corner while the typing recorder is on
     /// (Settings → Debug → "Keep recording"), so it is never on unnoticed.
     public let recordingDot = UIView()
-    /// Flow's meter, combo count and level pop, over the bar and the keys
-    /// (features/customization).
-    public let flowHUD = FlowHUDView()
-    /// The host draws the keyboard's backdrop (the extension: the system's glass). With
-    /// Classic the view stays clear; another theme paints its own background over it.
+    /// The host draws the keyboard's backdrop (the extension: the system's glass), so
+    /// the view stays clear. Themes never paint a background (Gabriel, 6 Nov 2026).
     public var usesSystemBackdrop = false {
         didSet { if usesSystemBackdrop != oldValue { applyBackdrop() } }
     }
@@ -111,7 +108,6 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         recordingDot.isHidden = true
         recordingDot.accessibilityLabel = "Recording typing"
         addSubview(recordingDot)
-        addSubview(flowHUD)
         surface.delegate = self
         surface.onFlow = { [weak self] state in self?.flowChanged(state) }
         surface.onOtherTouch = { [weak model] phase, id, point, time, key in
@@ -256,12 +252,6 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
             recordingDot.frame = CGRect(x: surface.frame.minX + 3, y: surface.frame.minY + 2, width: 6, height: 6)
             bringSubviewToFront(recordingDot)
         }
-        // Flow sits over the bar's room and the keys.
-        let hudTop = max(0, surface.frame.minY - Self.barHeight)
-        flowHUD.frame = CGRect(x: 0, y: hudTop, width: width, height: surface.frame.maxY - hudTop)
-        flowHUD.keysTop = surface.frame.minY - hudTop
-        flowHUD.isHidden = surface.isHidden || panel != nil || searchView != nil
-        bringSubviewToFront(flowHUD)
         if let panel {
             // Over the keys and the guesses bar both: the bar has nothing to say while
             // the settings are open (Gabriel, 3 Nov 2026). The keys hide too: the panel
@@ -347,29 +337,14 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
 
     // MARK: Look and flow
 
-    /// The background for the theme: Classic keeps the host's (the system's glass in the
-    /// extension, `kb` in the app); other themes paint theirs, and the bar's text
-    /// follows how dark it is.
+    /// The backdrop stays the host's whatever the theme: the system's glass in the
+    /// extension, `kb` in the app. The keys' surface stays see-through over it.
     private func applyBackdrop() {
-        let style = KeyStyle(theme: surface.theme, appearance: surface.keyAppearance, traits: traitCollection)
-        // The view paints the background; the keys' surface stays see-through (the
-        // extension's host keeps it barely there, so touches between keys still land).
         if !usesSystemBackdrop { surface.backgroundColor = .clear }
-        if style.isClassic {
-            backgroundColor = usesSystemBackdrop ? .clear : Theme.ui(.kb)
-            bar.overrideUserInterfaceStyle = .unspecified
-            globeKey.overrideUserInterfaceStyle = .unspecified
-        } else {
-            backgroundColor = style.colors.background.uiColor
-            bar.overrideUserInterfaceStyle = style.interfaceStyle
-            globeKey.overrideUserInterfaceStyle = style.interfaceStyle
-        }
-        flowHUD.style = style
+        backgroundColor = usesSystemBackdrop ? .clear : Theme.ui(.kb)
     }
 
     private func flowChanged(_ state: FlowState) {
-        flowHUD.style = surface.style
-        flowHUD.state = state
         if state.leveledUp, hapticsAvailable, model.keyboardSettings.haptics { commitHaptic.impactOccurred(intensity: 0.8) }
     }
 

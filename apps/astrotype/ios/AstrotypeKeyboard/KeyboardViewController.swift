@@ -492,6 +492,10 @@ final class ProxyTarget: TextTarget {
     /// Set once the selection is deleted, until the run loop turns: the proxy can still
     /// report the old selection right after, and a second delete would take a letter.
     private var clearedSelection = false
+    /// Text selected past the underlined word when the word was dropped (a whole
+    /// sentence, say). The word is still marked then, and a delete takes only the marked
+    /// word (Gabriel, 6 Nov 2026), so the next delete clears this selection itself.
+    private var selectionPastMark: String?
 
     init(controller: UIInputViewController) {
         self.controller = controller
@@ -516,13 +520,38 @@ final class ProxyTarget: TextTarget {
     }
 
     func insert(_ text: String) {
+        selectionPastMark = nil
         if !text.isEmpty { deleteSelection() }
         proxy.insertText(text)
     }
-    func deleteBackward() { proxy.deleteBackward() }
+    func deleteBackward() {
+        guard let selection = selectionPastMark else { return proxy.deleteBackward() }
+        selectionPastMark = nil
+        // Unmark first, so the delete is for the selection and not the marked word. The
+        // field may keep the selection or put the cursor after it; which one shows only
+        // once it has caught up, so look a moment later.
+        proxy.unmarkText()
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .milliseconds(100))
+            self?.deleteSelection(after: selection)
+        }
+    }
+
+    /// Deletes `selection` once the marked word in it has been unmarked: in one delete
+    /// when it is still selected, or letter by letter when the cursor sits right after
+    /// it (the field may give only the end of a long selection as the text before the
+    /// cursor). Anything else is left alone rather than deleting the wrong text.
+    private func deleteSelection(after selection: String) {
+        let selected = proxy.selectedText ?? ""
+        if selected == selection { return proxy.deleteBackward() }
+        guard selected.isEmpty, let before = proxy.documentContextBeforeInput, !before.isEmpty,
+              before.hasSuffix(selection) || selection.hasSuffix(before) else { return }
+        for _ in 0..<selection.count { proxy.deleteBackward() }
+    }
     var hasText: Bool { proxy.hasText }
 
     func mark(_ text: String) {
+        selectionPastMark = nil
         guard text != open else { return }
         if open.isEmpty {
             openIsMarked = underlines()
@@ -576,8 +605,11 @@ final class ProxyTarget: TextTarget {
         // Still marked in this field: leave it as ordinary text. In another field there
         // is nothing of ours to unmark, and with text selected unmarking can collapse the
         // selection to the end of the word, so the next delete takes one letter.
-        let selected = !(proxy.selectedText ?? "").isEmpty
-        if openIsMarked, !open.isEmpty, !selected, documentID == openDocument { proxy.unmarkText() }
+        // A selection longer than the word is kept for the next delete (`selectionPastMark`).
+        let selection = proxy.selectedText ?? ""
+        if openIsMarked, !open.isEmpty, documentID == openDocument {
+            if selection.isEmpty { proxy.unmarkText() } else if selection != open { selectionPastMark = selection }
+        }
         open = ""
         openIsMarked = false
         openDocument = nil

@@ -136,16 +136,16 @@ public enum FlowLevel: Int, CaseIterable, Sendable, Comparable {
         }
     }
 
-    /// Words of flow to reach this level at the steady build. Lowered after testing
-    /// (Gabriel, 6 Nov 2026): at 5/15/30/50 real typing, with its pauses to read and
-    /// send, never got past the combo count.
+    /// Words of flow to reach this level at the steady build. A little more than the
+    /// first build's 5/15/30/50 after testing (Gabriel, 6 Nov 2026: build up a bit
+    /// slower, drain faster).
     public var words: Double {
         switch self {
         case .calm: 0
-        case .waddle: 3
-        case .toboggan: 8
-        case .blizzard: 15
-        case .aurora: 25
+        case .waddle: 6
+        case .toboggan: 18
+        case .blizzard: 36
+        case .aurora: 60
         }
     }
 
@@ -156,19 +156,19 @@ public enum FlowLevel: Int, CaseIterable, Sendable, Comparable {
 /// fixes fill it, a delete takes some back, a pause drains it. Pure; time is passed in.
 ///
 ///     var flow = FlowMeter()
-///     flow.word(at: now)                  // +1, or +1.5 within 2 s of the last word
-///     flow.delete(at: now)                // -2
-///     flow.tick(now: now)                 // drains after 4 s without typing
+///     flow.word(at: now)                  // +1, or +1.5 within 1.5 s of the last word
+///     flow.delete(at: now)                // -3
+///     flow.tick(now: now)                 // drains after 2.5 s without typing
 ///     flow.level(scale: 1, cap: 4)        // .toboggan
 public struct FlowMeter: Equatable, Sendable {
     /// A word within this long of the last one counts extra.
-    public static let quick: TimeInterval = 2
+    public static let quick: TimeInterval = 1.5
     public static let quickBonus = 1.5
-    public static let deletePenalty = 2.0
+    public static let deletePenalty = 3.0
     /// The meter starts draining this long after the last word or delete…
-    public static let rest: TimeInterval = 4
+    public static let rest: TimeInterval = 2.5
     /// …at this many words a second.
-    public static let drain = 0.75
+    public static let drain = 2.0
 
     public private(set) var score = 0.0
     /// Words in this run; back to 0 when the meter empties.

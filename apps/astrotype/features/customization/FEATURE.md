@@ -28,9 +28,11 @@ we'll test it for real."
   `background` colour in saved themes is ignored).
 - No flow meter line and no level-name pop. The combo count shows on the space bar
   ("Astrotype  ×12"), and the space bar bounces when a level is reached.
-- Flow was too hard to build in real typing (only the combo count ever showed).
-  Levels now come at about 3, 8, 15 and 25 words; a word within 2 s counts 1.5; the
-  meter waits 4 s before draining, then drains 0.75 a second; a delete takes 2.
+- The higher levels never showed in testing because Low Power Mode was on (it caps
+  flow at Toboggan). The Effects page now says so when Low Power Mode is on.
+- Flow builds a little slower and drains a little faster: levels at about 6, 18, 36
+  and 60 words; a word within 1.5 s counts 1.5; the meter waits 2.5 s, then drains
+  2 a second; a delete takes 3. Tapping space no longer counts as a word on its own.
 - See-through keys is set for the light and the dark look apart (in the editor's
   Colours, under the look picker), not once in the shape.
 

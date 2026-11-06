@@ -960,7 +960,7 @@ final class KeyView: UIView {
             fade.toValue = to
             return fade
         }
-        group.duration = fadingIn ? 0.5 : 0.8
+        group.duration = 2
         group.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
         layer.add(group, forKey: "glow")
     }

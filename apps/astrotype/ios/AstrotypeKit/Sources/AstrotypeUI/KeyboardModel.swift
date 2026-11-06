@@ -654,6 +654,12 @@ public final class KeyboardModel {
 
     /// Mark in the keyboard's settings: something went wrong around now. Written at
     /// once, so it is there when the person opens the app to send it.
+    /// A memory reading for the log (`MemorySample`), with why it goes in now. Logged in
+    /// every field, since it holds nothing typed.
+    public func logMemory(_ sample: MemorySample, why: String) {
+        recorder?.record(TypingEvent(t: now, e: .memory, s: why, mem: sample))
+    }
+
     public func markMoment() {
         guard let recorder else { return }
         recorder.record(TypingEvent(t: now, e: .mark))

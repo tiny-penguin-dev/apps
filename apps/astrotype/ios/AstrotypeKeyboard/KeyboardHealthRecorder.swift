@@ -6,7 +6,7 @@ import Foundation
 /// App Group, where the app picks it up and sends it. Only with Full Access (the App
 /// Group needs it) and "Share anonymous usage data" on; otherwise it does nothing.
 /// Writes when the keyboard appears, when the peak grows or the headroom shrinks by a
-/// megabyte (read every couple of seconds while it is up), when something new opens
+/// megabyte (read once a second while it is up, `MemorySampler`), when something new opens
 /// (`KeyboardHealth.Part`), and when it goes away, so a keyboard ended for memory still
 /// leaves its last readings and what was open.
 @MainActor
@@ -36,8 +36,12 @@ final class KeyboardHealthRecorder {
     }
 
     func sample() {
+        if let reading = MemoryReading.current() { sample(reading) }
+    }
+
+    func sample(_ reading: MemoryReading) {
         guard let store else { return }
-        if health.sample(footprintMB: Self.footprintMB(), headroomMB: Self.headroomMB()) { store.save(health) }
+        if health.sample(footprintMB: reading.footprintMB, headroomMB: reading.headroomMB) { store.save(health) }
     }
 
     /// Something opened or loaded while the keyboard is up.

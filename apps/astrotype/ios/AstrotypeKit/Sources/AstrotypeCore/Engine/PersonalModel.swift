@@ -35,6 +35,8 @@ public struct PersonalModel: Codable, Sendable, Equatable {
     public static let maxShapePieces = 4
     public static let maxShapesPerWord = 3
     public static let maxShapeWords = 300
+    /// Pairs the person deleted that are remembered, the most recent kept.
+    public static let maxForgottenPairs = 4_000
 
     /// A count that fades: its value as of `day` (days since 2001-01-01).
     public struct Count: Codable, Sendable, Equatable {
@@ -159,8 +161,31 @@ public struct PersonalModel: Codable, Sendable, Equatable {
     public private(set) var forgottenAt: Date?
     /// Each device's shard, by a random ID that device keeps.
     public private(set) var shards: [String: Shard] = [:]
+    /// Pairs the person deleted (Settings → Word pairs), keyed `"previous next"`, with
+    /// the day they went. Any shard's count for one, written that day or before, is
+    /// left out, so a sync can't bring it back; writing the pair again starts it over.
+    public private(set) var forgottenPairs: [String: Int] = [:]
 
     public init() {}
+
+    private enum CodingKeys: String, CodingKey { case version, forgottenAt, shards, forgottenPairs }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        version = try c.decodeIfPresent(Int.self, forKey: .version) ?? Self.version
+        forgottenAt = try c.decodeIfPresent(Date.self, forKey: .forgottenAt)
+        shards = try c.decodeIfPresent([String: Shard].self, forKey: .shards) ?? [:]
+        // Models written before pairs could be deleted have none.
+        forgottenPairs = try c.decodeIfPresent([String: Int].self, forKey: .forgottenPairs) ?? [:]
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(version, forKey: .version)
+        try c.encodeIfPresent(forgottenAt, forKey: .forgottenAt)
+        try c.encode(shards, forKey: .shards)
+        if !forgottenPairs.isEmpty { try c.encode(forgottenPairs, forKey: .forgottenPairs) }
+    }
 
     public var isEmpty: Bool {
         shards.values.allSatisfy { $0.words.isEmpty && $0.pairs.isEmpty && $0.touches.isEmpty && $0.shapes.isEmpty }
@@ -184,7 +209,13 @@ public struct PersonalModel: Codable, Sendable, Equatable {
         let weight = word.source.weight
         Self.bump(&shard.words, lower, by: weight, today: today)
         if let previous = word.previous, previous == NgramModel.sentenceStart || Self.isLearnable(previous) {
-            Self.bump(&shard.pairs, previous + " " + lower, by: weight, today: today)
+            let pair = previous + " " + lower
+            if let gone = forgottenPairs[pair], let old = shard.pairs[pair], old.day <= gone {
+                shard.pairs[pair] = nil
+            }
+            Self.bump(&shard.pairs, pair, by: weight, today: today)
+            // Deleted today and written again today: dated the day after, so it counts.
+            if let gone = forgottenPairs[pair], today <= gone { shard.pairs[pair]?.day = gone + 1 }
         }
         for touch in word.touches {
             let key = Self.touchKey(touch.letter, touch.side)
@@ -212,6 +243,44 @@ public struct PersonalModel: Codable, Sendable, Equatable {
     public mutating func forget(at date: Date) {
         forgottenAt = max(forgottenAt ?? .distantPast, date)
         shards = [:]
+        forgottenPairs = [:]
+    }
+
+    /// Deleted from Settings → Word pairs (`"previous next"` keys): gone from every
+    /// shard now, and from other devices' copies when they merge.
+    public mutating func forgetPairs(_ pairs: some Sequence<String>, at date: Date) {
+        let today = Self.day(of: date)
+        for pair in pairs {
+            forgottenPairs[pair] = max(forgottenPairs[pair] ?? today, today)
+            for id in shards.keys { shards[id]?.pairs[pair] = nil }
+        }
+        Self.trimForgottenPairs(&forgottenPairs)
+    }
+
+    /// Whether a shard's count for `pair` was deleted after it was written.
+    func isForgotten(_ pair: String, _ count: Count) -> Bool {
+        guard let gone = forgottenPairs[pair] else { return false }
+        return count.day <= gone
+    }
+
+    /// Every pair the person writes, all devices' counts added up, as of `date`:
+    /// for Settings → Word pairs. Sentence starts are left out.
+    public func learnedPairs(at date: Date) -> [LearnedPair] {
+        let today = Self.day(of: date)
+        var out: [String: LearnedPair] = [:]
+        for shard in shards.values {
+            for (key, count) in shard.pairs where !isForgotten(key, count) {
+                guard let space = key.firstIndex(of: " ") else { continue }
+                let previous = String(key[..<space])
+                guard previous != NgramModel.sentenceStart else { continue }
+                var pair = out[key] ?? LearnedPair(previous: previous, word: String(key[key.index(after: space)...]),
+                                                   count: 0, lastDay: count.day)
+                pair.count += count.value(on: today)
+                pair.lastDay = max(pair.lastDay, count.day)
+                out[key] = pair
+            }
+        }
+        return Array(out.values)
     }
 
     /// Both copies, each device's newer shard winning, the later forget applied.
@@ -222,9 +291,13 @@ public struct PersonalModel: Codable, Sendable, Equatable {
             if let mine = out.shards[id], mine.changed >= shard.changed { continue }
             out.shards[id] = shard
         }
+        out.forgottenPairs.merge(other.forgottenPairs) { max($0, $1) }
         if let forgotten = out.forgottenAt {
             out.shards = out.shards.filter { $0.value.since >= forgotten }
+            let day = Self.day(of: forgotten)
+            out.forgottenPairs = out.forgottenPairs.filter { $0.value >= day }
         }
+        Self.trimForgottenPairs(&out.forgottenPairs)
         if out.shards.count > Self.maxShards {
             let kept = out.shards.sorted { $0.value.changed > $1.value.changed }.prefix(Self.maxShards)
             out.shards = Dictionary(uniqueKeysWithValues: kept.map { ($0.key, $0.value) })
@@ -246,7 +319,7 @@ public struct PersonalModel: Codable, Sendable, Equatable {
         var touches: [String: Float] = [:]
         for shard in shards.values {
             words.formUnion(shard.words.keys)
-            pairs.formUnion(shard.pairs.keys.filter { !$0.hasPrefix(NgramModel.sentenceStart + " ") })
+            pairs.formUnion(shard.pairs.filter { !$0.key.hasPrefix(NgramModel.sentenceStart + " ") && !isForgotten($0.key, $0.value) }.keys)
             for (key, stat) in shard.touches { touches[key, default: 0] += stat.weight }
         }
         let mapped = Set(touches.filter { $0.value >= PersonalIndex.trustedTouches }.keys.compactMap { $0.last })
@@ -254,6 +327,12 @@ public struct PersonalModel: Codable, Sendable, Equatable {
     }
 
     // MARK: Helpers
+
+    private static func trimForgottenPairs(_ pairs: inout [String: Int]) {
+        guard pairs.count > maxForgottenPairs else { return }
+        let keep = pairs.sorted { $0.value > $1.value || ($0.value == $1.value && $0.key < $1.key) }.prefix(maxForgottenPairs)
+        pairs = Dictionary(uniqueKeysWithValues: keep.map { ($0.key, $0.value) })
+    }
 
     /// Lowercase a to z (the lexicon's alphabet; `Language` widens it), and not absurdly long.
     static func isLearnable(_ word: String) -> Bool {
@@ -275,6 +354,43 @@ public struct PersonalModel: Codable, Sendable, Equatable {
         guard counts.count > max else { return }
         let keep = counts.sorted { $0.value.value(on: today) > $1.value.value(on: today) }.prefix(max * 9 / 10)
         counts = Dictionary(uniqueKeysWithValues: keep.map { ($0.key, $0.value) })
+    }
+}
+
+/// One pair of words the person writes, for Settings → Word pairs.
+public struct LearnedPair: Sendable, Equatable, Identifiable {
+    public var previous: String
+    public var word: String
+    /// How often, faded (about how many times lately).
+    public var count: Float
+    /// The last day it was written (days since 2001-01-01).
+    public var lastDay: Int
+
+    public init(previous: String, word: String, count: Float, lastDay: Int) {
+        self.previous = previous
+        self.word = word
+        self.count = count
+        self.lastDay = lastDay
+    }
+
+    /// `"previous next"`, as the model keys it.
+    public var id: String { previous + " " + word }
+
+    /// How often, from 1 (now and then) to 4 (all the time), for the meter.
+    public var level: Int {
+        switch count {
+        case ..<1.5: 1
+        case ..<4: 2
+        case ..<10: 3
+        default: 4
+        }
+    }
+
+    /// Whether either word starts with `text` (case and accents ignored), or the pair does.
+    public func matches(_ text: String) -> Bool {
+        let query = Lexicon.fold(text.trimmingCharacters(in: .whitespaces))
+        guard !query.isEmpty else { return true }
+        return previous.hasPrefix(query) || word.hasPrefix(query) || id.hasPrefix(query)
     }
 }
 
@@ -431,7 +547,9 @@ public struct PersonalIndex: Sendable, Equatable {
         var touches: [String: PersonalModel.TouchStat] = [:]
         for shard in model.shards.values {
             for (word, count) in shard.words { words[word, default: 0] += count.value(on: today) }
-            for (pair, count) in shard.pairs { pairs[pair, default: 0] += count.value(on: today) }
+            for (pair, count) in shard.pairs where !model.isForgotten(pair, count) {
+                pairs[pair, default: 0] += count.value(on: today)
+            }
             for (key, stat) in shard.touches {
                 var merged = touches[key] ?? PersonalModel.TouchStat()
                 merged.add(dx: stat.dx, dy: stat.dy, weight: stat.weight)

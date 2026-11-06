@@ -15,11 +15,14 @@ public struct LearnedWords: Sendable, Equatable, Codable {
         /// How many times the person put the word in themselves: a word written once
         /// is offered like a rare word, one written often like a common one (`logPrior`).
         public var uses: Int
+        /// Added by hand in Settings → Learned words; nil otherwise.
+        public var added: Bool?
 
-        public init(weight: Double, changed: Date, uses: Int = 0) {
+        public init(weight: Double, changed: Date, uses: Int = 0, added: Bool = false) {
             self.weight = weight
             self.changed = changed
             self.uses = uses
+            self.added = added ? true : nil
         }
 
         /// Entries saved before uses were counted: learning set the weight to 1 and a
@@ -28,6 +31,7 @@ public struct LearnedWords: Sendable, Equatable, Codable {
             let c = try decoder.container(keyedBy: CodingKeys.self)
             weight = try c.decode(Double.self, forKey: .weight)
             changed = try c.decode(Date.self, forKey: .changed)
+            added = try c.decodeIfPresent(Bool.self, forKey: .added)
             if let uses = try c.decodeIfPresent(Int.self, forKey: .uses) {
                 self.uses = uses
             } else {
@@ -52,7 +56,7 @@ public struct LearnedWords: Sendable, Equatable, Codable {
             entries[w] = Entry(weight: 0, changed: date, uses: 1)
             return
         }
-        entries[w] = Entry(weight: old.weight, changed: date, uses: old.uses + 1)
+        entries[w] = Entry(weight: old.weight, changed: date, uses: old.uses + 1, added: old.added == true)
     }
 
     /// The word just learned was deleted straight away: one use fewer, and a word with
@@ -63,14 +67,37 @@ public struct LearnedWords: Sendable, Equatable, Codable {
             forget(w, at: date)
             return
         }
-        entries[w] = Entry(weight: old.weight, changed: date, uses: old.uses - 1)
+        entries[w] = Entry(weight: old.weight, changed: date, uses: old.uses - 1, added: old.added == true)
+    }
+
+    /// Typed in by hand (Settings → Learned words, +): learned and kept, as if pecked
+    /// out and boosted, and marked as added. A forgotten word comes back.
+    public mutating func add(_ word: String, at date: Date = Date()) {
+        let w = word.lowercased()
+        let old = entries[w]
+        entries[w] = Entry(weight: max(old?.weight ?? 0, 0) + 1.5, changed: date, uses: max(old?.uses ?? 0, 1), added: true)
+    }
+
+    /// What `add` takes: one word of letters (an apostrophe or hyphen inside is fine),
+    /// trimmed and lowercased; nil for anything else.
+    public static func addable(_ text: String) -> String? {
+        let word = text.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard (1...24).contains(word.count), let first = word.first, let last = word.last,
+              first.isLetter, last.isLetter,
+              word.allSatisfy({ $0.isLetter || $0 == "'" || $0 == "’" || $0 == "-" }) else { return nil }
+        return word
+    }
+
+    /// Whether `word` was added by hand.
+    public func isAdded(_ word: String) -> Bool {
+        entries[word]?.added == true && contains(word)
     }
 
     /// Make a guess stick (slide up on the bar).
     public mutating func boost(_ word: String, at date: Date = Date()) {
         let w = word.lowercased()
         let old = entries[w]
-        entries[w] = Entry(weight: max(old?.weight ?? 0, 0) + 1.5, changed: date, uses: old?.uses ?? 0)
+        entries[w] = Entry(weight: max(old?.weight ?? 0, 0) + 1.5, changed: date, uses: old?.uses ?? 0, added: old?.added == true)
     }
 
     /// Stop offering a guess (slide down on the bar).

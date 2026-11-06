@@ -11,7 +11,7 @@ struct HomeView: View {
     @State private var path: [Route] = []
 
     enum Route: Hashable {
-        case practice, practiceWords, settings, learnedWords, missedWords, sharing, turnOn, sync, pro
+        case practice, practiceWords, settings, learnedWords, wordPairs, missedWords, sharing, turnOn, sync, pro
         /// A page under Settings → Appearance (features/customization).
         case appearance(AppearancePage)
         case speedTest(PracticeKeyboard, UInt64?)
@@ -52,6 +52,7 @@ struct HomeView: View {
                 case .practice: PracticeView(model: model)
                 case .settings: SettingsView(model: model, path: $path)
                 case .learnedWords: LearnedWordsView(model: model)
+                case .wordPairs: WordPairsView(model: model)
                 case .missedWords: MissedWordsView(model: model)
                 case .sharing: SharingView(model: model)
                 case .practiceWords: PracticeWordsView(model: model)

@@ -567,7 +567,7 @@ final class AppModel {
     /// some since).
     func reloadWords() {
         if let words = environment.wordStore.load() { learnedWords = words }
-        if let model = environment.personalStore.load() { personal = model }
+        if let model = environment.personalStore.load() { personal = personal.merged(with: model) }
     }
 
     // MARK: Learns from you
@@ -605,12 +605,58 @@ final class AppModel {
         sync()
     }
 
-    /// Swiped away in the learned words list: not offered again.
-    func forget(_ word: String) {
-        var words = learnedWords
-        words.forget(word, at: now)
-        saveWords(words)
+    /// Dropped from the learned words list, by a swipe or several with Select: not
+    /// offered again. Counted as `words.deleted`.
+    func forget(_ words: [String], how: DeleteGesture) {
+        guard !words.isEmpty else { return }
+        var learned = learnedWords
+        for word in words { learned.forget(word, at: now) }
+        saveWords(learned)
+        environment.metrics.count("words.deleted", by: words.count, ["how": how.rawValue])
         sync()
+    }
+
+    /// Typed in with + on the learned words list: learned and kept, on every device.
+    /// Returns false for text that isn't one word (`LearnedWords.addable`). Counted as
+    /// `words.added`.
+    @discardableResult
+    func addWord(_ text: String) -> Bool {
+        guard let word = LearnedWords.addable(text) else { return false }
+        var learned = learnedWords
+        learned.add(word, at: now)
+        saveWords(learned)
+        environment.metrics.count("words.added")
+        sync()
+        return true
+    }
+
+    /// How a list entry was deleted, for the metrics.
+    enum DeleteGesture: String { case swipe, select }
+
+    // MARK: Word pairs
+
+    /// The pairs the keyboard learned, for Settings → Word pairs (re-read first: the
+    /// keyboard may have learned some since).
+    func learnedPairs() -> [LearnedPair] {
+        reloadWords()
+        return personal.learnedPairs(at: now)
+    }
+
+    /// Deleted from Settings → Word pairs (`LearnedPair.id`s): gone here, in the
+    /// keyboard, and on the other devices once they sync. Counted as `pairs.deleted`.
+    func forgetPairs(_ ids: [String], how: DeleteGesture) {
+        guard !ids.isEmpty else { return }
+        var model = environment.personalStore.load().map { personal.merged(with: $0) } ?? personal
+        model.forgetPairs(ids, at: now)
+        personal = model
+        environment.personalStore.save(model)
+        environment.metrics.count("pairs.deleted", by: ids.count, ["how": how.rawValue])
+        sync()
+    }
+
+    /// The word pairs list opened. Counted as `pairs.opened`.
+    func pairsOpened() {
+        environment.metrics.count("pairs.opened")
     }
 
     private func saveWords(_ words: LearnedWords) {

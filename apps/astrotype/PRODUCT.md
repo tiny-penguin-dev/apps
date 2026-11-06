@@ -277,6 +277,8 @@ and `guess.*` rows below).
 | `sync.failed` | iCloud sync problems (goal: zero) |
 | `practice.shared` (`kind`) | How many words people share, practice or corrections (features/smart-matching) |
 | `personal.reset` | How often people wipe what the keyboard learned (features/smart-matching) |
+| `words.added`, `words.deleted` (by count; `how`: `swipe` / `select`) | Learned words typed in by hand, and dropped (features/learned-words) |
+| `pairs.opened`, `pairs.deleted` (by count; `how`) | Whether anyone looks at the word pairs, and how many they delete (features/learned-words) |
 | `languages.enabled` (`set`: `en`, `es`, `en+es`) | Which languages people turn on, and how many want two at once (features/languages) |
 | `keyboard.memory_peak` (MB, per time the keyboard is shown; `parts`: what was open, like `keys`, `emoji`, `emoji+settings`, `metal`) | Memory regressions before they hit the extension's limit (budget: 40 MB), and which part of the keyboard caused them |
 | `miss.saved` (count) | Words typed with "Not it?" because a swipe missed them (features/missed-words). Falling over time means the matcher is getting better |

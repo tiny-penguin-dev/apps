@@ -5,7 +5,7 @@ word by hand, and delete several words or pairs at once.
 
 ## Product
 
-Status: Draft
+Status: Approved 2026-11-06 (Gabriel: "Ok build", in the project thread)
 
 - **The problem:** "Learns from you" says it learned 2,500 word pairs, but there's no
   way to see them (Gabriel, 6 Nov 2026: "It doesn't let me see them though"). A wrong
@@ -54,7 +54,7 @@ Status: Draft
 
 ## Design
 
-Status: Draft
+Status: Approved 2026-11-06 (Gabriel: "Ok build", in the project thread)
 
 - **Mockups:** `design/mockups/learned-words.html` (Artifact: https://claude.ai/artifact/BqBdEvExHvZfCinMhAhTQx), built on the Settings mockup.
   Screens: Your words, Learned words, Learned words: add one, Word pairs, Word pairs:
@@ -91,18 +91,19 @@ Status: Draft
 
 ## Build
 
-Status: Draft
+Status: Built 2026-11-06 (one PR, with this plan)
 
 - **Approach:** the app already reads the personal model (`AppModel.personal`) and
   writes it to the App Group and iCloud for "Forget what it learned". The lists read
   from it; edits go through `AppModel`, are saved, then synced, and the keyboard picks
   them up when it merges the shared copy, as it does today.
 - **Core pieces:**
-  - `PersonalModel.pairs(at:)` → `[LearnedPair]` (`previous`, `word`, `count`,
+  - `PersonalModel.learnedPairs(at:)` → `[LearnedPair]` (`previous`, `word`, `count`,
     `lastDay`), all shards summed, sentence starts left out.
   - `PersonalModel.forgetPairs(_:at:)`: a deleted pair is kept as a tombstone
     (`forgottenPairs: [String: Int]`, pair → day), merged like `forgottenAt` (the
-    later day wins, capped at 4,000 entries). `PersonalIndex` and `pairs(at:)` skip
+    later day wins, capped at 4,000 entries). `MirroredPersonalStore.save` merges the
+    App Group copy first, so a keyboard that loaded earlier doesn't write over a delete. `PersonalIndex` and `pairs(at:)` skip
     counts not written after it, and `learn` starts a forgotten pair over from zero,
     so writing it again brings it back. Older keyboards ignore the field.
   - `LearnedWords.add(_:at:)`: learned and kept, marked `added` so the list shows the

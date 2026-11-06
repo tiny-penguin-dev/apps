@@ -192,7 +192,9 @@ import Testing
         var flow = FlowMeter()
         flow.word(at: 0)
         flow.word(at: 2)
-        #expect(flow.score == 2)
+        // No quick bonus, and the first word drained away during the 1 s after the rest.
+        #expect(flow.score == 1)
+        #expect(flow.combo == 1)
     }
 
     @Test func aDeleteTakesSomeBack() {
@@ -213,11 +215,11 @@ import Testing
         var flow = FlowMeter()
         for i in 0..<10 { flow.word(at: Double(i)) }
         let full = flow.score   // 14.5
-        flow.tick(now: 9 + 2.5)
+        flow.tick(now: 9 + 1)
         #expect(flow.score == full)
-        flow.tick(now: 9 + 3.7)
+        flow.tick(now: 9 + 2.2)
         #expect(abs(flow.score - (full - 3)) < 1e-9)
-        flow.tick(now: 9 + 3.7)
+        flow.tick(now: 9 + 2.2)
         #expect(abs(flow.score - (full - 3)) < 1e-9)
         flow.tick(now: 100)
         #expect(flow.score == 0)

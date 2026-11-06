@@ -156,7 +156,7 @@ public enum FlowLevel: Int, CaseIterable, Sendable, Comparable {
 ///     var flow = FlowMeter()
 ///     flow.word(at: now)                  // +1, or +1.5 within 1.5 s of the last word
 ///     flow.delete(at: now)                // -3
-///     flow.tick(now: now)                 // drains after 2.5 s without typing
+///     flow.tick(now: now)                 // drains after 1 s without typing
 ///     flow.level(scale: 1, cap: 4)        // .toboggan
 public struct FlowMeter: Equatable, Sendable {
     /// A word within this long of the last one counts extra.
@@ -164,7 +164,7 @@ public struct FlowMeter: Equatable, Sendable {
     public static let quickBonus = 1.5
     public static let deletePenalty = 3.0
     /// The meter starts draining this long after the last word or delete…
-    public static let rest: TimeInterval = 2.5
+    public static let rest: TimeInterval = 1
     /// …at this many words a second.
     public static let drain = 2.5
 

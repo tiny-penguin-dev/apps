@@ -248,7 +248,7 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         // page, and take no touches.
         if stats.isRunning {
             let width = min(surface.frame.width - 8, 280)
-            stats.frame = CGRect(x: surface.frame.maxX - width - 4, y: surface.frame.minY + 1, width: width, height: 22)
+            stats.frame = CGRect(x: surface.frame.maxX - width - 4, y: surface.frame.minY + 1, width: width, height: 33)
             stats.isHidden = emojiPage != nil || panel != nil
             bringSubviewToFront(stats)
         }

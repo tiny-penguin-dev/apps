@@ -1,4 +1,5 @@
 import Foundation
+import Synchronization
 
 /// Everything about the languages the engine types in, so the next language is files
 /// under `Resources/<code>/`, not code (features/smart-matching/FEATURE.md "Languages",
@@ -51,6 +52,7 @@ public struct Language: Sendable {
 
     /// A language from the package: its lexicon must be there, its word pairs may be.
     public static func bundled(_ code: String = "en") throws -> Language {
+        LiveCount.dictionaryLoads.add(1, ordering: .relaxed)
         let entries = try Lexicon.readEntries(from: resource("lexicon", "tsv", language: code))
         let ngrams = (try? resource("bigrams", "bin", language: code)).flatMap { try? NgramModel(contentsOf: $0) }
         return Language(code: code, lexicon: Lexicon(entries: entries), ngrams: ngrams)
@@ -60,6 +62,7 @@ public struct Language: Sendable {
     /// language weighing the same (`combined`), and every language's word pairs.
     public static func bundled(_ codes: [String]) throws -> Language {
         guard codes.count > 1 else { return try bundled(codes.first ?? "en") }
+        LiveCount.dictionaryLoads.add(1, ordering: .relaxed)
         var lists: [[Lexicon.Entry]] = []
         var models: [NgramModel] = []
         var parts: [Language] = []

@@ -1,5 +1,6 @@
 #if canImport(UIKit)
 import AstrotypeCore
+import Synchronization
 import UIKit
 
 /// The keyboard's stats overlay (Settings → Debug → "Stats on the keyboard"): two tiny
@@ -24,7 +25,7 @@ public final class StatsOverlayView: UILabel {
         textColor = Theme.ui(.muted)
         textAlignment = .right
         alpha = 0.85
-        numberOfLines = 2
+        numberOfLines = 3
         isHidden = true
     }
 
@@ -69,6 +70,7 @@ public final class StatsOverlayView: UILabel {
             + MemoryReading.breakdown(footprintMB: reading.footprintMB, heapMB: MemoryReading.heapMB(),
                                       layers: Self.count(superview?.layer), views: Self.count(superview),
                                       metal: MetalKeyboard.loaded)
+            + "\n" + LiveCount.summary
         textColor = reading.budgetFraction >= 1 ? Theme.ui(.danger)
             : reading.budgetFraction >= 0.75 ? Theme.ui(.sun) : Theme.ui(.muted)
     }

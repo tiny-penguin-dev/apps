@@ -1,6 +1,7 @@
 #if canImport(UIKit)
 import Foundation
 import AstrotypeCore
+import Synchronization
 import UIKit
 
 /// Where the keyboard types: the extension's text document proxy, or a text view in
@@ -232,6 +233,7 @@ public final class KeyboardModel {
     public init(composer: Composer, store: SettingsStore? = nil, wordStore: WordStore? = nil,
                 personalStore: PersonalStore? = nil, personal: PersonalModel? = nil, installID: String = "app") {
         var composer = composer
+        LiveCount.models.add(1, ordering: .relaxed)
         let settings = store?.load() ?? KeyboardSettings()
         composer.settings = settings.composerSettings(from: composer.settings)
         if let words = wordStore?.load() { composer.learned = words }
@@ -253,6 +255,10 @@ public final class KeyboardModel {
     /// the settings, so the app and the other devices forget too.
     public func forgetPersonal() {
         keyboardSettings.forgetPersonalAt = Date()
+    }
+
+    deinit {
+        LiveCount.models.subtract(1, ordering: .relaxed)
     }
 
     /// A personal model from elsewhere (the App Group, iCloud), merged in.

@@ -79,7 +79,7 @@ struct SettingsView: View {
                 link(.typing, "Typing", subtitle: "Autospace, real words, gestures", symbol: "keyboard", tint: Theme.right)
                 link(.languages, "Languages", subtitle: languagesSubtitle, symbol: "character.bubble", tint: Theme.sun)
                 link(.appearance, "Appearance",
-                     subtitle: "Height \(Int((model.keyboardSettings.heightScale * 100).rounded()))%, guesses bar, trails, split",
+                     subtitle: "\(model.keyboardSettings.style(allows: model.entitlement.allows(.styles)).name) theme, height \(Int((model.keyboardSettings.heightScale * 100).rounded()))%, effects",
                      symbol: "paintpalette", tint: Theme.left)
                 link(.words, "Your words", subtitle: wordsSubtitle, symbol: "text.book.closed", tint: Theme.mint)
             }

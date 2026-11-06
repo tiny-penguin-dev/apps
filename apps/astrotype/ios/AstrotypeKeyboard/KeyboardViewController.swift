@@ -70,7 +70,7 @@ final class KeyboardViewController: UIInputViewController {
         if let health { model.onSettled = { [weak health] word in health?.settled(word) } }
 
         let keyboard = KeyboardView(model: model)
-        keyboard.backgroundColor = .clear
+        keyboard.usesSystemBackdrop = true
         keyboard.bar.backgroundColor = .clear
         // Not `.clear`: the extension drops touches on clear pixels, and taps in the
         // gaps between keys did nothing (Gabriel, 2 Nov 2026). `Layout.key(at:)` gives

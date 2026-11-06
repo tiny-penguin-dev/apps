@@ -139,9 +139,10 @@ private struct LanguagesSettings: View {
     }
 }
 
-/// How the keyboard looks and feels: its height, the guesses bar, trails, haptics, the
-/// underline, and the layout on wide screens.
-private struct AppearanceSettings: View {
+/// Appearance → General (features/customization): the keyboard's height, the guesses
+/// bar, haptics, the underline, and the layout on wide screens. Trails and flashes moved
+/// to Effects.
+struct GeneralAppearanceSettings: View {
     @Bindable var model: AppModel
     @Binding var path: [HomeView.Route]
 
@@ -158,8 +159,6 @@ private struct AppearanceSettings: View {
 
         SectionLabel("Look and feel").padding(.top, Theme.Space.m)
         SettingsGroup {
-            SettingsToggle("Trails and flashes", subtitle: "Show which thumb did what. Off saves battery.", symbol: "scribble",
-                           tint: Theme.right, isOn: $model.keyboardSettings.trails)
             SettingsToggle("Haptics", subtitle: "A soft tap on each key. In other apps this needs Full Access.",
                            symbol: "iphone.radiowaves.left.and.right", tint: Theme.slate, isOn: $model.keyboardSettings.haptics)
             SettingsToggle("Underline the open word", subtitle: "In other apps. Off keeps spaces right in every app.",

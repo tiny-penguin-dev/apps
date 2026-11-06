@@ -5,10 +5,11 @@ import UIKit
 /// The in-keyboard settings under a held "123" (features/settings/FEATURE.md): the core
 /// few, so they can change without leaving the app being typed in, and so people
 /// without Full Access (where the app's Settings can't reach the keyboard) can still
-/// change them. Four quick tiles (autospace, the guesses bar, haptics, trails, and the
-/// split on a wide screen) and four sliders (height, real words, split words, and
-/// autospace's wait), and a Languages row that opens the list of languages
-/// (features/languages: any one free, two at once Pro). The rest lives in the app.
+/// change them. Quick tiles (autospace, next word, the guesses bar, haptics, effects,
+/// and the split on a wide screen) and four sliders (height, real words, split words,
+/// and autospace's wait), a Languages row that opens the list of languages
+/// (features/languages: any one free, two at once Pro), and a Theme row that opens the
+/// themes (features/customization: Classic free, the rest Pro). The rest lives in the app.
 ///
 /// Shown over the keys, on the keyboard's own backdrop (glass on iOS 26). The title and
 /// Done head the tiles and sliders and scroll away with them when the keys' space is
@@ -32,6 +33,11 @@ public final class SettingsPanelView: UIView {
     /// other off, and a line says Pro types in both.
     public var allowsTwoLanguages = true {
         didSet { if allowsTwoLanguages != oldValue { render() } }
+    }
+    /// Whether themes other than Classic may be chosen (Pro). Off, they show PRO and stay
+    /// put.
+    public var allowsStyles = true {
+        didSet { if allowsStyles != oldValue { render() } }
     }
     /// The phone's languages, for the languages that follow it until chosen.
     public var preferredLanguages: [String] = Locale.preferredLanguages {
@@ -63,7 +69,7 @@ public final class SettingsPanelView: UIView {
     private let autospaceTile = QuickTile(title: "Autospace", symbol: "space")
     private let barTile = QuickTile(title: "Guesses bar", symbol: "rectangle.topthird.inset.filled")
     private let hapticsTile = QuickTile(title: "Haptics", symbol: "iphone.radiowaves.left.and.right")
-    private let trailsTile = QuickTile(title: "Trails", symbol: "scribble")
+    private let trailsTile = QuickTile(title: "Effects", symbol: "sparkles")
     private let splitTile = QuickTile(title: "Split", symbol: "rectangle.split.2x1")
     private let nextTile = QuickTile(title: "Next word", symbol: "text.append")
 
@@ -82,8 +88,17 @@ public final class SettingsPanelView: UIView {
         ($0, CheckRow(title: Language.names[$0] ?? $0, subtitle: Language.englishNames[$0]))
     }
     private let languageNote = UILabel()
-    private var showingLanguages = false {
-        didSet { if showingLanguages != oldValue { showPage() } }
+    /// The Theme row, and the themes' page.
+    private let themeLink = LinkRow(title: "Theme", symbol: "paintpalette")
+    private let themeScroll = PanelScrollView()
+    private let themeList = UIStackView()
+    private let themeNote = UILabel()
+    /// The themes the rows were made for, to remake them when the person's change.
+    private var themeRows: [(id: String, row: CheckRow)] = []
+
+    private enum Page { case main, languages, themes }
+    private var page = Page.main {
+        didSet { if page != oldValue { showPage() } }
     }
     private let more = UILabel()
     private var flashedIndicators = false
@@ -118,7 +133,7 @@ public final class SettingsPanelView: UIView {
         backConfig.contentInsets = NSDirectionalEdgeInsets(top: 8, leading: 4, bottom: 8, trailing: 8)
         back.configuration = backConfig
         back.accessibilityLabel = "Back to keyboard settings"
-        back.addAction(UIAction { [weak self] _ in self?.showingLanguages = false }, for: .touchUpInside)
+        back.addAction(UIAction { [weak self] _ in self?.page = .main }, for: .touchUpInside)
         back.isHidden = true
         header.addSubview(back)
 
@@ -129,7 +144,8 @@ public final class SettingsPanelView: UIView {
         wire(splitTile) { $0.splitOnWide.toggle() }
         wire(nextTile) { $0.nextWords.toggle() }
         nextTile.accessibilityHint = "Likely next words in the bar after each word"
-        languagesLink.addAction(UIAction { [weak self] _ in self?.showingLanguages = true }, for: .touchUpInside)
+        languagesLink.addAction(UIAction { [weak self] _ in self?.page = .languages }, for: .touchUpInside)
+        themeLink.addAction(UIAction { [weak self] _ in self?.page = .themes }, for: .touchUpInside)
         for (code, row) in languageRows {
             row.addAction(UIAction { [weak self] _ in self?.toggleLanguage(code) }, for: .touchUpInside)
         }
@@ -155,6 +171,11 @@ public final class SettingsPanelView: UIView {
         languageNote.adjustsFontForContentSizeCategory = true
         languageNote.numberOfLines = 0
         languageNote.text = "One language at a time. Pro types in two at once."
+        themeNote.font = note.font
+        themeNote.textColor = Theme.ui(.muted)
+        themeNote.adjustsFontForContentSizeCategory = true
+        themeNote.numberOfLines = 0
+        themeNote.text = "Classic is free. Pro has every theme, and you can make your own in the app."
         more.text = "More in the Astrotype app"
         more.font = Theme.uiFont(size: 13, weight: .semibold, scaledWith: .footnote, upTo: 18)
         more.textColor = Theme.ui(.muted)
@@ -211,7 +232,7 @@ public final class SettingsPanelView: UIView {
         column.axis = .vertical
         column.spacing = Theme.Space.s
         column.translatesAutoresizingMaskIntoConstraints = false
-        let languagesCard = card([languagesLink])
+        let languagesCard = card([languagesLink, themeLink])
         for view in [tileGrid, languagesCard, sliders, note, more] { column.addArrangedSubview(view) }
 
         // The languages page: a card of rows, the free note under it.
@@ -233,6 +254,23 @@ public final class SettingsPanelView: UIView {
             languageList.trailingAnchor.constraint(equalTo: languageScroll.frameLayoutGuide.trailingAnchor, constant: -Theme.Space.m),
         ])
 
+        // The themes page: a card of rows, the Pro note under it.
+        themeList.axis = .vertical
+        themeList.spacing = Theme.Space.s
+        themeList.translatesAutoresizingMaskIntoConstraints = false
+        themeScroll.showsHorizontalScrollIndicator = false
+        themeScroll.alwaysBounceVertical = true
+        themeScroll.delaysContentTouches = false
+        themeScroll.isHidden = true
+        themeScroll.addSubview(themeList)
+        addSubview(themeScroll)
+        NSLayoutConstraint.activate([
+            themeList.topAnchor.constraint(equalTo: themeScroll.contentLayoutGuide.topAnchor),
+            themeList.bottomAnchor.constraint(equalTo: themeScroll.contentLayoutGuide.bottomAnchor, constant: -Theme.Space.m),
+            themeList.leadingAnchor.constraint(equalTo: themeScroll.frameLayoutGuide.leadingAnchor, constant: Theme.Space.m),
+            themeList.trailingAnchor.constraint(equalTo: themeScroll.frameLayoutGuide.trailingAnchor, constant: -Theme.Space.m),
+        ])
+
         scroll.showsHorizontalScrollIndicator = false
         scroll.alwaysBounceVertical = true
         scroll.delaysContentTouches = false
@@ -241,7 +279,7 @@ public final class SettingsPanelView: UIView {
         addSubview(scroll)
 
         // Both pages leave room at the top for the header, which sits in that room.
-        for page in [scroll, languageScroll] {
+        for page in [scroll, languageScroll, themeScroll] {
             page.contentInsetAdjustmentBehavior = .never
             page.contentInset.top = Self.headerHeight
             page.verticalScrollIndicatorInsets.top = Self.headerHeight
@@ -280,13 +318,18 @@ public final class SettingsPanelView: UIView {
 
     /// The settings, or the list of languages in their place.
     private func showPage() {
-        scroll.isHidden = showingLanguages
-        languageScroll.isHidden = !showingLanguages
-        back.isHidden = !showingLanguages
-        title.text = showingLanguages ? "Languages" : "Keyboard settings"
-        let page = showingLanguages ? languageScroll : scroll
-        page.addSubview(header)
-        page.contentOffset = CGPoint(x: 0, y: -Self.headerHeight)
+        scroll.isHidden = page != .main
+        languageScroll.isHidden = page != .languages
+        themeScroll.isHidden = page != .themes
+        back.isHidden = page == .main
+        let view: UIScrollView
+        switch page {
+        case .main: title.text = "Keyboard settings"; view = scroll
+        case .languages: title.text = "Languages"; view = languageScroll
+        case .themes: title.text = "Theme"; view = themeScroll
+        }
+        view.addSubview(header)
+        view.contentOffset = CGPoint(x: 0, y: -Self.headerHeight)
         setNeedsLayout()
         UIAccessibility.post(notification: .screenChanged, argument: title)
     }
@@ -327,6 +370,7 @@ public final class SettingsPanelView: UIView {
         }
         languagesLink.value = active.map { Language.names[$0] ?? $0 }.joined(separator: ", ")
         languageNote.isHidden = allowsTwoLanguages
+        renderThemes()
         autospaceTile.isOn = settings.autospace
         barTile.isOn = settings.showsBar
         hapticsTile.isOn = settings.haptics
@@ -351,6 +395,35 @@ public final class SettingsPanelView: UIView {
         note.isHidden = lines.isEmpty
     }
 
+    /// The themes page: every built-in theme and the person's own, the one in use ticked.
+    private func renderThemes() {
+        let themes = KeyboardTheme.builtIn + settings.customThemes
+        let ids = themes.map(\.id)
+        if themeRows.map(\.id) != ids {
+            for view in themeList.arrangedSubviews { view.removeFromSuperview() }
+            themeRows = themes.map { theme in
+                let row = CheckRow(title: theme.name, subtitle: nil)
+                row.addAction(UIAction { [weak self] _ in self?.chooseTheme(theme.id) }, for: .touchUpInside)
+                return (theme.id, row)
+            }
+            themeList.addArrangedSubview(card(themeRows.map(\.row)))
+            themeList.addArrangedSubview(themeNote)
+        }
+        let shown = settings.style(allows: allowsStyles)
+        for (theme, (_, row)) in zip(themes, themeRows) {
+            row.isOn = theme.id == shown.id
+            row.subtitle = allowsStyles || theme.isFree ? nil : "PRO"
+            row.alpha = allowsStyles || theme.isFree ? 1 : 0.5
+        }
+        themeNote.isHidden = allowsStyles
+        themeLink.value = shown.name
+    }
+
+    private func chooseTheme(_ id: String) {
+        guard allowsStyles || id == KeyboardTheme.classic.id else { return }
+        update { $0.themeID = id }
+    }
+
     private func percent(_ value: Double) -> String { "\(Int((value * 100).rounded()))%" }
 
     // MARK: Layout
@@ -361,6 +434,7 @@ public final class SettingsPanelView: UIView {
         let headerHeight = Self.headerHeight
         scroll.frame = bounds
         languageScroll.frame = bounds
+        themeScroll.frame = bounds
         self.header.frame = CGRect(x: 0, y: -headerHeight, width: bounds.width, height: headerHeight)
         done.sizeToFit()
         let doneSize = CGSize(width: max(80, done.bounds.width), height: 34)
@@ -368,7 +442,7 @@ public final class SettingsPanelView: UIView {
                             width: doneSize.width, height: doneSize.height)
         back.sizeToFit()
         back.frame = CGRect(x: side - 4, y: (headerHeight - 44) / 2, width: max(44, back.bounds.width), height: 44)
-        let titleX = showingLanguages ? back.frame.maxX : side + Theme.Space.xs
+        let titleX = page != .main ? back.frame.maxX : side + Theme.Space.xs
         title.frame = CGRect(x: titleX, y: 0, width: max(0, done.frame.minX - titleX - Theme.Space.s), height: headerHeight)
     }
 
@@ -532,15 +606,25 @@ private final class CheckRow: UIControl {
         }
     }
     private let tick = UIImageView(image: UIImage(systemName: "checkmark", withConfiguration: UIImage.SymbolConfiguration(pointSize: 15, weight: .black)))
+    private let second = UILabel()
+    private let title: String
+    /// The quieter second line, like "PRO".
+    var subtitle: String? {
+        didSet {
+            second.text = subtitle
+            second.isHidden = subtitle == nil || subtitle == title
+            accessibilityHint = subtitle
+        }
+    }
 
     init(title: String, subtitle: String?) {
+        self.title = title
         super.init(frame: .zero)
         let name = UILabel()
         name.text = title
         name.font = Theme.uiFont(size: 15, weight: .semibold, scaledWith: .body, upTo: 22)
         name.textColor = Theme.ui(.ink)
         name.adjustsFontForContentSizeCategory = true
-        let second = UILabel()
         second.text = subtitle
         second.font = Theme.uiFont(size: 13, weight: .regular, scaledWith: .footnote, upTo: 18)
         second.textColor = Theme.ui(.muted)

@@ -45,6 +45,11 @@ public struct TypingEvent: Codable, Sendable, Equatable {
         /// The text before the cursor (`s`, the end of it) after the app changed it,
         /// and after the field was replaced or the cursor moved (`reset`).
         case context = "ctx", reset
+        /// What the field itself reported (`s`), on a change from the app and before a
+        /// delete: the end of the text before the cursor, the selection in ⟦ ⟧, the start
+        /// of the text after, and the open word as the keyboard holds it. For the
+        /// underlined word bugs, where the keyboard and the field disagree (6 Nov 2026).
+        case fieldState = "fs"
         /// The keyboard settings changed (`settings`), the field (`field`), the keys'
         /// layout (`layout`), the page showing (`s`), the languages (`s`, "en+es"), Pro (`n`).
         case settings = "set", field, layout = "lay", page, language = "lang", pro

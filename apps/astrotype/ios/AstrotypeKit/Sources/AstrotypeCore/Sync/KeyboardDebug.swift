@@ -105,16 +105,20 @@ public enum LiveCount {
     public static let dictionaryLoads = Atomic<Int>(0)
     /// iCloud sync rounds started in this process.
     public static let syncs = Atomic<Int>(0)
+    /// Sync rounds still waiting on iCloud. One that never comes back is stuck.
+    public static let syncsWaiting = Atomic<Int>(0)
 
-    /// "1 keyboard · 1 model · 2 loads · 3 syncs".
+    /// "1 keyboard · 1 model · 2 loads · 3 syncs", with ", 1 waiting" while a sync is out.
     public static var summary: String {
         line(controllers: controllers.load(ordering: .relaxed), models: models.load(ordering: .relaxed),
-             loads: dictionaryLoads.load(ordering: .relaxed), syncs: syncs.load(ordering: .relaxed))
+             loads: dictionaryLoads.load(ordering: .relaxed), syncs: syncs.load(ordering: .relaxed),
+             waiting: syncsWaiting.load(ordering: .relaxed))
     }
 
-    static func line(controllers: Int, models: Int, loads: Int, syncs: Int = 0) -> String {
+    static func line(controllers: Int, models: Int, loads: Int, syncs: Int = 0, waiting: Int = 0) -> String {
         func n(_ count: Int, _ word: String) -> String { "\(count) \(word)\(count == 1 ? "" : "s")" }
-        return [n(controllers, "keyboard"), n(models, "model"), n(loads, "load"), n(syncs, "sync")].joined(separator: " · ")
+        let line = [n(controllers, "keyboard"), n(models, "model"), n(loads, "load"), n(syncs, "sync")].joined(separator: " · ")
+        return waiting > 0 ? line + ", \(waiting) waiting" : line
     }
 }
 

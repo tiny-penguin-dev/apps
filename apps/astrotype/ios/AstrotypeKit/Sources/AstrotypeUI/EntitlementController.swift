@@ -33,16 +33,30 @@ public final class EntitlementController {
         guard listening == nil else { return }
         apply(subscribed: cache?.load()?.isPro ?? false)
         let changes = store.changes()
+        let store = self.store
+        // Asks the App Store without holding this controller (or its model), so a
+        // keyboard that went away is freed even while StoreKit is slow to answer.
         listening = Task { [weak self] in
-            await self?.refresh()
+            let first = await store.isPro()
+            self?.answered(first)
             for await _ in changes {
-                await self?.refresh()
+                let subscribed = await store.isPro()
+                guard !Task.isCancelled else { return }
+                self?.answered(subscribed)
             }
         }
     }
 
+    deinit {
+        // Also stops the `Transaction.updates` listener behind `changes`.
+        listening?.cancel()
+    }
+
     public func refresh() async {
-        let subscribed = await store.isPro()
+        answered(await store.isPro())
+    }
+
+    private func answered(_ subscribed: Bool) {
         cache?.save(ProCache.Entry(isPro: subscribed, checked: now()))
         apply(subscribed: subscribed)
     }

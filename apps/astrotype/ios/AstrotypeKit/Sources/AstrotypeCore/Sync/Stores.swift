@@ -166,9 +166,12 @@ public struct MirroredPersonalStore: PersonalStore {
         }
     }
 
+    /// Merged with the shared copy first, so what the app wrote there since (pairs the
+    /// person deleted, a forget) isn't written over by a keyboard that loaded earlier.
     public func save(_ model: PersonalModel) {
-        own.save(model)
-        shared.save(model)
+        let merged = shared.load().map { model.merged(with: $0) } ?? model
+        own.save(merged)
+        shared.save(merged)
     }
 }
 

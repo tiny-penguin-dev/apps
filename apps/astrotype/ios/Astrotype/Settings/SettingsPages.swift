@@ -201,6 +201,8 @@ private struct WordsSettings: View {
         SettingsGroup {
             SettingsLink("Learned words", subtitle: learnedSubtitle, symbol: "book.closed", tint: Theme.mint,
                          value: "\(model.learnedWords.recent.count)") { path.append(.learnedWords) }
+            SettingsLink("Word pairs", subtitle: "Words you write one after another", symbol: "text.word.spacing", tint: Theme.mint,
+                         value: model.personalSummary.pairs.formatted()) { path.append(.wordPairs) }
             SettingsLink("Words it missed", subtitle: missedSubtitle, symbol: "pencil", tint: Theme.mint,
                          value: "\(model.missedWords.count)") { path.append(.missedWords) }
             SettingsToggle("Learns from you", subtitle: personalSubtitle, symbol: "brain", tint: Theme.mint,
@@ -229,7 +231,7 @@ private struct WordsSettings: View {
     }
 
     private var learnedSubtitle: String {
-        model.learnedWords.recent.isEmpty ? "Words you peck out that it doesn't know end up here" : "Words it learned from you"
+        model.learnedWords.recent.isEmpty ? "Words you peck out that it doesn't know end up here" : "Words it learned from you. Add your own."
     }
 
     private var personalSubtitle: String {
@@ -238,8 +240,7 @@ private struct WordsSettings: View {
         guard summary.words > 0 || summary.mappedKeys > 0 else {
             return model.isFullAccessOn ? "Nothing yet. It learns as you type in other apps." : "It learns as you type in other apps."
         }
-        let pairs = "\(summary.pairs.formatted()) word pair\(summary.pairs == 1 ? "" : "s")"
-        return pairs + (summary.thumbsMapped ? ", thumbs mapped" : ", learning your thumbs")
+        return summary.thumbsMapped ? "Thumbs mapped" : "Learning your thumbs"
     }
 }
 

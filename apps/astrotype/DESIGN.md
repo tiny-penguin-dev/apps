@@ -117,8 +117,10 @@ and trails, plus split on a wide screen, a Languages row that opens the list of
 languages with a tick on each one that's on, and four sliders, height, real words, split
 words and autospace's wait; it covers the guesses bar too, which has nothing to say
 while it's open (Gabriel, 3 Nov 2026); the rest is in the app; `features/settings`, 3 Nov 2026,
-[panel](features/settings/design/screens/09-panel.png)), learned
-words list, snippets editor, one-handed layouts, the milestone sheet. The split layout
+[panel](features/settings/design/screens/09-panel.png)), the learned
+words and word pairs lists (Settings → Your words: + adds a word, Select drops several,
+pairs searchable by most used or newest with a four-bar meter; `features/learned-words`,
+6 Nov 2026, [pairs](features/learned-words/design/screens/pairs.png)), snippets editor, one-handed layouts, the milestone sheet. The split layout
 (an option on wide screens, Gabriel, 1 Nov 2026) is exactly Apple's: Q to T, A to G
 and Z to V on the left, Y to P, G to L and V to M on the right (G and V on both halves,
 nothing repeated on the top row; Gabriel, 2 Nov 2026, after trying more overlap). Settings

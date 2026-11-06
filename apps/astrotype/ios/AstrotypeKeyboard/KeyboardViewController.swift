@@ -82,6 +82,8 @@ final class KeyboardViewController: UIInputViewController {
         // Frequently used emoji and skin tones, in the extension's own files (they don't
         // sync, features/emoji).
         model.emojiStore = FileEmojiStore(url: KeyboardFiles.own(KeyboardFiles.emoji))
+        // The next-word models, loaded in the background (features/next-word-model).
+        model.loadNextWordModel = NextWordModels.load
         self.target = target
         if let health { model.onSettled = { [weak health] word in health?.settled(word) } }
         model.device = TypingSnapshot.Device(app: Self.appVersion, system: "\(UIDevice.current.systemName) \(UIDevice.current.systemVersion)",
@@ -306,6 +308,9 @@ final class KeyboardViewController: UIInputViewController {
         health?.sample()
         debug?.memoryWarning()
         logMemory("warning")
+        // The word pairs carry on alone; the models come back with the next language load.
+        keyboard?.model.dropNextWordModels()
+        NextWordModels.drop()
     }
 
     /// The field as the app describes it (features/field-types): its keyboard type,

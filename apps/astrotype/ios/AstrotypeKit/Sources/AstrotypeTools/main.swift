@@ -26,6 +26,8 @@ usage:
       the "Practice words" prompts
   astrotype-tools next <word> [--language en|es|en+es] [--limit N]
       the words the model expects after `word` (`<s>` for a sentence start)
+  astrotype-tools nexteval <test.txt> [--language en|es] [--limit N]
+      scores the word pairs' next-word guesses on held-back sentences (ml/nextword/make_text.py)
   astrotype-tools typing <log.json> [--show timeline|replay]
       a typing recording from Settings → Debug: what happened, line by line, then the replay
       through the engine and every place it writes something else than the phone did
@@ -174,6 +176,16 @@ func next(_ plain: [String], _ options: [String: String]) {
     }
 }
 
+func nextEval(_ plain: [String], _ options: [String: String]) {
+    guard plain.count == 1 else { fail(usage) }
+    let models = language(options).ngramModels
+    let limit = options["limit"].flatMap(Int.init) ?? .max
+    guard let text = try? String(contentsOfFile: plain[0], encoding: .utf8) else { fail("can't read \(plain[0])") }
+    let sentences = text.split(separator: "\n").prefix(limit).map { $0.split(separator: " ").map(String.init) }
+    let eval = NextWordEval.run(sentences: sentences) { NextWordEval.pairGuesses($0, models: models) }
+    print("Word pairs: \(sentences.count) sentences · \(eval.summary)")
+}
+
 func typing(_ plain: [String], _ options: [String: String]) {
     guard plain.count == 1 else { fail(usage) }
     let log: TypingLog
@@ -202,6 +214,7 @@ switch command {
 case "build-ngrams": buildNgrams(plain, options)
 case "replay": replay(plain, options)
 case "next": next(plain, options)
+case "nexteval": nextEval(plain, options)
 case "tune": tune(plain, options)
 case "synth": synth(plain, options)
 case "prompts": prompts(plain, options)

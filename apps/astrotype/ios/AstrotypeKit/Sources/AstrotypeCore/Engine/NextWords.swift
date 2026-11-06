@@ -27,17 +27,28 @@ public enum NextWords {
 
     /// Up to `count` words, lowercase, best first. Empty when neither the pairs nor the
     /// person know anything after `previous`.
+    ///
+    /// With `fromModel` (the next-word model's guesses for the whole sentence,
+    /// features/next-word-model) those take the pairs' place; the person's own words
+    /// mix in the same way.
     public static func guesses(after previous: String, models: [NgramModel], personal: PersonalIndex,
-                               learned: LearnedWords, count: Int) -> [String] {
+                               learned: LearnedWords, count: Int,
+                               fromModel: [(word: String, probability: Float)] = []) -> [String] {
         guard count > 0 else { return [] }
         let mine = personal.following[previous] ?? [:]
         let total = mine.values.reduce(0, +)
         let trust = total > 0 ? total / (total + personalTrust) : 0
         var chance: [String: Float] = [:]
-        // A few spare, since some are dropped below.
-        for model in models {
-            for (word, logP) in model.topNext(after: previous, limit: count + 8) {
-                chance[word] = max(chance[word] ?? 0, (1 - trust) * exp(logP))
+        if fromModel.isEmpty {
+            // A few spare, since some are dropped below.
+            for model in models {
+                for (word, logP) in model.topNext(after: previous, limit: count + 8) {
+                    chance[word] = max(chance[word] ?? 0, (1 - trust) * exp(logP))
+                }
+            }
+        } else {
+            for (word, p) in fromModel {
+                chance[word] = max(chance[word] ?? 0, (1 - trust) * p)
             }
         }
         for (word, n) in mine where n > 0 {

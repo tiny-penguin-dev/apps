@@ -70,6 +70,47 @@ public enum WordContext {
         return tokens.map { normalize($0) }.filter { !$0.isEmpty }
     }
 
+    /// The current sentence as the next-word model reads it (`NextWordModel`,
+    /// `ml/nextword/make_text.py`): its words folded, `,` for each break (one for a run
+    /// of them), `<unk>` for a number. Nil inside a word, where nothing comes next yet.
+    ///
+    ///     WordContext.tokens(before: "Hi. I left it at 5, then ")   // ["i", "left", "it", "at", "<unk>", ",", "then"]
+    ///     WordContext.tokens(before: "Hi. ")                        // []
+    ///     WordContext.tokens(before: "Hi. I le")                    // nil
+    public static func tokens(before text: String) -> [String]? {
+        var sentence = Substring(text)
+        if let end = sentence.lastIndex(where: { sentenceEnders.contains($0) }) {
+            sentence = sentence[sentence.index(after: end)...]
+        }
+        if let last = sentence.last, !(last.isWhitespace || breakers.contains(last) || Accents.openers.contains(last)) {
+            return nil
+        }
+        var out: [String] = []
+        var word = ""
+        func flush() {
+            guard !word.isEmpty else { return }
+            if word.allSatisfy(\.isNumber) {
+                out.append("<unk>")
+            } else {
+                let folded = normalize(Substring(word))
+                if !folded.isEmpty { out.append(folded) }
+            }
+            word = ""
+        }
+        for c in sentence {
+            if c.isWhitespace {
+                flush()
+            } else if breakers.contains(c) {
+                flush()
+                if let last = out.last, last != "," { out.append(",") }
+            } else {
+                word.append(c)
+            }
+        }
+        flush()
+        return out
+    }
+
     /// A token as the model knows it: lowercase letters with accents off (`Lexicon.fold`,
     /// "Mañana" → "manana"), apostrophes dropped ("Don't" → "dont"), anything else removed.
     static func normalize(_ token: Substring) -> String {

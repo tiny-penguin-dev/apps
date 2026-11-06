@@ -15,6 +15,14 @@ import Testing
         #expect(reading(26, 0).overlay(peakMB: 20) == "26.0/40 MB · peak 26.0")
     }
 
+    @Test func breakdownSplitsHeapFromTheRest() {
+        #expect(MemoryReading.breakdown(footprintMB: 30, heapMB: 12.34, layers: 412) == "heap 12.3 · other 17.7 · 412 layers")
+        #expect(MemoryReading.breakdown(footprintMB: 10, heapMB: 12, layers: 3) == "heap 12.0 · other 0.0 · 3 layers")
+        #expect(MemoryReading.breakdown(footprintMB: 10, heapMB: nil, layers: 3) == "3 layers")
+        #expect(MemoryReading.breakdown(footprintMB: 30, heapMB: 10, layers: 9, views: 4, metal: true)
+                == "heap 10.0 · other 20.0 · 9 layers · 4 views · metal")
+    }
+
     @Test func limitAndBudget() {
         #expect(reading(20, 30).limitMB == 50)
         #expect(reading(20, 0).limitMB == nil)

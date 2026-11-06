@@ -53,7 +53,7 @@ struct DebugSettings: View {
                            isOn: $model.keyboardSettings.showsStats)
         }
         GroupFootnote(model.isFullAccessOn
-                      ? "Now, peak since it loaded, and what's left before iOS's limit. Amber past 30 MB, red past 40."
+                      ? "Now, peak since it loaded, and what's left before iOS's limit. Amber past 30 MB, red past 40. The second line splits it: heap is the keyboard's own objects, other is drawing and images, and the layer count should stay flat while you type."
                       : "Without Full Access the keyboard in other apps keeps its own settings, so this only shows on the practice keyboard here.")
 
         if model.isTestBuild {

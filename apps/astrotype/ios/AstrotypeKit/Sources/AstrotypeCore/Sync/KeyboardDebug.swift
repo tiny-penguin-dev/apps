@@ -62,6 +62,31 @@ public struct MemoryReading: Codable, Sendable, Equatable {
         return text
     }
 
+    /// What malloc holds in use across all zones, in MB: the process's own objects and
+    /// buffers. The rest of the footprint is images, layers, Metal and mapped data, so
+    /// the two together tell a heap leak from a drawing one. Nil off Darwin.
+    public static func heapMB() -> Double? {
+        #if canImport(Darwin)
+        var stats = malloc_statistics_t()
+        malloc_zone_statistics(nil, &stats)
+        return Double(stats.size_in_use) / 1_048_576
+        #else
+        return nil
+        #endif
+    }
+
+    /// The overlay's second line: "heap 12.3 · other 18.1 · 412 layers · 96 views",
+    /// and "· metal" once the Metal effects are loaded.
+    public static func breakdown(footprintMB: Double, heapMB: Double?, layers: Int, views: Int = 0,
+                                 metal: Bool = false) -> String {
+        var parts: [String] = []
+        if let heapMB { parts += ["heap \(mb(heapMB))", "other \(mb(max(0, footprintMB - heapMB)))"] }
+        parts.append("\(layers) layers")
+        if views > 0 { parts.append("\(views) views") }
+        if metal { parts.append("metal") }
+        return parts.joined(separator: " · ")
+    }
+
     /// One decimal, like "23.4".
     public static func mb(_ value: Double) -> String {
         String(format: "%.1f", value)

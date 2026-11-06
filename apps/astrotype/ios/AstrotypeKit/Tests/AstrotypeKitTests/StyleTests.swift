@@ -177,12 +177,12 @@ import Testing
     @Test func fastWordsClimbTheLevels() {
         var flow = FlowMeter()
         var t = 0.0
-        for _ in 0..<5 { flow.word(at: t); t += 1 }
-        // 1 + 1.5 * 4 = 7: Waddle (6), not yet Toboggan (18).
-        #expect(flow.score == 7)
+        for _ in 0..<4 { flow.word(at: t); t += 1 }
+        // 1 + 1.5 * 3 = 5.5: Waddle.
+        #expect(flow.score == 5.5)
         #expect(flow.level() == .waddle)
-        #expect(flow.combo == 5)
-        for _ in 0..<40 { flow.word(at: t); t += 1 }
+        #expect(flow.combo == 4)
+        for _ in 0..<30 { flow.word(at: t); t += 1 }
         #expect(flow.level() == .aurora)
         #expect(flow.level(cap: 2) == .toboggan)
         #expect(flow.progress(cap: 4) == 1)
@@ -215,9 +215,9 @@ import Testing
         let full = flow.score   // 14.5
         flow.tick(now: 9 + 2.5)
         #expect(flow.score == full)
-        flow.tick(now: 9 + 4)
+        flow.tick(now: 9 + 3.7)
         #expect(abs(flow.score - (full - 3)) < 1e-9)
-        flow.tick(now: 9 + 4)
+        flow.tick(now: 9 + 3.7)
         #expect(abs(flow.score - (full - 3)) < 1e-9)
         flow.tick(now: 100)
         #expect(flow.score == 0)
@@ -230,6 +230,6 @@ import Testing
         for i in 0..<4 { flow.word(at: Double(i)) }   // 5.5
         #expect(flow.level(scale: 1.5) == .calm)
         #expect(flow.level(scale: 0.5) == .waddle)
-        #expect(abs(flow.progress(scale: 1.5) - 5.5 / 9) < 1e-9)
+        #expect(abs(flow.progress(scale: 1.5) - 5.5 / 7.5) < 1e-9)
     }
 }

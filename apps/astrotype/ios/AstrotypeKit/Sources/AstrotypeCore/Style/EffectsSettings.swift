@@ -136,16 +136,14 @@ public enum FlowLevel: Int, CaseIterable, Sendable, Comparable {
         }
     }
 
-    /// Words of flow to reach this level at the steady build. A little more than the
-    /// first build's 5/15/30/50 after testing (Gabriel, 6 Nov 2026: build up a bit
-    /// slower, drain faster).
+    /// Words of flow to reach this level at the steady build.
     public var words: Double {
         switch self {
         case .calm: 0
-        case .waddle: 6
-        case .toboggan: 18
-        case .blizzard: 36
-        case .aurora: 60
+        case .waddle: 5
+        case .toboggan: 15
+        case .blizzard: 30
+        case .aurora: 50
         }
     }
 
@@ -168,7 +166,7 @@ public struct FlowMeter: Equatable, Sendable {
     /// The meter starts draining this long after the last word or delete…
     public static let rest: TimeInterval = 2.5
     /// …at this many words a second.
-    public static let drain = 2.0
+    public static let drain = 2.5
 
     public private(set) var score = 0.0
     /// Words in this run; back to 0 when the meter empties.

@@ -154,7 +154,9 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
   `field-types` (the keyboard following email, web, search and number fields),
   `next-word` (the likely next words on the bar after each word, with the FIX chip),
   `guesses-bar` (the bar in three parts: globe key left, words centred, pencil right with the
-  fix row behind it; built 3 Nov 2026).
+  fix row behind it; built 3 Nov 2026),
+  `customization` (Appearance split into General, Styling and Effects: themes, your own
+  theme, tap and swipe effects and flow levels; in design).
 - `design/`: the mockup (`mockups/astrotype.html`, the keyboard in it works), the
   screen captures the design doc links, the icon's SVGs (`icon/`) and
   `appstore/make-screenshots.mjs`, which renders the store screenshots from the mockup

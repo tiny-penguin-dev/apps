@@ -512,7 +512,9 @@ final class KeyboardViewController: UIInputViewController {
 /// through the proxy, finished with unmark-then-insert, left the cursor before the word
 /// and the space went there (Gabriel, 2 Nov 2026). With "Underline the word you're
 /// typing" on, the open word is marked text again, and it is finished by inserting it
-/// over the marked text in one step, which leaves the cursor after it.
+/// over the marked text in one step, which leaves the cursor after it. The underline
+/// lasts only while typing goes on (`letGoAfterPause`): the field hides selections and
+/// taps from the keyboard while a word is marked.
 ///
 /// Text selected in the field is deleted before anything is typed, so a tap or a swipe
 /// replaces it: inserting through the proxy left the selection in place (Gabriel, 3 Nov
@@ -535,6 +537,13 @@ final class ProxyTarget: TextTarget {
     /// When the keyboard last wrote to the field, so a change it did not make can be told
     /// apart (`fieldChangedUnderOpenWord`).
     private var lastEdit: TimeInterval = 0
+    /// Lets go of the underline once typing pauses (`letGoAfterPause`).
+    private var pause: Task<Void, Never>?
+    /// The underline was let go during a pause; the next reading of the word underlines
+    /// it again.
+    private var resumesMark = false
+    /// How long typing pauses before the underlined word turns into plain text.
+    static let underlinePause: Duration = .seconds(1)
 
     init(controller: UIInputViewController) {
         self.controller = controller
@@ -574,12 +583,14 @@ final class ProxyTarget: TextTarget {
         edited()
         if open.isEmpty {
             openIsMarked = underlines()
+            resumesMark = false
             openDocument = documentID
             if !text.isEmpty { deleteSelection() }
         }
         if openIsMarked {
             proxy.setMarkedText(text, selectedRange: NSRange(location: text.utf16.count, length: 0))
             open = text
+            letGoAfterPause()
             return
         }
         // Take the old reading out, unless the cursor moved away from it (then it stays
@@ -587,12 +598,42 @@ final class ProxyTarget: TextTarget {
         if !open.isEmpty, proxy.documentContextBeforeInput.map({ $0.hasSuffix(open) }) ?? true {
             for _ in 0..<open.count { proxy.deleteBackward() }
         }
+        if resumesMark, !text.isEmpty {
+            // Typing again after a pause: the word is underlined again.
+            resumesMark = false
+            openIsMarked = true
+            proxy.setMarkedText(text, selectedRange: NSRange(location: text.utf16.count, length: 0))
+            open = text
+            letGoAfterPause()
+            return
+        }
         if !text.isEmpty { proxy.insertText(text) }
         open = text
     }
 
+    /// While a word is underlined the field hides everything the person does in it from
+    /// the keyboard (no selection, no change reported; two typing recordings, Gabriel,
+    /// 6 Nov 2026), so a selection made then was ignored and backspace edited the word.
+    /// So the underline only lasts while typing goes on: after a short pause the word
+    /// turns into plain text (still open, its guesses still on the bar), and the field
+    /// reports selections and taps as usual. The next letter underlines it again.
+    private func letGoAfterPause() {
+        pause?.cancel()
+        pause = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: ProxyTarget.underlinePause)
+            guard !Task.isCancelled, let self, self.openIsMarked, !self.open.isEmpty,
+                  self.documentID == self.openDocument else { return }
+            self.edited()
+            self.proxy.unmarkText()
+            self.openIsMarked = false
+            self.resumesMark = true
+        }
+    }
+
     func unmark() {
         edited()
+        pause?.cancel()
+        resumesMark = false
         if openIsMarked {
             // Inserting over marked text replaces it and puts the cursor after it.
             if open.isEmpty { proxy.unmarkText() } else { proxy.insertText(open) }
@@ -629,6 +670,11 @@ final class ProxyTarget: TextTarget {
         return ProcessInfo.processInfo.systemUptime - lastEdit > 0.3
     }
 
+    var hasSelection: Bool {
+        guard !clearedSelection, let selected = proxy.selectedText else { return false }
+        return !selected.isEmpty
+    }
+
     var fieldState: String? {
         func show(_ text: String?) -> String { text.map { $0.debugDescription } ?? "nil" }
         let before = proxy.documentContextBeforeInput.map { String($0.suffix(30)) }
@@ -641,6 +687,8 @@ final class ProxyTarget: TextTarget {
         // Still marked in this field: leave it as ordinary text. In another field there
         // is nothing of ours to unmark.
         if openIsMarked, !open.isEmpty, documentID == openDocument { proxy.unmarkText() }
+        pause?.cancel()
+        resumesMark = false
         open = ""
         openIsMarked = false
         openDocument = nil

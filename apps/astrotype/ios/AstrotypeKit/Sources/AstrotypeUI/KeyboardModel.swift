@@ -26,6 +26,8 @@ public protocol TextTarget: AnyObject {
     /// selected it, or moved the cursor). Checked only before a delete: the field can
     /// lag behind fast typing, and a delete loses nothing when it is wrong.
     var cursorLeftOpenWord: Bool { get }
+    /// What the field reports right now, for the typing recorder (`TypingEvent.fieldState`).
+    var fieldState: String? { get }
     /// Forget the open word without typing it again.
     func dropOpenWord()
 }
@@ -34,6 +36,7 @@ extension TextTarget {
     public var hasText: Bool { !(textBeforeCursor ?? "").isEmpty }
     public var lostOpenWord: Bool { false }
     public var cursorLeftOpenWord: Bool { false }
+    public var fieldState: String? { nil }
     public func dropOpenWord() {}
 }
 
@@ -382,6 +385,7 @@ public final class KeyboardModel {
     }
 
     public func press(_ key: Key) {
+        if key == .backspace { logFieldState() }
         dropLostWord(deleting: key == .backspace)
         log(TypingEvent(t: now, e: .key, s: TypingEvent.code(of: key)))
         apply(composer.press(key, time: now))
@@ -533,6 +537,7 @@ public final class KeyboardModel {
 
     /// A swipe left on backspace.
     public func deleteWord() {
+        logFieldState()
         dropLostWord(deleting: true)
         log(TypingEvent(t: now, e: .deleteWord))
         apply(composer.deleteWord(time: now))
@@ -569,6 +574,7 @@ public final class KeyboardModel {
 
     /// The field changed (the host's `textDidChange`): re-read the context.
     public func contextChanged() {
+        logFieldState()
         if dropLostWord() { return }
         logContext(.context)
         composer.setContext(before: output?.textBeforeCursor)
@@ -597,6 +603,7 @@ public final class KeyboardModel {
             guard recorder !== oldValue else { return }
             oldValue?.flush()
             lastContext = nil
+            lastFieldState = nil
             if recorder != nil { snapshot() }
         }
     }
@@ -607,6 +614,7 @@ public final class KeyboardModel {
     /// Fingers down on the letters now: no snapshot while any is.
     private var down: Set<Int> = []
     private var lastContext: String?
+    private var lastFieldState: String?
 
     private var recording: Bool { recorder != nil && hostField.learns }
 
@@ -650,6 +658,13 @@ public final class KeyboardModel {
         guard let recorder else { return }
         recorder.record(TypingEvent(t: now, e: .mark))
         recorder.flush()
+    }
+
+    /// What the field reports (selection included), when it differs from the last.
+    private func logFieldState() {
+        guard recording, let state = output?.fieldState, state != lastFieldState else { return }
+        lastFieldState = state
+        recorder?.record(TypingEvent(t: now, e: .fieldState, s: state))
     }
 
     /// The text before the cursor as the app now has it, when it differs from the last.

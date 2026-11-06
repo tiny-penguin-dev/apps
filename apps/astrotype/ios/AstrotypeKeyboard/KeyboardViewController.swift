@@ -606,9 +606,24 @@ final class ProxyTarget: TextTarget {
     /// Selecting the underlined word puts the text before the cursor before the word, so
     /// it no longer ends with it (Gabriel, 6 Nov 2026: backspace on a selected underlined
     /// word still deleted one letter). A field that hides its text (nil) is trusted.
+    ///
+    /// With the whole text selected there is nothing before the cursor, and the field
+    /// says nil rather than "" (Gabriel, 6 Nov 2026: selecting the sentence and deleting
+    /// took only the underlined word). The open word is always there before the cursor
+    /// while it is in place, so nil means it has gone, except in a field that hides its
+    /// text.
     var cursorLeftOpenWord: Bool {
-        guard !open.isEmpty, let before = proxy.documentContextBeforeInput else { return false }
+        guard !open.isEmpty else { return false }
+        guard let before = proxy.documentContextBeforeInput else { return proxy.isSecureTextEntry != true }
         return !before.hasSuffix(open)
+    }
+
+    var fieldState: String? {
+        func show(_ text: String?) -> String { text.map { $0.debugDescription } ?? "nil" }
+        let before = proxy.documentContextBeforeInput.map { String($0.suffix(30)) }
+        let after = proxy.documentContextAfterInput.map { String($0.prefix(30)) }
+        return "\(show(before)) ⟦\(show(proxy.selectedText))⟧ \(show(after))"
+            + " open \(show(open))\(openIsMarked ? " marked" : "")\(documentID == openDocument ? "" : " other field")"
     }
 
     func dropOpenWord() {

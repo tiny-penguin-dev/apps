@@ -1,6 +1,7 @@
 #if canImport(UIKit)
 import Foundation
 import AstrotypeCore
+import Synchronization
 
 /// Keeps a `KeyboardModel`'s words, settings and personal model in step with iCloud (BUILD.md "Data"):
 /// one round of `Syncer.sync` on demand, and a short while after the words or settings
@@ -49,6 +50,7 @@ public final class SyncController {
         pending = nil
         guard !running else { again = true; return }
         running = true
+        LiveCount.syncs.add(1, ordering: .relaxed)
         let local = SyncSnapshot(words: model.learnedWords, settings: model.keyboardSettings, settingsChanged: model.settingsChanged,
                                  personal: model.personalStore == nil ? nil : model.personal.model)
         Task { [weak self] in

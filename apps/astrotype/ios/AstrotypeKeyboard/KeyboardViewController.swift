@@ -1,5 +1,6 @@
 import AstrotypeCore
 import AstrotypeUI
+import Synchronization
 import UIKit
 
 /// The keyboard extension: the shared `KeyboardView` typing into the text document
@@ -40,8 +41,17 @@ final class KeyboardViewController: UIInputViewController {
     /// light or dark mode (`followKeyboardAppearance`).
     private var askedAppearance: (asked: UIKeyboardAppearance, echo: Bool)?
 
+    /// Counted live once loaded (`LiveCount`), uncounted when freed.
+    private var counted = false
+
+    deinit {
+        if counted { LiveCount.controllers.subtract(1, ordering: .relaxed) }
+    }
+
     override func viewDidLoad() {
         super.viewDidLoad()
+        LiveCount.controllers.add(1, ordering: .relaxed)
+        counted = true
         // No `allowsSelfSizing`: the height comes from the constraint below, and a
         // self-sizing input view is laid out inset on a wide screen (Gabriel, 1 Nov
         // 2026: the split keyboard stopped short of the edges). The system draws the

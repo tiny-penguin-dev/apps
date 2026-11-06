@@ -1,4 +1,5 @@
 import Foundation
+import Synchronization
 #if canImport(Darwin)
 import Darwin
 #endif
@@ -90,6 +91,30 @@ public struct MemoryReading: Codable, Sendable, Equatable {
     /// One decimal, like "23.4".
     public static func mb(_ value: Double) -> String {
         String(format: "%.1f", value)
+    }
+}
+
+/// How many of the keyboard's big objects are alive, and how many times the
+/// dictionaries were loaded, for the stats overlay's third line. iOS can make a new
+/// keyboard controller each time the keyboard comes up in the same process; a count
+/// that keeps climbing means the old ones (each with its model and dictionaries) are
+/// never freed.
+public enum LiveCount {
+    public static let controllers = Atomic<Int>(0)
+    public static let models = Atomic<Int>(0)
+    public static let dictionaryLoads = Atomic<Int>(0)
+    /// iCloud sync rounds started in this process.
+    public static let syncs = Atomic<Int>(0)
+
+    /// "1 keyboard · 1 model · 2 loads · 3 syncs".
+    public static var summary: String {
+        line(controllers: controllers.load(ordering: .relaxed), models: models.load(ordering: .relaxed),
+             loads: dictionaryLoads.load(ordering: .relaxed), syncs: syncs.load(ordering: .relaxed))
+    }
+
+    static func line(controllers: Int, models: Int, loads: Int, syncs: Int = 0) -> String {
+        func n(_ count: Int, _ word: String) -> String { "\(count) \(word)\(count == 1 ? "" : "s")" }
+        return [n(controllers, "keyboard"), n(models, "model"), n(loads, "load"), n(syncs, "sync")].joined(separator: " · ")
     }
 }
 

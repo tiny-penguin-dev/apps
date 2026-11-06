@@ -23,6 +23,12 @@ import Testing
                 == "heap 10.0 · other 20.0 · 9 layers · 4 views · metal")
     }
 
+    @Test func liveCountLine() {
+        #expect(LiveCount.line(controllers: 1, models: 1, loads: 2, syncs: 1) == "1 keyboard · 1 model · 2 loads · 1 sync")
+        #expect(LiveCount.line(controllers: 1, models: 1, loads: 1) == "1 keyboard · 1 model · 1 load · 0 syncs")
+        #expect(LiveCount.line(controllers: 3, models: 2, loads: 5) == "3 keyboards · 2 models · 5 loads · 0 syncs")
+    }
+
     @Test func limitAndBudget() {
         #expect(reading(20, 30).limitMB == 50)
         #expect(reading(20, 0).limitMB == nil)

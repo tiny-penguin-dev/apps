@@ -52,5 +52,5 @@ for 12 hours costs about 750 minutes per language.
 
 | Language | Test words | Word pairs top-3 | Model top-3 | Size |
 |---|---|---|---|---|
-| English | 57,401 sentences | 19.4% | | |
+| English | 57,401 sentences | 19.4% | 25.5% (starter: 2 layers, 128 wide, 12,000 words, 55 min on a CPU) | 1.1 MB |
 | Spanish | 69,674 sentences | 18.9% | | |

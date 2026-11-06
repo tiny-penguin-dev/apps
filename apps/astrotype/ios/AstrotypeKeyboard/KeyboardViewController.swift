@@ -564,10 +564,20 @@ final class ProxyTarget: TextTarget {
         return !selected.isEmpty
     }
 
+    /// Selecting the underlined word puts the text before the cursor before the word, so
+    /// it no longer ends with it (Gabriel, 6 Nov 2026: backspace on a selected underlined
+    /// word still deleted one letter). A field that hides its text (nil) is trusted.
+    var cursorLeftOpenWord: Bool {
+        guard !open.isEmpty, let before = proxy.documentContextBeforeInput else { return false }
+        return !before.hasSuffix(open)
+    }
+
     func dropOpenWord() {
         // Still marked in this field: leave it as ordinary text. In another field there
-        // is nothing of ours to unmark.
-        if openIsMarked, !open.isEmpty, documentID == openDocument { proxy.unmarkText() }
+        // is nothing of ours to unmark, and with text selected unmarking can collapse the
+        // selection to the end of the word, so the next delete takes one letter.
+        let selected = !(proxy.selectedText ?? "").isEmpty
+        if openIsMarked, !open.isEmpty, !selected, documentID == openDocument { proxy.unmarkText() }
         open = ""
         openIsMarked = false
         openDocument = nil

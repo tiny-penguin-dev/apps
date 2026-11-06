@@ -506,7 +506,7 @@ function keysHTML(h){
 
 let current="settings";
 function go(name,push=true){
-  if(!screens[name])name="settings";
+  if(!Object.hasOwn(screens,name))name="settings";
   const keep=name===current?(phone.querySelector(".scroll")?.scrollTop||0):0;
   current=name;
   phone.innerHTML=screens[name]();

@@ -27,6 +27,7 @@ import Testing
         #expect(LiveCount.line(controllers: 1, models: 1, loads: 2, syncs: 1) == "1 keyboard · 1 model · 2 loads · 1 sync")
         #expect(LiveCount.line(controllers: 1, models: 1, loads: 1) == "1 keyboard · 1 model · 1 load · 0 syncs")
         #expect(LiveCount.line(controllers: 3, models: 2, loads: 5) == "3 keyboards · 2 models · 5 loads · 0 syncs")
+        #expect(LiveCount.line(controllers: 1, models: 3, loads: 3, syncs: 4, waiting: 2) == "1 keyboard · 3 models · 3 loads · 4 syncs, 2 waiting")
     }
 
     @Test func limitAndBudget() {

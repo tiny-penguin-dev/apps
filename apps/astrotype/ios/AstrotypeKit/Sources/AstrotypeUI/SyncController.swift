@@ -22,6 +22,7 @@ public final class SyncController {
     private var running = false
     private var again = false
     private var pending: Task<Void, Never>?
+    private var round: Task<Void, Never>?
 
     public init(model: KeyboardModel, cloud: CloudSync) {
         self.model = model
@@ -53,23 +54,41 @@ public final class SyncController {
         LiveCount.syncs.add(1, ordering: .relaxed)
         let local = SyncSnapshot(words: model.learnedWords, settings: model.keyboardSettings, settingsChanged: model.settingsChanged,
                                  personal: model.personalStore == nil ? nil : model.personal.model)
-        Task { [weak self] in
-            guard let self else { return }
-            do {
-                let merged = try await Syncer.sync(local: local, cloud: cloud)
-                self.model.learnedWords = merged.words
-                self.model.adopt(merged.settings, changed: merged.settingsChanged)
-                if let personal = merged.personal { self.model.adoptPersonal(personal) }
-                self.onResult?(.success(Date()))
-            } catch {
-                self.onResult?(.failure(error))
-            }
-            self.running = false
-            if self.again {
-                self.again = false
-                self.sync()
-            }
+        let cloud = self.cloud
+        // Holds neither this controller nor the model while iCloud answers: a call that
+        // never comes back (the keyboard closed mid-sync) kept the whole model, with its
+        // dictionaries, alive for good, one more each time the keyboard opened (Gabriel,
+        // 6 Nov 2026: "1 keyboard, 4 models" after a few opens, heap at 111 MB).
+        round = Task { [weak self] in
+            LiveCount.syncsWaiting.add(1, ordering: .relaxed)
+            let result: Result<SyncSnapshot, Error>
+            do { result = .success(try await Syncer.sync(local: local, cloud: cloud)) } catch { result = .failure(error) }
+            LiveCount.syncsWaiting.subtract(1, ordering: .relaxed)
+            self?.finish(result)
         }
+    }
+
+    private func finish(_ result: Result<SyncSnapshot, Error>) {
+        round = nil
+        switch result {
+        case .success(let merged):
+            model.learnedWords = merged.words
+            model.adopt(merged.settings, changed: merged.settingsChanged)
+            if let personal = merged.personal { model.adoptPersonal(personal) }
+            onResult?(.success(Date()))
+        case .failure(let error):
+            onResult?(.failure(error))
+        }
+        running = false
+        if again {
+            again = false
+            sync()
+        }
+    }
+
+    deinit {
+        round?.cancel()
+        pending?.cancel()
     }
 
     /// What the keyboard learns changes with every word: it goes up at most once every

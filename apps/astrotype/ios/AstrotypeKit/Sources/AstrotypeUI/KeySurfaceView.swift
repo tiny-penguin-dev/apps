@@ -100,8 +100,6 @@ public final class KeySurfaceView: UIView {
     public var spaceSlideEnabled = true
     public var backspaceSwipeEnabled = true
 
-    /// How far a finger slides on space for one cursor step.
-    public static let cursorStep: CGFloat = 12
     /// How far left of backspace a swipe has to travel to delete a word.
     public static let wordSwipe: CGFloat = 40
     /// How far a finger travels from "123" before the numbers page comes up under it.
@@ -118,8 +116,8 @@ public final class KeySurfaceView: UIView {
         var isLetter: Bool
         var points: [CGPoint]
         var trail: CAShapeLayer?
-        /// Cursor steps already reported for a slide on space.
-        var slideSteps = 0
+        /// A finger on space: a tap, or a slide once it holds and travels (`SpaceSlide`).
+        var slide: SpaceSlide?
         /// A slide, a swipe or a hold took this touch: no tap when it lifts.
         var gestured = false
         var hold: Task<Void, Never>?
@@ -253,6 +251,7 @@ public final class KeySurfaceView: UIView {
     // MARK: Touches
 
     public override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+        typeHeldSpace()
         for touch in touches {
             let point = touch.location(in: self)
             guard let key = layout.key(at: point), key != .returnKey || returnEnabled else { continue }
@@ -261,6 +260,7 @@ public final class KeySurfaceView: UIView {
             nextID += 1
             let oid = ObjectIdentifier(touch)
             var touchState = Active(id: id, key: key, startKey: key, startPoint: point, side: side, isLetter: key.character != nil, points: [point], trail: nil)
+            if key == .space { touchState.slide = SpaceSlide(at: point, time: touch.timestamp) }
             flash(key, side: side)
             switch key {
             case .backspace:
@@ -327,12 +327,10 @@ public final class KeySurfaceView: UIView {
             }
             switch touchState.startKey {
             case .space:
-                let steps = spaceSlideEnabled ? Int((point.x - touchState.startPoint.x) / Self.cursorStep) : 0
-                if steps != touchState.slideSteps {
-                    touchState.gestured = true
-                    delegate?.keySurface(self, didSlideSpace: steps - touchState.slideSteps)
-                    touchState.slideSteps = steps
-                }
+                guard spaceSlideEnabled, !touchState.gestured || touchState.slide?.isSliding == true,
+                      let steps = touchState.slide?.move(to: point, time: touch.timestamp) else { break }
+                if touchState.slide?.isSliding == true { touchState.gestured = true }
+                if steps != 0 { delegate?.keySurface(self, didSlideSpace: steps) }
             case .backspace:
                 if backspaceSwipeEnabled, !touchState.gestured, touchState.startPoint.x - point.x >= Self.wordSwipe {
                     touchState.gestured = true
@@ -362,6 +360,16 @@ public final class KeySurfaceView: UIView {
                 }
             }
             active[oid] = touchState
+        }
+    }
+
+    /// Another finger landed while one rests on space: the space goes in now, before
+    /// the new key, as on Apple's keyboard. Typed on lift, a letter tapped by the other
+    /// thumb while space was still down went onto the end of the word before.
+    private func typeHeldSpace() {
+        for (oid, state) in active where state.startKey == .space && state.key == .space && !state.gestured {
+            active[oid]?.gestured = true
+            delegate?.keySurface(self, didTap: .space, side: state.side)
         }
     }
 

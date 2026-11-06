@@ -48,7 +48,7 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
     writes the StoreKit, memory and size readings into the bar's idle note while
     `Flags.extensionReadout` is on.
   - `AstrotypeKit/`: the local package, three targets:
-    - `AstrotypeCore`: Core and Services. `Layout` (key geometry, with the field's
+    - `AstrotypeCore`: Core and Services. `SpaceSlide` (a finger on space: a tap, or a cursor slide after a short hold and a real move), `Layout` (key geometry, with the field's
       `BottomRow`), `Field` (what the app says about the field and what the keyboard
       makes of it: bottom row, return key, exact taps, spacing, capitals, learning), `Language` (one
       language's files from `Resources/<code>/`: `Lexicon`, the trie from
@@ -105,7 +105,7 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
       keyboard's views: `KeyboardView` (bar plus keys, the pages, the settings panel,
       the `StatsOverlayView` memory line in the keys' top corner while
       `KeyboardSettings.showsStats` is on; owns a `KeyboardModel`), `BarView` (left key, centred words, the pencil and its fix row), `KeySurfaceView` (touch stream, flashes,
-      trails, rings, and the gestures: space slide, backspace swipe and hold, "123"
+      trails, rings, and the gestures: space slide (and a held space typed as soon as another finger lands), backspace swipe and hold, "123"
       hold, the slide from "123" to a number or symbol, and a held letter's accents, `AccentCallout`), `SettingsPanelView`,
       `EmojiPageView` (the emoji page and its `TonePicker`), `EmojiSearchView` (the search
       field `SearchField` and the results row; while it is open `KeyboardModel` types into a

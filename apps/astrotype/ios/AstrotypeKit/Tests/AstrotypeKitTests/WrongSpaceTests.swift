@@ -175,6 +175,18 @@ import Testing
         #expect(picked.text == "some thing ")
     }
 
+    @Test func aSpacePressedRightAfterAutospaceIsKept() {
+        // Autospace beat the thumb to it: the person's space still means two words
+        // (Gabriel, 6 Nov 2026, spaces missed when typing fast).
+        var typist = Typist()
+        typist.type("some")
+        typist.pause()
+        typist.press(.space)
+        typist.type("thing")
+        typist.press(.space)
+        #expect(typist.text == "some thing ")
+    }
+
     @Test func aLongPauseIsANewWord() {
         var typist = Typist()
         typist.type("some")

@@ -21,6 +21,10 @@ public protocol TextTarget: AnyObject {
     /// Whether the open word is no longer where it was typed: the person selected text,
     /// or the keyboard moved to another field. It is dropped then, not edited.
     var lostOpenWord: Bool { get }
+    /// Whether the text right before the cursor is no longer the open word (the person
+    /// selected it, or moved the cursor). Checked only before a delete: the field can
+    /// lag behind fast typing, and a delete loses nothing when it is wrong.
+    var cursorLeftOpenWord: Bool { get }
     /// Forget the open word without typing it again.
     func dropOpenWord()
 }
@@ -28,6 +32,7 @@ public protocol TextTarget: AnyObject {
 extension TextTarget {
     public var hasText: Bool { !(textBeforeCursor ?? "").isEmpty }
     public var lostOpenWord: Bool { false }
+    public var cursorLeftOpenWord: Bool { false }
     public func dropOpenWord() {}
 }
 
@@ -371,7 +376,7 @@ public final class KeyboardModel {
     }
 
     public func press(_ key: Key) {
-        dropLostWord()
+        dropLostWord(deleting: key == .backspace)
         log(TypingEvent(t: now, e: .key, s: TypingEvent.code(of: key)))
         apply(composer.press(key, time: now))
     }
@@ -522,7 +527,7 @@ public final class KeyboardModel {
 
     /// A swipe left on backspace.
     public func deleteWord() {
-        dropLostWord()
+        dropLostWord(deleting: true)
         log(TypingEvent(t: now, e: .deleteWord))
         apply(composer.deleteWord(time: now))
     }
@@ -668,8 +673,8 @@ public final class KeyboardModel {
     /// letter, and a word left underlined was typed again into the next field (Gabriel,
     /// 6 Nov 2026).
     @discardableResult
-    private func dropLostWord() -> Bool {
-        guard output?.lostOpenWord == true else { return false }
+    private func dropLostWord(deleting: Bool = false) -> Bool {
+        guard let output, output.lostOpenWord || (deleting && output.cursorLeftOpenWord) else { return false }
         reset()
         return true
     }

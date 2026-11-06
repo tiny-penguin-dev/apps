@@ -506,10 +506,11 @@ function keysHTML(h){
 
 let current="settings";
 function go(name,push=true){
-  if(!Object.hasOwn(screens,name))name="settings";
+  const screen=new Map(Object.entries(screens)).get(name)||screens.settings;
+  if(screen===screens.settings)name="settings";
   const keep=name===current?(phone.querySelector(".scroll")?.scrollTop||0):0;
   current=name;
-  phone.innerHTML=screens[name]();
+  phone.innerHTML=screen();
   if(keep){const sc=phone.querySelector(".scroll");if(sc){sc.style.animation="none";sc.scrollTop=keep}phone.querySelector(".screen").style.animation="none"}
   picker.querySelectorAll("[data-go]").forEach(b=>b.setAttribute("aria-current",b.dataset.go===name));
   if(push)try{history.replaceState(null,"","#"+name)}catch(e){}

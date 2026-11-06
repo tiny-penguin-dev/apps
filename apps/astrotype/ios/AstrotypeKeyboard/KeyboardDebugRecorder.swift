@@ -11,13 +11,15 @@ final class KeyboardDebugRecorder {
     private let store: FileKeyboardDebugStore?
     private var debug: KeyboardDebug
     private var timer: Timer?
+    /// Called on each reading while the keyboard is up (every couple of seconds).
+    var onTick: (() -> Void)?
 
     init(fullAccess: Bool) {
         if fullAccess, let url = KeyboardFiles.shared(KeyboardFiles.debug) {
             let store = FileKeyboardDebugStore(url: url)
             self.store = store
             debug = store.load() ?? KeyboardDebug()
-            debug.loaded(at: Date())
+            debug.loaded(at: Date(), crashed: KeyboardTelemetry.crashedLastRun)
             store.save(debug)
         } else {
             store = nil
@@ -31,7 +33,10 @@ final class KeyboardDebugRecorder {
         store.save(debug)
         guard timer == nil else { return }
         let timer = Timer(timeInterval: 2, repeats: true) { [weak self] _ in
-            MainActor.assumeIsolated { self?.sample() }
+            MainActor.assumeIsolated {
+                self?.sample()
+                self?.onTick?()
+            }
         }
         RunLoop.main.add(timer, forMode: .common)
         self.timer = timer

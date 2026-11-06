@@ -140,7 +140,7 @@ words.merged(with: otherDevice)              // last change wins per word
 | `drill.finished` (`drill`) | 7 |
 | `personal.reset` | smart-matching B |
 | `practice.shared` (`kind`) | smart-matching C |
-| `keyboard.memory_peak`, `keyboard.memory_headroom` (MB), `keyboard.ended_while_showing` | keyboard crash reports (2 Nov 2026) |
+| `keyboard.memory_peak`, `keyboard.memory_headroom` (MB), `keyboard.ended_while_showing` | keyboard crash reports (2 Nov 2026); `parts` and `how` added 6 Nov 2026 |
 | `guess.words`, `guess.first` (`kind`), `guess.first_share` (gauge: percent, `kind`) | first-guess count (3 Nov 2026) |
 
 ## Phases

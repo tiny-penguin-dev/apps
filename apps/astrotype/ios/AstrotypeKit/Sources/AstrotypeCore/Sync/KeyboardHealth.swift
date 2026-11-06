@@ -11,6 +11,25 @@ public struct KeyboardHealth: Codable, Sendable, Equatable {
     /// The most sessions kept; older ones drop off, sent or not.
     public static let limit = 30
 
+    /// What was open or loaded while the keyboard was up, so a memory peak points at
+    /// what caused it. Sent as one fixed label (`label(_:)`), never anything typed.
+    public enum Part: String, Codable, Sendable, CaseIterable, Comparable {
+        case emoji
+        case emojiSearch = "emoji_search"
+        case settings
+        /// The Metal effects (sky or letters) are loaded.
+        case metal
+
+        public static func < (a: Part, b: Part) -> Bool {
+            allCases.firstIndex(of: a)! < allCases.firstIndex(of: b)!
+        }
+    }
+
+    /// The parts as one attribute value: "emoji+settings", or "keys" for none.
+    public static func label(_ parts: Set<Part>) -> String {
+        parts.isEmpty ? "keys" : parts.sorted().map(\.rawValue).joined(separator: "+")
+    }
+
     /// One time the keyboard was on screen.
     public struct Session: Codable, Sendable, Equatable {
         public var started: Date
@@ -23,14 +42,21 @@ public struct KeyboardHealth: Codable, Sendable, Equatable {
         public var ended: Bool
         /// How many words went in, and how many as the first guess.
         public var guesses: GuessTally
+        /// What was open or loaded while it was up.
+        public var parts: Set<Part>
+        /// For one ended while showing: whether it crashed (a crash report went to
+        /// Sentry) or not (iOS ended it, most likely for memory). Nil when unknown.
+        public var crashed: Bool?
 
         public init(started: Date, peakMB: Double, lowestHeadroomMB: Double, ended: Bool = false,
-                    guesses: GuessTally = GuessTally()) {
+                    guesses: GuessTally = GuessTally(), parts: Set<Part> = [], crashed: Bool? = nil) {
             self.started = started
             self.peakMB = peakMB
             self.lowestHeadroomMB = lowestHeadroomMB
             self.ended = ended
             self.guesses = guesses
+            self.parts = parts
+            self.crashed = crashed
         }
 
         public init(from decoder: Decoder) throws {
@@ -40,6 +66,25 @@ public struct KeyboardHealth: Codable, Sendable, Equatable {
             lowestHeadroomMB = try c.decode(Double.self, forKey: .lowestHeadroomMB)
             ended = try c.decode(Bool.self, forKey: .ended)
             guesses = try c.decodeIfPresent(GuessTally.self, forKey: .guesses) ?? GuessTally()
+            // Unknown parts (from a newer build) are dropped, not the whole session.
+            let names = try c.decodeIfPresent([String].self, forKey: .parts) ?? []
+            parts = Set(names.compactMap(Part.init(rawValue:)))
+            crashed = try c.decodeIfPresent(Bool.self, forKey: .crashed)
+        }
+
+        public func encode(to encoder: Encoder) throws {
+            var c = encoder.container(keyedBy: CodingKeys.self)
+            try c.encode(started, forKey: .started)
+            try c.encode(peakMB, forKey: .peakMB)
+            try c.encode(lowestHeadroomMB, forKey: .lowestHeadroomMB)
+            try c.encode(ended, forKey: .ended)
+            try c.encode(guesses, forKey: .guesses)
+            try c.encode(parts.sorted().map(\.rawValue), forKey: .parts)
+            try c.encodeIfPresent(crashed, forKey: .crashed)
+        }
+
+        private enum CodingKeys: String, CodingKey {
+            case started, peakMB, lowestHeadroomMB, ended, guesses, parts, crashed
         }
     }
 
@@ -76,6 +121,25 @@ public struct KeyboardHealth: Codable, Sendable, Equatable {
         return worth
     }
 
+    /// Something was opened or loaded while the keyboard is up. Returns whether it is
+    /// new for this session, which is when it is worth writing.
+    @discardableResult
+    public mutating func use(_ part: Part) -> Bool {
+        guard var last = sessions.last, !last.ended, !last.parts.contains(part) else { return false }
+        last.parts.insert(part)
+        sessions[sessions.count - 1] = last
+        return true
+    }
+
+    /// A new process started: a session still open was ended while showing. `crashed`
+    /// says whether that process crashed (nil when unknown). Returns whether one was.
+    @discardableResult
+    public mutating func restarted(crashed: Bool?) -> Bool {
+        guard let last = sessions.last, !last.ended, last.crashed == nil else { return false }
+        sessions[sessions.count - 1].crashed = crashed
+        return crashed != nil
+    }
+
     /// The keyboard went away normally.
     public mutating func end(footprintMB: Double, headroomMB: Double) {
         guard !(sessions.last?.ended ?? true) else { return }
@@ -108,14 +172,20 @@ public struct KeyboardHealth: Codable, Sendable, Equatable {
 
     /// Sends `sessions` as metrics: `keyboard.memory_peak` and `keyboard.memory_headroom`
     /// (MB) for each, `keyboard.ended_while_showing` for each that did not close
-    /// normally, and the session's words (`GuessTally.report`). Returns the newest start
-    /// sent, for the next `toSend(after:)`.
+    /// normally, and the session's words (`GuessTally.report`). The memory ones carry
+    /// `parts` (what was open, `label(_:)`); the ended one also `how`: `crash`, `killed`
+    /// (no crash, so most likely iOS's memory limit) or `unknown`. Returns the newest
+    /// start sent, for the next `toSend(after:)`.
     @discardableResult
     public static func report(_ sessions: [Session], to metrics: Metrics) -> Date? {
         for session in sessions {
-            metrics.size("keyboard.memory_peak", megabytes: session.peakMB)
-            metrics.size("keyboard.memory_headroom", megabytes: session.lowestHeadroomMB)
-            if !session.ended { metrics.count("keyboard.ended_while_showing") }
+            let parts = ["parts": label(session.parts)]
+            metrics.size("keyboard.memory_peak", megabytes: session.peakMB, parts)
+            metrics.size("keyboard.memory_headroom", megabytes: session.lowestHeadroomMB, parts)
+            if !session.ended {
+                let how = session.crashed.map { $0 ? "crash" : "killed" } ?? "unknown"
+                metrics.count("keyboard.ended_while_showing", parts.merging(["how": how]) { a, _ in a })
+            }
             session.guesses.report(to: metrics)
         }
         return sessions.map(\.started).max()

@@ -68,6 +68,12 @@ enum KeyboardTelemetry {
         }
     }
 
+    /// Whether the keyboard's last process crashed, as Sentry saw it. Nil when Sentry
+    /// isn't running (no Full Access, sharing off, or no DSN), since then it can't tell.
+    static var crashedLastRun: Bool? {
+        SentrySDK.isEnabled ? SentrySDK.crashedLastRun : nil
+    }
+
     /// What leaves: where it crashed (exception type, mechanism, stack traces, loaded
     /// images) and the device, OS and memory. Gone: any message or exception text (a
     /// reason can quote a string), breadcrumbs, extra data, the request, the user and

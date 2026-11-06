@@ -189,11 +189,19 @@ struct DebugSettings: View {
 
     private func endedSubtitle(_ debug: KeyboardDebug) -> String {
         guard let last = debug.lastEndedWhileShowing else { return "A crash or iOS's memory limit. None so far." }
-        return "A crash or iOS's memory limit. Last \(last.formatted(.relative(presentation: .named)))."
+        var text = "A crash or iOS's memory limit. Last \(last.formatted(.relative(presentation: .named)))."
+        if debug.crashedWhileShowing + debug.killedWhileShowing > 0 {
+            text += " Since 6 Nov: \(debug.crashedWhileShowing) crashed, \(debug.killedWhileShowing) ended by iOS."
+        }
+        return text
     }
 
     private func sessionSubtitle(_ session: KeyboardHealth.Session) -> String {
-        let left = "\(MemoryReading.mb(session.lowestHeadroomMB)) MB left at the least"
-        return session.ended ? left : "Ended while showing · " + left
+        var parts = ["\(MemoryReading.mb(session.lowestHeadroomMB)) MB left at the least"]
+        if !session.parts.isEmpty { parts.append(KeyboardHealth.label(session.parts).replacingOccurrences(of: "_", with: " ")) }
+        if !session.ended {
+            parts.insert(session.crashed == true ? "Crashed" : session.crashed == false ? "Ended by iOS" : "Ended while showing", at: 0)
+        }
+        return parts.joined(separator: " · ")
     }
 }

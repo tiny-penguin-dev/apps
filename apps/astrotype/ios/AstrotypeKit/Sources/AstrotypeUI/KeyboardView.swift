@@ -50,6 +50,11 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
     }
     /// The keyboard's height changed with its width (a wide screen has taller keys).
     public var onHeightChange: ((CGFloat) -> Void)?
+    /// The settings panel, the emoji page or emoji search opened, for the keyboard's
+    /// memory readings (`KeyboardHealth.Part`).
+    public var onPart: ((KeyboardHealth.Part) -> Void)?
+    /// Whether the Metal effects are loaded in this process (then they stay).
+    public static var metalLoaded: Bool { MetalKeyboard.loaded }
 
     public private(set) var page: Layout.Page = .letters {
         didSet {
@@ -403,6 +408,7 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         addSubview(panel)
         self.panel = panel
         setNeedsLayout()
+        onPart?(.settings)
     }
 
     public func hideSettings() {
@@ -442,6 +448,7 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         setNeedsLayout()
         layoutIfNeeded()
         UIAccessibility.post(notification: .screenChanged, argument: page)
+        onPart?(.emoji)
     }
 
     /// Back to the letters.
@@ -481,6 +488,7 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         setNeedsLayout()
         layoutIfNeeded()
         UIAccessibility.post(notification: .screenChanged, argument: view.field)
+        onPart?(.emojiSearch)
     }
 
     /// Search closes: back to the emoji page (the smiley key, done), or to the letters.

@@ -53,6 +53,13 @@ final class KeyboardViewController: UIInputViewController {
         KeyboardTelemetry.start(fullAccess: fullAccess)
         health = KeyboardHealthRecorder(fullAccess: fullAccess)
         debug = KeyboardDebugRecorder(fullAccess: fullAccess)
+        // The health readings ride the debug page's timer, so a peak is caught even
+        // when nothing is typed (the emoji page, the settings panel).
+        debug?.onTick = { [weak self] in
+            guard let health = self?.health else { return }
+            health.sample()
+            if KeyboardView.metalLoaded { health.used(.metal) }
+        }
         let (settingsStore, wordStore, personalStore) = Self.stores(fullAccess: fullAccess)
         // The languages turned on, or the phone's (features/languages), with their word
         // pairs. Pro is not known yet, so both load; the model drops to one when the
@@ -93,6 +100,7 @@ final class KeyboardViewController: UIInputViewController {
         }
         // The guesses bar going on or off, or the split, changes the height to ask for.
         keyboard.onHeightChange = { [weak self] _ in self?.view.setNeedsLayout() }
+        keyboard.onPart = { [weak self] part in self?.health?.used(part) }
         view.addSubview(keyboard)
         // Pinned with constraints, not placed by frame: iOS works the keyboard's height
         // out from the constraints inside its view, and ignored the height constraint

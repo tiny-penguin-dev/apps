@@ -12,6 +12,8 @@ import UIKit
 @MainActor
 final class MetalKeyboard {
     static let shared: MetalKeyboard? = MetalKeyboard()
+    /// Whether `shared` was made: Metal is in memory from then on.
+    private(set) static var loaded = false
 
     let device: any MTLDevice
     let queue: any MTLCommandQueue
@@ -29,6 +31,7 @@ final class MetalKeyboard {
         }
         self.device = device
         self.queue = queue
+        Self.loaded = true
     }
 
     private static func pipeline(_ device: any MTLDevice, _ library: any MTLLibrary, vertex: String,

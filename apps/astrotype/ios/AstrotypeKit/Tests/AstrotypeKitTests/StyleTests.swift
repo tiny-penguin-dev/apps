@@ -46,12 +46,36 @@ import Testing
     }
 
     @Test func shapesKeepInRange() {
-        let wild = KeyShape(gap: 40, corner: -3, opacity: 0)
+        let wild = KeyShape(gap: 40, corner: -3)
         #expect(wild.clamped.gap == 12)
         #expect(KeyShape(gap: 0).clamped.gap == 2)
         #expect(wild.clamped.corner == 0)
-        #expect(wild.clamped.opacity == 0.3)
+        var glass = KeyboardTheme.classic.dark
+        glass.opacity = 0
+        #expect(glass.keyOpacity == 0.3)
         #expect(KeyShape(border: .bold).borderWidth == 2)
+    }
+
+    @Test func seeThroughIsPerLook() throws {
+        var theme = KeyboardTheme.classic.copy(id: "custom-1", name: "Mine")
+        theme.light.opacity = 0.9
+        theme.dark.opacity = 0.5
+        let read = try JSONDecoder().decode(KeyboardTheme.self, from: JSONEncoder().encode(theme))
+        #expect(read == theme)
+        // Saved before: one see-through in the shape, for both looks.
+        var json = try JSONSerialization.jsonObject(with: JSONEncoder().encode(KeyboardTheme.classic)) as! [String: Any]
+        var shape = json["shape"] as! [String: Any]
+        shape["opacity"] = 0.6
+        json["shape"] = shape
+        for look in ["light", "dark"] {
+            var colors = json[look] as! [String: Any]
+            colors.removeValue(forKey: "opacity")
+            json[look] = colors
+        }
+        let old = try JSONDecoder().decode(KeyboardTheme.self, from: JSONSerialization.data(withJSONObject: json))
+        #expect(old.light.opacity == 0.6)
+        #expect(old.dark.opacity == 0.6)
+        #expect(KeyboardTheme.classic.light.opacity == 1)
     }
 
     @Test func themesArePro() {

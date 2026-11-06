@@ -990,7 +990,10 @@ final class KeyView: UIView {
         case .returnKey where returnKey.label == nil: name = "return.left"
         default: return nil
         }
-        return UIImage(systemName: name, withConfiguration: UIImage.SymbolConfiguration(pointSize: 18, weight: .regular))
+        // The smiley in a light weight, so it reads as a line drawing and not a filled
+        // face next to the other glyphs (Gabriel, 6 Nov 2026).
+        let weight: UIImage.SymbolWeight = key == .emoji ? .light : .regular
+        return UIImage(systemName: name, withConfiguration: UIImage.SymbolConfiguration(pointSize: 18, weight: weight))
     }
 
     private var text: String {

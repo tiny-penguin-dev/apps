@@ -50,9 +50,28 @@ public struct Language: Sendable {
     /// Each bundled language's name in English, under its own name in pickers.
     public static let englishNames = ["en": "English", "es": "Spanish"]
 
+    /// The last bundled language loaded, handed out again instead of reading the files
+    /// once more. Its word lists are shared, not copied, so every keyboard in the process
+    /// types from the same ~7-12 MB. iOS can keep old keyboards alive after they close,
+    /// each with its own model; they used to hold a dictionary each (Gabriel, 6 Nov 2026:
+    /// "4 keyboards, 7 models, 7 loads" at 110 MB).
+    private static let lastLoaded = Mutex<Language?>(nil)
+
+    /// `load` unless the last language loaded was `code`.
+    private static func reuse(_ code: String, _ load: () throws -> Language) throws -> Language {
+        if let last = lastLoaded.withLock({ $0 }), last.code == code { return last }
+        LiveCount.dictionaryLoads.add(1, ordering: .relaxed)
+        let language = try load()
+        lastLoaded.withLock { $0 = language }
+        return language
+    }
+
     /// A language from the package: its lexicon must be there, its word pairs may be.
     public static func bundled(_ code: String = "en") throws -> Language {
-        LiveCount.dictionaryLoads.add(1, ordering: .relaxed)
+        try reuse(code) { try load(code) }
+    }
+
+    private static func load(_ code: String) throws -> Language {
         let entries = try Lexicon.readEntries(from: resource("lexicon", "tsv", language: code))
         let ngrams = (try? resource("bigrams", "bin", language: code)).flatMap { try? NgramModel(contentsOf: $0) }
         return Language(code: code, lexicon: Lexicon(entries: entries), ngrams: ngrams)
@@ -62,7 +81,10 @@ public struct Language: Sendable {
     /// language weighing the same (`combined`), and every language's word pairs.
     public static func bundled(_ codes: [String]) throws -> Language {
         guard codes.count > 1 else { return try bundled(codes.first ?? "en") }
-        LiveCount.dictionaryLoads.add(1, ordering: .relaxed)
+        return try reuse(codes.joined(separator: "+")) { try load(codes) }
+    }
+
+    private static func load(_ codes: [String]) throws -> Language {
         var lists: [[Lexicon.Entry]] = []
         var models: [NgramModel] = []
         var parts: [Language] = []

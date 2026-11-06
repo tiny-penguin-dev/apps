@@ -464,11 +464,16 @@ final class KeyboardViewController: UIInputViewController {
         }
     }
 
+    override func selectionDidChange(_ textInput: UITextInput?) {
+        super.selectionDidChange(textInput)
+        keyboard?.model.contextChanged("selection")
+    }
+
     override func textDidChange(_ textInput: UITextInput?) {
         super.textDidChange(textInput)
         followKeyboardAppearance()
         keyboard?.model.field = field
-        keyboard?.model.contextChanged()
+        keyboard?.model.contextChanged("change")
         edits += 1
         if edits % 5 == 0 {
             checks.refresh()
@@ -502,10 +507,9 @@ final class ProxyTarget: TextTarget {
     /// Set once the selection is deleted, until the run loop turns: the proxy can still
     /// report the old selection right after, and a second delete would take a letter.
     private var clearedSelection = false
-    /// Text selected past the underlined word when the word was dropped (a whole
-    /// sentence, say). The word is still marked then, and a delete takes only the marked
-    /// word (Gabriel, 6 Nov 2026), so the next delete clears this selection itself.
-    private var selectionPastMark: String?
+    /// When the keyboard last wrote to the field, so a change it did not make can be told
+    /// apart (`fieldChangedUnderOpenWord`).
+    private var lastEdit: TimeInterval = 0
 
     init(controller: UIInputViewController) {
         self.controller = controller
@@ -530,39 +534,19 @@ final class ProxyTarget: TextTarget {
     }
 
     func insert(_ text: String) {
-        selectionPastMark = nil
+        edited()
         if !text.isEmpty { deleteSelection() }
         proxy.insertText(text)
     }
     func deleteBackward() {
-        guard let selection = selectionPastMark else { return proxy.deleteBackward() }
-        selectionPastMark = nil
-        // Unmark first, so the delete is for the selection and not the marked word. The
-        // field may keep the selection or put the cursor after it; which one shows only
-        // once it has caught up, so look a moment later.
-        proxy.unmarkText()
-        Task { @MainActor [weak self] in
-            try? await Task.sleep(for: .milliseconds(100))
-            self?.deleteSelection(after: selection)
-        }
-    }
-
-    /// Deletes `selection` once the marked word in it has been unmarked: in one delete
-    /// when it is still selected, or letter by letter when the cursor sits right after
-    /// it (the field may give only the end of a long selection as the text before the
-    /// cursor). Anything else is left alone rather than deleting the wrong text.
-    private func deleteSelection(after selection: String) {
-        let selected = proxy.selectedText ?? ""
-        if selected == selection { return proxy.deleteBackward() }
-        guard selected.isEmpty, let before = proxy.documentContextBeforeInput, !before.isEmpty,
-              before.hasSuffix(selection) || selection.hasSuffix(before) else { return }
-        for _ in 0..<selection.count { proxy.deleteBackward() }
+        edited()
+        proxy.deleteBackward()
     }
     var hasText: Bool { proxy.hasText }
 
     func mark(_ text: String) {
-        selectionPastMark = nil
         guard text != open else { return }
+        edited()
         if open.isEmpty {
             openIsMarked = underlines()
             openDocument = documentID
@@ -583,6 +567,7 @@ final class ProxyTarget: TextTarget {
     }
 
     func unmark() {
+        edited()
         if openIsMarked {
             // Inserting over marked text replaces it and puts the cursor after it.
             if open.isEmpty { proxy.unmarkText() } else { proxy.insertText(open) }
@@ -591,7 +576,12 @@ final class ProxyTarget: TextTarget {
         openIsMarked = false
     }
 
-    func moveCursor(by offset: Int) { proxy.adjustTextPosition(byCharacterOffset: offset) }
+    func moveCursor(by offset: Int) {
+        edited()
+        proxy.adjustTextPosition(byCharacterOffset: offset)
+    }
+
+    private func edited() { lastEdit = ProcessInfo.processInfo.systemUptime }
 
     /// The open word is lost when the field changed under it (submit, or a tap on
     /// another field) or text is selected: the next key is meant for the selection, not
@@ -603,19 +593,15 @@ final class ProxyTarget: TextTarget {
         return !selected.isEmpty
     }
 
-    /// Selecting the underlined word puts the text before the cursor before the word, so
-    /// it no longer ends with it (Gabriel, 6 Nov 2026: backspace on a selected underlined
-    /// word still deleted one letter). A field that hides its text (nil) is trusted.
-    ///
-    /// With the whole text selected there is nothing before the cursor, and the field
-    /// says nil rather than "" (Gabriel, 6 Nov 2026: selecting the sentence and deleting
-    /// took only the underlined word). The open word is always there before the cursor
-    /// while it is in place, so nil means it has gone, except in a field that hides its
-    /// text.
-    var cursorLeftOpenWord: Bool {
-        guard !open.isEmpty else { return false }
-        guard let before = proxy.documentContextBeforeInput else { return proxy.isSecureTextEntry != true }
-        return !before.hasSuffix(open)
+    /// While the word is underlined the field hides the person's selection from the
+    /// keyboard: the text before the cursor stops at the underlined word and the selection
+    /// reads nil, whatever is selected (a typing recording, Gabriel, 6 Nov 2026). So any
+    /// change the field reports that the keyboard did not just make itself is taken as the
+    /// person touching the field, and the word is let go (unmarked), after which the field
+    /// reports the real selection and a delete takes it.
+    var fieldChangedUnderOpenWord: Bool {
+        guard !open.isEmpty, openIsMarked else { return false }
+        return ProcessInfo.processInfo.systemUptime - lastEdit > 0.3
     }
 
     var fieldState: String? {
@@ -628,13 +614,8 @@ final class ProxyTarget: TextTarget {
 
     func dropOpenWord() {
         // Still marked in this field: leave it as ordinary text. In another field there
-        // is nothing of ours to unmark, and with text selected unmarking can collapse the
-        // selection to the end of the word, so the next delete takes one letter.
-        // A selection longer than the word is kept for the next delete (`selectionPastMark`).
-        let selection = proxy.selectedText ?? ""
-        if openIsMarked, !open.isEmpty, documentID == openDocument {
-            if selection.isEmpty { proxy.unmarkText() } else if selection != open { selectionPastMark = selection }
-        }
+        // is nothing of ours to unmark.
+        if openIsMarked, !open.isEmpty, documentID == openDocument { proxy.unmarkText() }
         open = ""
         openIsMarked = false
         openDocument = nil

@@ -17,11 +17,10 @@ import UIKit
 /// keys (`KeyboardView.stats`). With Full Access and Settings → Debug → "Keep recording"
 /// on, it keeps the last half hour of typing in the App Group (`TypingRecorder`) for the
 /// app to send when the person asks; a red dot on the keys shows while it does.
+/// Every controller in the process types through one model (`KeyboardShared`).
 final class KeyboardViewController: UIInputViewController {
     private var keyboard: KeyboardView?
     private var target: ProxyTarget?
-    private var sync: SyncController?
-    private var entitlement: EntitlementController?
     private var heightConstraint: NSLayoutConstraint?
     /// Fresh height constraints sent since the keyboard last appeared (`askAgainIfShort`).
     private var heightRetries = 0
@@ -31,7 +30,7 @@ final class KeyboardViewController: UIInputViewController {
     /// Bumped on each appearance, so re-asks left over from the last one stop.
     private var appearance = 0
     private let checks = ExtensionChecks()
-    private var health: KeyboardHealthRecorder?
+    private(set) var health: KeyboardHealthRecorder?
     /// The memory readings for the app's Debug page (with Full Access, never sent).
     private var debug: KeyboardDebugRecorder?
     /// Where the typing recording goes, with Full Access (`KeyboardFiles.typing`).
@@ -65,30 +64,15 @@ final class KeyboardViewController: UIInputViewController {
         KeyboardTelemetry.start(fullAccess: fullAccess)
         health = KeyboardHealthRecorder(fullAccess: fullAccess)
         debug = KeyboardDebugRecorder(fullAccess: fullAccess)
-        let (settingsStore, wordStore, personalStore) = Self.stores(fullAccess: fullAccess)
-        // The languages turned on, or the phone's (features/languages), with their word
-        // pairs. Pro is not known yet, so both load; the model drops to one when the
-        // entitlement says the keyboard is free.
-        let codes = (settingsStore.load() ?? KeyboardSettings())
-            .activeLanguages(preferred: Locale.preferredLanguages, allowsTwo: true)
-        let language = (try? Language.bundled(codes)) ?? (try? Language.bundled())
-            ?? Language(code: "en", lexicon: Lexicon(entries: []))
-        let model = KeyboardModel(composer: Composer(language: language, layout: Layout.qwerty(width: 390)),
-                                  store: settingsStore, wordStore: wordStore, personalStore: personalStore,
-                                  installID: InstallID.load(from: KeyboardFiles.own(KeyboardFiles.install)))
+        // One model for the whole process, whichever keyboard iOS shows (`KeyboardShared`).
+        let shared = KeyboardShared.get(fullAccess: fullAccess)
+        shared.showing = self
+        let model = shared.model
         let target = ProxyTarget(controller: self)
         target.underlines = { [weak model] in model?.keyboardSettings.underlinesWord ?? false }
         model.target = target
-        // Frequently used emoji and skin tones, in the extension's own files (they don't
-        // sync, features/emoji).
-        model.emojiStore = FileEmojiStore(url: KeyboardFiles.own(KeyboardFiles.emoji))
         self.target = target
-        if let health { model.onSettled = { [weak health] word in health?.settled(word) } }
-        model.device = TypingSnapshot.Device(app: Self.appVersion, system: "\(UIDevice.current.systemName) \(UIDevice.current.systemVersion)",
-                                             model: Self.hardware)
         typingFolder = fullAccess ? KeyboardFiles.shared(KeyboardFiles.typing) : nil
-        // The switch can change here (a sync) or in the app (read on each appearance).
-        model.onSettingsChange = { [weak self] _ in self?.updateRecorder() }
 
         let keyboard = KeyboardView(model: model)
         keyboard.usesSystemBackdrop = true
@@ -126,21 +110,8 @@ final class KeyboardViewController: UIInputViewController {
         ])
         self.keyboard = keyboard
 
-        if fullAccess {
-            startSync(model: model)
-            // Fixes go where the app can send them, only if the person said so (the
-            // model checks the setting); without Full Access there is nowhere to put them.
-            if let folder = KeyboardFiles.shared(KeyboardFiles.sharing) {
-                let store = SharedWordStore(folder: folder)
-                model.onCorrection = { word in store.save([word]) }
-            }
-        }
-        // Misses from "Not it?" are kept for "Words it missed" (features/missed-words):
-        // in the App Group where the app can list them, else in our own files.
-        let misses = SharedWordStore(folder: (fullAccess ? KeyboardFiles.shared(KeyboardFiles.misses) : nil)
-            ?? KeyboardFiles.own(KeyboardFiles.misses), limit: 200)
-        model.onMiss = { word in misses.save([word]) }
-        startEntitlement(model: model, fullAccess: fullAccess)
+        // A sync each time iOS makes a keyboard, as when each one had its own model.
+        shared.sync?.sync()
 
         if Flags.extensionReadout {
             keyboard.usesDefaultNote = false
@@ -156,70 +127,13 @@ final class KeyboardViewController: UIInputViewController {
         }
     }
 
-    /// Pro from StoreKit, the trial from the earliest start we can see: the app's (in
-    /// the App Group, with Full Access) or this extension's own first run.
-    private func startEntitlement(model: KeyboardModel, fullAccess: Bool) {
-        let now = Date()
-        let own = TrialStore(url: KeyboardFiles.own(KeyboardFiles.trial))
-        let shared = fullAccess ? KeyboardFiles.shared(KeyboardFiles.trial).flatMap { TrialStore(url: $0).load() } : nil
-        let trial = TrialStore.earliest(shared, own.loadOrStart(now: now)) ?? Trial(start: now)
-        if let shared, shared.start < (own.load()?.start ?? .distantFuture) { own.save(shared) }
-        let controller = EntitlementController(model: model, store: StoreKitProStore(),
-                                               cache: ProCache(url: KeyboardFiles.own(KeyboardFiles.pro)), trial: trial)
-        controller.start()
-        entitlement = controller
-    }
-
-    /// The extension's own files, which it can always write, mirrored to the App Group's
-    /// when Full Access allows. The Phase 3 settings in `UserDefaults` move over once.
-    private static func stores(fullAccess: Bool) -> (SettingsStore, WordStore, PersonalStore) {
-        let own = FileSettingsStore(url: KeyboardFiles.own(KeyboardFiles.settings))
-        let legacy = UserDefaultsSettingsStore()
-        if own.load() == nil, let old = legacy.load() {
-            own.save(old, changed: legacy.lastChanged() ?? .distantPast)
-        }
-        let ownWords = FileWordStore(url: KeyboardFiles.own(KeyboardFiles.words))
-        let ownPersonal = FilePersonalStore(url: KeyboardFiles.own(KeyboardFiles.personal))
-        guard fullAccess,
-              let sharedSettings = KeyboardFiles.shared(KeyboardFiles.settings),
-              let sharedWords = KeyboardFiles.shared(KeyboardFiles.words),
-              let sharedPersonal = KeyboardFiles.shared(KeyboardFiles.personal) else {
-            return (own, ownWords, ownPersonal)
-        }
-        return (MirroredSettingsStore(own: own, shared: FileSettingsStore(url: sharedSettings)),
-                MirroredWordStore(own: ownWords, shared: FileWordStore(url: sharedWords)),
-                MirroredPersonalStore(own: ownPersonal, shared: FilePersonalStore(url: sharedPersonal)))
-    }
-
-    /// With Full Access: tell the app we have it, and keep words and settings in step
-    /// with iCloud (now, and after each change).
-    private func startSync(model: KeyboardModel) {
-        guard let url = KeyboardFiles.shared(KeyboardFiles.status) else { return }
-        let statusStore = FileExtensionStatusStore(url: url)
-        var status = statusStore.load() ?? ExtensionStatus(fullAccess: true, seen: Date())
-        status.fullAccess = true
-        status.seen = Date()
-        statusStore.save(status)
-
-        let sync = SyncController(model: model, cloud: CloudKitSync())
-        sync.onResult = { result in
-            var status = statusStore.load() ?? ExtensionStatus(fullAccess: true, seen: Date())
-            switch result {
-            case .success(let date):
-                status.lastSync = date
-                status.lastSyncError = nil
-            case .failure(let error):
-                status.lastSyncError = error.localizedDescription
-            }
-            statusStore.save(status)
-        }
-        self.sync = sync
-        sync.sync()
-    }
-
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         heightRetries = 0
+        // The process's one model types into whichever keyboard is showing.
+        KeyboardShared.current?.showing = self
+        keyboard?.model.target = target
+        keyboard?.attachToModel()
         // Our globe key only where iOS draws none (Home button phones); elsewhere the
         // emoji key takes its place, as on Apple's keyboard (features/emoji).
         keyboard?.showsGlobe = needsInputModeSwitchKey
@@ -243,7 +157,7 @@ final class KeyboardViewController: UIInputViewController {
     }
 
     /// Starts or stops the typing recorder with the setting (Full Access only).
-    private func updateRecorder() {
+    func updateRecorder() {
         guard let model = keyboard?.model else { return }
         let wanted = model.keyboardSettings.recordsTyping ? typingFolder : nil
         if let wanted, model.recorder?.files.folder != wanted {
@@ -257,13 +171,13 @@ final class KeyboardViewController: UIInputViewController {
     }
 
     /// "1.0 (202611060412)", the extension's own version and build.
-    private static let appVersion: String = {
+    static let appVersion: String = {
         let info = Bundle.main.infoDictionary
         return "\(info?["CFBundleShortVersionString"] as? String ?? "?") (\(info?["CFBundleVersion"] as? String ?? "?"))"
     }()
 
     /// The hardware model, "iPhone17,1".
-    private static let hardware: String = {
+    static let hardware: String = {
         var info = utsname()
         uname(&info)
         return withUnsafeBytes(of: &info.machine) { raw in String(decoding: raw.prefix { $0 != 0 }, as: UTF8.self) }
@@ -296,7 +210,9 @@ final class KeyboardViewController: UIInputViewController {
         isVisible = false
         logMemory("hide")
         sampler.stop()
-        keyboard?.model.keyboardWillHide()
+        // The model is the process's (`KeyboardShared`): only the keyboard it types
+        // into settles its word, not an older one closing after a new one opened.
+        if KeyboardShared.current?.showing === self { keyboard?.model.keyboardWillHide() }
         health?.disappeared()
         debug?.disappeared()
     }

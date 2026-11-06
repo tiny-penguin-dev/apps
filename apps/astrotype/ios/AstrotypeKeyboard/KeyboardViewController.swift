@@ -43,6 +43,8 @@ final class KeyboardViewController: UIInputViewController {
 
     /// Counted live once loaded (`LiveCount`), uncounted when freed.
     private var counted = false
+    private let sampler = MemorySampler()
+    private var memoryLog = MemoryLogPacer()
 
     deinit {
         if counted { LiveCount.controllers.subtract(1, ordering: .relaxed) }
@@ -63,13 +65,6 @@ final class KeyboardViewController: UIInputViewController {
         KeyboardTelemetry.start(fullAccess: fullAccess)
         health = KeyboardHealthRecorder(fullAccess: fullAccess)
         debug = KeyboardDebugRecorder(fullAccess: fullAccess)
-        // The health readings ride the debug page's timer, so a peak is caught even
-        // when nothing is typed (the emoji page, the settings panel).
-        debug?.onTick = { [weak self] in
-            guard let health = self?.health else { return }
-            health.sample()
-            if KeyboardView.metalLoaded { health.used(.metal) }
-        }
         let (settingsStore, wordStore, personalStore) = Self.stores(fullAccess: fullAccess)
         // The languages turned on, or the phone's (features/languages), with their word
         // pairs. Pro is not known yet, so both load; the model drops to one when the
@@ -111,6 +106,11 @@ final class KeyboardViewController: UIInputViewController {
         // The guesses bar going on or off, or the split, changes the height to ask for.
         keyboard.onHeightChange = { [weak self] _ in self?.view.setNeedsLayout() }
         keyboard.onPart = { [weak self] part in self?.health?.used(part) }
+        // One memory reading a second while the keyboard shows, for the overlay, the
+        // Debug page, the health numbers (a peak is caught even when nothing is typed,
+        // on the emoji page or the settings panel) and the typing log.
+        sampler.root = { [weak keyboard] in keyboard }
+        sampler.onSample = { [weak self] sample in self?.took(sample) }
         view.addSubview(keyboard)
         // Pinned with constraints, not placed by frame: iOS works the keyboard's height
         // out from the constraints inside its view, and ignored the height constraint
@@ -226,6 +226,7 @@ final class KeyboardViewController: UIInputViewController {
         applyHeight(fresh: true)
         health?.appeared()
         debug?.appeared()
+        sampler.start()
         askedAppearance = nil
         followKeyboardAppearance()
         if let model = keyboard?.model, let store = model.store, let saved = store.load(), let changed = store.lastChanged() {
@@ -237,6 +238,7 @@ final class KeyboardViewController: UIInputViewController {
         let recording = keyboard?.model.recorder != nil
         updateRecorder()
         if recording { keyboard?.model.snapshot() }
+        logMemory("show")
         keyboard?.model.contextChanged()
     }
 
@@ -292,6 +294,8 @@ final class KeyboardViewController: UIInputViewController {
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         isVisible = false
+        logMemory("hide")
+        sampler.stop()
         keyboard?.model.keyboardWillHide()
         health?.disappeared()
         debug?.disappeared()
@@ -301,6 +305,7 @@ final class KeyboardViewController: UIInputViewController {
         super.didReceiveMemoryWarning()
         health?.sample()
         debug?.memoryWarning()
+        logMemory("warning")
     }
 
     /// The field as the app describes it (features/field-types): its keyboard type,
@@ -475,10 +480,25 @@ final class KeyboardViewController: UIInputViewController {
         keyboard?.model.field = field
         keyboard?.model.contextChanged("change")
         edits += 1
-        if edits % 5 == 0 {
-            checks.refresh()
-            health?.sample()
+        if edits % 5 == 0 { checks.refresh() }
+    }
+
+    /// The once-a-second reading (`MemorySampler`), to everything that shows or keeps one.
+    private func took(_ sample: MemorySample) {
+        health?.sample(sample.reading)
+        if sample.metal { health?.used(.metal) }
+        debug?.sample(sample.reading)
+        keyboard?.stats.show(sample)
+        if let why = memoryLog.reason(for: sample, at: ProcessInfo.processInfo.systemUptime) {
+            keyboard?.model.logMemory(sample, why: why)
         }
+    }
+
+    /// A reading for the typing log now, for its own reason (shown, hidden, a warning).
+    private func logMemory(_ why: String) {
+        guard let model = keyboard?.model, model.recorder != nil, let sample = sampler.take() else { return }
+        memoryLog.logged(sample, at: ProcessInfo.processInfo.systemUptime)
+        model.logMemory(sample, why: why)
     }
 }
 

@@ -49,7 +49,11 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
     for Settings → Debug whenever it has Full Access (never sent). With Full Access and
     "Keep recording" on it gives `KeyboardModel.recorder` a `TypingRecorder` over
     `KeyboardFiles.typing` (red dot on the keys, Mark in the held-123 panel; turning it
-    off deletes what was kept). `ExtensionChecks`
+    off deletes what was kept). `MemorySampler` takes one `MemorySample` a second
+    while the keyboard shows and hands it to the stats overlay, the Debug page's file,
+    `KeyboardHealthRecorder` and the log (`mem` events: on show, hide and memory
+    warnings, every 10 s, on a 5 MB jump, and when a `LiveCount` changes;
+    `MemoryLogPacer`). `ExtensionChecks`
     writes the StoreKit, memory and size readings into the bar's idle note while
     `Flags.extensionReadout` is on.
   - `AstrotypeKit/`: the local package, three targets:

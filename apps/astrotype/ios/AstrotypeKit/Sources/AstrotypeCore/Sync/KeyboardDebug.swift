@@ -108,17 +108,40 @@ public enum LiveCount {
     /// Sync rounds still waiting on iCloud. One that never comes back is stuck.
     public static let syncsWaiting = Atomic<Int>(0)
 
-    /// "1 keyboard · 1 model · 2 loads · 3 syncs", with ", 1 waiting" while a sync is out.
-    public static var summary: String {
-        line(controllers: controllers.load(ordering: .relaxed), models: models.load(ordering: .relaxed),
-             loads: dictionaryLoads.load(ordering: .relaxed), syncs: syncs.load(ordering: .relaxed),
-             waiting: syncsWaiting.load(ordering: .relaxed))
+    /// All the counts at one moment.
+    public struct Counts: Codable, Sendable, Equatable {
+        public var keyboards: Int
+        public var models: Int
+        public var loads: Int
+        public var syncs: Int
+        public var waiting: Int
+
+        public init(keyboards: Int = 0, models: Int = 0, loads: Int = 0, syncs: Int = 0, waiting: Int = 0) {
+            self.keyboards = keyboards
+            self.models = models
+            self.loads = loads
+            self.syncs = syncs
+            self.waiting = waiting
+        }
+
+        /// "1 keyboard · 1 model · 2 loads · 3 syncs", with ", 1 waiting" while a sync is out.
+        public var line: String {
+            func n(_ count: Int, _ word: String) -> String { "\(count) \(word)\(count == 1 ? "" : "s")" }
+            let line = [n(keyboards, "keyboard"), n(models, "model"), n(loads, "load"), n(syncs, "sync")].joined(separator: " · ")
+            return waiting > 0 ? line + ", \(waiting) waiting" : line
+        }
     }
 
+    public static var now: Counts {
+        Counts(keyboards: controllers.load(ordering: .relaxed), models: models.load(ordering: .relaxed),
+               loads: dictionaryLoads.load(ordering: .relaxed), syncs: syncs.load(ordering: .relaxed),
+               waiting: syncsWaiting.load(ordering: .relaxed))
+    }
+
+    public static var summary: String { now.line }
+
     static func line(controllers: Int, models: Int, loads: Int, syncs: Int = 0, waiting: Int = 0) -> String {
-        func n(_ count: Int, _ word: String) -> String { "\(count) \(word)\(count == 1 ? "" : "s")" }
-        let line = [n(controllers, "keyboard"), n(models, "model"), n(loads, "load"), n(syncs, "sync")].joined(separator: " · ")
-        return waiting > 0 ? line + ", \(waiting) waiting" : line
+        Counts(keyboards: controllers, models: models, loads: loads, syncs: syncs, waiting: waiting).line
     }
 }
 

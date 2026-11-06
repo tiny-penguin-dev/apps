@@ -64,6 +64,9 @@ public struct TypingEvent: Codable, Sendable, Equatable {
         /// Recording stopped in a field that never learns (an address, a code, a
         /// password); a snapshot starts it again.
         case pause
+        /// A memory reading (`mem`), with why it was logged in `s`: "show", "hide",
+        /// "warning", "tick", "jump" or "count" (`MemoryLogPacer`).
+        case memory = "mem"
     }
 
     /// The keyboard's clock, seconds.
@@ -82,10 +85,11 @@ public struct TypingEvent: Codable, Sendable, Equatable {
     public var settings: KeyboardSettings?
     public var field: Field?
     public var layout: TypingLayout?
+    public var mem: MemorySample?
 
     public init(t: Double, e: Kind, i: Int? = nil, x: Double? = nil, y: Double? = nil, n: Int? = nil, s: String? = nil,
                 k: String? = nil, fx: [String]? = nil, snap: TypingSnapshot? = nil, settings: KeyboardSettings? = nil,
-                field: Field? = nil, layout: TypingLayout? = nil) {
+                field: Field? = nil, layout: TypingLayout? = nil, mem: MemorySample? = nil) {
         self.t = Self.round(t, 1_000)
         self.e = e
         self.i = i
@@ -99,6 +103,7 @@ public struct TypingEvent: Codable, Sendable, Equatable {
         self.settings = settings
         self.field = field
         self.layout = layout
+        self.mem = mem
     }
 
     /// Whether the person did this (a touch, a key, a tap on the bar), as opposed to
@@ -485,6 +490,7 @@ extension TypingLog {
             case .field: lines.append("\(time)  field \(event.field?.kind.rawValue ?? "")")
             case .layout: lines.append("\(time)  layout \(Int(event.layout?.width ?? 0))×\(Int(event.layout?.height ?? 0))")
             case .mark: lines.append("\(time)  ★ MARK")
+            case .memory: lines.append("\(time)  memory (\(event.s ?? "")) \(event.mem?.line ?? "")")
             default: lines.append("\(time)  \(event.e)\(event.s.map { " \($0)" } ?? "")\(event.n.map { " \($0)" } ?? "")")
             }
         }

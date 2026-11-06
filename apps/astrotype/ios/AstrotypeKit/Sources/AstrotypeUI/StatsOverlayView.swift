@@ -3,19 +3,20 @@ import AstrotypeCore
 import Synchronization
 import UIKit
 
-/// The keyboard's stats overlay (Settings → Debug → "Stats on the keyboard"): two tiny
-/// lines of memory in a corner of the keys, "23.4/40 MB · peak 25.1 · 31 left" and what
-/// it is made of, "heap 12.3 · other 11.1 · 412 layers" (a heap that grows is a leak in
-/// our objects; "other" or layers that grow is drawing left behind), read once a second
-/// while it shows. It takes no touches, so the keys under it still type.
-/// Turns amber past 75% of the 40 MB budget and red past it.
+/// The keyboard's stats overlay (Settings → Debug → "Stats on the keyboard"): three tiny
+/// lines in a corner of the keys, "23.4/40 MB · peak 25.1 · 31 left", what it is made
+/// of, "heap 12.3 · other 11.1 · 412 layers" (a heap that grows is a leak in our
+/// objects; "other" or layers that grow is drawing left behind), and the live counts
+/// (`LiveCount`). It shows the keyboard's once-a-second reading (`MemorySample`), the
+/// same one the Debug page and the typing log get. It takes no touches, so the keys
+/// under it still type. Turns amber past 75% of the 40 MB budget and red past it.
 ///
 ///     let stats = StatsOverlayView()
 ///     stats.isRunning = settings.showsStats
+///     stats.show(sample)
 public final class StatsOverlayView: UILabel {
     /// The most memory seen since this view was made, in MB.
     public private(set) var peakMB = 0.0
-    private var timer: Timer?
 
     public override init(frame: CGRect) {
         super.init(frame: frame)
@@ -31,52 +32,39 @@ public final class StatsOverlayView: UILabel {
 
     public required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 
-    /// Shows the overlay and reads memory once a second, or hides it and stops.
+    /// Whether the overlay shows.
     public var isRunning = false {
         didSet {
             guard isRunning != oldValue else { return }
             isHidden = !isRunning
-            if isRunning { start() } else { stop() }
+            if isRunning, let sample = MemorySample.now(in: superview) { show(sample) }
         }
     }
 
-    public override func didMoveToWindow() {
-        super.didMoveToWindow()
-        if window == nil { stop() } else if isRunning { start() }
-    }
-
-    private func start() {
-        guard timer == nil, window != nil else { return }
-        tick()
-        let timer = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
-            MainActor.assumeIsolated { self?.tick() }
-        }
-        RunLoop.main.add(timer, forMode: .common)
-        self.timer = timer
-    }
-
-    private func stop() {
-        timer?.invalidate()
-        timer = nil
-    }
-
-    private func tick() {
-        guard let reading = MemoryReading.current() else {
-            text = "memory unknown"
-            return
-        }
-        peakMB = max(peakMB, reading.footprintMB)
+    /// Shows a reading, when the overlay is on.
+    public func show(_ sample: MemorySample) {
+        peakMB = max(peakMB, sample.mb)
+        guard isRunning else { return }
+        let reading = sample.reading
         text = reading.overlay(peakMB: peakMB) + "\n"
-            + MemoryReading.breakdown(footprintMB: reading.footprintMB, heapMB: MemoryReading.heapMB(),
-                                      layers: Self.count(superview?.layer), views: Self.count(superview),
-                                      metal: MetalKeyboard.loaded)
-            + "\n" + LiveCount.summary
+            + MemoryReading.breakdown(footprintMB: sample.mb, heapMB: sample.heap, layers: sample.layers,
+                                      views: sample.views, metal: sample.metal)
+            + "\n" + sample.counts.line
         textColor = reading.budgetFraction >= 1 ? Theme.ui(.danger)
             : reading.budgetFraction >= 0.75 ? Theme.ui(.sun) : Theme.ui(.muted)
     }
+}
+
+public extension MemorySample {
+    /// The process's memory now, with the layers and views under `root` (the keyboard).
+    @MainActor static func now(in root: UIView?) -> MemorySample? {
+        guard let reading = MemoryReading.current() else { return nil }
+        return MemorySample(reading: reading, heapMB: MemoryReading.heapMB(), layers: count(root?.layer),
+                            views: count(root), metal: MetalKeyboard.loaded)
+    }
 
     /// The views in the tree under `view`, itself included.
-    private static func count(_ view: UIView?) -> Int {
+    @MainActor private static func count(_ view: UIView?) -> Int {
         guard let view else { return 0 }
         return 1 + view.subviews.reduce(0) { $0 + count($1) }
     }

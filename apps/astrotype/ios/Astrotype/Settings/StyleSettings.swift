@@ -198,16 +198,16 @@ private struct ThemeCard: View {
         let colors = theme.colors(dark: dark)
         let shape = theme.shape.clamped
         VStack(alignment: .leading, spacing: 6) {
-            VStack(spacing: max(2, shape.gap / 2)) {
+            VStack(spacing: CGFloat(max(2, shape.gap / 2))) {
                 ForEach([7, 6, 5], id: \.self) { count in
-                    HStack(spacing: max(2, shape.gap / 2)) {
+                    HStack(spacing: CGFloat(max(2, shape.gap / 2))) {
                         ForEach(0..<count, id: \.self) { index in
                             let edge = count == 5 && (index == 0 || index == count - 1)
-                            RoundedRectangle(cornerRadius: shape.corner / 2, style: .continuous)
+                            RoundedRectangle(cornerRadius: CGFloat(shape.corner / 2), style: .continuous)
                                 .fill((edge ? colors.functionKey : colors.key).color.opacity(shape.opacity))
                                 .overlay {
-                                    RoundedRectangle(cornerRadius: shape.corner / 2, style: .continuous)
-                                        .strokeBorder(colors.border.color, lineWidth: shape.borderWidth / 2)
+                                    RoundedRectangle(cornerRadius: CGFloat(shape.corner / 2), style: .continuous)
+                                        .strokeBorder(colors.border.color, lineWidth: CGFloat(shape.borderWidth / 2))
                                 }
                                 .overlay {
                                     if shape.showsLetters, !edge {

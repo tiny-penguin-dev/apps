@@ -30,7 +30,7 @@ public extension KeyShape.Font {
 ///
 ///     let style = KeyStyle(theme: settings.style(allows: pro), appearance: .system, traits: traitCollection)
 ///     key.backgroundColor = style.colors.key.uiColor
-public struct KeyStyle: Equatable {
+public struct KeyStyle: Equatable, Sendable {
     public var theme: KeyboardTheme
     public var isDark: Bool
 

@@ -146,7 +146,7 @@ public final class KeySurfaceView: UIView {
     private var keyViews: [Key: [KeyView]] = [:]
     private var active: [ObjectIdentifier: Active] = [:]
     private var nextID = 1
-    private let effects = CALayer()
+    private let effectsLayer = CALayer()
     private lazy var fx = KeyEffects(surface: self)
     /// Letters tapped since the last word, so space or return can count one for flow.
     private var lettersSinceWord = 0
@@ -168,7 +168,7 @@ public final class KeySurfaceView: UIView {
 
     public override func layoutSubviews() {
         super.layoutSubviews()
-        effects.frame = bounds
+        effectsLayer.frame = bounds
         fx.layout(bounds)
     }
 
@@ -271,9 +271,9 @@ public final class KeySurfaceView: UIView {
             addSubview(keyView)
             keyViews[placement.key, default: []].append(keyView)
         }
-        effects.removeFromSuperlayer()
-        effects.frame = bounds
-        fx.attach(to: layer, effects: effects)
+        effectsLayer.removeFromSuperlayer()
+        effectsLayer.frame = bounds
+        fx.attach(to: layer, effects: effectsLayer)
         invalidateIntrinsicContentSize()
         applyHints()
         rebuildAccessibility()
@@ -601,7 +601,7 @@ public final class KeySurfaceView: UIView {
             layer.lineWidth = 9
             layer.opacity = 0.85
         }
-        effects.addSublayer(layer)
+        effectsLayer.addSublayer(layer)
         CATransaction.begin()
         CATransaction.setCompletionBlock { [weak self] in
             // Core Animation calls back on the main thread.

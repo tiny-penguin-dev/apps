@@ -6,7 +6,7 @@ of only the word before.
 
 ## Product
 
-Status: Draft
+Status: Approved 2026-11-06 (Gabriel: "build our own", in the project thread)
 
 - **The problem:** the next-word guesses (features/next-word) feel bad. They look at
   one word only: after "the" they offer the same three words whether you wrote "I
@@ -34,7 +34,7 @@ Status: Draft
   extensions get rate-limited (one developer hit the limit after 4 calls from a
   Safari extension), it returns text without scores so it can't be mixed with your
   own words, and it only works with Apple Intelligence on. Gabriel chose our own
-  model on 6 Nov 2026.
+  model on 6 Nov 2026 ("don't test the Apple one, build our own").
 - **What it changes:** where next-word guesses come from. Later (phase 4, if it
   measures better), the same model also helps choose between swipe readings, which
   today uses the word pairs too ("I'll be *there*" vs "*three*").
@@ -56,14 +56,23 @@ Status: Draft
   - In this version: next-word guesses from the model, English and Spanish, your
     habits mixed in, the test set.
   - Later: helping choose between swipe readings (phase 4); finishing a half-typed
-    word with context; learning from you inside the model itself.
+    word with context; tuning the model to how you write, on your phone (below).
   - Never: sending anything typed off the phone to make guesses.
+- **Tuned to you, later (Gabriel, 6 Nov 2026):** once the general model ships and
+  measures well, the app tunes a small part of it (the last layer, or a small add-on)
+  to how the person writes, on the phone, overnight while it charges. The keyboard
+  keeps recent sentences on the phone (never in fields that don't learn), the app
+  learns from them and then deletes them. It needs Full Access (the keyboard can only
+  hand text to the app through the App Group) and its own clearly worded switch.
+  Without it, the person's word habits keep mixing in on top as today. Apple's model
+  can't be tuned on the phone, another reason for our own.
 - **What we measure:** `nextword.picked` already counts taps on guesses; its share of
   words written should go up. No new metric. Offline, the test set above.
-- **Open questions** for Gabriel:
+- **Decided** (Gabriel said build it with these open; the recommended answers are
+  what we build, and he can change them):
   1. **What text should it learn from?** This matters more than the model. It needs
      a lot of casual English and Spanish we're allowed to use.
-     - **A. Web text plus written chat messages** (recommended): a large public web
+     - **A. Web text plus written chat messages** (recommended, going with this): a large public web
        collection that allows this use (FineWeb, ODC-BY, English and Spanish), filtered
        toward casual writing (forums, comments, reviews), plus a few hundred thousand
        short text-message style lines written by an AI model to cover how people
@@ -74,7 +83,8 @@ Status: Draft
        avoid it.
   2. **Train where?** A model this size trains in a few hours on a Mac with an M chip
      (the handwriting model in `ml/` was trained that way). I can run it on your Mac
-     through a session there, or slower in the cloud.
+     through a session there, or slower in the cloud. Going with: his Mac (the cloud
+     machine has 4 CPU cores and no GPU); the data and test set are made in the cloud.
 
 ## Design
 
@@ -83,32 +93,59 @@ features/next-word)
 
 ## Build
 
-Status: Not started (a sketch, to be filled in once Product is approved)
+Status: Approved 2026-11-06 (Gabriel: "build our own… very efficient, low memory, uses
+the most native Apple stuff… okay if it only runs on newest OSs and newest phones")
 
-- **Approach:** a word-level LSTM per language, the same kind Gboard shipped (theirs
-  is 1.4 MB, 10,000 words, and beat their word pairs in live tests). About 20,000
-  words per language, words and outputs sharing one table, stored in 8 bits.
-  Trained in `ml/nextword/` with PyTorch; exported to our own small binary file.
-- **Running it:** plain Swift with Accelerate instead of Core ML, so we control the
-  memory exactly (weights memory-mapped, one small state per language) and the tests
-  run on Linux too. One step per word typed, kept in step with the text before the
-  cursor and re-read from it when the cursor jumps.
-- **Core pieces:** `WordModel` in `AstrotypeCore` (load, `step(word)`,
-  `topNext(limit:)`, reset from text); `NextWords.guesses` takes it in place of the
-  pairs and keeps the same mixing with your habits.
+- **Approach:** a tiny word-level transformer per language, run by Core ML on the
+  Neural Engine, Apple's fastest and most battery-friendly way to run a model.
+  - *Why a transformer, not an LSTM:* the Neural Engine runs transformer layers well
+    and LSTMs poorly (they fall back to the CPU). Apple's own keyboard model is a
+    small transformer too.
+  - *Size:* about 16,000 words per language (the commonest in the lexicon; rarer
+    words fall back to the pairs), 4 layers, 256 wide, words in and out sharing one
+    table: about 7 million weights. Stored at 4 bits per weight (Core ML
+    palettization), about 3.5 MB per language. Trained in `ml/nextword/` with
+    PyTorch, exported with coremltools.
+  - *One step per word:* a stateful Core ML model (`MLState`, iOS 18) keeps what it
+    read so far on the Neural Engine, so each new word costs one small step instead of
+    rereading the sentence. It reads up to the last 64 words; a cursor jump or a new
+    field resets it from the text before the cursor.
+  - *Loading:* the model loads in the background when the keyboard opens; the pairs
+    answer until it's ready, and whenever it isn't available (load failed, memory
+    warning). Only the active languages load.
+  - *iOS:* stays iOS 18 (the app's minimum), since everything above is there in 18.
+    Phones without a Neural Engine fast enough fall back to the GPU or CPU; we measure
+    on Gabriel's phone and the oldest one we can.
+- **Core pieces:**
+  - `WordVocabulary` (`AstrotypeCore`, pure, tested on Linux): word ↔ id per
+    language, and turning the text before the cursor into ids (`WordContext` already
+    splits it into words).
+  - `NextWordModel` (protocol in `AstrotypeCore`): `reset(to ids:)`, `append(id)`,
+    `topNext(limit:) -> [(word, probability)]`. The live one, `CoreMLNextWordModel`
+    (`AstrotypeUI`, Core ML), and a fake for tests.
+  - `NextWords.guesses` takes the model's top words in place of the pairs' when one is
+    loaded, with the same mixing with your habits; the pairs stay for unknown words.
+  - `astrotype-tools nexteval` scores any model on the test set (top-1, top-3,
+    keystrokes saved) so the pairs and each trained model are compared the same way.
 - **Phases:**
-  1. *Test set and measuring:* build the test set; `astrotype-tools` reports top-three
-     and keystrokes saved for today's pairs. Done when: a baseline number is written
-     here for both languages.
-  2. *Train and pick:* train English and Spanish models, measure on the test set.
-     Done when: the model beats the pairs by 5+ points within size and speed limits,
-     or we stop and say why.
-  3. *In the keyboard:* `WordModel`, guesses from it, memory and speed checked on
-     Gabriel's phone. Done when: "I left my phone at the" offers "office" or "house"
-     style words, not "same"; memory overlay shows under 10 MB more.
+  1. *Text, test set and baseline:* gather and clean the training text (option A) and
+     hold back a test set for both languages; `nexteval` reports today's pairs on it.
+     Done when: the baseline numbers are written here.
+  2. *Train and pick:* train on Gabriel's Mac, export 4-bit Core ML, measure. Done
+     when: the model beats the pairs by 5+ points in the top three within 5 MB per
+     language, or we stop and say why.
+  3. *In the keyboard:* `CoreMLNextWordModel`, guesses from it, memory and speed
+     shown on the stats overlay. Done when: "I left my phone at the" offers words
+     like "house" or "office", not "same"; under 10 MB more memory with both
+     languages; under 5 ms per word on Gabriel's phone.
   4. *Swipe readings (if it helps):* use the model to rank swipe readings; ship only if
      the replay accuracy goes up.
-- **Risks:** training text is the main risk (questions above). Memory while the leak
-  is still open. A model trained on web text may suggest odd or rude words; we keep
-  the lexicon filter and add a blocklist.
+  5. *Tuned to you (later, its own plan):* sentences kept on the phone, tuning in the
+     app in a background task while charging, the switch. Done when: the test on the
+     person's own held-back sentences beats the general model.
+- **Risks:** training text is the main risk. Memory while the leak is still open.
+  Core ML's first load on a phone compiles the model for the Neural Engine and can
+  take a second or two (cached after); the pairs cover it. A model trained on web
+  text may suggest odd or rude words; we keep the lexicon filter and add a blocklist.
+- **Metrics:** none new; `nextword.picked` share of words written.
 - **Last step:** fold into `PRODUCT.md` and `features/next-word/FEATURE.md`.

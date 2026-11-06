@@ -156,17 +156,17 @@ public enum FlowLevel: Int, CaseIterable, Sendable, Comparable {
 ///     var flow = FlowMeter()
 ///     flow.word(at: now)                  // +1, or +1.5 within 1.5 s of the last word
 ///     flow.delete(at: now)                // -3
-///     flow.tick(now: now)                 // drains after 2.5 s without typing
+///     flow.tick(now: now)                 // after 1 s without typing, the combo drops 1 a second
 ///     flow.level(scale: 1, cap: 4)        // .toboggan
 public struct FlowMeter: Equatable, Sendable {
     /// A word within this long of the last one counts extra.
     public static let quick: TimeInterval = 1.5
     public static let quickBonus = 1.5
     public static let deletePenalty = 3.0
-    /// The meter starts draining this long after the last word or delete…
-    public static let rest: TimeInterval = 2.5
-    /// …at this many words a second.
-    public static let drain = 1.5
+    /// The meter starts draining this long after the last word or delete, then the
+    /// combo drops 1 a second and the score with it, so both reach 0 together
+    /// (Gabriel, 6 Nov 2026).
+    public static let rest: TimeInterval = 1
 
     public private(set) var score = 0.0
     /// Words in this run; back to 0 when the meter empties.
@@ -174,6 +174,8 @@ public struct FlowMeter: Equatable, Sendable {
     private var lastWord: TimeInterval?
     private var lastInput: TimeInterval?
     private var lastTick: TimeInterval?
+    /// Score per combo word at the last input: what one second of draining takes.
+    private var perWord = 1.0
 
     public init() {}
 
@@ -184,6 +186,7 @@ public struct FlowMeter: Equatable, Sendable {
         combo += 1
         lastWord = time
         lastInput = time
+        perWord = score / Double(combo)
     }
 
     public mutating func delete(at time: TimeInterval) {
@@ -192,6 +195,7 @@ public struct FlowMeter: Equatable, Sendable {
         combo = max(0, combo - 3)
         if score == 0 { combo = 0 }
         lastInput = time
+        perWord = combo > 0 ? score / Double(combo) : 1
     }
 
     /// Drain for the time since the last tick that falls after the rest.
@@ -201,8 +205,10 @@ public struct FlowMeter: Equatable, Sendable {
         let restEnds = input + Self.rest
         let from = max(restEnds, lastTick ?? restEnds)
         guard now > from else { return }
-        score = max(0, score - (now - from) * Self.drain)
-        if score == 0 { combo = 0 }
+        score = max(0, score - (now - from) * perWord)
+        // Whole words left; the small slack keeps float error from dropping one early.
+        combo = score > 1e-9 ? Int((score / perWord - 1e-9).rounded(.up)) : 0
+        if combo == 0 { score = 0 }
     }
 
     /// Empty the meter (the keyboard went away).

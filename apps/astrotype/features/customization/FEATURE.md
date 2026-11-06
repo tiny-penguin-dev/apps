@@ -28,6 +28,11 @@ we'll test it for real."
   `background` colour in saved themes is ignored).
 - No flow meter line and no level-name pop. The combo count shows on the space bar
   ("Astrotype  ×12"), and the space bar bounces when a level is reached.
+- The higher levels never showed in testing because Low Power Mode was on (it caps
+  flow at Toboggan). The Effects page now says so when Low Power Mode is on.
+- Flow drains sooner: after 1 s without typing, the space bar count drops 1 a second
+  and the effects fade with it (was a 2.5 s wait, then 1.5 a second).
+  Building up is unchanged. Tapping space no longer counts as a word on its own.
 - See-through keys is set for the light and the dark look apart (in the editor's
   Colours, under the look picker), not once in the shape.
 

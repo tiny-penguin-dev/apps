@@ -430,7 +430,7 @@ final class KeyEffects {
         emitter.emitterPosition = point
         emitter.emitterShape = .point
         emitter.renderMode = .unordered
-        emitter.cells = colors.map { color in
+        emitter.emitterCells = colors.map { color in
             let cell = CAEmitterCell()
             cell.contents = image
             cell.color = color.cgColor
@@ -540,7 +540,7 @@ final class KeyEffects {
         emitter.emitterShape = .circle
         emitter.emitterSize = CGSize(width: spread, height: spread)
         emitter.renderMode = .unordered
-        emitter.cells = colors.map { color in
+        emitter.emitterCells = colors.map { color in
             let cell = CAEmitterCell()
             cell.contents = image
             cell.color = color.cgColor
@@ -639,7 +639,7 @@ final class KeyEffects {
         switch kind {
         case .stars:
             emitter.emitterShape = .rectangle
-            emitter.cells = [UIColor(red: 1, green: 0.96, blue: 0.76, alpha: 1), style.thumb(.left)].map { color in
+            emitter.emitterCells = [UIColor(red: 1, green: 0.96, blue: 0.76, alpha: 1), style.thumb(.left)].map { color in
                 let c = cell(Sprites.twinkle, color)
                 c.birthRate = 4
                 c.lifetime = 1.4
@@ -665,10 +665,10 @@ final class KeyEffects {
             c.xAcceleration = -2
             c.scale = 0.3
             c.scaleRange = 0.18
-            emitter.cells = [c]
+            emitter.emitterCells = [c]
         case .confetti:
             emitter.emitterShape = .line
-            emitter.cells = [Theme.ui(.right), Theme.ui(.sun), Theme.ui(.mint), Theme.ui(.left), UIColor(red: 0.48, green: 0.38, blue: 1, alpha: 1)].map { color in
+            emitter.emitterCells = [Theme.ui(.right), Theme.ui(.sun), Theme.ui(.mint), Theme.ui(.left), UIColor(red: 0.48, green: 0.38, blue: 1, alpha: 1)].map { color in
                 let c = cell(Sprites.confetti, color)
                 c.birthRate = 1.8
                 c.lifetime = 5

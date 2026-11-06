@@ -30,7 +30,8 @@ we'll test it for real."
   ("Astrotype  ×12"), and the space bar bounces when a level is reached.
 - The higher levels never showed in testing because Low Power Mode was on (it caps
   flow at Toboggan). The Effects page now says so when Low Power Mode is on.
-- Flow drains faster: after 1 s without typing it drops 2.5 a second (was 2.5 s, then 1.5).
+- Flow drains sooner: after 1 s without typing, the space bar count drops 1 a second
+  and the effects fade with it (was a 2.5 s wait, then 1.5 a second).
   Building up is unchanged. Tapping space no longer counts as a word on its own.
 - See-through keys is set for the light and the dark look apart (in the editor's
   Colours, under the look picker), not once in the shape.

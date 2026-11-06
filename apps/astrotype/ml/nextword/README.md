@@ -19,6 +19,16 @@ cd apps/astrotype/ml/nextword
 `NextWordModels` loads them. Without them the keyboard keeps the word pairs. Its log ends with the
 model's score next to the word pairs' score.
 
+## On GitHub's hosted runners
+
+Actions → **Astrotype next-word train** → Run workflow, with the language, the size
+(`small` for now, `full` once there's a GPU or a fast machine) and the hours. It makes
+the sentences once (kept in the Actions cache), trains in chained 5.5-hour jobs that
+pass the checkpoint along, and the last job scores, exports and opens a pull request
+with the model. Start **Astrotype iOS** on that PR's branch to build it, since PRs a
+workflow opens don't start other workflows. On the free 2-core runners a small model
+for 12 hours costs about 750 minutes per language.
+
 ## Step by step
 
 1. **Text** (`make_text.py`): pages from FineWeb (English) and FineWeb-2 (Spanish),

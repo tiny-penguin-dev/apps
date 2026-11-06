@@ -1,0 +1,159 @@
+name: Astrotype next-word train
+
+# Trains Astrotype's next-word model (apps/astrotype/ml/nextword, features/next-word-model)
+# on GitHub's hosted Linux runners. Start it from the Actions tab: Run workflow, pick
+# the language, the size and the hours.
+#
+# A hosted job stops after 6 hours, so a longer training runs as a chain: each job
+# trains up to 5.5 hours, uploads its checkpoint, and starts the next job of the chain
+# (resume_run) until the hours are used. The last job scores the model, exports it to
+# Core ML and opens a pull request with the model in apps/astrotype/ios/AstrotypeKeyboard/NextWord/.
+# That PR is opened by this workflow's token, so GitHub doesn't run the iOS build on it by
+# itself: start "Astrotype iOS" on its branch (deploy off), or push to it once.
+#
+# The sentences are made once per language and kept in the Actions cache.
+on:
+  workflow_dispatch:
+    inputs:
+      language:
+        description: Language
+        type: choice
+        options: [en, es]
+        default: en
+      size:
+        description: "small: 2 layers, 128 wide, 12,000 words (~1 MB). full: 4 layers, 256 wide, 16,000 words (~3.5 MB)"
+        type: choice
+        options: [small, full]
+        default: small
+      hours:
+        description: Hours of training in all (chained 5.5-hour jobs)
+        default: "12"
+      resume_run:
+        description: Leave empty. The chain fills it in to carry on from that run's checkpoint.
+        default: ""
+
+concurrency:
+  group: astrotype-nextword-${{ inputs.language }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: write
+
+jobs:
+  train:
+    runs-on: ubuntu-latest
+    timeout-minutes: 355
+    defaults:
+      run:
+        working-directory: apps/astrotype/ml/nextword
+    env:
+      GH_TOKEN: ${{ github.token }}
+      LANG_CODE: ${{ inputs.language }}
+      WORK: ${{ github.workspace }}/../nextword
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install
+        run: |
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install pyarrow coremltools scikit-learn numpy
+          nproc; free -g
+
+      - name: Sentences from the cache
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/../nextword/data/${{ inputs.language }}
+          key: nextword-data-${{ inputs.language }}-${{ hashFiles('apps/astrotype/ml/nextword/make_text.py', 'apps/astrotype/ios/AstrotypeKit/Sources/AstrotypeCore/Resources/*/lexicon.tsv') }}
+
+      - name: Make the sentences
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p "$WORK/raw"
+          case $LANG_CODE in
+            en) url=https://huggingface.co/datasets/HuggingFaceFW/fineweb/resolve/main/sample/10BT/000_00000.parquet; t=eng ;;
+            es) url=https://huggingface.co/datasets/HuggingFaceFW/fineweb-2/resolve/main/data/spa_Latn/train/000_00000.parquet; t=spa ;;
+          esac
+          curl -sSL --retry 5 -C - -o "$WORK/raw/text.parquet" "$url"
+          curl -sSL --retry 5 -o "$WORK/raw/tatoeba.tsv.bz2" "https://downloads.tatoeba.org/exports/per_language/$t/${t}_sentences.tsv.bz2"
+          bunzip2 -f "$WORK/raw/tatoeba.tsv.bz2"
+          python3 make_text.py "$LANG_CODE" "$WORK/raw/text.parquet" --tatoeba "$WORK/raw/tatoeba.tsv" \
+            --max-sentences 3000000 --out "$WORK/data/$LANG_CODE"
+          rm -rf "$WORK/raw"
+          cat "$WORK/data/$LANG_CODE/stats.txt"
+
+      - name: Checkpoint from the run before
+        if: inputs.resume_run != ''
+        run: |
+          mkdir -p "$WORK/run"
+          gh run download "${{ inputs.resume_run }}" --repo "${{ github.repository }}" \
+            --name "nextword-$LANG_CODE-checkpoint" --dir "$WORK/run"
+          ls -la "$WORK/run"
+
+      - name: Train
+        id: train
+        run: |
+          case "${{ inputs.size }}" in
+            small) size="--dim 128 --layers 2 --heads 4 --vocab 12000 --batch 128" ;;
+            full)  size="--dim 256 --layers 4 --heads 4 --vocab 16000 --batch 256" ;;
+          esac
+          total=$(python3 -c "print(int(float('${{ inputs.hours }}') * 60))")
+          done=0
+          resume=""
+          if [ -f "$WORK/run/last.pt" ]; then
+            resume="--resume $WORK/run/last.pt"
+            done=$(python3 -c "import torch; print(int(torch.load('$WORK/run/last.pt', map_location='cpu', weights_only=False)['minutes']))")
+          fi
+          left=$((total - done))
+          minutes=$(( left < 330 ? left : 330 ))
+          echo "Done $done of $total minutes; this job trains $minutes."
+          python3 train.py "$WORK/data/$LANG_CODE" --out "$WORK/run" $size $resume \
+            --minutes "$minutes" --total-minutes "$total" --eval-every 30 --eval-sentences 5000
+          echo "more=$(( left - minutes > 10 ? 1 : 0 ))" >> "$GITHUB_OUTPUT"
+
+      - name: Keep the checkpoint
+        uses: actions/upload-artifact@v4
+        with:
+          name: nextword-${{ inputs.language }}-checkpoint
+          path: ${{ github.workspace }}/../nextword/run/
+          retention-days: 14
+
+      - name: Start the next job of the chain
+        if: steps.train.outputs.more == '1'
+        run: |
+          gh workflow run astrotype-nextword-train.yml --repo "${{ github.repository }}" --ref main \
+            -f language="$LANG_CODE" -f size="${{ inputs.size }}" -f hours="${{ inputs.hours }}" \
+            -f resume_run="${{ github.run_id }}"
+
+      - name: Score, export and open a pull request
+        if: steps.train.outputs.more == '0'
+        run: |
+          score=$(python3 evaluate.py "$WORK/run/model.pt" "$WORK/data/$LANG_CODE/test.txt")
+          echo "$score"
+          name="NextWord$(echo "${LANG_CODE:0:1}" | tr a-z A-Z)${LANG_CODE:1}"
+          python3 export.py "$WORK/run/model.pt" ../../ios/AstrotypeKeyboard/NextWord --name "$name" | tee export.txt
+          branch="nextword/$LANG_CODE-${{ github.run_id }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$branch"
+          git add ../../ios/AstrotypeKeyboard/NextWord/
+          git commit -m "Astrotype: next-word model for $LANG_CODE (${{ inputs.size }}, ${{ inputs.hours }} h)" \
+            -m "Model: $score" -m "From run ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          git push -u origin "$branch"
+          gh pr create --base main --head "$branch" \
+            --title "Astrotype: next-word model for $LANG_CODE (${{ inputs.size }}, ${{ inputs.hours }} h)" \
+            --body "Trained by the next-word workflow (${{ inputs.size }}, ${{ inputs.hours }} hours on hosted runners).
+
+          Model on the held-back sentences: $score
+
+          $(tail -1 export.txt)
+
+          Start **Astrotype iOS** on this branch to build it (PRs opened by a workflow don't start other workflows)."

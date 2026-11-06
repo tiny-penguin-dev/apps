@@ -506,8 +506,9 @@ function keysHTML(h){
 
 let current="settings";
 function go(name,push=true){
-  let screen=Object.prototype.hasOwnProperty.call(screens,name)?screens[name]:null;
-  if(typeof screen!=="function"){screen=screens.settings;name="settings"}
+  const found=Object.entries(screens).find(([key])=>key===name);
+  if(!found)name="settings";
+  const screen=found?found[1]:screens.settings;
   const keep=name===current?(phone.querySelector(".scroll")?.scrollTop||0):0;
   current=name;
   phone.innerHTML=screen();

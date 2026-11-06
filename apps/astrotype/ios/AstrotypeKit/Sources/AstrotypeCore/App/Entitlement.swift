@@ -12,6 +12,10 @@ public enum ProFeature: String, CaseIterable, Sendable {
     /// Typing in two languages at once (features/languages). Every language is free
     /// on its own.
     case twoLanguages
+    /// Every keyboard theme but Classic, and the person's own (features/customization).
+    case styles
+    /// Every effect but Calm's, and flow.
+    case effects
 
     /// Features that are free for everyone. Moving a feature out of Pro is adding it here.
     public static let free: Set<ProFeature> = []

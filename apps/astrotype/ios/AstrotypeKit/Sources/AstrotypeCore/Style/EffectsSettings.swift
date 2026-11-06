@@ -1,0 +1,225 @@
+import Foundation
+
+/// What the keys do when thumbs hit them, and what builds up with flow
+/// (features/customization, "Effects"). `KeyboardSettings.trails` stays the switch for
+/// all of it; this says which effects.
+///
+///     var effects = EffectsSettings.preset(.aurora)
+///     effects.letters = .glitch
+///     effects.isFree   // false: only Calm is free
+public struct EffectsSettings: Codable, Hashable, Sendable {
+    public enum Tap: String, Codable, CaseIterable, Sendable { case none, ring, ripple, sparks, stars, snow }
+    public enum Flash: String, Codable, CaseIterable, Sendable { case thumb, theme, off }
+    public enum Trail: String, Codable, CaseIterable, Sendable { case none, line, comet, glitter, rainbow }
+    /// What a hit letter does. Jelly, Wave, Glitch and Liquid are drawn with Metal.
+    public enum Letters: String, Codable, CaseIterable, Sendable {
+        case none, pop, jelly, wave, glitch, liquid
+        public var usesMetal: Bool { self == .jelly || self == .wave || self == .glitch || self == .liquid }
+    }
+    /// What falls at Blizzard.
+    public enum Fall: String, Codable, CaseIterable, Sendable { case stars, snow, confetti }
+    /// The sky behind the keys at Aurora.
+    public enum Sky: String, Codable, CaseIterable, Sendable { case aurora, starfield, ice }
+
+    public enum Preset: String, Codable, CaseIterable, Sendable {
+        case calm, sparkle, arcade, aurora
+        public var name: String {
+            switch self {
+            case .calm: "Calm"
+            case .sparkle: "Sparkle"
+            case .arcade: "Arcade"
+            case .aurora: "Aurora"
+            }
+        }
+    }
+
+    public static let buildRange: ClosedRange<Double> = 0...1
+
+    public var tap: Tap
+    public var flash: Flash
+    public var trail: Trail
+    public var letters: Letters
+    /// Effects grow as the person types fast without fixes (`FlowMeter`).
+    public var flow: Bool
+    /// How quickly flow builds, 0 (slowly) to 1 (quickly). Scales the word counts.
+    public var build: Double
+    /// Each level's own switch: 1 Waddle (combo count, bigger taps), 2 Toboggan
+    /// (comets and sparks), 3 Blizzard (falling things, glow), 4 Aurora (the sky).
+    public var combo: Bool
+    public var comets: Bool
+    public var falling: Bool
+    public var fall: Fall
+    public var skyOn: Bool
+    public var sky: Sky
+
+    public init(tap: Tap = .ring, flash: Flash = .thumb, trail: Trail = .line, letters: Letters = .none, flow: Bool = false,
+                build: Double = 0.5, combo: Bool = true, comets: Bool = true, falling: Bool = true, fall: Fall = .snow,
+                skyOn: Bool = true, sky: Sky = .aurora) {
+        self.tap = tap
+        self.flash = flash
+        self.trail = trail
+        self.letters = letters
+        self.flow = flow
+        self.build = build
+        self.combo = combo
+        self.comets = comets
+        self.falling = falling
+        self.fall = fall
+        self.skyOn = skyOn
+        self.sky = sky
+    }
+
+    /// Today's look: a ring on each tap, a line for each swipe, keys flashing in the
+    /// thumb's colour, no flow. Free.
+    public static let calm = EffectsSettings()
+
+    public static func preset(_ preset: Preset) -> EffectsSettings {
+        switch preset {
+        case .calm: calm
+        case .sparkle: EffectsSettings(tap: .sparks, trail: .glitter, letters: .pop, flow: true, fall: .stars, skyOn: false)
+        case .arcade: EffectsSettings(tap: .ripple, flash: .theme, trail: .rainbow, letters: .glitch, flow: true, fall: .confetti, sky: .starfield)
+        case .aurora: EffectsSettings(tap: .stars, trail: .comet, letters: .liquid, flow: true, fall: .snow, sky: .aurora)
+        }
+    }
+
+    /// The preset these settings are, if any ("Your mix" otherwise).
+    public var preset: Preset? { Preset.allCases.first { Self.preset($0) == self } }
+
+    /// Only Calm's choices are free: ring or no taps, line or no trails, thumb flashes
+    /// or none, still letters, no flow.
+    public var isFree: Bool {
+        (tap == .ring || tap == .none) && (trail == .line || trail == .none) && flash != .theme && letters == .none && !flow
+    }
+
+    /// The highest level the switches allow (Aurora needs the sky on, and so on down);
+    /// 0 without flow.
+    public var topLevel: Int {
+        guard flow else { return 0 }
+        if skyOn { return 4 }
+        if falling { return 3 }
+        if comets { return 2 }
+        return 1
+    }
+
+    /// The factor on `FlowMeter`'s word counts: 1.5 at slowly, 0.5 at quickly.
+    public var levelScale: Double { 1.5 - min(max(build, Self.buildRange.lowerBound), Self.buildRange.upperBound) }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        let d = EffectsSettings()
+        tap = (try? c.decodeIfPresent(Tap.self, forKey: .tap)) ?? d.tap
+        flash = (try? c.decodeIfPresent(Flash.self, forKey: .flash)) ?? d.flash
+        trail = (try? c.decodeIfPresent(Trail.self, forKey: .trail)) ?? d.trail
+        letters = (try? c.decodeIfPresent(Letters.self, forKey: .letters)) ?? d.letters
+        flow = try c.decodeIfPresent(Bool.self, forKey: .flow) ?? d.flow
+        build = try c.decodeIfPresent(Double.self, forKey: .build) ?? d.build
+        combo = try c.decodeIfPresent(Bool.self, forKey: .combo) ?? d.combo
+        comets = try c.decodeIfPresent(Bool.self, forKey: .comets) ?? d.comets
+        falling = try c.decodeIfPresent(Bool.self, forKey: .falling) ?? d.falling
+        fall = (try? c.decodeIfPresent(Fall.self, forKey: .fall)) ?? d.fall
+        skyOn = try c.decodeIfPresent(Bool.self, forKey: .skyOn) ?? d.skyOn
+        sky = (try? c.decodeIfPresent(Sky.self, forKey: .sky)) ?? d.sky
+    }
+}
+
+/// The flow levels, penguin themed.
+public enum FlowLevel: Int, CaseIterable, Sendable, Comparable {
+    case calm = 0, waddle, toboggan, blizzard, aurora
+
+    public var name: String {
+        switch self {
+        case .calm: "Calm"
+        case .waddle: "Waddle"
+        case .toboggan: "Toboggan"
+        case .blizzard: "Blizzard"
+        case .aurora: "Aurora"
+        }
+    }
+
+    /// Words of flow to reach this level at the steady build.
+    public var words: Double {
+        switch self {
+        case .calm: 0
+        case .waddle: 5
+        case .toboggan: 15
+        case .blizzard: 30
+        case .aurora: 50
+        }
+    }
+
+    public static func < (a: FlowLevel, b: FlowLevel) -> Bool { a.rawValue < b.rawValue }
+}
+
+/// The flow meter (features/customization "Flow, exactly"): words typed fast without
+/// fixes fill it, a delete takes some back, a pause drains it. Pure; time is passed in.
+///
+///     var flow = FlowMeter()
+///     flow.word(at: now)                  // +1, or +1.5 within 1.5 s of the last word
+///     flow.delete(at: now)                // -3
+///     flow.tick(now: now)                 // drains after 2.5 s without typing
+///     flow.level(scale: 1, cap: 4)        // .toboggan
+public struct FlowMeter: Equatable, Sendable {
+    /// A word within this long of the last one counts extra.
+    public static let quick: TimeInterval = 1.5
+    public static let quickBonus = 1.5
+    public static let deletePenalty = 3.0
+    /// The meter starts draining this long after the last word or delete…
+    public static let rest: TimeInterval = 2.5
+    /// …at this many words a second.
+    public static let drain = 1.5
+
+    public private(set) var score = 0.0
+    /// Words in this run; back to 0 when the meter empties.
+    public private(set) var combo = 0
+    private var lastWord: TimeInterval?
+    private var lastInput: TimeInterval?
+    private var lastTick: TimeInterval?
+
+    public init() {}
+
+    public mutating func word(at time: TimeInterval) {
+        tick(now: time)
+        let quick = lastWord.map { time - $0 <= Self.quick } ?? false
+        score += quick ? Self.quickBonus : 1
+        combo += 1
+        lastWord = time
+        lastInput = time
+    }
+
+    public mutating func delete(at time: TimeInterval) {
+        tick(now: time)
+        score = max(0, score - Self.deletePenalty)
+        combo = max(0, combo - 3)
+        if score == 0 { combo = 0 }
+        lastInput = time
+    }
+
+    /// Drain for the time since the last tick that falls after the rest.
+    public mutating func tick(now: TimeInterval) {
+        defer { lastTick = now }
+        guard let input = lastInput, score > 0 else { return }
+        let restEnds = input + Self.rest
+        let from = max(restEnds, lastTick ?? restEnds)
+        guard now > from else { return }
+        score = max(0, score - (now - from) * Self.drain)
+        if score == 0 { combo = 0 }
+    }
+
+    /// Empty the meter (the keyboard went away).
+    public mutating func reset() { self = FlowMeter() }
+
+    /// The level reached, with the word counts times `scale`, no higher than `cap`.
+    public func level(scale: Double = 1, cap: Int = 4) -> FlowLevel {
+        var reached = FlowLevel.calm
+        for level in FlowLevel.allCases where level != .calm && score >= level.words * scale { reached = level }
+        return FlowLevel(rawValue: min(reached.rawValue, max(0, cap))) ?? .calm
+    }
+
+    /// How far toward the next level, 0 to 1 (1 at the cap).
+    public func progress(scale: Double = 1, cap: Int = 4) -> Double {
+        let now = level(scale: scale, cap: cap)
+        guard now.rawValue < min(cap, 4), let next = FlowLevel(rawValue: now.rawValue + 1) else { return score > 0 ? 1 : 0 }
+        let from = now.words * scale, to = next.words * scale
+        return min(max((score - from) / (to - from), 0), 1)
+    }
+}

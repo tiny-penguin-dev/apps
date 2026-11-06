@@ -20,7 +20,7 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
     real services are named; `LiveMetrics` on `Telemetry`), `Onboarding/`
     (`TurnOnView`, `LanguagesSetupView` (only on a phone set to two languages), `SyncView`, `TryItView`, and `SetupPage`, their shared shape),
     `HelloView`, `HomeView`, `Settings/` (`SettingsView`, the main page with its
-    `SettingsPage`s, and `SettingsPages`, one view per page; `DebugSettings`, the Debug page:
+    `SettingsPage`s, and `SettingsPages`, one view per page; `StyleSettings`, Appearance's hub and its General, Styling, theme editor and Effects pages with the live `StylePreview` (features/customization); `DebugSettings`, the Debug page:
     the keyboard's memory against 40 MB from `KeyboardDebug`, and the switch for the
     stats overlay on the keys), `LearnedWordsView`, `MissedWordsView` ("Words it missed", features/missed-words), `SharingView` ("What
     gets shared": the words waiting to go up, drawn on the keys), `PracticeView`,
@@ -106,7 +106,9 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
       the `StatsOverlayView` memory line in the keys' top corner while
       `KeyboardSettings.showsStats` is on; owns a `KeyboardModel`), `BarView` (left key, centred words, the pencil and its fix row), `KeySurfaceView` (touch stream, flashes,
       trails, rings, and the gestures: space slide (and a held space typed as soon as another finger lands), backspace swipe and hold, "123"
-      hold, the slide from "123" to a number or symbol, and a held letter's accents, `AccentCallout`), `SettingsPanelView`,
+      hold, the slide from "123" to a number or symbol, and a held letter's accents, `AccentCallout`; keys drawn from a `KeyStyle`),
+      `KeyEffects` (taps, trails, letter effects and flow with Core Animation), `MetalKeyboard` (the Aurora sky and the
+      Metal letters, shaders compiled from source at first use), `FlowHUDView` (flow's meter, combo and level pop), `SettingsPanelView`,
       `EmojiPageView` (the emoji page and its `TonePicker`), `EmojiSearchView` (the search
       field `SearchField` and the results row; while it is open `KeyboardModel` types into a
       `SearchTarget` with `Field.emojiSearch`), `KeyboardModel` (applies the composer's effects to a

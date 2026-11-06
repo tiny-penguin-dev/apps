@@ -737,7 +737,8 @@ public final class KeySurfaceView: UIView {
             lettersSinceWord = 0
         } else {
             fx.tap(at: point, side: touchState.side)
-            lettersSinceWord += 1
+            // Only letters make a word; a tap on space after space isn't one.
+            if touchState.isLetter { lettersSinceWord += 1 }
         }
     }
 }

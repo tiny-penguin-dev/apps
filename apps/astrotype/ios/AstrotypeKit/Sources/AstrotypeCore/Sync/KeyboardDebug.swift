@@ -107,6 +107,11 @@ public struct KeyboardDebug: Codable, Sendable, Equatable {
     /// when it last was (when the next one started).
     public var endedWhileShowing = 0
     public var lastEndedWhileShowing: Date?
+    /// How many of those were crashes (Sentry saw one), and how many were not (iOS
+    /// ended it, most likely for memory). Ones where it couldn't tell (sharing off)
+    /// are in neither. Counted from 6 Nov 2026, so older ones are in neither too.
+    public var crashedWhileShowing = 0
+    public var killedWhileShowing = 0
 
     public init() {}
 
@@ -125,16 +130,24 @@ public struct KeyboardDebug: Codable, Sendable, Equatable {
         showing = try c.decodeIfPresent(Bool.self, forKey: .showing) ?? false
         endedWhileShowing = try c.decodeIfPresent(Int.self, forKey: .endedWhileShowing) ?? 0
         lastEndedWhileShowing = try c.decodeIfPresent(Date.self, forKey: .lastEndedWhileShowing)
+        crashedWhileShowing = try c.decodeIfPresent(Int.self, forKey: .crashedWhileShowing) ?? 0
+        killedWhileShowing = try c.decodeIfPresent(Int.self, forKey: .killedWhileShowing) ?? 0
     }
 
     /// The extension's process started. Returns whether the one before it was ended
     /// while the keyboard was showing (a crash or iOS's memory limit), which is counted.
+    /// `crashed` is whether the last one crashed, nil when unknown.
     @discardableResult
-    public mutating func loaded(at date: Date) -> Bool {
+    public mutating func loaded(at date: Date, crashed: Bool? = nil) -> Bool {
         let wasShowing = showing
         if wasShowing {
             endedWhileShowing += 1
             lastEndedWhileShowing = date
+            switch crashed {
+            case true?: crashedWhileShowing += 1
+            case false?: killedWhileShowing += 1
+            case nil: break
+            }
         }
         loadedAt = date
         shows = 0

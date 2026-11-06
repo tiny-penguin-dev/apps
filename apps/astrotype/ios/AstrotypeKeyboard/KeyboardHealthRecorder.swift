@@ -6,8 +6,9 @@ import Foundation
 /// App Group, where the app picks it up and sends it. Only with Full Access (the App
 /// Group needs it) and "Share anonymous usage data" on; otherwise it does nothing.
 /// Writes when the keyboard appears, when the peak grows or the headroom shrinks by a
-/// megabyte, and when it goes away, so a keyboard ended for memory still leaves its
-/// last readings.
+/// megabyte (read every couple of seconds while it is up), when something new opens
+/// (`KeyboardHealth.Part`), and when it goes away, so a keyboard ended for memory still
+/// leaves its last readings and what was open.
 @MainActor
 final class KeyboardHealthRecorder {
     private let store: FileKeyboardHealthStore?
@@ -19,6 +20,8 @@ final class KeyboardHealthRecorder {
             let store = FileKeyboardHealthStore(url: url)
             self.store = store
             health = store.load() ?? KeyboardHealth()
+            // A session still open was ended while showing: say whether it crashed.
+            if health.restarted(crashed: KeyboardTelemetry.crashedLastRun) { store.save(health) }
         } else {
             store = nil
             health = KeyboardHealth()
@@ -35,6 +38,12 @@ final class KeyboardHealthRecorder {
     func sample() {
         guard let store else { return }
         if health.sample(footprintMB: Self.footprintMB(), headroomMB: Self.headroomMB()) { store.save(health) }
+    }
+
+    /// Something opened or loaded while the keyboard is up.
+    func used(_ part: KeyboardHealth.Part) {
+        guard let store else { return }
+        if health.use(part) { store.save(health) }
     }
 
     /// A word went in (`KeyboardModel.onSettled`): counted for how often the first

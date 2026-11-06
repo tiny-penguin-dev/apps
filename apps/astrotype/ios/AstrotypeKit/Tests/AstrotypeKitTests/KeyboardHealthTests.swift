@@ -22,6 +22,41 @@ import Testing
         #expect(health.sessions[0].peakMB == 22)
     }
 
+    @Test func tagsWhatWasOpenAndHowItEnded() throws {
+        var health = KeyboardHealth()
+        #expect(health.use(.emoji) == false) // nothing open
+        health.begin(at: t0, footprintMB: 20, headroomMB: 150)
+        #expect(health.use(.emoji) == true)
+        #expect(health.use(.emoji) == false) // already counted: no write
+        health.use(.settings)
+        health.end(footprintMB: 25, headroomMB: 145)
+        health.begin(at: t0.addingTimeInterval(60), footprintMB: 20, headroomMB: 150)
+        health.use(.metal)
+        health.sample(footprintMB: 170, headroomMB: 5)
+        // The next process finds it still open: iOS ended it, no crash.
+        #expect(health.restarted(crashed: false) == true)
+        #expect(health.restarted(crashed: true) == false) // already said
+        health.begin(at: t0.addingTimeInterval(120), footprintMB: 20, headroomMB: 150)
+
+        #expect(KeyboardHealth.label([]) == "keys")
+        #expect(KeyboardHealth.label([.settings, .emoji, .emojiSearch]) == "emoji+emoji_search+settings")
+
+        let metrics = RecordingMetrics()
+        KeyboardHealth.report(Array(health.sessions.prefix(2)), to: metrics)
+        let memory = metrics.sent.filter { $0.name.hasPrefix("keyboard.memory") }
+        #expect(memory.map { $0.attributes["parts"] } == ["emoji+settings", "emoji+settings", "metal", "metal"])
+        let ended = metrics.sent.filter { $0.name == "keyboard.ended_while_showing" }
+        #expect(ended.map(\.attributes) == [["parts": "metal", "how": "killed"]])
+
+        // Saved and read back, and an older file without them reads as none.
+        let data = try JSONEncoder().encode(health)
+        #expect(try JSONDecoder().decode(KeyboardHealth.self, from: data) == health)
+        let old = try JSONDecoder().decode(KeyboardHealth.Session.self, from: Data(
+            #"{"started": 0, "peakMB": 20, "lowestHeadroomMB": 30, "ended": false, "parts": ["emoji", "later"]}"#.utf8))
+        #expect(old.parts == [.emoji])
+        #expect(old.crashed == nil)
+    }
+
     @Test func keepsTheLastThirty() {
         var health = KeyboardHealth()
         for i in 0..<40 { health.begin(at: t0.addingTimeInterval(Double(i)), footprintMB: Double(i), headroomMB: 40) }

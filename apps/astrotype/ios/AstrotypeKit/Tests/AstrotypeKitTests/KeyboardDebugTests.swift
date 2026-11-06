@@ -66,6 +66,21 @@ import Testing
         #expect(debug.endedWhileShowing == 1)
     }
 
+    @Test func splitsCrashesFromKills() {
+        var debug = KeyboardDebug()
+        debug.loaded(at: t0)
+        for crashed in [true, false, nil] as [Bool?] {
+            debug.shown(at: t0, reading: reading(30))
+            debug.loaded(at: t0.addingTimeInterval(10), crashed: crashed)
+        }
+        #expect(debug.endedWhileShowing == 3)
+        #expect(debug.crashedWhileShowing == 1)
+        #expect(debug.killedWhileShowing == 1)
+        // Not showing: a crash flag counts nothing.
+        debug.loaded(at: t0.addingTimeInterval(20), crashed: true)
+        #expect(debug.crashedWhileShowing == 1)
+    }
+
     @Test func savesAndReadsOlderFiles() throws {
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString).appendingPathComponent("keyboard-debug.json")

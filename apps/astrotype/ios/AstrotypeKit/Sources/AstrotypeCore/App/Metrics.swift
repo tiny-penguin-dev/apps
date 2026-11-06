@@ -12,11 +12,12 @@ public protocol Metrics: Sendable {
     /// A current value, like a speed test's words per minute.
     func gauge(_ name: String, value: Double, _ attributes: [String: String])
     /// An amount of memory in MB, like the keyboard's peak, as a distribution.
-    func size(_ name: String, megabytes: Double)
+    func size(_ name: String, megabytes: Double, _ attributes: [String: String])
 }
 
 public extension Metrics {
     func count(_ name: String) { count(name, [:]) }
+    func size(_ name: String, megabytes: Double) { size(name, megabytes: megabytes, [:]) }
     func gauge(_ name: String, value: Double) { gauge(name, value: value, [:]) }
 }
 
@@ -59,8 +60,8 @@ public final class RecordingMetrics: Metrics, @unchecked Sendable {
         entries.append(Entry(name: name, attributes: attributes, seconds: nil, value: value))
     }
 
-    public func size(_ name: String, megabytes: Double) {
+    public func size(_ name: String, megabytes: Double, _ attributes: [String: String]) {
         lock.lock(); defer { lock.unlock() }
-        entries.append(Entry(name: name, attributes: [:], seconds: nil, value: megabytes))
+        entries.append(Entry(name: name, attributes: attributes, seconds: nil, value: megabytes))
     }
 }

@@ -179,7 +179,7 @@ struct LiveMetrics: Metrics {
         Telemetry.gauge(name, value: value, attributes)
     }
 
-    func size(_ name: String, megabytes: Double) {
-        Telemetry.size(name, megabytes: megabytes)
+    func size(_ name: String, megabytes: Double, _ attributes: [String: String]) {
+        Telemetry.size(name, megabytes: megabytes, attributes)
     }
 }

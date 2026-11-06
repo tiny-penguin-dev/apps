@@ -952,7 +952,7 @@ final class KeyView: UIView {
     private var restColor: UIColor {
         if isAction { return Theme.ui(.returnAction) }
         let color = key.isFunction ? style.colors.functionKey : style.colors.key
-        return color.uiColor.withAlphaComponent(CGFloat(color.alpha * style.shape.opacity))
+        return color.uiColor.withAlphaComponent(CGFloat(color.alpha * style.colors.keyOpacity))
     }
     private var pressedColor: UIColor {
         if style.isClassic { return Theme.ui(.keyPressed) }

@@ -28,6 +28,8 @@ we'll test it for real."
   `background` colour in saved themes is ignored).
 - No flow meter line and no level-name pop. The combo count shows on the space bar
   ("Astrotype  ×12"), and the space bar bounces when a level is reached.
+- See-through keys is set for the light and the dark look apart (in the editor's
+  Colours, under the look picker), not once in the shape.
 
 ## Product
 

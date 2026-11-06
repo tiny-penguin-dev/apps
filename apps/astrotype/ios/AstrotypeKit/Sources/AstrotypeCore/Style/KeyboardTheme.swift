@@ -83,9 +83,18 @@ public struct KeyColors: Codable, Hashable, Sendable {
     public var right: RGBColor
     /// The theme's own colour: the "Theme colour" flash, the combo badge.
     public var accent: RGBColor
+    /// How solid the keys are in this look, 0.3 (glass) to 1 (Gabriel, 6 Nov 2026: set
+    /// for light and dark apart).
+    public var opacity: Double
+
+    public static let opacityRange: ClosedRange<Double> = 0.3...1
+
+    /// `opacity` kept in range, for drawing.
+    public var keyOpacity: Double { min(max(opacity, Self.opacityRange.lowerBound), Self.opacityRange.upperBound) }
 
     public init(background: RGBColor, key: RGBColor, functionKey: RGBColor, letters: RGBColor, border: RGBColor,
-                left: RGBColor, right: RGBColor, accent: RGBColor) {
+                left: RGBColor, right: RGBColor, accent: RGBColor, opacity: Double = 1) {
+        self.opacity = opacity
         self.background = background
         self.key = key
         self.functionKey = functionKey
@@ -130,6 +139,23 @@ public struct KeyColors: Codable, Hashable, Sendable {
 
     /// Letters too close in colour to the keys to read.
     public var lettersHardToRead: Bool { letters.isHardToRead(on: key) }
+
+    enum CodingKeys: String, CodingKey {
+        case background, key, functionKey, letters, border, left, right, accent, opacity
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        background = try c.decode(RGBColor.self, forKey: .background)
+        key = try c.decode(RGBColor.self, forKey: .key)
+        functionKey = try c.decode(RGBColor.self, forKey: .functionKey)
+        letters = try c.decode(RGBColor.self, forKey: .letters)
+        border = try c.decode(RGBColor.self, forKey: .border)
+        left = try c.decode(RGBColor.self, forKey: .left)
+        right = try c.decode(RGBColor.self, forKey: .right)
+        accent = try c.decode(RGBColor.self, forKey: .accent)
+        opacity = try c.decodeIfPresent(Double.self, forKey: .opacity) ?? 1
+    }
 }
 
 /// The shape of the keys, the same in light and dark.
@@ -140,7 +166,6 @@ public struct KeyShape: Codable, Hashable, Sendable {
 
     public static let gapRange: ClosedRange<Double> = 2...12
     public static let cornerRange: ClosedRange<Double> = 0...16
-    public static let opacityRange: ClosedRange<Double> = 0.3...1
 
     /// The space between keys as drawn, in points (`Layout.keyGap`, 2, by default).
     /// Touches still reach right up to the neighbouring key: `Layout` doesn't change.
@@ -149,19 +174,16 @@ public struct KeyShape: Codable, Hashable, Sendable {
     public var corner: Double
     public var border: Border
     public var shadow: Shadow
-    /// How solid the keys are, 0.3 (glass) to 1.
-    public var opacity: Double
     public var font: Font
     /// Off draws blank letter keys.
     public var showsLetters: Bool
 
     public init(gap: Double = 2, corner: Double = 8.5, border: Border = .none, shadow: Shadow = .soft,
-                opacity: Double = 1, font: Font = .classic, showsLetters: Bool = true) {
+                font: Font = .classic, showsLetters: Bool = true) {
         self.gap = gap
         self.corner = corner
         self.border = border
         self.shadow = shadow
-        self.opacity = opacity
         self.font = font
         self.showsLetters = showsLetters
     }
@@ -180,7 +202,6 @@ public struct KeyShape: Codable, Hashable, Sendable {
         var out = self
         out.gap = min(max(gap, Self.gapRange.lowerBound), Self.gapRange.upperBound)
         out.corner = min(max(corner, Self.cornerRange.lowerBound), Self.cornerRange.upperBound)
-        out.opacity = min(max(opacity, Self.opacityRange.lowerBound), Self.opacityRange.upperBound)
         return out
     }
 }
@@ -212,6 +233,26 @@ public struct KeyboardTheme: Codable, Hashable, Sendable, Identifiable {
     }
 
     public func colors(dark isDark: Bool) -> KeyColors { isDark ? dark : light }
+
+    enum CodingKeys: String, CodingKey { case id, name, light, dark, shape }
+
+    /// Themes saved before see-through moved into each look kept it in the shape: it
+    /// goes to both looks.
+    private struct LegacyShape: Decodable { var opacity: Double? }
+    private enum LookKeys: String, CodingKey { case opacity }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        name = try c.decode(String.self, forKey: .name)
+        light = try c.decode(KeyColors.self, forKey: .light)
+        dark = try c.decode(KeyColors.self, forKey: .dark)
+        shape = try c.decode(KeyShape.self, forKey: .shape)
+        if let legacy = try? c.decode(LegacyShape.self, forKey: .shape).opacity {
+            if !(try c.nestedContainer(keyedBy: LookKeys.self, forKey: .light)).contains(.opacity) { light.opacity = legacy }
+            if !(try c.nestedContainer(keyedBy: LookKeys.self, forKey: .dark)).contains(.opacity) { dark.opacity = legacy }
+        }
+    }
 
     /// Classic is free; every other theme, and the person's own, is Pro.
     public var isFree: Bool { id == Self.classic.id }

@@ -205,7 +205,7 @@ private struct ThemeCard: View {
                         ForEach(0..<count, id: \.self) { index in
                             let edge = count == 5 && (index == 0 || index == count - 1)
                             RoundedRectangle(cornerRadius: CGFloat(shape.corner / 2), style: .continuous)
-                                .fill((edge ? colors.functionKey : colors.key).color.opacity(shape.opacity))
+                                .fill((edge ? colors.functionKey : colors.key).color.opacity(colors.keyOpacity))
                                 .overlay {
                                     RoundedRectangle(cornerRadius: CGFloat(shape.corner / 2), style: .continuous)
                                         .strokeBorder(colors.border.color, lineWidth: CGFloat(shape.borderWidth / 2))
@@ -301,7 +301,11 @@ private struct ThemeEditor: View {
                         .labelsHidden()
                 }
             }
+            let shown = current.colors(dark: editingDark)
+            SettingsSlider("See-through keys", value: opacity(current), in: KeyColors.opacityRange, step: 0.05,
+                           low: "Glassy", high: "Solid", valueText: "\(Int((shown.keyOpacity * 100).rounded()))%")
         }
+        GroupFootnote(sameInBoth ? "Colours and see-through apply to both looks." : "Colours and see-through are set for the \(editingDark ? "dark" : "light") look. Switch above to set the other one.")
         let colors = current.colors(dark: editingDark)
         if colors.lettersHardToRead {
             Label("Hard to read: the letters are close to the keys' colour.", systemImage: "exclamationmark.triangle.fill")
@@ -316,8 +320,6 @@ private struct ThemeEditor: View {
                            valueText: "\(Int(current.shape.gap)) pt")
             SettingsSlider("Corners", value: shape(\.corner, current), in: KeyShape.cornerRange, step: 0.5, low: "Square",
                            high: "Round", valueText: "\(Int(current.shape.corner.rounded())) pt")
-            SettingsSlider("See-through", value: shape(\.opacity, current), in: KeyShape.opacityRange, step: 0.05,
-                           low: "Glassy", high: "Solid", valueText: "\(Int((current.shape.opacity * 100).rounded()))%")
             SettingsRow("Borders", symbol: "square.dashed", tint: Theme.slate) {
                 Picker("Borders", selection: shape(\.border, current)) {
                     Text("None").tag(KeyShape.Border.none)
@@ -411,6 +413,16 @@ private struct ThemeEditor: View {
     private func colour(_ field: KeyColors.Field, in current: KeyboardTheme) -> Binding<Color> {
         Binding(get: { current.colors(dark: editingDark)[field].color },
                 set: { setColour(RGBColor(UIColor($0)), field) })
+    }
+
+    /// The see-through of the look being edited (or both, with "Same colours in both").
+    private func opacity(_ current: KeyboardTheme) -> Binding<Double> {
+        Binding(get: { current.colors(dark: editingDark).opacity }, set: { value in
+            edit { theme in
+                if sameInBoth || editingDark { theme.dark.opacity = value }
+                if sameInBoth || !editingDark { theme.light.opacity = value }
+            }
+        })
     }
 
     private func shape<T>(_ keyPath: WritableKeyPath<KeyShape, T>, _ current: KeyboardTheme) -> Binding<T> {

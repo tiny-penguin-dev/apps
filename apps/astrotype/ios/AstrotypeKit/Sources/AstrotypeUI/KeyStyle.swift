@@ -55,12 +55,12 @@ public struct KeyStyle: Equatable, Sendable {
     public var shape: KeyShape { theme.shape.clamped }
     public var isClassic: Bool { theme.id == KeyboardTheme.classic.id }
 
-    /// Whether the background is dark, so text drawn over it (the bar) wants the
-    /// dark-mode tokens, whatever the phone's mode.
-    public var backgroundIsDark: Bool { colors.background.luminance < 0.4 }
+    /// Whether the keyboard's backdrop is dark. The backdrop is always the system's
+    /// (themes don't paint one, Gabriel, 6 Nov 2026), so it follows the look in use.
+    public var backgroundIsDark: Bool { isDark }
 
-    /// The interface style for views drawn on this theme's background.
-    public var interfaceStyle: UIUserInterfaceStyle { backgroundIsDark ? .dark : .light }
+    /// The interface style for views drawn on the backdrop.
+    public var interfaceStyle: UIUserInterfaceStyle { isDark ? .dark : .light }
 
     public func thumb(_ side: Side) -> UIColor { (side == .left ? colors.left : colors.right).uiColor }
     public var accent: UIColor { colors.accent.uiColor }

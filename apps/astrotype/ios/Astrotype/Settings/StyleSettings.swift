@@ -187,7 +187,8 @@ private struct StylingSettings: View {
     }
 }
 
-/// A theme in small: its background, three rows of keys in its colours, and its name.
+/// A theme in small: three rows of keys in its colours on the keyboard's backdrop, and
+/// its name.
 private struct ThemeCard: View {
     var theme: KeyboardTheme
     var dark: Bool
@@ -220,7 +221,8 @@ private struct ThemeCard: View {
             }
             .padding(6)
             .frame(height: 64)
-            .background(colors.background.color, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .background(KeyboardTheme.classic.colors(dark: dark).background.color,
+                        in: RoundedRectangle(cornerRadius: 10, style: .continuous))
             HStack(spacing: 6) {
                 Circle().fill(colors.left.color).frame(width: 8, height: 8)
                 Circle().fill(colors.right.color).frame(width: 8, height: 8)
@@ -293,7 +295,7 @@ private struct ThemeEditor: View {
         SettingsGroup {
             SettingsToggle("Same colours in both", subtitle: "Changes go to the light and dark looks at once",
                            symbol: "circle.lefthalf.filled", tint: Theme.slate, isOn: $sameInBoth)
-            ForEach(KeyColors.Field.allCases, id: \.self) { field in
+            ForEach(KeyColors.Field.allCases.filter { $0 != .background }, id: \.self) { field in
                 SettingsRow(fieldName(field), symbol: fieldSymbol(field), tint: Theme.left) {
                     ColorPicker(fieldName(field), selection: colour(field, in: current), supportsOpacity: false)
                         .labelsHidden()
@@ -366,11 +368,11 @@ private struct ThemeEditor: View {
         }
     }
 
-    /// Quick colours for the keys and the background of the look being edited.
+    /// Quick colours for the keys and letters of the look being edited.
     private func swatches(_ current: KeyboardTheme) -> some View {
         let palette = editingDark ? KeyboardTheme.darkSwatches : KeyboardTheme.lightSwatches
         return VStack(alignment: .leading, spacing: Theme.Space.s) {
-            ForEach([KeyColors.Field.key, .background, .letters], id: \.self) { field in
+            ForEach([KeyColors.Field.key, .functionKey, .letters], id: \.self) { field in
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 6) {
                         Text(fieldName(field)).font(.sw(.small)).foregroundStyle(Theme.muted).frame(width: 78, alignment: .leading)
@@ -598,8 +600,8 @@ private struct EffectsPage: View {
 
 // MARK: The live preview
 
-/// A real keyboard in a look, to type on: the keys, their effects and flow, over the
-/// theme's background, with room above for the combo and the level pop.
+/// A real keyboard in a look, to type on: the keys, their effects and flow (the combo
+/// count shows on its space bar), over the keyboard's usual backdrop.
 struct StylePreview: UIViewRepresentable {
     var theme: KeyboardTheme
     var appearance: KeyAppearance
@@ -628,9 +630,8 @@ struct StylePreview: UIViewRepresentable {
 }
 
 final class StylePreviewView: UIView {
-    static let top: CGFloat = 34
+    static let top: CGFloat = 12
     let surface = KeySurfaceView()
-    let hud = FlowHUDView()
     var burst = 0
 
     static func height(forWidth width: CGFloat) -> CGFloat {
@@ -644,12 +645,6 @@ final class StylePreviewView: UIView {
         clipsToBounds = true
         surface.backgroundColor = .clear
         addSubview(surface)
-        addSubview(hud)
-        surface.onFlow = { [weak self] state in
-            guard let self else { return }
-            hud.style = surface.style
-            hud.state = state
-        }
         registerForTraitChanges([UITraitUserInterfaceStyle.self]) { (self: StylePreviewView, _: UITraitCollection) in
             self.restyle()
         }
@@ -667,12 +662,8 @@ final class StylePreviewView: UIView {
 
     private func restyle() {
         let style = KeyStyle(theme: surface.theme, appearance: surface.keyAppearance, traits: traitCollection)
-        let background = style.isClassic ? Theme.ui(.kb).resolvedColor(with: UITraitCollection(userInterfaceStyle: style.isDark ? .dark : .light))
-            : style.colors.background.uiColor
-        UIView.transition(with: self, duration: 0.3, options: [.transitionCrossDissolve, .allowUserInteraction]) {
-            self.backgroundColor = background
-        }
-        hud.style = style
+        // Themes don't paint a background: the keyboard's own, in the look shown.
+        backgroundColor = Theme.ui(.kb).resolvedColor(with: UITraitCollection(userInterfaceStyle: style.isDark ? .dark : .light))
     }
 
     override func layoutSubviews() {
@@ -681,8 +672,6 @@ final class StylePreviewView: UIView {
         guard width > 0 else { return }
         if surface.layout.width != width { surface.layout = Layout.qwerty(width: width) }
         surface.frame = CGRect(x: 0, y: Self.top, width: width, height: surface.layout.height)
-        hud.frame = CGRect(x: 0, y: 0, width: width, height: surface.frame.maxY)
-        hud.keysTop = Self.top
     }
 
     override func didMoveToWindow() {

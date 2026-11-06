@@ -21,6 +21,14 @@ On the plan (6 Nov 2026): "Looks good overall. But add more advanced stuff for t
 effects that morph the letters and maybe even use Metal. Go ahead and build it and
 we'll test it for real."
 
+## Changes after testing (Gabriel, 6 Nov 2026)
+
+- The keyboard's background is never themed: it stays the system's see-through
+  backdrop. Themes set the keys, letters, borders, thumbs and accent only (the
+  `background` colour in saved themes is ignored).
+- No flow meter line and no level-name pop. The combo count shows on the space bar
+  ("Astrotype  ×12"), and the space bar bounces when a level is reached.
+
 ## Product
 
 Status: Approved 2026-11-06 (Gabriel: "Go ahead and build it")
@@ -246,9 +254,8 @@ Status: Approved 2026-11-06 (Gabriel: "Go ahead and build it")
     the person's choice kept.
   - `AstrotypeUI`: `KeySurfaceView` and `KeyView` draw from a `KeyboardTheme` (colours,
     gap, corners, border, shadow, see-through, font, letters); `KeyboardView` sets
-    `overrideUserInterfaceStyle` from `KeyAppearance` and takes the theme's background.
-    `KeyEffectsLayer` draws taps, trails, falling things, the combo badge, the meter
-    and the level pop with Core Animation. `MetalKeyboard` (one device and queue, the
+    `overrideUserInterfaceStyle` from `KeyAppearance`; the backdrop stays the system's.
+    `KeyEffectsLayer` draws taps, trails, falling things, and the combo count on the space bar with Core Animation. `MetalKeyboard` (one device and queue, the
     shaders compiled from source at first use) backs `SkyLayer` (behind the keys) and
     `LetterLayer` (the Metal letters).
   - The app: Appearance becomes a page with a live `StylePreview` (a real

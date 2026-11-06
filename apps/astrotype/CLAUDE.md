@@ -121,7 +121,7 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
       trails, rings, and the gestures: space slide (and a held space typed as soon as another finger lands), backspace swipe and hold, "123"
       hold, the slide from "123" to a number or symbol, and a held letter's accents, `AccentCallout`; keys drawn from a `KeyStyle`),
       `KeyEffects` (taps, trails, letter effects and flow with Core Animation), `MetalKeyboard` (the Aurora sky and the
-      Metal letters, shaders compiled from source at first use), `FlowHUDView` (flow's meter, combo and level pop), `SettingsPanelView`,
+      Metal letters, shaders compiled from source at first use), `SettingsPanelView`,
       `EmojiPageView` (the emoji page and its `TonePicker`), `EmojiSearchView` (the search
       field `SearchField` and the results row; while it is open `KeyboardModel` types into a
       `SearchTarget` with `Field.emojiSearch`), `KeyboardModel` (applies the composer's effects to a

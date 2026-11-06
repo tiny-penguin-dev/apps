@@ -79,7 +79,7 @@ public final class KeySurfaceView: UIView {
 
     /// What the space bar says when idle.
     public var spaceLabel = "Astrotype" {
-        didSet { keyViews[.space]?.forEach { $0.label.text = spaceLabel } }
+        didSet { keyViews[.space]?.forEach { $0.spaceLabel = spaceText } }
     }
 
     /// The theme the keys are drawn in (features/customization).
@@ -97,11 +97,10 @@ public final class KeySurfaceView: UIView {
     }
     /// The theme as drawn now, in its light or dark look.
     public private(set) var style = KeyStyle.classic
-    /// Flow changed: its level, the combo and how far to the next level.
-    public var onFlow: ((FlowState) -> Void)? {
-        get { fx.onFlow }
-        set { fx.onFlow = newValue }
-    }
+    /// Flow changed: its level, the combo and how far to the next level. The surface
+    /// shows the combo count on the space bar itself (Gabriel, 6 Nov 2026).
+    public var onFlow: ((FlowState) -> Void)?
+    private var flowState = FlowState.off
     /// Keys outlined in a thumb's colour (a drill's next word, DESIGN.md screen 8).
     public var hints: [Key: Side] = [:] {
         didSet { applyHints() }
@@ -161,7 +160,24 @@ public final class KeySurfaceView: UIView {
         super.init(frame: frame)
         isMultipleTouchEnabled = true
         backgroundColor = Theme.ui(.kb)
+        fx.onFlow = { [weak self] state in self?.flowChanged(state) }
         rebuild()
+    }
+
+    /// What the space bar says: its label, and the combo count while flow shows one.
+    private var spaceText: String {
+        flowState.showsCombo && flowState.combo > 0 ? "\(spaceLabel)  ×\(flowState.combo)" : spaceLabel
+    }
+
+    private func flowChanged(_ state: FlowState) {
+        let before = spaceText
+        flowState = state
+        let text = spaceText
+        if text != before { keyViews[.space]?.forEach { $0.spaceLabel = text } }
+        if state.leveledUp, state.level != .calm, !UIAccessibility.isReduceMotionEnabled {
+            keyViews[.space]?.forEach { $0.pop(scale: 1.18) }
+        }
+        onFlow?(state)
     }
 
     public required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
@@ -264,7 +280,7 @@ public final class KeySurfaceView: UIView {
         keyViews = [:]
         style = KeyStyle(theme: theme, appearance: keyAppearance, traits: traitCollection)
         for placement in layout.placements {
-            let keyView = KeyView(key: placement.key, spaceLabel: spaceLabel, style: style)
+            let keyView = KeyView(key: placement.key, spaceLabel: spaceText, style: style)
             keyView.frame = placement.frame.insetBy(dx: style.keyInset, dy: style.keyInset)
             keyView.lettersElsewhere = fx.drawsLetters
             keyView.shifted = shifted
@@ -846,7 +862,9 @@ final class KeyView: UIView {
     /// The letter's colour now, for the Metal letters.
     var currentInk: UIColor { label.textColor ?? inkColor }
 
-    private let spaceLabel: String
+    var spaceLabel: String {
+        didSet { if spaceLabel != oldValue, key == .space { label.text = text } }
+    }
     private var glow: UIColor?
 
     init(key: Key, spaceLabel: String, style: KeyStyle = .classic) {

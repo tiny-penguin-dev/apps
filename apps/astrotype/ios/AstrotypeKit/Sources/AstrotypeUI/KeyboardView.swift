@@ -131,6 +131,14 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         bar.onNotIt = { [weak self] in self?.model.beginCorrection() }
         bar.onCancelCorrection = { [weak self] in self?.model.cancelCorrection() }
         bar.onSaveCorrection = { [weak self] in self?.model.saveCorrection() }
+        attachToModel()
+        keyHaptic.prepare()
+    }
+
+    /// Makes this view the one the model draws to (its changes, haptics and notices),
+    /// and draws it now. Called when it shows again, since several keyboard views can
+    /// share one model (the extension keeps one per process).
+    public func attachToModel() {
         model.onChange = { [weak self] in self?.render() }
         model.onHaptic = { [weak self] haptic in self?.play(haptic) }
         model.onNotice = { [weak self] notice in
@@ -138,7 +146,6 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
             case .twoThumbsIsPro: self?.bar.flash("Two thumbs is in Astrotype Pro")
             }
         }
-        keyHaptic.prepare()
         render()
     }
 

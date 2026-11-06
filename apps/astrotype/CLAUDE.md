@@ -53,7 +53,10 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
     while the keyboard shows and hands it to the stats overlay, the Debug page's file,
     `KeyboardHealthRecorder` and the log (`mem` events: on show, hide and memory
     warnings, every 10 s, on a 5 MB jump, and when a `LiveCount` changes;
-    `MemoryLogPacer`). `ExtensionChecks`
+    `MemoryLogPacer`). iOS makes a new controller per presentation and can keep old
+    ones alive, so the model, sync and Pro check live once per process in
+    `KeyboardShared`; each controller adds its own view and `ProxyTarget` and becomes
+    `showing` on appear. `ExtensionChecks`
     writes the StoreKit, memory and size readings into the bar's idle note while
     `Flags.extensionReadout` is on.
   - `AstrotypeKit/`: the local package, three targets:

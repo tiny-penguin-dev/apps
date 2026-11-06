@@ -14,8 +14,9 @@ cd apps/astrotype/ml/nextword
 ```
 
 `run.sh` downloads the text, makes the sentences, trains, scores, and exports
-`nextword.mlpackage` and `nextword-vocab.txt` into
-`ios/AstrotypeKit/Sources/AstrotypeCore/Resources/<lang>/`. Its log ends with the
+`NextWordEn.mlpackage` and `NextWordEn-vocab.txt` (or `NextWordEs…`) into
+`ios/AstrotypeKeyboard/NextWord/`, where Xcode compiles them into the keyboard and
+`NextWordModels` loads them. Without them the keyboard keeps the word pairs. Its log ends with the
 model's score next to the word pairs' score.
 
 ## Step by step
@@ -42,4 +43,4 @@ model's score next to the word pairs' score.
 | Language | Test words | Word pairs top-3 | Model top-3 | Size |
 |---|---|---|---|---|
 | English | 57,401 sentences | 19.4% | | |
-| Spanish | | | | |
+| Spanish | 69,674 sentences | 18.9% | | |

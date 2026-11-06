@@ -1,9 +1,11 @@
 """Export a trained next-word model to Core ML for the keyboard.
 
-    python3 export.py runs/en/model.pt ../../ios/AstrotypeKit/Sources/AstrotypeCore/Resources/en/
+    python3 export.py runs/en/model.pt ../../ios/AstrotypeKeyboard/NextWord --name NextWordEn
 
-Writes `nextword.mlpackage` (weights palettized to 4 bits, for iOS 18) and
-`nextword-vocab.txt` (one word per line, ids in order) into the folder. The model
+Writes `<name>.mlpackage` (weights palettized to 4 bits, for iOS 18) and
+`<name>-vocab.txt` (one word per line, ids in order) into the folder. The keyboard
+extension's folder is synchronized, so Xcode compiles the package into the extension
+and `NextWordModels` finds it by name. The model
 takes `ids`, Int32 [1, context], the words before the cursor right-aligned with 0
 (padding) on the left and `<s>` (1) before the sentence's first word, and returns
 `scores`, Float16 [1, vocabulary], log-probabilities of the next word. Runs on the
@@ -48,6 +50,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("model")
     ap.add_argument("out")
+    ap.add_argument("--name", default="NextWordEn")
     ap.add_argument("--bits", type=int, default=4)
     a = ap.parse_args()
 
@@ -75,11 +78,11 @@ def main():
         mlmodel = cto.palettize_weights(mlmodel, config)
     mlmodel.short_description = "Astrotype next-word model (features/next-word-model)"
     os.makedirs(a.out, exist_ok=True)
-    path = os.path.join(a.out, "nextword.mlpackage")
+    path = os.path.join(a.out, a.name + ".mlpackage")
     if os.path.exists(path):
         shutil.rmtree(path)
     mlmodel.save(path)
-    vocab.save(os.path.join(a.out, "nextword-vocab.txt"))
+    vocab.save(os.path.join(a.out, a.name + "-vocab.txt"))
     size = sum(os.path.getsize(os.path.join(d, f)) for d, _, fs in os.walk(path) for f in fs)
     print(f"{path}: {size / 1e6:.2f} MB, vocabulary {len(vocab)}, window {t}")
 

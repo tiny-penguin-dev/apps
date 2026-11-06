@@ -233,6 +233,12 @@ public struct Composer: Sendable {
     /// The last next-word guesses, lowercase, by the word they follow and how many: the
     /// context is passed back after every change, mostly unchanged.
     private var nextCache: (previous: String, count: Int, words: [String])?
+    /// The next-word models of the languages loaded (features/next-word-model), set by
+    /// the keyboard once they load; empty uses the word pairs alone. With a sentence
+    /// locked to one language only that language's model guesses.
+    public var nextWordModels: [NextWordModel] = [] {
+        didSet { if pieces.isEmpty, open.isEmpty { offerNextWords(); refreshState() } }
+    }
     /// The word meant, while "Not it?" is open, and the bar to go back to on cancel.
     private var correction: String?
     private var barBeforeCorrection: Bar = .idle
@@ -743,7 +749,25 @@ public struct Composer: Sendable {
         }
         let count = settings.guessCount
         var next: [String] = []
-        if settings.nextWords, count > 0, let previous = matcher.context.last {
+        let models = nextWordModels.filter { lockedLanguage == nil || $0.code == lockedLanguage }
+        if settings.nextWords, count > 0, !models.isEmpty {
+            // The next-word model reads the whole sentence (features/next-word-model);
+            // it keeps its own last answer, so this is cheap when nothing changed.
+            var fromModel: [String: Float] = [:]
+            for model in models {
+                for (word, p) in model.guesses(before: contextBefore, limit: count + 8) {
+                    fromModel[word] = max(fromModel[word] ?? 0, p)
+                }
+            }
+            if !fromModel.isEmpty {
+                let ranked = fromModel.sorted { $0.value > $1.value || ($0.value == $1.value && $0.key < $1.key) }
+                next = NextWords.guesses(after: matcher.context.last ?? "", models: [], personal: personal,
+                                         learned: matcher.learned, count: count,
+                                         fromModel: ranked.map { (word: $0.key, probability: $0.value) })
+                    .map { casedNext(matcher.dictionary.spellings(of: $0).first?.word ?? $0) }
+            }
+        }
+        if next.isEmpty, settings.nextWords, count > 0, let previous = matcher.context.last {
             let words: [String]
             if let cache = nextCache, cache.previous == previous, cache.count == count {
                 words = cache.words

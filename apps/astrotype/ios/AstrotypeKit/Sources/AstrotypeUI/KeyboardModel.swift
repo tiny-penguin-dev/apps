@@ -224,8 +224,41 @@ public final class KeyboardModel {
             guard !Task.isCancelled, let self, let language, self.activeLanguages == codes else { return }
             self.log(TypingEvent(t: self.now, e: .language, s: language.code))
             self.apply(self.composer.setLanguage(language, time: self.now))
+            self.refreshNextWordModels()
             self.onChange?()
         }
+    }
+
+    /// Loads one language's next-word model (features/next-word-model), or nil when
+    /// this build has none for it. The keyboard sets it; the app's practice field leaves
+    /// it nil and keeps the word pairs. Runs off the main thread.
+    public var loadNextWordModel: (@Sendable (String) -> NextWordModel?)? {
+        didSet { refreshNextWordModels() }
+    }
+    private var nextWordLoad: Task<Void, Never>?
+
+    /// Loads the models of the languages typed in now, in the background; the word
+    /// pairs answer until they are in.
+    private func refreshNextWordModels() {
+        guard let load = loadNextWordModel, let code = composer.languageCode else { return }
+        let codes = code.split(separator: "+").map(String.init)
+        guard codes != composer.nextWordModels.map(\.code) else { return }
+        nextWordLoad?.cancel()
+        nextWordLoad = Task { [weak self] in
+            let models = await Task.detached(priority: .utility) { codes.compactMap(load) }.value
+            guard !Task.isCancelled, let self, self.composer.languageCode == code,
+                  models.map(\.code) != self.composer.nextWordModels.map(\.code) else { return }
+            self.composer.nextWordModels = models
+            self.onChange?()
+        }
+    }
+
+    /// Back to the word pairs alone, for a memory warning; the models load again the
+    /// next time the languages change or the keyboard asks.
+    public func dropNextWordModels() {
+        nextWordLoad?.cancel()
+        composer.nextWordModels = []
+        onChange?()
     }
 
     /// `store`'s settings and `wordStore`'s words apply when they have any; otherwise

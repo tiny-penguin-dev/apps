@@ -32,6 +32,7 @@ fi
 (cd "$kit" && swift run -c release astrotype-tools nexteval "$work/data/$lang/test.txt" --language "$lang") | tee "$work/runs/$lang-pairs.txt"
 python3 train.py "$work/data/$lang" --out "$work/runs/$lang" --minutes "$minutes" | tee "$work/runs/$lang-train.log"
 python3 evaluate.py "$work/runs/$lang/model.pt" "$work/data/$lang/test.txt" | tee "$work/runs/$lang-model.txt"
-python3 export.py "$work/runs/$lang/model.pt" "$kit/Sources/AstrotypeCore/Resources/$lang/"
+name="NextWord$(echo "${lang:0:1}" | tr a-z A-Z)${lang:1}"
+python3 export.py "$work/runs/$lang/model.pt" "$here/../../ios/AstrotypeKeyboard/NextWord" --name "$name"
 echo "Word pairs: $(cat "$work/runs/$lang-pairs.txt")"
 echo "Model:      $(cat "$work/runs/$lang-model.txt")"

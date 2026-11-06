@@ -17,9 +17,13 @@ shaders. This should make the keyboard feel super cool."
 On Pro (6 Nov 2026): all of it is Pro, except the base default style and the base
 default effects (what the keyboard has today), which stay free.
 
+On the plan (6 Nov 2026): "Looks good overall. But add more advanced stuff for the
+effects that morph the letters and maybe even use Metal. Go ahead and build it and
+we'll test it for real."
+
 ## Product
 
-Status: Draft
+Status: Approved 2026-11-06 (Gabriel: "Go ahead and build it")
 
 - **The problem:** the keyboard has one look: Apple's grey keys, with trails and
   flashes on or off. People spend hours a day looking at their keyboard and like to
@@ -60,10 +64,18 @@ Status: Draft
     - **Taps:** None, Ring (today), Ripple, Sparks, Stars, Snow. **Key flash:** Thumb
       colours (today), Theme colour, Off.
     - **Swipes:** trail None, Line (today), Comet, Glitter, Rainbow.
+    - **Letters:** what the letters themselves do when a thumb hits them. None
+      (today), Pop (the letter bounces up), and four drawn by Metal: Jelly (it
+      squashes and wobbles), Wave (a ripple runs out from the touch through the
+      letters around it), Glitch (red and cyan split apart and the letter slices
+      sideways) and Liquid (it melts and drips, then pulls back together). With flow
+      on they get stronger at each level, and at Aurora the letters shimmer in the
+      thumb colours.
     - **Flow** ("Build up as I type"): words typed fast without fixes fill a flow meter;
       each level adds more. A pause or a delete calms it down. Four levels, penguin
       themed, each one its own switch:
-      1. **Waddle** (about 5 words): a combo count (×12) on the bar, taps grow a little.
+      1. **Waddle** (about 5 words): a combo count (×12) on the bar, taps and letter
+         effects grow a little.
       2. **Toboggan** (about 15): trails become comets, finished words throw sparks.
       3. **Blizzard** (about 30): stars, snow or confetti fall across the keys, keys glow.
       4. **Aurora** (about 50): a sky moves behind the keys: Aurora, Starfield or Deep ice
@@ -77,6 +89,11 @@ Status: Draft
   1.5 s of the last one. A delete takes 3 off. After 2.5 s without typing the score
   drains at 1.5 a second; at zero the combo count resets. Thresholds are 5, 15, 30 and
   50, times 1.5 at Slowly and 0.5 at Quickly. Pure and tested, in Core.
+- **Letters on Metal:** while a Metal letter effect is on, the letter keys' labels are
+  drawn by one `CAMetalLayer` over the keys from a small glyph atlas (the 26 letters,
+  both cases, in the theme's font, about 1 MB), each letter on a small grid so it can
+  bend. It only draws while something moves, then keeps its last frame. If Metal is
+  missing or the phone is in Low Power Mode, letters fall back to Pop.
 - **Free and Pro** (Gabriel, 6 Nov 2026):
   - *Free:* the Classic theme in light and dark, Like my phone / Light / Dark, the Calm
     effects (ring taps, line trails, thumb-colour flashes), and Effects off. That is the
@@ -130,7 +147,7 @@ Status: Draft
 
 ## Design
 
-Status: Draft
+Status: Approved 2026-11-06 (Gabriel: "Go ahead and build it")
 
 - **Mockups:** `design/mockups/customization.html` (Artifact link:
   https://claude.ai/artifact/3toYx2jU5GpNv6R6kvtpoe). Every keyboard in it is live:
@@ -167,7 +184,8 @@ Status: Draft
     text chips, Taps and Swipes as `ChipPicker`s with a small drawing of each, then
     Flow: the switch, Builds, and the four levels as rows with a numbered dot in the
     level's colour, its word count, and its switch; Blizzard and Aurora show their
-    choices under them. "Play a burst" sits top right and types a fast run on the
+    choices under them. A Letters picker sits under Tap, its Metal ones noted.
+    "Play a burst" sits top right and types a fast run on the
     keyboard below.
 - **Motion and copy:**
   - Level-up: the level's name pops on the bar ("Blizzard!") with a spring, holds,
@@ -213,20 +231,49 @@ Status: Draft
 
 ## Build
 
-Status: Not started (written after Product and Design are approved)
+Status: Approved 2026-11-06 (Gabriel: "Go ahead and build it")
 
-- **Approach (sketch):** `KeyboardStyle`, `EffectsSettings` and `FlowMeter` in
-  `AstrotypeCore` (pure, tested, Codable inside `KeyboardSettings` so they sync like the
-  rest, with the settings version bumped and old settings reading as Classic + Calm).
-  `ProFeature` gains `.styles` and `.effects`; `Entitlement` decides what the keyboard
-  draws. `AstrotypeUI` gets `KeyStyleRenderer` (keys and bar from a style),
-  `EffectsLayer` (Core Animation) and `SkyLayer` (Metal, created lazily). Settings
-  pages in `SettingsPages.swift` split into an Appearance section.
-- **Phases (sketch):** 1. Core values and flow meter with tests, Appearance split into
-  General / Styling / Effects with Classic and Calm only. 2. Themes and the editor.
-  3. Effects: taps, trails, presets. 4. Flow levels with particles. 5. The Metal sky and
-  the memory and battery checks. Each phase leaves something to try in TestFlight.
-- **Risks:** extension memory with Metal (measure in phase 5 before anything else);
-  battery; Core Animation emitters inside a keyboard extension; no Xcode in the
-  container, so builds are checked on CI.
+- **Approach:** Core holds the values and the flow rules, the UI draws them.
+  - `AstrotypeCore/Style/`: `KeyboardTheme` (id, name, `KeyColors` for light and
+    dark, one `KeyShape`), the eight built-in themes, `KeyAppearance` (system, light,
+    dark), `RGBColor` (hex, contrast); `EffectsSettings` (tap, flash, trail, letters,
+    flow and its levels, presets); `FlowMeter` (the score, combo and level, time passed
+    in). All `Codable` inside `KeyboardSettings` (`themeID`, `customThemes`,
+    `keyAppearance`, `effects`), so they sync like the rest; old settings read as
+    Classic and Calm. `trails` stays the Effects on/off switch.
+  - `ProFeature` gains `.styles` and `.effects`. `KeyboardSettings.style(allows:)` and
+    `effects(allows:)` give what the keyboard draws: Classic and Calm when Pro is off,
+    the person's choice kept.
+  - `AstrotypeUI`: `KeySurfaceView` and `KeyView` draw from a `KeyboardTheme` (colours,
+    gap, corners, border, shadow, see-through, font, letters); `KeyboardView` sets
+    `overrideUserInterfaceStyle` from `KeyAppearance` and takes the theme's background.
+    `KeyEffectsLayer` draws taps, trails, falling things, the combo badge, the meter
+    and the level pop with Core Animation. `MetalKeyboard` (one device and queue, the
+    shaders compiled from source at first use) backs `SkyLayer` (behind the keys) and
+    `LetterLayer` (the Metal letters).
+  - The app: Appearance becomes a page with a live `StylePreview` (a real
+    `KeySurfaceView` that types into nothing and feeds its own flow) and links to
+    General, Styling, Your theme and Effects in `SettingsPages.swift`.
+  - The keyboard panel: the Trails tile is Effects, plus a Theme row.
+- **Core pieces:**
+
+  ```swift
+  let theme = settings.style(allows: entitlement.allows(.styles))   // KeyboardTheme
+  let colors = theme.colors(dark: true)                             // KeyColors
+  var flow = FlowMeter()
+  flow.word(at: now); flow.delete(at: now); flow.tick(now: now)
+  flow.level(scale: settings.effects.levelScale, cap: 4)            // 0...4
+  ```
+
+- **Phases:** one PR, so Gabriel can try it all in one TestFlight build. Done when: the
+  Appearance section and its pages work; picking a theme changes the keyboard in the
+  app and (with Full Access) in other apps; your own theme edits live; every tap,
+  trail and letter effect draws; "Play a burst" in the app and fast typing in other
+  apps climb to Aurora; the Debug page shows the keyboard under 40 MB at Aurora;
+  checked at the small size, the largest text size and wide.
+- **Risks:** Metal and memory in the extension (the sky and letters are made only when
+  needed and freed when flow drops); no Xcode in the container, so builds are checked
+  on CI.
+- **Metrics:** `appearance.theme_chosen` and `appearance.effects_chosen` from the app.
+  `keyboard.flow_peak` waits for a later PR (it needs the health file).
 - **Last step:** fold into `PRODUCT.md` and `DESIGN.md`.

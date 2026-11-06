@@ -173,6 +173,16 @@ input[type=range]{flex:1;min-width:0;accent-color:var(--accent);height:28px}
 .k.space{flex:5.5 1 0;max-width:200px;font-size:14px}
 .k.ret{flex:2.4 1 0;max-width:90px;font-size:15px}
 .krow.r2{padding:0 calc(18px - var(--kgap)/2)}
+@keyframes lpop{0%{transform:scale(1)}30%{transform:scale(1.45)}100%{transform:scale(1)}}
+@keyframes ljelly{0%{transform:scale(1,1)}20%{transform:scale(1.35,.7)}40%{transform:scale(.8,1.25)}60%{transform:scale(1.12,.9)}80%{transform:scale(.96,1.04)}100%{transform:scale(1)}}
+@keyframes lwave{0%{transform:translateY(0)}35%{transform:translateY(-9px) scale(1.15)}100%{transform:translateY(0)}}
+@keyframes lglitch{0%,100%{text-shadow:none;transform:none;clip-path:none}15%{text-shadow:-3px 0 #ff2d6f,3px 0 #00e5ff;transform:translateX(2px) skewX(-12deg);clip-path:inset(0 0 45% 0)}35%{text-shadow:2px 0 #ff2d6f,-2px 0 #00e5ff;transform:translateX(-3px);clip-path:inset(40% 0 0 0)}55%{text-shadow:-1px 0 #ff2d6f,1px 0 #00e5ff;transform:translateX(1px) skewX(8deg);clip-path:none}}
+@keyframes lliquid{0%{transform:none;filter:none}25%{transform:scale(1.2,.75) skewX(14deg);filter:blur(.6px)}55%{transform:scale(.85,1.35) translateY(5px) skewX(-10deg);filter:blur(.3px)}100%{transform:none;filter:none}}
+.k .l{display:inline-block}
+.k .l.fx-pop{animation:lpop .35s var(--spring)}.k .l.fx-jelly{animation:ljelly .6s ease-out}.k .l.fx-wave{animation:lwave .45s ease-out}
+.k .l.fx-glitch{animation:lglitch .32s steps(6)}.k .l.fx-liquid{animation:lliquid .7s ease-in-out}
+.kbd.lv-aurora .k .l{background:linear-gradient(90deg,var(--kleft),var(--kright),var(--kleft));background-size:200% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:shine 2s linear infinite}
+@keyframes shine{to{background-position:200% 0}}
 .k.on{background:var(--fl)!important;color:#fff;transition:background 0s}
 .kbd.glow .k{box-shadow:var(--ksh),0 0 10px -2px color-mix(in srgb,var(--lvc,var(--kacc)) 70%,transparent)}
 .phone.wide .kbd:not(.compact) .k{max-width:62px;font-size:26px}.phone.wide .kbd:not(.compact) .k.f{max-width:84px}.phone.wide .kbd:not(.compact) .k.space{max-width:340px}.phone.wide .kbd:not(.compact) .k.ret{max-width:150px}
@@ -274,13 +284,13 @@ const THEMES={
 const FONTS={rounded:"ui-rounded,'SF Pro Rounded','Nunito',system-ui,sans-serif",classic:"-apple-system,system-ui,'Helvetica Neue',Arial,sans-serif",mono:"ui-monospace,'SF Mono',Menlo,Consolas,monospace"};
 const LEVELS=[{name:"Waddle",at:5,c:"#2FBF96"},{name:"Toboggan",at:15,c:"#139FB5"},{name:"Blizzard",at:30,c:"#7B61FF"},{name:"Aurora",at:50,c:"#45D3AA"}];
 const PRESETS={
-  off:{name:"Off",tap:"none",flash:"off",trail:"none",flow:false},
-  calm:{name:"Calm",tap:"ring",flash:"thumb",trail:"line",flow:false},
-  sparkle:{name:"Sparkle",tap:"sparks",flash:"thumb",trail:"glitter",flow:true,top:3,fall:"stars",sky:"aurora"},
-  arcade:{name:"Arcade",tap:"ripple",flash:"theme",trail:"rainbow",flow:true,top:4,fall:"confetti",sky:"starfield"},
-  aurora:{name:"Aurora",tap:"stars",flash:"thumb",trail:"comet",flow:true,top:4,fall:"snow",sky:"aurora"},
+  off:{name:"Off",tap:"none",flash:"off",trail:"none",letters:"none",flow:false},
+  calm:{name:"Calm",tap:"ring",flash:"thumb",trail:"line",letters:"none",flow:false},
+  sparkle:{name:"Sparkle",letters:"pop",tap:"sparks",flash:"thumb",trail:"glitter",flow:true,top:3,fall:"stars",sky:"aurora"},
+  arcade:{name:"Arcade",letters:"glitch",tap:"ripple",flash:"theme",trail:"rainbow",flow:true,top:4,fall:"confetti",sky:"starfield"},
+  aurora:{name:"Aurora",letters:"liquid",tap:"stars",flash:"thumb",trail:"comet",flow:true,top:4,fall:"snow",sky:"aurora"},
 };
-const FX0={build:.5,combo:true,comet:true,fallOn:true,skyOn:true,top:4,fall:"snow",sky:"aurora"};
+const FX0={letters:"none",build:.5,combo:true,comet:true,fallOn:true,skyOn:true,top:4,fall:"snow",sky:"aurora"};
 
 const S={screen:"appearance",kbMode:"auto",theme:"iceberg",customs:{},editing:null,editLook:"light",linked:false,
   fx:{preset:"aurora",...FX0,...PRESETS.aurora},height:100,bar:true,haptics:true,underline:false,split:false,extra:false,
@@ -316,6 +326,11 @@ const I={
   aurora:'<svg viewBox="0 0 24 24"><path d="M2 16c4-6 6 2 10-4s6 0 10-6"/><path d="M2 20c4-6 6 2 10-4s6 0 10-6" opacity=".5"/></svg>',
   starfield:'<svg viewBox="0 0 24 24"><path d="M12 12l-7-7M12 12l8-4M12 12l-3 9M12 12l9 6"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/></svg>',
   ice:'<svg viewBox="0 0 24 24"><path d="M3 8c3 2 5-2 9 0s6-2 9 0M3 14c3 2 5-2 9 0s6-2 9 0M3 20c3 2 5-2 9 0s6-2 9 0"/></svg>',
+  pop:'<svg viewBox="0 0 24 24"><path d="M8 18l4-12 4 12M9.5 14h5"/><path d="M3 6l2 2M21 6l-2 2M12 2v2"/></svg>',
+  jelly:'<svg viewBox="0 0 24 24"><path d="M6 19l6-14 6 14M8.5 14h7" transform="matrix(1.15 0 0 .85 -1.8 3)"/></svg>',
+  wave:'<svg viewBox="0 0 24 24"><path d="M3 15l3-6 3 6M10 12l3-6 3 6M17 15l3-6 3 6"/></svg>',
+  glitch:'<svg viewBox="0 0 24 24"><path d="M7 19l5-14 5 14" stroke="#ff2d6f" transform="translate(-1.5 0)"/><path d="M7 19l5-14 5 14" stroke="#00b8d4" transform="translate(1.5 0)"/></svg>',
+  liquid:'<svg viewBox="0 0 24 24"><path d="M7 17l5-12 5 12M9 13h6"/><path d="M9 17c0 3 2 3 2 5M15 17c0 2 1 2 1 4"/></svg>',
   thumb:'<svg viewBox="0 0 24 24"><rect x="3" y="6" width="8" height="12" rx="2" fill="#139FB5" stroke="none"/><rect x="13" y="6" width="8" height="12" rx="2" fill="#FF6F86" stroke="none"/></svg>',
   theme:'<svg viewBox="0 0 24 24"><rect x="4" y="6" width="16" height="12" rx="3"/></svg>',
 };
@@ -379,7 +394,11 @@ class Engine{
   keyAt(x,y){const r=this.root.getBoundingClientRect();const el=document.elementFromPoint(r.left+x,r.top+y);return el&&el.closest(".k")}
   side(x){return x<this.w/2?"left":"right"}
   color(side){const s=getComputedStyle(this.root);return s.getPropertyValue(side==="left"?"--kleft":"--kright").trim()}
-  flashKey(k,side){if(!k)return;const f=this.fxs.flash;if(f==="off"){k.style.setProperty("--fl","color-mix(in srgb,var(--kink) 25%,var(--kkey))")}else k.style.setProperty("--fl",f==="theme"?"var(--kacc)":side==="left"?"var(--kleft)":"var(--kright)");k.classList.add("on")}
+  letterFx(k){const fx=this.fxs.letters;if(!k||!fx||fx==="none"||S.rm)return;const l=k.querySelector(".l");if(!l)return;
+    const go=(el,cls,delay=0)=>setTimeout(()=>{el.classList.remove(cls);void el.offsetWidth;el.classList.add(cls)},delay);
+    if(fx==="wave"){const a=k.getBoundingClientRect();this.root.querySelectorAll(".k .l").forEach(o=>{const b=o.parentElement.getBoundingClientRect();const d=Math.hypot(a.left-b.left,a.top-b.top);if(d<140)go(o,"fx-wave",d*1.6)})}
+    else go(l,"fx-"+fx)}
+  flashKey(k,side){if(!k)return;this.letterFx(k);const f=this.fxs.flash;if(f==="off"){k.style.setProperty("--fl","color-mix(in srgb,var(--kink) 25%,var(--kkey))")}else k.style.setProperty("--fl",f==="theme"?"var(--kacc)":side==="left"?"var(--kleft)":"var(--kright)");k.classList.add("on")}
   unflash(k){k&&k.classList.remove("on")}
   bind(){
     const el=this.root.querySelector(".keys");
@@ -416,6 +435,7 @@ class Engine{
     const m=this.root.querySelector(".meter");if(m){m.classList.toggle("on",fx.flow&&this.score>0.5);const th=[0,...this.thresholds()];const top=Math.min(fx.top||4,4);
       const a=th[Math.min(lv,top)],b=lv>=top?a:th[lv+1];m.firstElementChild.style.width=(lv>=top?100:Math.max(0,Math.min(100,(this.score-a)/(b-a)*100)))+"%"}
     this.root.classList.toggle("glow",fx.flow&&fx.fallOn&&lv>=3&&!S.rm);
+    this.root.classList.toggle("lv-aurora",fx.flow&&fx.skyOn&&lv>=4&&fx.letters&&fx.letters!=="none"&&!S.rm);
     this.skyC.style.opacity=fx.flow&&fx.skyOn&&lv>=4?(S.rm?.55:.95):0}
   /* --- effects --- */
   scale(){return 1+(this.fxs.flow&&this.fxs.combo?Math.min(this.level,4)*.18:0)}
@@ -517,7 +537,7 @@ function hub(sel){
     <div class="group" style="margin-top:6px">${hubRow("general",sel)}${hubRow("styling",sel)}${hubRow("effects",sel)}</div>
     <p class="foot">Themes and effects work in every app. Without Full Access, pick them from the keyboard itself: hold 123.</p>`;
 }
-const FREE={preset:["calm"],tap:["none","ring"],flash:["thumb","off"],trail:["none","line"]};
+const FREE={preset:["calm"],tap:["none","ring"],flash:["thumb","off"],trail:["none","line"],letters:["none"]};
 const isPro=(g,v)=>FREE[g]?!FREE[g].includes(v):["fall","sky"].includes(g);
 const chip=(group,val,label,cur,icon=true)=>`<button class="chip ${icon?"":"text"}" aria-pressed="${cur===val}" data-chip="${group}" data-v="${val}">${icon?I[val]||"":""}${label}${isPro(group,val)&&val!=="custom"?'<i class="cpro">PRO</i>':""}</button>`;
 const slider=(id,label,min,max,step,val,lo,hi,txt)=>`<div class="sl"><div class="top"><b>${label}</b><span class="val" id="${id}V">${txt}</span></div><div class="ends">${lo}<input type="range" id="${id}" min="${min}" max="${max}" step="${step}" value="${val}" aria-label="${label}">${hi}</div></div>`;
@@ -594,6 +614,7 @@ const body={
     <div class="sec">Taps</div>
     <div class="group">
       <div class="rlabel">Tap</div><div class="chips">${["none","ring","ripple","sparks","stars","snow"].map(v=>chip("tap",v,cap(v),f.tap)).join("")}</div>
+      <div class="rlabel">Letters <span>Glitch and Liquid run on Metal</span></div><div class="chips">${["none","pop","jelly","wave","glitch","liquid"].map(v=>chip("letters",v,cap(v),f.letters)).join("")}</div>
       <div class="rlabel">Key flash</div><div class="chips">${chip("flash","thumb","Thumb colours",f.flash)}${chip("flash","theme","Theme colour",f.flash)}${chip("flash","off","Off",f.flash,true)}</div>
     </div>
     <div class="sec">Swipes</div>

@@ -506,8 +506,8 @@ function keysHTML(h){
 
 let current="settings";
 function go(name,push=true){
-  const screen=new Map(Object.entries(screens)).get(name)||screens.settings;
-  if(screen===screens.settings)name="settings";
+  let screen=Object.prototype.hasOwnProperty.call(screens,name)?screens[name]:null;
+  if(typeof screen!=="function"){screen=screens.settings;name="settings"}
   const keep=name===current?(phone.querySelector(".scroll")?.scrollTop||0):0;
   current=name;
   phone.innerHTML=screen();

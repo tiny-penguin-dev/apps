@@ -491,6 +491,16 @@ final class ProxyTarget: TextTarget {
 
     private var proxy: UITextDocumentProxy { controller.textDocumentProxy }
 
+    /// The field's `documentIdentifier`, or nil when there is none. Swift calls it a
+    /// non-optional UUID, but iOS can hand back nil (say, while a field goes away), and
+    /// reading it directly then crashes (ASTROTYPE-3). Asking through Objective-C lets
+    /// the nil through.
+    private var documentID: UUID? {
+        let getter = #selector(getter: UITextDocumentProxy.documentIdentifier)
+        guard proxy.responds(to: getter) else { return nil }
+        return (proxy.perform(getter)?.takeUnretainedValue() as? NSUUID) as UUID?
+    }
+
     /// The text before the cursor without the open word, as if it were still marked.
     var textBeforeCursor: String? {
         guard let before = proxy.documentContextBeforeInput else { return nil }
@@ -508,7 +518,7 @@ final class ProxyTarget: TextTarget {
         guard text != open else { return }
         if open.isEmpty {
             openIsMarked = underlines()
-            openDocument = proxy.documentIdentifier
+            openDocument = documentID
             if !text.isEmpty { deleteSelection() }
         }
         if openIsMarked {
@@ -541,7 +551,7 @@ final class ProxyTarget: TextTarget {
     /// for the word. Our own selection delete is ignored while the proxy catches up.
     var lostOpenWord: Bool {
         guard !open.isEmpty else { return false }
-        if proxy.documentIdentifier != openDocument { return true }
+        if documentID != openDocument { return true }
         guard !clearedSelection, let selected = proxy.selectedText else { return false }
         return !selected.isEmpty
     }
@@ -559,7 +569,7 @@ final class ProxyTarget: TextTarget {
         // is nothing of ours to unmark, and with text selected unmarking can collapse the
         // selection to the end of the word, so the next delete takes one letter.
         let selected = !(proxy.selectedText ?? "").isEmpty
-        if openIsMarked, !open.isEmpty, !selected, proxy.documentIdentifier == openDocument { proxy.unmarkText() }
+        if openIsMarked, !open.isEmpty, !selected, documentID == openDocument { proxy.unmarkText() }
         open = ""
         openIsMarked = false
         openDocument = nil

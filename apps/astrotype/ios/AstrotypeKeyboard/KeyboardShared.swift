@@ -44,6 +44,8 @@ final class KeyboardShared {
         // Frequently used emoji and skin tones, in the extension's own files (they don't
         // sync, features/emoji).
         model.emojiStore = FileEmojiStore(url: KeyboardFiles.own(KeyboardFiles.emoji))
+        // The next-word models, loaded in the background (features/next-word-model).
+        model.loadNextWordModel = NextWordModels.load
         model.device = TypingSnapshot.Device(app: KeyboardViewController.appVersion,
                                              system: "\(UIDevice.current.systemName) \(UIDevice.current.systemVersion)",
                                              model: KeyboardViewController.hardware)

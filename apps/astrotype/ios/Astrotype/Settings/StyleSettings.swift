@@ -1,5 +1,6 @@
 import AstrotypeCore
 import AstrotypeUI
+import Combine
 import SwiftUI
 import UIKit
 
@@ -465,6 +466,8 @@ private struct EffectsPage: View {
     var burst: Int
 
     private var pro: Bool { model.entitlement.allows(.effects) }
+    /// Low Power Mode, live: flow stops at Toboggan and Metal letters pop instead.
+    @State private var lowPower = ProcessInfo.processInfo.isLowPowerModeEnabled
 
     var body: some View {
         let settings = model.keyboardSettings
@@ -535,6 +538,22 @@ private struct EffectsPage: View {
                     }
                 }
             }
+            if effects.flow {
+                if lowPower {
+                    SettingsGroup {
+                        SettingsRow("Low Power Mode is on",
+                                    subtitle: "Flow stops at Toboggan, and Jelly, Wave, Glitch and Liquid pop instead. Turn it off in Settings → Battery to see Blizzard and Aurora.",
+                                    symbol: "battery.25percent", tint: Theme.sun)
+                    }
+                    .padding(.top, Theme.Space.s)
+                } else {
+                    GroupFootnote("In Low Power Mode, or when the phone is hot, flow stops at Toboggan and the Metal letters pop instead.")
+                }
+            }
+            Color.clear.frame(height: 0)
+                .onReceive(NotificationCenter.default.publisher(for: .NSProcessInfoPowerStateDidChange).receive(on: RunLoop.main)) { _ in
+                    lowPower = ProcessInfo.processInfo.isLowPowerModeEnabled
+                }
             if !pro {
                 GroupFootnote("Calm is free: a ring on each tap, a line for each swipe. Everything else is in Astrotype Pro.")
                 Button("See Pro") { path.append(.pro) }.buttonStyle(.small)

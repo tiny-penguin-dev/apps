@@ -34,6 +34,9 @@ public struct AppState: Codable, Sendable, Equatable {
     public var sharePractice = false
     /// The newest keyboard session whose memory readings were sent (`KeyboardHealth`).
     public var keyboardHealthSent: Date?
+    /// The typing logs sent from Settings → Debug (`TypingLog`), newest last: when, how
+    /// long, and the CloudKit records, so they can be deleted from iCloud again.
+    public var typingLogsSent: [SentTypingLog] = []
 
     public init() {}
 
@@ -54,6 +57,7 @@ public struct AppState: Codable, Sendable, Equatable {
         milestonesSeen = try c.decodeIfPresent([String].self, forKey: .milestonesSeen) ?? []
         sharePractice = try c.decodeIfPresent(Bool.self, forKey: .sharePractice) ?? false
         keyboardHealthSent = try c.decodeIfPresent(Date.self, forKey: .keyboardHealthSent)
+        typingLogsSent = try c.decodeIfPresent([SentTypingLog].self, forKey: .typingLogsSent) ?? []
     }
 
     /// Keeps the last 30 speed tests and the best on the Astrotype keyboard. Returns

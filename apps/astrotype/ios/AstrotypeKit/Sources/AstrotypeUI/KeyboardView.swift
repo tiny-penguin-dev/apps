@@ -28,6 +28,9 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
     /// The tiny memory readout in the keys' top corner, while
     /// `KeyboardSettings.showsStats` is on (Settings → Debug). Never in the bar.
     public let stats = StatsOverlayView()
+    /// A small red dot in the keys' top left corner while the typing recorder is on
+    /// (Settings → Debug → "Keep recording"), so it is never on unnoticed.
+    public let recordingDot = UIView()
     /// Keys the engine leaves to the host: the globe.
     public var onSystemKey: ((Key) -> Void)?
     /// Whether the keyboard has our globe key: the extension sets it from
@@ -41,7 +44,11 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
     public var onHeightChange: ((CGFloat) -> Void)?
 
     public private(set) var page: Layout.Page = .letters {
-        didSet { if page != oldValue { surface.layout = pageLayout(width: model.layout.width, height: keysHeight) } }
+        didSet {
+            guard page != oldValue else { return }
+            surface.layout = pageLayout(width: model.layout.width, height: keysHeight)
+            model.pageChanged(page)
+        }
     }
 
     /// The height the keys fill: what they want, or less when the view is shorter.
@@ -90,7 +97,16 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         addSubview(bar)
         addSubview(surface)
         addSubview(stats)
+        recordingDot.backgroundColor = .systemRed
+        recordingDot.layer.cornerRadius = 3
+        recordingDot.isUserInteractionEnabled = false
+        recordingDot.isHidden = true
+        recordingDot.accessibilityLabel = "Recording typing"
+        addSubview(recordingDot)
         surface.delegate = self
+        surface.onOtherTouch = { [weak model] phase, id, point, time, key in
+            model?.otherTouch(phase, id: id, at: point, time: time, key: key)
+        }
         // Held keys offer the accents of the languages being typed (features/languages).
         surface.alternates = { [weak model] key in Accents.alternates(for: key, languages: model?.activeLanguages ?? []) }
         surface.layout = model.layout
@@ -222,6 +238,11 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
             stats.isHidden = emojiPage != nil || panel != nil
             bringSubviewToFront(stats)
         }
+        recordingDot.isHidden = model.recorder == nil || emojiPage != nil || panel != nil
+        if !recordingDot.isHidden {
+            recordingDot.frame = CGRect(x: surface.frame.minX + 3, y: surface.frame.minY + 2, width: 6, height: 6)
+            bringSubviewToFront(recordingDot)
+        }
         if let panel {
             // Over the keys and the guesses bar both: the bar has nothing to say while
             // the settings are open (Gabriel, 3 Nov 2026). The keys hide too: the panel
@@ -286,6 +307,8 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         surface.showsFlashes = model.keyboardSettings.trails
         surface.spaceSlideEnabled = model.keyboardSettings.spaceSlide
         surface.backspaceSwipeEnabled = model.keyboardSettings.backspaceSwipe
+        if recordingDot.isHidden != (model.recorder == nil || emojiPage != nil || panel != nil) { setNeedsLayout() }
+        panel?.isRecording = model.recorder != nil
         if stats.isRunning != model.keyboardSettings.showsStats {
             stats.isRunning = model.keyboardSettings.showsStats
             setNeedsLayout()
@@ -320,6 +343,8 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         panel.preferredLanguages = model.preferredLanguages
         panel.onChange = { [weak self] settings in self?.model.keyboardSettings = settings }
         panel.onDone = { [weak self] in self?.hideSettings() }
+        panel.isRecording = model.recorder != nil
+        panel.onMark = { [weak self] in self?.model.markMoment() }
         panel.frame = surface.frame
         panel.granted = (bounds.height, height)
         panel.heightStory = heightStory

@@ -6,6 +6,7 @@ import Foundation
 //     swift run -c release astrotype-tools build-ngrams pairs.tsv Sources/AstrotypeCore/Resources/en/bigrams.bin
 //     swift run -c release astrotype-tools replay ../../ml/samples/practice
 //     swift run astrotype-tools next "thank"
+//     swift run -c release astrotype-tools typing ../../ml/samples/typing/<id>.json
 //     swift run -c release astrotype-tools synth /tmp/synth && swift run -c release astrotype-tools tune /tmp/synth
 //
 // Everything it does is in AstrotypeCore (`NgramModel.Builder`, `Replay`, `Tuning`, `SyntheticTyping`, `PracticeWords`), so the
@@ -25,6 +26,9 @@ usage:
       the "Practice words" prompts
   astrotype-tools next <word> [--language en|es|en+es] [--limit N]
       the words the model expects after `word` (`<s>` for a sentence start)
+  astrotype-tools typing <log.json> [--show timeline|replay]
+      a typing recording from Settings → Debug: what happened, line by line, then the replay
+      through the engine and every place it writes something else than the phone did
 """
 
 func fail(_ message: String) -> Never {
@@ -170,6 +174,27 @@ func next(_ plain: [String], _ options: [String: String]) {
     }
 }
 
+func typing(_ plain: [String], _ options: [String: String]) {
+    guard plain.count == 1 else { fail(usage) }
+    let log: TypingLog
+    do { log = try TypingLog.decode(Data(contentsOf: URL(fileURLWithPath: plain[0]))) } catch { fail("not a typing log: \(error)") }
+    let formatter = ISO8601DateFormatter()
+    print("Typing log \(log.id.uuidString) · \(log.summary)")
+    print("From \(formatter.string(from: log.from)) to \(formatter.string(from: log.to)), sent by \(log.app)")
+    if let device = log.device { print("Keyboard \(device.app) on \(device.model), \(device.system)") }
+    for mark in log.marks { print("Mark at \(formatter.string(from: mark))") }
+    if options["show"] != "replay" {
+        print("")
+        print(log.timeline())
+    }
+    guard options["show"] != "timeline" else { return }
+    let result = TypingReplay.run(log)
+    print("")
+    print("Replay: \(result.commits.count) words · \(result.differences.count) differences from the phone")
+    for difference in result.differences { print("  " + difference.description) }
+    print("Field at the end: \"\(result.text.suffix(80))\"")
+}
+
 let arguments = CommandLine.arguments.dropFirst()
 guard let command = arguments.first else { fail(usage) }
 let (plain, options) = parse(arguments.dropFirst())
@@ -180,5 +205,6 @@ case "next": next(plain, options)
 case "tune": tune(plain, options)
 case "synth": synth(plain, options)
 case "prompts": prompts(plain, options)
+case "typing": typing(plain, options)
 default: fail(usage)
 }

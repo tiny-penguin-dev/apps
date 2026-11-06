@@ -10,9 +10,9 @@ import Foundation
 ///     field.kind                     // .email
 ///     field.bottomRow                // .email: space, @ and . before return
 ///     field.composerSettings(base)   // exact taps, no autospace, no capitals
-public struct Field: Sendable, Equatable {
+public struct Field: Sendable, Equatable, Codable {
     /// What the keyboard turns into for the field.
-    public enum Kind: Sendable, Equatable {
+    public enum Kind: String, Sendable, Equatable, Codable {
         case text, email, url, webSearch, social, numbers
     }
 
@@ -32,12 +32,12 @@ public struct Field: Sendable, Equatable {
     }
 
     /// Capitals the field asks for (UIKit's `UITextAutocapitalizationType`).
-    public enum Capitals: Sendable, Equatable {
+    public enum Capitals: String, Sendable, Equatable, Codable {
         case none, words, sentences, all
     }
 
     /// What the return key says (UIKit's `UIReturnKeyType`).
-    public enum ReturnKey: Sendable, Equatable, CaseIterable {
+    public enum ReturnKey: String, Sendable, Equatable, CaseIterable, Codable {
         case `return`, go, search, send, join, next, done, route, `continue`, emergencyCall
 
         /// The word on the key, lower case like Apple's; nil draws the return arrow.

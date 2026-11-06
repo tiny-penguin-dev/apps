@@ -66,13 +66,13 @@ public struct Layout: Sendable, Equatable {
     }
 
     /// The keyboard's pages: letters, then "123" and "#+=" like Apple's.
-    public enum Page: Sendable, Equatable {
+    public enum Page: String, Sendable, Equatable, Codable {
         case letters, numbers, symbols
     }
 
     /// The keys beside space on the letters page, for the field (features/field-types).
     /// 123, the globe and return keep their size and place; these take space's room.
-    public enum BottomRow: Sendable, Equatable {
+    public enum BottomRow: String, Sendable, Equatable, Codable {
         /// Space alone.
         case standard
         /// Space, then @ and . (an email or username field).

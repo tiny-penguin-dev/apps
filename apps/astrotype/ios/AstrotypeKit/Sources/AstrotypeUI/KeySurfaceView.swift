@@ -98,6 +98,10 @@ public final class KeySurfaceView: UIView {
 
     /// Settings: a slide on space moves the cursor; a swipe left on backspace deletes a word.
     public var spaceSlideEnabled = true
+    /// Every touch that isn't a letter's (those go to the engine), for the typing
+    /// recorder: the phase (b, m, e, x; n for a touch on no key), the touch's ID, where,
+    /// when, and the key it started on.
+    public var onOtherTouch: ((String, Int?, CGPoint, TimeInterval, Key?) -> Void)?
     public var backspaceSwipeEnabled = true
 
     /// How far a finger slides on space for one cursor step.
@@ -255,10 +259,14 @@ public final class KeySurfaceView: UIView {
     public override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
         for touch in touches {
             let point = touch.location(in: self)
-            guard let key = layout.key(at: point), key != .returnKey || returnEnabled else { continue }
+            guard let key = layout.key(at: point), key != .returnKey || returnEnabled else {
+                onOtherTouch?("n", nil, point, touch.timestamp, layout.key(at: point))
+                continue
+            }
             let side = layout.side(at: point)
             let id = nextID
             nextID += 1
+            if key.character == nil { onOtherTouch?("b", id, point, touch.timestamp, key) }
             let oid = ObjectIdentifier(touch)
             var touchState = Active(id: id, key: key, startKey: key, startPoint: point, side: side, isLetter: key.character != nil, points: [point], trail: nil)
             flash(key, side: side)
@@ -306,6 +314,7 @@ public final class KeySurfaceView: UIView {
             let oid = ObjectIdentifier(touch)
             guard var touchState = active[oid] else { continue }
             let point = touch.location(in: self)
+            if !touchState.isLetter { onOtherTouch?("m", touchState.id, point, touch.timestamp, touchState.startKey) }
             if let callout = touchState.callout {
                 callout.select(at: convert(point, to: callout))
                 continue
@@ -369,6 +378,9 @@ public final class KeySurfaceView: UIView {
         for touch in touches {
             guard let touchState = active.removeValue(forKey: ObjectIdentifier(touch)) else { continue }
             touchState.hold?.cancel()
+            if !touchState.isLetter {
+                onOtherTouch?("e", touchState.id, touch.location(in: self), touch.timestamp, touchState.startKey)
+            }
             if let callout = touchState.callout {
                 callout.removeFromSuperview()
                 if let key = touchState.key { unflash(key) }
@@ -405,6 +417,9 @@ public final class KeySurfaceView: UIView {
         for touch in touches {
             guard let touchState = active.removeValue(forKey: ObjectIdentifier(touch)) else { continue }
             touchState.hold?.cancel()
+            if !touchState.isLetter {
+                onOtherTouch?("x", touchState.id, touch.location(in: self), touch.timestamp, touchState.startKey)
+            }
             touchState.callout?.removeFromSuperview()
             if let key = touchState.key { unflash(key) }
             touchState.trail?.removeFromSuperlayer()

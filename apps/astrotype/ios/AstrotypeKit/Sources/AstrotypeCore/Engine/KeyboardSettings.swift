@@ -77,6 +77,10 @@ public struct KeyboardSettings: Codable, Sendable, Equatable {
     /// A tiny readout of the keyboard's memory in a corner of the keys, for watching it
     /// on a phone (Settings → Debug, Gabriel 3 Nov 2026). Off by default.
     public var showsStats = false
+    /// Keep the last half hour of typing on the phone, to send from Settings → Debug
+    /// when something goes wrong (`TypingRecorder`, Gabriel 6 Nov 2026). Off by default,
+    /// only offered in TestFlight builds, and needs Full Access.
+    public var recordsTyping = false
 
     /// `keyboardHeight` kept in its range, for `Layout.qwerty(scale:)`.
     public var heightScale: CGFloat {
@@ -109,6 +113,7 @@ public struct KeyboardSettings: Codable, Sendable, Equatable {
         languages = try c.decodeIfPresent([String].self, forKey: .languages)
         mixesLanguages = try c.decodeIfPresent(Bool.self, forKey: .mixesLanguages) ?? false
         showsStats = try c.decodeIfPresent(Bool.self, forKey: .showsStats) ?? false
+        recordsTyping = try c.decodeIfPresent(Bool.self, forKey: .recordsTyping) ?? false
     }
 
     /// The bundled languages among the phone's preferred ones (`Locale.preferredLanguages`,

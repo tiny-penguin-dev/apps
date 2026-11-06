@@ -27,6 +27,8 @@ final class AppModel {
         didSet {
             guard keyboardSettings != oldValue else { return }
             environment.settingsStore.save(keyboardSettings)
+            // Recording off: what the phone kept goes too.
+            if oldValue.recordsTyping, !keyboardSettings.recordsTyping { clearTypingRecording() }
         }
     }
     /// What the keyboard learned from the person, as last read from the shared store.
@@ -153,6 +155,100 @@ final class AppModel {
     func openSettings() {
         environment.openSettings()
     }
+
+    // MARK: Typing recorder
+
+    /// Whether the recorder is offered: TestFlight and Xcode builds only, never the App
+    /// Store's (it records everything typed, for Gabriel's bug reports).
+    private(set) var isTestBuild = false
+    /// The marks kept in the recording, newest first, and its size on the phone.
+    private(set) var typingMarks: [Date] = []
+    private(set) var typingKB = 0
+    /// The stretch being sent, in minutes, while it goes.
+    private(set) var typingSending: Int?
+    /// What the last send or delete came to, for the Debug page.
+    private(set) var typingNote: String?
+
+    var typingLogsSent: [SentTypingLog] { state.typingLogsSent }
+
+    func checkTestBuild() async {
+        isTestBuild = await environment.isTestBuild()
+    }
+
+    /// Re-reads the marks and the size (the Debug page, each second).
+    func reloadTyping() {
+        guard let files = environment.typingLog else { return }
+        let marks = files.marks()
+        if marks != typingMarks { typingMarks = marks }
+        let kb = files.size() / 1024
+        if kb != typingKB { typingKB = kb }
+    }
+
+    /// The last `minutes` of the recording as a log, with what the keyboard learned so
+    /// a replay guesses as the phone did. Nil when nothing was typed in that time.
+    func typingLog(minutes: Int) -> TypingLog? {
+        environment.typingLog?.log(last: TimeInterval(minutes * 60), now: environment.now(), writer: environment.device.writer,
+                                   app: environment.appVersion, learned: environment.wordStore.load(),
+                                   personal: environment.personalStore.load())
+    }
+
+    /// Sends the last `minutes` to CloudKit, where Claude downloads it
+    /// (`ml/download_samples.py --typing`).
+    func sendTyping(minutes: Int) {
+        guard typingSending == nil, let uploader = environment.typingUploader else { return }
+        guard let log = typingLog(minutes: minutes) else {
+            typingNote = "Nothing was typed in the last \(Self.minutes(minutes))."
+            return
+        }
+        guard let data = try? log.encoded(), let compressed = environment.compress(data) else {
+            typingNote = "Couldn't pack the recording up."
+            return
+        }
+        typingSending = minutes
+        typingNote = nil
+        Task { @MainActor in
+            do {
+                let records = try await uploader.upload(log.parts(compressed: compressed))
+                state.typingLogsSent.append(SentTypingLog(id: log.id, sent: environment.now(), summary: log.summary, records: records))
+                typingNote = "Sent the last \(Self.minutes(minutes)) (\(log.summary)). Tell Claude what went wrong."
+            } catch {
+                typingNote = "Couldn't send it: \(error.localizedDescription)"
+            }
+            typingSending = nil
+        }
+    }
+
+    /// The last `minutes` as a file to share another way (AirDrop, Files).
+    func typingFile(minutes: Int) -> URL? {
+        guard let log = typingLog(minutes: minutes), let data = try? log.encoded() else { return nil }
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("typing-\(log.id.uuidString.prefix(8)).json")
+        do { try data.write(to: url, options: .atomic) } catch { return nil }
+        return url
+    }
+
+    /// Deletes the logs sent from iCloud again.
+    func deleteSentTyping() {
+        guard let uploader = environment.typingUploader, !state.typingLogsSent.isEmpty else { return }
+        let sent = state.typingLogsSent
+        Task { @MainActor in
+            do {
+                try await uploader.delete(sent.flatMap(\.records))
+                state.typingLogsSent.removeAll { log in sent.contains { $0.id == log.id } }
+                typingNote = sent.count == 1 ? "Deleted the log you sent from iCloud." : "Deleted the \(sent.count) logs you sent from iCloud."
+            } catch {
+                typingNote = "Couldn't delete them: \(error.localizedDescription)"
+            }
+        }
+    }
+
+    /// Throws away what the phone has kept.
+    func clearTypingRecording() {
+        environment.typingLog?.removeAll()
+        reloadTyping()
+        typingNote = "The recording on this phone is cleared."
+    }
+
+    static func minutes(_ minutes: Int) -> String { minutes == 1 ? "minute" : "\(minutes) minutes" }
 
     // MARK: Setup
 

@@ -21,8 +21,10 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
     (`TurnOnView`, `LanguagesSetupView` (only on a phone set to two languages), `SyncView`, `TryItView`, and `SetupPage`, their shared shape),
     `HelloView`, `HomeView`, `Settings/` (`SettingsView`, the main page with its
     `SettingsPage`s, and `SettingsPages`, one view per page; `DebugSettings`, the Debug page:
-    the keyboard's memory against 40 MB from `KeyboardDebug`, and the switch for the
-    stats overlay on the keys), `LearnedWordsView`, `MissedWordsView` ("Words it missed", features/missed-words), `SharingView` ("What
+    the keyboard's memory against 40 MB from `KeyboardDebug`, the switch for the
+    stats overlay on the keys, and in TestFlight builds the typing recorder: "Keep
+    recording", send the last 1/5/30 minutes or from a mark, share as a file, delete
+    what was sent), `LearnedWordsView`, `MissedWordsView` ("Words it missed", features/missed-words), `SharingView` ("What
     gets shared": the words waiting to go up, drawn on the keys), `PracticeView`,
     `ProView` (the subscription screen, StoreKit's `SubscriptionStoreView`),
     `TrialOverView` (the sheet, once), `MilestoneView` (the sheet, once each),
@@ -44,7 +46,10 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
     reports only, and `KeyboardHealthRecorder` writes the memory and the first-guess
     counts (`GuessTally`, from `KeyboardModel.onSettled`) per session for the app.
     `KeyboardDebugRecorder` writes its live memory (`KeyboardDebug`) to the App Group
-    for Settings → Debug whenever it has Full Access (never sent). `ExtensionChecks`
+    for Settings → Debug whenever it has Full Access (never sent). With Full Access and
+    "Keep recording" on it gives `KeyboardModel.recorder` a `TypingRecorder` over
+    `KeyboardFiles.typing` (red dot on the keys, Mark in the held-123 panel; turning it
+    off deletes what was kept). `ExtensionChecks`
     writes the StoreKit, memory and size readings into the bar's idle note while
     `Flags.extensionReadout` is on.
   - `AstrotypeKit/`: the local package, three targets:
@@ -95,11 +100,19 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
       `SharedWordStore`, the `SharedWordUploader` protocol with its fake, the live one
       the same `CloudKitPracticeUploader`), `PracticeWords` (the Practice words prompts),
       `SyntheticTyping` (noisy made-up swipes for the harness). `Handwriting/` holds the v1 engine (`Features`, `PhraseDecoder`, `Recognizer`,
-      `Recording`, `StrokeSample`). Foundation only; tests run on Linux.
+      `Recording`, `StrokeSample`). `TypingLog` (the typing recorder, Gabriel 6 Nov 2026:
+      `TypingEvent`, one per touch, key, bar tap, context change and effect;
+      `TypingSnapshot`, settings, field, layout, languages, Pro, context and build;
+      the log sent, with windows by wall clock and CloudKit parts; `timeline()`),
+      `Sync/TypingLogStore` (`TypingLogFiles`, five-minute JSON-lines files in the App
+      Group, half an hour kept; `TypingRecorder`, the buffered writer), and
+      `Engine/TypingReplay` (a log through a fresh `Composer` as `KeyboardModel`
+      drives it, effects compared with the phone's; keep it in step with
+      `KeyboardModel`). Foundation only; tests run on Linux.
     - `AstrotypeTools`: the `astrotype-tools` command line (`build-ngrams`, `replay`,
       `tune` (`Tuning`'s search over `Matcher.Weights`), `synth` (`SyntheticTyping`'s
       made-up words to measure against), `prompts`,
-      `next`), argument parsing over `AstrotypeCore` and nothing else.
+      `next`, `typing` (a typing log's timeline and replay)), argument parsing over `AstrotypeCore` and nothing else.
     - `AstrotypeUI`: the design system (`Theme` tokens, `Components`, `Art`, `EdgeFade`: a scroll
       view's `fadeEdges`, used by the settings panel and both emoji rows) and the
       keyboard's views: `KeyboardView` (bar plus keys, the pages, the settings panel,
@@ -121,7 +134,7 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
       fixture in `Fixtures/swipes.json`, through `Synth`'s straight-line swipes, and
       `ContextMatcherTests`), `WordContextTests`, `NgramModelTests`, `ReplayTests`, `MissedWordTests` (the bar's "Not it?"), `WrongSpaceTests` (autospace taken back out of a word, punctuation before the space), `TwoThumbTests` (two-thumb accuracy from `SyntheticTyping`'s `.two` and `.together`, Gabriel's real both-at-once swipes in `Fixtures/together-*.json`, compounds, tap places, two-thumb Not it?)
       (recordings made from `Synth` strokes replay to the live result),
-      `GeometryTests`, `LayoutTests`, `EmojiTests`, `EmojiSearchTests`, `KeyboardSettingsTests`, `KeyboardDebugTests`, `AppCoreTests` (the
+      `GeometryTests`, `LayoutTests`, `EmojiTests`, `EmojiSearchTests`, `KeyboardSettingsTests`, `KeyboardDebugTests`, `TypingLogTests` (the typing recorder: format, files, windows, replay), `AppCoreTests` (the
       `App/` pieces), `ProTests` (`Entitlement`, the trial and Pro files, the memory
       store), `PracticeTests` (the speed test, streak and milestones, the drills on the
       engine, recordings), `SyncTests` (stores, snapshots, `Syncer`, `Backup`), and
@@ -141,7 +154,9 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
 - `ml/`: the v1 Python training loop (see `ml/README.md`); the opt-in practice-session
   uploads (`PracticeSession` records) land in the same container, and
   `download_samples.py --type PracticeSession` fetches them for `astrotype-tools
-  replay`. `ml/ngrams/` makes a language's word list (`make_lexicon.py`) and counts a
+  replay`. Typing logs (Settings → Debug) are `PracticeSession` records of kind
+  `typing.log` in parts; `download_samples.py --typing` puts them together into
+  `samples/typing/<id>.json` for `astrotype-tools typing`. `ml/ngrams/` makes a language's word list (`make_lexicon.py`) and counts a
   corpus's word pairs for `build-ngrams` (its README has the commands and the data sources).
 - `features/`: the bigger features after the v2 build, one folder each with a
   `FEATURE.md` (product, design, build and its phases, notes as they ship):
@@ -196,6 +211,9 @@ xcodebuild build -project Astrotype.xcodeproj -scheme Astrotype \
   `keyboard-health.json` → `AppModel.sendKeyboardHealth`). Keep the extension under 40 MB; the bar's memory
   readout (Phase 1) and `keyboard.memory_peak` in Sentry say where it stands.
 - Nothing typed ever leaves the phone. Practice sessions upload only from the app, only
-  when the person turns it on.
+  when the person turns it on. The typing recorder is the one exception, for Gabriel's
+  bug reports: offered only in TestFlight and Xcode builds (`AppTransaction`), off by
+  default, never in fields that don't learn, and sent only when he taps Send, so the
+  App Store build's privacy answers don't change.
 - Never write "Nintype" into the product, and never copy its code, data or art.
 - Keep this file current as the targets and commands change.

@@ -650,4 +650,21 @@ final class AppModel {
             }
         }
     }
+
+    // MARK: Keyboard styles (features/customization)
+
+    /// Puts a theme on the keys.
+    func chooseTheme(_ id: String) {
+        keyboardSettings.themeID = id
+        let theme = keyboardSettings.chosenTheme
+        environment.metrics.count("appearance.theme_chosen", ["theme": theme.isCustom ? "custom" : theme.id])
+    }
+
+    /// Picks an effects preset, or flow on or off.
+    func chooseEffects(_ effects: EffectsSettings) {
+        keyboardSettings.effects = effects
+        environment.metrics.count("appearance.effects_chosen",
+                                  ["preset": effects.preset?.rawValue ?? "mix", "flow": effects.flow ? "on" : "off"])
+    }
+
 }

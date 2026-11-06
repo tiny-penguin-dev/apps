@@ -82,11 +82,26 @@ public final class KeySurfaceView: UIView {
         didSet { keyViews[.space]?.forEach { $0.label.text = spaceLabel } }
     }
 
-    /// Draw swipe trails and tap rings.
-    public var showsTrails = true
-    /// Flash a hit key in the thumb's colour. Off with the trails (the battery saver,
-    /// DESIGN.md "Motion"): a hit key just darkens, like Apple's.
-    public var showsFlashes = true
+    /// The theme the keys are drawn in (features/customization).
+    public var theme: KeyboardTheme = .classic {
+        didSet { if theme != oldValue { restyle() } }
+    }
+    /// Light or dark: like the phone, or always one.
+    public var keyAppearance: KeyAppearance = .system {
+        didSet { if keyAppearance != oldValue { restyle() } }
+    }
+    /// The effects: flashes, taps, trails, letters and flow. Nil is Effects off (the
+    /// battery saver, DESIGN.md "Motion"): a hit key just darkens, like Apple's.
+    public var effects: EffectsSettings? = .calm {
+        didSet { if effects != oldValue { fx.settings = effects; applyLetterMode() } }
+    }
+    /// The theme as drawn now, in its light or dark look.
+    public private(set) var style = KeyStyle.classic
+    /// Flow changed: its level, the combo and how far to the next level.
+    public var onFlow: ((FlowState) -> Void)? {
+        get { fx.onFlow }
+        set { fx.onFlow = newValue }
+    }
     /// Keys outlined in a thumb's colour (a drill's next word, DESIGN.md screen 8).
     public var hints: [Key: Side] = [:] {
         didSet { applyHints() }
@@ -104,8 +119,6 @@ public final class KeySurfaceView: UIView {
     public var onOtherTouch: ((String, Int?, CGPoint, TimeInterval, Key?) -> Void)?
     public var backspaceSwipeEnabled = true
 
-    /// How far a finger slides on space for one cursor step.
-    public static let cursorStep: CGFloat = 12
     /// How far left of backspace a swipe has to travel to delete a word.
     public static let wordSwipe: CGFloat = 40
     /// How far a finger travels from "123" before the numbers page comes up under it.
@@ -121,9 +134,9 @@ public final class KeySurfaceView: UIView {
         var side: Side
         var isLetter: Bool
         var points: [CGPoint]
-        var trail: CAShapeLayer?
-        /// Cursor steps already reported for a slide on space.
-        var slideSteps = 0
+        var trail: TrailDrawing?
+        /// A finger on space: a tap, or a slide once it holds and travels (`SpaceSlide`).
+        var slide: SpaceSlide?
         /// A slide, a swipe or a hold took this touch: no tap when it lifts.
         var gestured = false
         var hold: Task<Void, Never>?
@@ -137,7 +150,10 @@ public final class KeySurfaceView: UIView {
     private var keyViews: [Key: [KeyView]] = [:]
     private var active: [ObjectIdentifier: Active] = [:]
     private var nextID = 1
-    private let effects = CALayer()
+    private let effectsLayer = CALayer()
+    private lazy var fx = KeyEffects(surface: self)
+    /// Letters tapped since the last word, so space or return can count one for flow.
+    private var lettersSinceWord = 0
     /// One VoiceOver element per key (see `rebuildAccessibility`).
     private var keyElements: [KeyElement] = []
 
@@ -156,15 +172,101 @@ public final class KeySurfaceView: UIView {
 
     public override func layoutSubviews() {
         super.layoutSubviews()
-        effects.frame = bounds
+        effectsLayer.frame = bounds
+        fx.layout(bounds)
     }
+
+    public override func traitCollectionDidChange(_ previous: UITraitCollection?) {
+        super.traitCollectionDidChange(previous)
+        if traitCollection.userInterfaceStyle != previous?.userInterfaceStyle || traitCollection.displayScale != previous?.displayScale {
+            restyle()
+        }
+    }
+
+    /// Draw every key in the theme's current look.
+    private func restyle() {
+        style = KeyStyle(theme: theme, appearance: keyAppearance, traits: traitCollection)
+        let inset = style.keyInset
+        for placement in layout.placements {
+            for view in keyViews[placement.key] ?? [] where view.frame.midX >= placement.frame.minX && view.frame.midX <= placement.frame.maxX {
+                view.frame = placement.frame.insetBy(dx: inset, dy: inset)
+            }
+        }
+        keyViews.values.forEach { $0.forEach { $0.style = style } }
+        fx.style = style
+        applyHints()
+        applyLetterMode()
+    }
+
+    /// The Metal letters draw the letter keys' labels while a Metal letter effect is on.
+    private func applyLetterMode() {
+        let elsewhere = fx.drawsLetters
+        keyViews.values.forEach { $0.forEach { $0.lettersElsewhere = elsewhere } }
+        fx.lettersChanged()
+    }
+
+    /// The letter keys as the Metal letters draw them: the letter, the key's frame and
+    /// the letter's colour now.
+    func letterKeys() -> [(key: Key, letter: Character, frame: CGRect, ink: UIColor)] {
+        var out: [(key: Key, letter: Character, frame: CGRect, ink: UIColor)] = []
+        for (key, views) in keyViews {
+            guard let c = key.character else { continue }
+            let letter = shifted ? Character(String(c).uppercased()) : c
+            for view in views {
+                out.append((key, letter, view.frame, view.currentInk.resolvedColor(with: traitCollection)))
+            }
+        }
+        return out
+    }
+
+    /// The letters on the keys, both cases, for the Metal letters' atlas.
+    func lettersOnKeys() -> [Character] {
+        var out = Set<Character>()
+        for placement in layout.placements {
+            guard let c = placement.key.character else { continue }
+            out.insert(c)
+            for u in String(c).uppercased() { out.insert(u) }
+        }
+        return out.sorted()
+    }
+
+    /// Glow every key in a colour (flow at Blizzard), or none.
+    func setGlow(_ color: UIColor?) {
+        keyViews.values.forEach { $0.forEach { $0.setGlow(color) } }
+    }
+
+    /// Bounce a letter (the Pop letter effect).
+    func popLetter(_ key: Key, scale: CGFloat) {
+        keyViews[key]?.forEach { $0.pop(scale: scale) }
+    }
+
+    /// The centre of a letter's key, for "Play a burst".
+    func centre(of letter: Character) -> CGPoint? {
+        layout.frame(of: .letter(letter)).map { CGPoint(x: $0.midX, y: $0.midY) }
+    }
+
+    /// Light a key the way a touch does, for "Play a burst".
+    func light(_ key: Key, side: Side) { flash(key, side: side) }
+    func unlight(_ key: Key) { unflash(key) }
+    func key(at point: CGPoint) -> Key? { layout.key(at: point) }
+
+    /// Type a fast run of words on the keys, without typing anything, so the effects
+    /// and flow show (the app's "Play a burst"). Calls back when it is done.
+    public func playBurst(completion: (@MainActor () -> Void)? = nil) {
+        fx.playBurst(completion: completion)
+    }
+
+    /// Empty the flow meter (the keyboard went away).
+    public func resetFlow() { fx.resetFlow() }
 
     private func rebuild() {
         keyViews.values.forEach { $0.forEach { $0.removeFromSuperview() } }
         keyViews = [:]
+        style = KeyStyle(theme: theme, appearance: keyAppearance, traits: traitCollection)
         for placement in layout.placements {
-            let keyView = KeyView(key: placement.key, spaceLabel: spaceLabel)
-            keyView.frame = placement.frame
+            let keyView = KeyView(key: placement.key, spaceLabel: spaceLabel, style: style)
+            keyView.frame = placement.frame.insetBy(dx: style.keyInset, dy: style.keyInset)
+            keyView.lettersElsewhere = fx.drawsLetters
             keyView.shifted = shifted
             if placement.key == .returnKey {
                 keyView.returnKey = returnKey
@@ -173,9 +275,9 @@ public final class KeySurfaceView: UIView {
             addSubview(keyView)
             keyViews[placement.key, default: []].append(keyView)
         }
-        effects.removeFromSuperlayer()
-        effects.frame = bounds
-        layer.addSublayer(effects)
+        effectsLayer.removeFromSuperlayer()
+        effectsLayer.frame = bounds
+        fx.attach(to: layer, effects: effectsLayer)
         invalidateIntrinsicContentSize()
         applyHints()
         rebuildAccessibility()
@@ -250,13 +352,14 @@ public final class KeySurfaceView: UIView {
 
     private func applyHints() {
         for (key, views) in keyViews {
-            views.forEach { $0.hint(side: hints[key]) }
+            views.forEach { $0.hint(color: hints[key].map { style.thumb($0) }) }
         }
     }
 
     // MARK: Touches
 
     public override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+        typeHeldSpace()
         for touch in touches {
             let point = touch.location(in: self)
             guard let key = layout.key(at: point), key != .returnKey || returnEnabled else {
@@ -269,6 +372,7 @@ public final class KeySurfaceView: UIView {
             if key.character == nil { onOtherTouch?("b", id, point, touch.timestamp, key) }
             let oid = ObjectIdentifier(touch)
             var touchState = Active(id: id, key: key, startKey: key, startPoint: point, side: side, isLetter: key.character != nil, points: [point], trail: nil)
+            if key == .space { touchState.slide = SpaceSlide(at: point, time: touch.timestamp) }
             flash(key, side: side)
             switch key {
             case .backspace:
@@ -329,19 +433,17 @@ public final class KeySurfaceView: UIView {
                     touchState.key = now
                 }
                 touchState.points.append(point)
-                if showsTrails { drawTrail(&touchState) }
+                drawTrail(&touchState)
                 active[oid] = touchState
                 delegate?.keySurface(self, touchMoved: touchState.id, to: point, time: touch.timestamp)
                 continue
             }
             switch touchState.startKey {
             case .space:
-                let steps = spaceSlideEnabled ? Int((point.x - touchState.startPoint.x) / Self.cursorStep) : 0
-                if steps != touchState.slideSteps {
-                    touchState.gestured = true
-                    delegate?.keySurface(self, didSlideSpace: steps - touchState.slideSteps)
-                    touchState.slideSteps = steps
-                }
+                guard spaceSlideEnabled, !touchState.gestured || touchState.slide?.isSliding == true,
+                      let steps = touchState.slide?.move(to: point, time: touch.timestamp) else { break }
+                if touchState.slide?.isSliding == true { touchState.gestured = true }
+                if steps != 0 { delegate?.keySurface(self, didSlideSpace: steps) }
             case .backspace:
                 if backspaceSwipeEnabled, !touchState.gestured, touchState.startPoint.x - point.x >= Self.wordSwipe {
                     touchState.gestured = true
@@ -374,6 +476,17 @@ public final class KeySurfaceView: UIView {
         }
     }
 
+    /// Another finger landed while one rests on space: the space goes in now, before
+    /// the new key, as on Apple's keyboard. Typed on lift, a letter tapped by the other
+    /// thumb while space was still down went onto the end of the word before.
+    private func typeHeldSpace() {
+        for (oid, state) in active where state.startKey == .space && state.key == .space && !state.gestured {
+            active[oid]?.gestured = true
+            delegate?.keySurface(self, didTap: .space, side: state.side)
+            countForFlow(tapped: .space, at: state.startPoint, side: state.side)
+        }
+    }
+
     public override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
         for touch in touches {
             guard let touchState = active.removeValue(forKey: ObjectIdentifier(touch)) else { continue }
@@ -402,9 +515,10 @@ public final class KeySurfaceView: UIView {
             let point = touchState.isLetter && UIAccessibility.isVoiceOverRunning ? touchState.startPoint : touch.location(in: self)
             if let key = touchState.key { unflash(key) }
             if touchState.isLetter {
-                if showsTrails { finish(touchState, at: point) }
+                finish(touchState, at: point)
                 delegate?.keySurface(self, touchEnded: touchState.id, at: point, time: touch.timestamp)
             } else if !touchState.gestured, let key = touchState.key {
+                countForFlow(tapped: key, at: point, side: touchState.side)
                 delegate?.keySurface(self, didTap: key, side: touchState.side)
             }
             if touchState.slidFromNumbers {
@@ -422,7 +536,7 @@ public final class KeySurfaceView: UIView {
             }
             touchState.callout?.removeFromSuperview()
             if let key = touchState.key { unflash(key) }
-            touchState.trail?.removeFromSuperlayer()
+            touchState.trail.map { fx.cancelTrail($0) }
             if touchState.isLetter {
                 delegate?.keySurface(self, touchCancelled: touchState.id, time: touch.timestamp)
             }
@@ -453,7 +567,7 @@ public final class KeySurfaceView: UIView {
         addSubview(callout)
         state.callout = callout
         state.gestured = true
-        state.trail?.removeFromSuperlayer()
+        state.trail.map { fx.cancelTrail($0) }
         state.trail = nil
         active[oid] = state
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
@@ -477,7 +591,7 @@ public final class KeySurfaceView: UIView {
             return
         }
         let rest = steps.dropFirst()
-        let color = Theme.ui(step.side == .left ? .left : .right)
+        let color = style.thumb(step.side)
         let reduceMotion = UIAccessibility.isReduceMotionEnabled
         for point in step.points {
             if let key = layout.key(at: point) { flash(key, side: step.side) }
@@ -502,7 +616,7 @@ public final class KeySurfaceView: UIView {
             layer.lineWidth = 9
             layer.opacity = 0.85
         }
-        effects.addSublayer(layer)
+        effectsLayer.addSublayer(layer)
         CATransaction.begin()
         CATransaction.setCompletionBlock { [weak self] in
             // Core Animation calls back on the main thread.
@@ -551,97 +665,64 @@ public final class KeySurfaceView: UIView {
         // A middle letter on a split keyboard is on both halves: light the thumb's own.
         let views = keyViews[key] ?? []
         let mine = views.count > 1 ? views.filter { layout.side(at: CGPoint(x: $0.frame.midX, y: 0)) == side } : views
-        (mine.isEmpty ? views : mine).forEach { showsFlashes ? $0.flash(side: side) : $0.press() }
+        let color: UIColor?
+        switch effects?.flash {
+        case .thumb: color = style.thumb(side)
+        case .theme: color = style.accent
+        case .off, nil: color = nil
+        }
+        for view in mine.isEmpty ? views : mine {
+            if let color { view.flash(color: color) } else { view.press() }
+            if key.character != nil { fx.letterHit(key, at: CGPoint(x: view.frame.midX, y: view.frame.midY)) }
+        }
+        fx.keysChanged()
     }
 
     private func unflash(_ key: Key) {
         keyViews[key]?.forEach { $0.unflash() }
+        fx.keysChanged()
     }
 
-    // MARK: Trails and rings
+    // MARK: Flow
+
+    /// A tap on a key that isn't a letter: space or return after letters is a word, a
+    /// delete takes some flow back.
+    private func countForFlow(tapped key: Key, at point: CGPoint, side: Side) {
+        switch key {
+        case .space, .returnKey:
+            if lettersSinceWord > 0 { fx.word(at: point, side: side) }
+            lettersSinceWord = 0
+        case .backspace:
+            fx.delete()
+        default:
+            break
+        }
+    }
+
+    // MARK: Trails and taps
 
     private func drawTrail(_ touchState: inout Active) {
-        let path = UIBezierPath()
-        path.move(to: touchState.points[0])
-        for point in touchState.points.dropFirst() { path.addLine(to: point) }
         if touchState.trail == nil {
-            let trail = CAShapeLayer()
-            trail.fillColor = nil
-            trail.strokeColor = Theme.ui(touchState.side == .left ? .left : .right).cgColor
-            trail.lineWidth = 9
-            trail.lineCap = .round
-            trail.lineJoin = .round
-            trail.opacity = 0.85
-            effects.addSublayer(trail)
+            // A tap that wobbles a little is still a tap.
+            guard let last = touchState.points.last,
+                  hypot(last.x - touchState.startPoint.x, last.y - touchState.startPoint.y) > 10 else { return }
+            guard let trail = fx.beginTrail(side: touchState.side, at: touchState.points[0]) else { return }
             touchState.trail = trail
         }
-        touchState.trail?.path = path.cgPath
+        if let trail = touchState.trail { fx.moveTrail(trail, points: touchState.points) }
     }
 
-    /// After lift: the trail fades, or a tap's ring pings out. Under Reduce Motion the
-    /// trail stays for the same time and then just goes (it says which keys the swipe
-    /// hit), and the ring shows still, no growing.
+    /// After lift: a swipe's trail fades and counts as a word for flow; a tap draws its
+    /// tap effect.
     private func finish(_ touchState: Active, at point: CGPoint) {
-        if UIAccessibility.isReduceMotionEnabled {
-            let layer: CALayer
-            let seconds: TimeInterval
-            if let trail = touchState.trail {
-                layer = trail
-                seconds = Theme.Motion.trailFade
-            } else {
-                layer = makeRing(at: point, side: touchState.side)
-                layer.transform = CATransform3DMakeScale(1.2, 1.2, 1)
-                effects.addSublayer(layer)
-                seconds = Theme.Motion.tapRing
-            }
-            Task { @MainActor in
-                try? await Task.sleep(for: .seconds(seconds))
-                layer.removeFromSuperlayer()
-            }
-            return
-        }
         if let trail = touchState.trail {
-            let fade = CABasicAnimation(keyPath: "opacity")
-            fade.fromValue = 0.85
-            fade.toValue = 0
-            fade.duration = Theme.Motion.trailFade
-            fade.fillMode = .forwards
-            fade.isRemovedOnCompletion = false
-            CATransaction.begin()
-            CATransaction.setCompletionBlock { trail.removeFromSuperlayer() }
-            trail.add(fade, forKey: "fade")
-            CATransaction.commit()
+            fx.endTrail(trail)
+            fx.word(at: point, side: touchState.side)
+            lettersSinceWord = 0
         } else {
-            let ring = makeRing(at: point, side: touchState.side)
-            effects.addSublayer(ring)
-            let grow = CABasicAnimation(keyPath: "transform.scale")
-            grow.fromValue = 0.5
-            grow.toValue = 1.6
-            let fade = CABasicAnimation(keyPath: "opacity")
-            fade.fromValue = 0.9
-            fade.toValue = 0
-            let group = CAAnimationGroup()
-            group.animations = [grow, fade]
-            group.duration = Theme.Motion.tapRing
-            group.fillMode = .forwards
-            group.isRemovedOnCompletion = false
-            CATransaction.begin()
-            CATransaction.setCompletionBlock { ring.removeFromSuperlayer() }
-            ring.add(group, forKey: "ping")
-            CATransaction.commit()
+            fx.tap(at: point, side: touchState.side)
+            lettersSinceWord += 1
         }
-    }
-
-    private func makeRing(at point: CGPoint, side: Side) -> CAShapeLayer {
-        let ring = CAShapeLayer()
-        let radius: CGFloat = 14
-        ring.bounds = CGRect(x: 0, y: 0, width: 2 * radius, height: 2 * radius)
-        ring.position = point
-        ring.path = UIBezierPath(ovalIn: ring.bounds).cgPath
-        ring.fillColor = nil
-        ring.strokeColor = Theme.ui(side == .left ? .left : .right).cgColor
-        ring.lineWidth = 2
-        return ring
     }
 }
 
@@ -721,8 +802,9 @@ final class KeyElement: UIAccessibilityElement {
     }
 }
 
-/// One key: a rounded face with a letter, a symbol or an SF Symbol, drawn like Apple's
-/// keyboard (its colours, type and glyphs) so it feels native next to it.
+/// One key: a rounded face with a letter, a symbol or an SF Symbol, drawn from the
+/// keyboard's theme (`KeyStyle`, features/customization). Classic is Apple's keyboard's
+/// colours, type and glyphs, so it feels native next to it.
 final class KeyView: UIView {
     let key: Key
     let label = UILabel()
@@ -751,32 +833,39 @@ final class KeyView: UIView {
             icon.tintColor = iconColor
         }
     }
+    /// The theme the key is drawn in.
+    var style = KeyStyle.classic {
+        didSet { if style != oldValue { restyle() } }
+    }
+    /// The letter is drawn by the Metal letters layer, so the label hides.
+    var lettersElsewhere = false {
+        didSet { if lettersElsewhere != oldValue { refreshLabelVisibility() } }
+    }
+    /// Lit in a thumb's or the theme's colour now.
+    private(set) var isLit = false
+    /// The letter's colour now, for the Metal letters.
+    var currentInk: UIColor { label.textColor ?? inkColor }
 
     private let spaceLabel: String
+    private var glow: UIColor?
 
-    init(key: Key, spaceLabel: String) {
+    init(key: Key, spaceLabel: String, style: KeyStyle = .classic) {
         self.key = key
         self.spaceLabel = spaceLabel
+        self.style = style
         super.init(frame: .zero)
         isUserInteractionEnabled = false
-        layer.cornerRadius = Theme.Radius.key
         layer.cornerCurve = .continuous
         layer.shadowColor = UIColor.black.cgColor
-        layer.shadowOpacity = 0.2
-        layer.shadowOffset = CGSize(width: 0, height: 1)
-        layer.shadowRadius = 0
-        backgroundColor = restColor
         label.textAlignment = .center
-        label.textColor = inkColor
-        label.font = UIFont.systemFont(ofSize: fontSize, weight: .regular)
         label.adjustsFontSizeToFitWidth = true
         label.minimumScaleFactor = 0.6
         label.text = text
         addSubview(label)
         icon.contentMode = .center
-        icon.tintColor = iconColor
         icon.image = symbol
         addSubview(icon)
+        restyle()
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
@@ -785,15 +874,84 @@ final class KeyView: UIView {
         super.layoutSubviews()
         label.frame = bounds.insetBy(dx: 2, dy: 0)
         icon.frame = bounds
+        if layer.shadowOpacity > 0 {
+            layer.shadowPath = UIBezierPath(roundedRect: bounds, cornerRadius: layer.cornerRadius).cgPath
+        }
+    }
+
+    private func restyle() {
+        let shape = style.shape
+        layer.cornerRadius = CGFloat(shape.corner)
+        layer.borderWidth = CGFloat(shape.borderWidth)
+        layer.borderColor = shape.borderWidth > 0 ? style.colors.border.uiColor.cgColor : nil
+        applyShadow()
+        backgroundColor = restColor
+        label.textColor = inkColor
+        label.font = style.shape.font.uiFont(size: fontSize, weight: .regular)
+        icon.tintColor = iconColor
+        refreshLabelVisibility()
+        setNeedsLayout()
+    }
+
+    private func applyShadow() {
+        if let glow {
+            layer.shadowColor = glow.cgColor
+            layer.shadowOpacity = 0.9
+            layer.shadowOffset = .zero
+            layer.shadowRadius = 6
+            return
+        }
+        layer.shadowColor = UIColor.black.cgColor
+        switch style.shape.shadow {
+        case .none:
+            layer.shadowOpacity = 0
+        case .soft:
+            layer.shadowOpacity = 0.2
+            layer.shadowOffset = CGSize(width: 0, height: 1)
+            layer.shadowRadius = 0
+        case .raised:
+            layer.shadowOpacity = 0.3
+            layer.shadowOffset = CGSize(width: 0, height: 2.5)
+            layer.shadowRadius = 1.5
+        }
+        layer.shadowPath = layer.shadowOpacity > 0 ? UIBezierPath(roundedRect: bounds, cornerRadius: layer.cornerRadius).cgPath : nil
+    }
+
+    /// A glow around the key in a colour (flow at Blizzard), or none.
+    func setGlow(_ color: UIColor?) {
+        guard color != glow else { return }
+        glow = color
+        applyShadow()
+    }
+
+    private func refreshLabelVisibility() {
+        var isLetter = false
+        if case .letter = key { isLetter = true }
+        label.isHidden = isLetter && (lettersElsewhere || !style.shape.showsLetters)
     }
 
     private var isAction: Bool { key == .returnKey && returnKey.isAction }
-    private var restColor: UIColor { Theme.ui(isAction ? .returnAction : key.isFunction ? .keyDark : .key) }
-    private var inkColor: UIColor {
-        guard enabled else { return isAction ? UIColor.white.withAlphaComponent(0.5) : Theme.ui(.muted) }
-        return isAction ? .white : Theme.ui(key == .space ? .muted : .keyInk)
+    private var restColor: UIColor {
+        if isAction { return Theme.ui(.returnAction) }
+        let color = key.isFunction ? style.colors.functionKey : style.colors.key
+        return color.uiColor.withAlphaComponent(CGFloat(color.alpha * style.shape.opacity))
     }
-    private var iconColor: UIColor { enabled ? Theme.ui(.keyInk) : Theme.ui(.muted) }
+    private var pressedColor: UIColor {
+        if style.isClassic { return Theme.ui(.keyPressed) }
+        let base = key.isFunction ? style.colors.functionKey : style.colors.key
+        return Self.mix(base.uiColor, style.colors.letters.uiColor, 0.25)
+    }
+    private var inkColor: UIColor {
+        let letters = style.colors.letters.uiColor
+        guard enabled else { return isAction ? UIColor.white.withAlphaComponent(0.5) : letters.withAlphaComponent(0.4) }
+        if isAction { return .white }
+        if key == .space { return style.isClassic ? Theme.ui(.muted) : letters.withAlphaComponent(0.6) }
+        return style.isClassic ? Theme.ui(.keyInk) : letters
+    }
+    private var iconColor: UIColor {
+        let letters = style.isClassic ? Theme.ui(.keyInk) : style.colors.letters.uiColor
+        return enabled ? letters : letters.withAlphaComponent(0.4)
+    }
 
     private var fontSize: CGFloat {
         switch key {
@@ -831,9 +989,10 @@ final class KeyView: UIView {
         }
     }
 
-    /// The thumb's colour and a 6% pop; no pop under Reduce Motion.
-    func flash(side: Side) {
-        backgroundColor = Theme.ui(side == .left ? .left : .right)
+    /// Lit in `color` with a 6% pop; no pop under Reduce Motion.
+    func flash(color: UIColor) {
+        isLit = true
+        backgroundColor = color
         label.textColor = .white
         icon.tintColor = .white
         guard !UIAccessibility.isReduceMotionEnabled else { return }
@@ -844,10 +1003,11 @@ final class KeyView: UIView {
 
     /// The quiet press, with flashes off: the key darkens a shade.
     func press() {
-        backgroundColor = Theme.ui(.keyPressed)
+        backgroundColor = pressedColor
     }
 
     func unflash() {
+        isLit = false
         UIView.animate(withDuration: 0.25) {
             self.backgroundColor = self.restColor
             self.label.textColor = self.inkColor
@@ -856,15 +1016,34 @@ final class KeyView: UIView {
         }
     }
 
+    /// The letter bounces up and back (the Pop letter effect).
+    func pop(scale: CGFloat) {
+        let bounce = CAKeyframeAnimation(keyPath: "transform.scale")
+        bounce.values = [1, scale, 0.94, 1]
+        bounce.keyTimes = [0, 0.3, 0.7, 1]
+        bounce.duration = 0.35
+        bounce.timingFunctions = [CAMediaTimingFunction(name: .easeOut), CAMediaTimingFunction(name: .easeInEaseOut),
+                                  CAMediaTimingFunction(name: .easeOut)]
+        label.layer.add(bounce, forKey: "pop")
+    }
+
     /// Outline the key in a thumb's colour, or clear it.
-    func hint(side: Side?) {
-        guard let side else {
-            layer.borderWidth = 0
-            layer.borderColor = nil
+    func hint(color: UIColor?) {
+        guard let color else {
+            layer.borderWidth = CGFloat(style.shape.borderWidth)
+            layer.borderColor = style.shape.borderWidth > 0 ? style.colors.border.uiColor.cgColor : nil
             return
         }
         layer.borderWidth = 3
-        layer.borderColor = Theme.ui(side == .left ? .left : .right).cgColor
+        layer.borderColor = color.cgColor
+    }
+
+    private static func mix(_ a: UIColor, _ b: UIColor, _ t: CGFloat) -> UIColor {
+        var ar: CGFloat = 0, ag: CGFloat = 0, ab: CGFloat = 0, aa: CGFloat = 0
+        var br: CGFloat = 0, bg: CGFloat = 0, bb: CGFloat = 0, ba: CGFloat = 0
+        a.getRed(&ar, green: &ag, blue: &ab, alpha: &aa)
+        b.getRed(&br, green: &bg, blue: &bb, alpha: &ba)
+        return UIColor(red: ar + (br - ar) * t, green: ag + (bg - ag) * t, blue: ab + (bb - ab) * t, alpha: 1)
     }
 }
 #endif

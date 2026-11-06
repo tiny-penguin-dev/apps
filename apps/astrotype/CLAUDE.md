@@ -20,7 +20,7 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
     real services are named; `LiveMetrics` on `Telemetry`), `Onboarding/`
     (`TurnOnView`, `LanguagesSetupView` (only on a phone set to two languages), `SyncView`, `TryItView`, and `SetupPage`, their shared shape),
     `HelloView`, `HomeView`, `Settings/` (`SettingsView`, the main page with its
-    `SettingsPage`s, and `SettingsPages`, one view per page; `DebugSettings`, the Debug page:
+    `SettingsPage`s, and `SettingsPages`, one view per page; `StyleSettings`, Appearance's hub and its General, Styling, theme editor and Effects pages with the live `StylePreview` (features/customization); `DebugSettings`, the Debug page:
     the keyboard's memory against 40 MB from `KeyboardDebug`, the switch for the
     stats overlay on the keys, and in TestFlight builds the typing recorder: "Keep
     recording", send the last 1/5/30 minutes or from a mark, share as a file, delete
@@ -53,7 +53,7 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
     writes the StoreKit, memory and size readings into the bar's idle note while
     `Flags.extensionReadout` is on.
   - `AstrotypeKit/`: the local package, three targets:
-    - `AstrotypeCore`: Core and Services. `Layout` (key geometry, with the field's
+    - `AstrotypeCore`: Core and Services. `SpaceSlide` (a finger on space: a tap, or a cursor slide after a short hold and a real move), `Layout` (key geometry, with the field's
       `BottomRow`), `Field` (what the app says about the field and what the keyboard
       makes of it: bottom row, return key, exact taps, spacing, capitals, learning), `Language` (one
       language's files from `Resources/<code>/`: `Lexicon`, the trie from
@@ -118,8 +118,10 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
       keyboard's views: `KeyboardView` (bar plus keys, the pages, the settings panel,
       the `StatsOverlayView` memory line in the keys' top corner while
       `KeyboardSettings.showsStats` is on; owns a `KeyboardModel`), `BarView` (left key, centred words, the pencil and its fix row), `KeySurfaceView` (touch stream, flashes,
-      trails, rings, and the gestures: space slide, backspace swipe and hold, "123"
-      hold, the slide from "123" to a number or symbol, and a held letter's accents, `AccentCallout`), `SettingsPanelView`,
+      trails, rings, and the gestures: space slide (and a held space typed as soon as another finger lands), backspace swipe and hold, "123"
+      hold, the slide from "123" to a number or symbol, and a held letter's accents, `AccentCallout`; keys drawn from a `KeyStyle`),
+      `KeyEffects` (taps, trails, letter effects and flow with Core Animation), `MetalKeyboard` (the Aurora sky and the
+      Metal letters, shaders compiled from source at first use), `FlowHUDView` (flow's meter, combo and level pop), `SettingsPanelView`,
       `EmojiPageView` (the emoji page and its `TonePicker`), `EmojiSearchView` (the search
       field `SearchField` and the results row; while it is open `KeyboardModel` types into a
       `SearchTarget` with `Field.emojiSearch`), `KeyboardModel` (applies the composer's effects to a
@@ -169,7 +171,9 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
   `field-types` (the keyboard following email, web, search and number fields),
   `next-word` (the likely next words on the bar after each word, with the FIX chip),
   `guesses-bar` (the bar in three parts: globe key left, words centred, pencil right with the
-  fix row behind it; built 3 Nov 2026).
+  fix row behind it; built 3 Nov 2026),
+  `customization` (Appearance split into General, Styling and Effects: themes, your own
+  theme, tap and swipe effects and flow levels; in design).
 - `design/`: the mockup (`mockups/astrotype.html`, the keyboard in it works), the
   screen captures the design doc links, the icon's SVGs (`icon/`) and
   `appstore/make-screenshots.mjs`, which renders the store screenshots from the mockup

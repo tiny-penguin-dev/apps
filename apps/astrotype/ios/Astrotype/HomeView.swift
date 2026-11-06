@@ -12,6 +12,8 @@ struct HomeView: View {
 
     enum Route: Hashable {
         case practice, practiceWords, settings, learnedWords, missedWords, sharing, turnOn, sync, pro
+        /// A page under Settings → Appearance (features/customization).
+        case appearance(AppearancePage)
         case speedTest(PracticeKeyboard, UInt64?)
         case drill(Drill.ID)
     }
@@ -56,6 +58,7 @@ struct HomeView: View {
                 case .turnOn: TurnOnView(model: model, inSetup: false)
                 case .sync: SyncView(model: model, inSetup: false)
                 case .pro: ProView(model: model)
+                case .appearance(let page): AppearancePageView(page: page, model: model, path: $path)
                 case .speedTest(let keyboard, let seed): SpeedTestView(model: model, keyboard: keyboard, seed: seed, path: $path)
                 case .drill(let id): DrillView(model: model, drill: Drill.named(id), path: $path)
                 }

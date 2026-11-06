@@ -31,6 +31,14 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
     /// A small red dot in the keys' top left corner while the typing recorder is on
     /// (Settings → Debug → "Keep recording"), so it is never on unnoticed.
     public let recordingDot = UIView()
+    /// Flow's meter, combo count and level pop, over the bar and the keys
+    /// (features/customization).
+    public let flowHUD = FlowHUDView()
+    /// The host draws the keyboard's backdrop (the extension: the system's glass). With
+    /// Classic the view stays clear; another theme paints its own background over it.
+    public var usesSystemBackdrop = false {
+        didSet { if usesSystemBackdrop != oldValue { applyBackdrop() } }
+    }
     /// Keys the engine leaves to the host: the globe.
     public var onSystemKey: ((Key) -> Void)?
     /// Whether the keyboard has our globe key: the extension sets it from
@@ -103,9 +111,14 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         recordingDot.isHidden = true
         recordingDot.accessibilityLabel = "Recording typing"
         addSubview(recordingDot)
+        addSubview(flowHUD)
         surface.delegate = self
+        surface.onFlow = { [weak self] state in self?.flowChanged(state) }
         surface.onOtherTouch = { [weak model] phase, id, point, time, key in
             model?.otherTouch(phase, id: id, at: point, time: time, key: key)
+        }
+        registerForTraitChanges([UITraitUserInterfaceStyle.self]) { (self: KeyboardView, _: UITraitCollection) in
+            self.applyBackdrop()
         }
         // Held keys offer the accents of the languages being typed (features/languages).
         surface.alternates = { [weak model] key in Accents.alternates(for: key, languages: model?.activeLanguages ?? []) }
@@ -243,6 +256,12 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
             recordingDot.frame = CGRect(x: surface.frame.minX + 3, y: surface.frame.minY + 2, width: 6, height: 6)
             bringSubviewToFront(recordingDot)
         }
+        // Flow sits over the bar's room and the keys.
+        let hudTop = max(0, surface.frame.minY - Self.barHeight)
+        flowHUD.frame = CGRect(x: 0, y: hudTop, width: width, height: surface.frame.maxY - hudTop)
+        flowHUD.keysTop = surface.frame.minY - hudTop
+        flowHUD.isHidden = surface.isHidden || panel != nil || searchView != nil
+        bringSubviewToFront(flowHUD)
         if let panel {
             // Over the keys and the guesses bar both: the bar has nothing to say while
             // the settings are open (Gabriel, 3 Nov 2026). The keys hide too: the panel
@@ -303,8 +322,11 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         }
         if let searchView { showSearchResults(in: searchView) }
         surface.shifted = model.state.isShifted
-        surface.showsTrails = model.keyboardSettings.trails
-        surface.showsFlashes = model.keyboardSettings.trails
+        // Themes and effects are Pro, except Classic and Calm (features/customization).
+        surface.theme = model.keyboardSettings.style(allows: model.entitlement.allows(.styles))
+        surface.keyAppearance = model.keyboardSettings.keyAppearance
+        surface.effects = model.keyboardSettings.activeEffects(allows: model.entitlement.allows(.effects))
+        applyBackdrop()
         surface.spaceSlideEnabled = model.keyboardSettings.spaceSlide
         surface.backspaceSwipeEnabled = model.keyboardSettings.backspaceSwipe
         if recordingDot.isHidden != (model.recorder == nil || emojiPage != nil || panel != nil) { setNeedsLayout() }
@@ -316,10 +338,39 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         panel?.allowsSplit = model.entitlement.allows(.splitLayout)
         panel?.showsSplit = model.layout.isWide
         panel?.allowsTwoLanguages = model.entitlement.allows(.twoLanguages)
+        panel?.allowsStyles = model.entitlement.allows(.styles)
         if model.layout.split != (model.splitOnWide && model.layout.isWide)
             || model.layout.extraLetters != (model.layout.split && extraLetters) || barPlace(for: model.layout) != place
             || model.layout.bottomRow != model.field.bottomRow
             || height != asked { setNeedsLayout() }
+    }
+
+    // MARK: Look and flow
+
+    /// The background for the theme: Classic keeps the host's (the system's glass in the
+    /// extension, `kb` in the app); other themes paint theirs, and the bar's text
+    /// follows how dark it is.
+    private func applyBackdrop() {
+        let style = KeyStyle(theme: surface.theme, appearance: surface.keyAppearance, traits: traitCollection)
+        // The view paints the background; the keys' surface stays see-through (the
+        // extension's host keeps it barely there, so touches between keys still land).
+        if !usesSystemBackdrop { surface.backgroundColor = .clear }
+        if style.isClassic {
+            backgroundColor = usesSystemBackdrop ? .clear : Theme.ui(.kb)
+            bar.overrideUserInterfaceStyle = .unspecified
+            globeKey.overrideUserInterfaceStyle = .unspecified
+        } else {
+            backgroundColor = style.colors.background.uiColor
+            bar.overrideUserInterfaceStyle = style.interfaceStyle
+            globeKey.overrideUserInterfaceStyle = style.interfaceStyle
+        }
+        flowHUD.style = style
+    }
+
+    private func flowChanged(_ state: FlowState) {
+        flowHUD.style = surface.style
+        flowHUD.state = state
+        if state.leveledUp, hapticsAvailable, model.keyboardSettings.haptics { commitHaptic.impactOccurred(intensity: 0.8) }
     }
 
     private func play(_ haptic: Composer.Haptic) {
@@ -340,6 +391,7 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         panel.allowsSplit = model.entitlement.allows(.splitLayout)
         panel.showsSplit = model.layout.isWide
         panel.allowsTwoLanguages = model.entitlement.allows(.twoLanguages)
+        panel.allowsStyles = model.entitlement.allows(.styles)
         panel.preferredLanguages = model.preferredLanguages
         panel.onChange = { [weak self] settings in self?.model.keyboardSettings = settings }
         panel.onDone = { [weak self] in self?.hideSettings() }
@@ -470,7 +522,10 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
     public override func didMoveToWindow() {
         super.didMoveToWindow()
         // The keyboard went away mid-search: it comes back typing into the app.
-        if window == nil { endEmojiSearch(toEmojiPage: false) }
+        if window == nil {
+            endEmojiSearch(toEmojiPage: false)
+            surface.resetFlow()
+        }
     }
 
     // MARK: KeySurfaceDelegate

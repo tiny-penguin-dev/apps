@@ -18,7 +18,8 @@ public struct KeyboardSettings: Codable, Sendable, Equatable {
     public var autospace = true
     /// How long that pause is, 0.1 to 1.5 s.
     public var autospaceDelay: TimeInterval = 0.9
-    /// Draw swipe trails, tap rings and key flashes. Off is the battery saver.
+    /// Effects on: key flashes, taps and trails, as `effects` says (features/customization;
+    /// the setting was "Trails and flashes"). Off is the battery saver.
     public var trails = true
     /// A soft tap on each key and a firmer one on each word, where the host allows it
     /// (the extension needs Full Access for haptics).
@@ -82,6 +83,57 @@ public struct KeyboardSettings: Codable, Sendable, Equatable {
     /// only offered in TestFlight builds, and needs Full Access.
     public var recordsTyping = false
 
+    /// The chosen theme's id: a built-in one (`KeyboardTheme.builtIn`) or one of
+    /// `customThemes` (features/customization). Classic by default.
+    public var themeID = KeyboardTheme.classic.id
+    /// The themes the person made.
+    public var customThemes: [KeyboardTheme] = []
+    /// Follow the phone's light or dark mode, or keep one.
+    public var keyAppearance = KeyAppearance.system
+    /// Which effects, when `trails` (the Effects switch) is on. Calm by default.
+    public var effects = EffectsSettings.calm
+
+    /// The chosen theme, Classic if it is gone.
+    public var chosenTheme: KeyboardTheme {
+        customThemes.first { $0.id == themeID } ?? KeyboardTheme.named(themeID) ?? .classic
+    }
+
+    /// The theme the keyboard draws: the chosen one, or Classic when it is Pro and Pro
+    /// is off (the choice is kept for when Pro comes back).
+    public func style(allows pro: Bool) -> KeyboardTheme {
+        let theme = chosenTheme
+        return pro || theme.isFree ? theme : .classic
+    }
+
+    /// The effects the keyboard draws: none with the switch off, Calm when the chosen
+    /// ones need Pro and Pro is off.
+    public func activeEffects(allows pro: Bool) -> EffectsSettings? {
+        guard trails else { return nil }
+        return pro || effects.isFree ? effects : .calm
+    }
+
+    /// A new theme of the person's from `base`, chosen and kept; returns its id.
+    @discardableResult
+    public mutating func addTheme(from base: KeyboardTheme, now: Date = Date()) -> String {
+        let id = "custom-\(Int(now.timeIntervalSince1970 * 1000))"
+        let mine = customThemes.count + 1
+        customThemes.append(base.copy(id: id, name: mine == 1 ? "My theme" : "My theme \(mine)"))
+        themeID = id
+        return id
+    }
+
+    /// Delete one of the person's themes; the keyboard goes back to Classic if it was on.
+    public mutating func removeTheme(id: String) {
+        customThemes.removeAll { $0.id == id }
+        if themeID == id { themeID = KeyboardTheme.classic.id }
+    }
+
+    /// Change one of the person's themes in place.
+    public mutating func updateTheme(_ theme: KeyboardTheme) {
+        guard let i = customThemes.firstIndex(where: { $0.id == theme.id }) else { return }
+        customThemes[i] = theme
+    }
+
     /// `keyboardHeight` kept in its range, for `Layout.qwerty(scale:)`.
     public var heightScale: CGFloat {
         CGFloat(min(max(keyboardHeight, Self.heightRange.lowerBound), Self.heightRange.upperBound))
@@ -114,6 +166,10 @@ public struct KeyboardSettings: Codable, Sendable, Equatable {
         mixesLanguages = try c.decodeIfPresent(Bool.self, forKey: .mixesLanguages) ?? false
         showsStats = try c.decodeIfPresent(Bool.self, forKey: .showsStats) ?? false
         recordsTyping = try c.decodeIfPresent(Bool.self, forKey: .recordsTyping) ?? false
+        themeID = try c.decodeIfPresent(String.self, forKey: .themeID) ?? KeyboardTheme.classic.id
+        customThemes = (try? c.decodeIfPresent([KeyboardTheme].self, forKey: .customThemes)) ?? []
+        keyAppearance = (try? c.decodeIfPresent(KeyAppearance.self, forKey: .keyAppearance)) ?? .system
+        effects = (try? c.decodeIfPresent(EffectsSettings.self, forKey: .effects)) ?? .calm
     }
 
     /// The bundled languages among the phone's preferred ones (`Locale.preferredLanguages`,

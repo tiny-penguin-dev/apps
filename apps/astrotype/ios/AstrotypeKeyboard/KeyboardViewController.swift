@@ -79,7 +79,7 @@ final class KeyboardViewController: UIInputViewController {
         model.onSettingsChange = { [weak self] _ in self?.updateRecorder() }
 
         let keyboard = KeyboardView(model: model)
-        keyboard.backgroundColor = .clear
+        keyboard.usesSystemBackdrop = true
         keyboard.bar.backgroundColor = .clear
         // Not `.clear`: the extension drops touches on clear pixels, and taps in the
         // gaps between keys did nothing (Gabriel, 2 Nov 2026). `Layout.key(at:)` gives
@@ -478,6 +478,9 @@ final class ProxyTarget: TextTarget {
     private var open = ""
     /// Whether `open` went in as marked text.
     private var openIsMarked = false
+    /// The field `open` was typed in (`documentIdentifier`): another field means the
+    /// person moved on, and the word stays behind.
+    private var openDocument: UUID?
     /// Set once the selection is deleted, until the run loop turns: the proxy can still
     /// report the old selection right after, and a second delete would take a letter.
     private var clearedSelection = false
@@ -505,6 +508,7 @@ final class ProxyTarget: TextTarget {
         guard text != open else { return }
         if open.isEmpty {
             openIsMarked = underlines()
+            openDocument = proxy.documentIdentifier
             if !text.isEmpty { deleteSelection() }
         }
         if openIsMarked {
@@ -531,6 +535,25 @@ final class ProxyTarget: TextTarget {
     }
 
     func moveCursor(by offset: Int) { proxy.adjustTextPosition(byCharacterOffset: offset) }
+
+    /// The open word is lost when the field changed under it (submit, or a tap on
+    /// another field) or text is selected: the next key is meant for the selection, not
+    /// for the word. Our own selection delete is ignored while the proxy catches up.
+    var lostOpenWord: Bool {
+        guard !open.isEmpty else { return false }
+        if proxy.documentIdentifier != openDocument { return true }
+        guard !clearedSelection, let selected = proxy.selectedText else { return false }
+        return !selected.isEmpty
+    }
+
+    func dropOpenWord() {
+        // Still marked in this field: leave it as ordinary text. In another field there
+        // is nothing of ours to unmark.
+        if openIsMarked, !open.isEmpty, proxy.documentIdentifier == openDocument { proxy.unmarkText() }
+        open = ""
+        openIsMarked = false
+        openDocument = nil
+    }
 
     /// Deletes the selected text, if any, so what is typed next takes its place.
     private func deleteSelection() {

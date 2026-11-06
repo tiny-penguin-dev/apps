@@ -18,10 +18,17 @@ public protocol TextTarget: AnyObject {
     func moveCursor(by offset: Int)
     /// Whether the field has any text (for a return key that waits for some).
     var hasText: Bool { get }
+    /// Whether the open word is no longer where it was typed: the person selected text,
+    /// or the keyboard moved to another field. It is dropped then, not edited.
+    var lostOpenWord: Bool { get }
+    /// Forget the open word without typing it again.
+    func dropOpenWord()
 }
 
 extension TextTarget {
     public var hasText: Bool { !(textBeforeCursor ?? "").isEmpty }
+    public var lostOpenWord: Bool { false }
+    public func dropOpenWord() {}
 }
 
 /// The keyboard's model, one per host (BUILD.md "The engine runs in both processes"):
@@ -328,6 +335,7 @@ public final class KeyboardModel {
     // MARK: Input
 
     public func touchBegan(id: Int, at point: CGPoint, time: TimeInterval) {
+        dropLostWord()
         onTouch?(.began, id, point, time)
         down.insert(id)
         log(TypingEvent(t: time, e: .down, i: id, x: point.x, y: point.y))
@@ -363,17 +371,20 @@ public final class KeyboardModel {
     }
 
     public func press(_ key: Key) {
+        dropLostWord()
         log(TypingEvent(t: now, e: .key, s: TypingEvent.code(of: key)))
         apply(composer.press(key, time: now))
     }
 
     public func press(character: Character) {
+        dropLostWord()
         log(TypingEvent(t: now, e: .character, s: String(character)))
         apply(composer.press(character: character, time: now))
     }
 
     /// A key that types a string (".com").
     public func press(text: String) {
+        dropLostWord()
         log(TypingEvent(t: now, e: .text, s: text))
         apply(composer.press(text: text, time: now))
     }
@@ -511,6 +522,7 @@ public final class KeyboardModel {
 
     /// A swipe left on backspace.
     public func deleteWord() {
+        dropLostWord()
         log(TypingEvent(t: now, e: .deleteWord))
         apply(composer.deleteWord(time: now))
     }
@@ -546,6 +558,7 @@ public final class KeyboardModel {
 
     /// The field changed (the host's `textDidChange`): re-read the context.
     public func contextChanged() {
+        if dropLostWord() { return }
         logContext(.context)
         composer.setContext(before: output?.textBeforeCursor)
         onChange?()
@@ -555,6 +568,7 @@ public final class KeyboardModel {
     public func reset() {
         logContext(.reset)
         autospace?.cancel()
+        output?.dropOpenWord()
         for case .settled(let word) in composer.reset() { learn(from: word) }
         composer.setContext(before: output?.textBeforeCursor)
         onChange?()
@@ -649,6 +663,17 @@ public final class KeyboardModel {
         }
     }
 
+    /// Drops the open word when it is no longer in the field where it was typed, so the
+    /// next key starts afresh: backspace on a selected underlined word deleted one
+    /// letter, and a word left underlined was typed again into the next field (Gabriel,
+    /// 6 Nov 2026).
+    @discardableResult
+    private func dropLostWord() -> Bool {
+        guard output?.lostOpenWord == true else { return false }
+        reset()
+        return true
+    }
+
     // MARK: Effects
 
     private var now: TimeInterval { ProcessInfo.processInfo.systemUptime }
@@ -707,7 +732,7 @@ public final class KeyboardModel {
         let delay = max(0, due - now)
         autospace = Task { [weak self] in
             try? await Task.sleep(for: .seconds(delay))
-            guard !Task.isCancelled, let self else { return }
+            guard !Task.isCancelled, let self, !self.dropLostWord() else { return }
             self.log(TypingEvent(t: self.now, e: .tick))
             self.apply(self.composer.tick(time: self.now))
         }

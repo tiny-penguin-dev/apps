@@ -26,6 +26,9 @@ public protocol TextTarget: AnyObject {
     /// did nothing: the person touched the field (selected text, moved the cursor).
     /// Checked when the host says the field changed.
     var fieldChangedUnderOpenWord: Bool { get }
+    /// Whether the person has text selected in the field: a key is then for the
+    /// selection, never for the word before it.
+    var hasSelection: Bool { get }
     /// What the field reports right now, for the typing recorder (`TypingEvent.fieldState`).
     var fieldState: String? { get }
     /// Forget the open word without typing it again.
@@ -36,6 +39,7 @@ extension TextTarget {
     public var hasText: Bool { !(textBeforeCursor ?? "").isEmpty }
     public var lostOpenWord: Bool { false }
     public var fieldChangedUnderOpenWord: Bool { false }
+    public var hasSelection: Bool { false }
     public var fieldState: String? { nil }
     public func dropOpenWord() {}
 }
@@ -740,8 +744,12 @@ public final class KeyboardModel {
     /// letter, and a word left underlined was typed again into the next field (Gabriel,
     /// 6 Nov 2026).
     @discardableResult
+    ///
+    /// Text selected with no word open drops the last word too: backspace reopened it
+    /// (the text before a whole-text selection is empty) and typed it back into the
+    /// emptied field instead of just deleting the selection (recording, 6 Nov 2026).
     private func dropLostWord() -> Bool {
-        guard output?.lostOpenWord == true else { return false }
+        guard let output, output.lostOpenWord || output.hasSelection else { return false }
         reset()
         return true
     }

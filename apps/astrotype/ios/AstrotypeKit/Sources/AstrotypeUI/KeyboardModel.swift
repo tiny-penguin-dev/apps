@@ -80,6 +80,7 @@ public final class KeyboardModel {
         didSet {
             guard entitlement != oldValue else { return }
             composer.settings.twoThumbs = entitlement.allows(.twoThumbs)
+            log(TypingEvent(t: now, e: .pro, n: entitlement.isPro ? 1 : 0))
             refreshLanguage()
             onChange?()
         }
@@ -94,6 +95,7 @@ public final class KeyboardModel {
             applyPersonalSettings()
             refreshLanguage()
             settingsChanged = Date()
+            log(TypingEvent(t: now, e: .settings, settings: keyboardSettings))
             store?.save(keyboardSettings)
             onChange?()
             onSettingsChange?(keyboardSettings)
@@ -117,7 +119,9 @@ public final class KeyboardModel {
     }
     private var hostField: Field = .text {
         didSet {
-            guard hostField != oldValue, search == nil else { return }
+            guard hostField != oldValue else { return }
+            recordFieldChange(from: oldValue)
+            guard search == nil else { return }
             applyComposerSettings()
             composer.setContext(before: output?.textBeforeCursor)
             onChange?()
@@ -209,6 +213,7 @@ public final class KeyboardModel {
         languageLoad = Task { [weak self] in
             let language = await Task.detached(priority: .userInitiated) { load(codes) }.value
             guard !Task.isCancelled, let self, let language, self.activeLanguages == codes else { return }
+            self.log(TypingEvent(t: self.now, e: .language, s: language.code))
             self.apply(self.composer.setLanguage(language, time: self.now))
             self.onChange?()
         }
@@ -256,6 +261,8 @@ public final class KeyboardModel {
     /// The keyboard is going away: settle the last word (a miss saved just before
     /// is kept now) and write what was learned.
     public func keyboardWillHide() {
+        log(TypingEvent(t: now, e: .hide))
+        defer { recorder?.flush() }
         for case .settled(let word) in composer.keyboardWillHide() { learn(from: word) }
         onChange?()
         savePersonalNow()
@@ -313,7 +320,11 @@ public final class KeyboardModel {
 
     public var layout: Layout {
         get { composer.layout }
-        set { composer.layout = newValue }
+        set {
+            guard newValue != composer.layout else { return }
+            composer.layout = newValue
+            log(TypingEvent(t: now, e: .layout, layout: TypingLayout(newValue)))
+        }
     }
 
     public var settings: Composer.Settings {
@@ -326,43 +337,55 @@ public final class KeyboardModel {
     public func touchBegan(id: Int, at point: CGPoint, time: TimeInterval) {
         dropLostWord()
         onTouch?(.began, id, point, time)
+        down.insert(id)
+        log(TypingEvent(t: time, e: .down, i: id, x: point.x, y: point.y))
         apply(composer.touchDown(id: id, at: point, time: time))
     }
 
     public func touchMoved(id: Int, to point: CGPoint, time: TimeInterval) {
         onTouch?(.moved, id, point, time)
+        log(TypingEvent(t: time, e: .move, i: id, x: point.x, y: point.y))
         apply(composer.touchMoved(id: id, to: point, time: time))
     }
 
     public func touchEnded(id: Int, at point: CGPoint, time: TimeInterval) {
         onTouch?(.ended, id, point, time)
+        down.remove(id)
+        log(TypingEvent(t: time, e: .up, i: id, x: point.x, y: point.y))
         apply(composer.touchUp(id: id, at: point, time: time))
     }
 
     /// A held key's callout gave another letter for the touch `id` ("ñ" from n).
     public func pick(_ letter: Character, touch id: Int, time: TimeInterval) {
         onTouch?(.cancelled, id, .zero, time)
+        down.remove(id)
+        log(TypingEvent(t: time, e: .pick, i: id, s: String(letter)))
         apply(composer.pick(letter, touch: id, time: time))
     }
 
     public func touchCancelled(id: Int, time: TimeInterval) {
         onTouch?(.cancelled, id, .zero, time)
+        down.remove(id)
+        log(TypingEvent(t: time, e: .cancel, i: id))
         apply(composer.touchCancelled(id: id, time: time))
     }
 
     public func press(_ key: Key) {
         dropLostWord()
+        log(TypingEvent(t: now, e: .key, s: TypingEvent.code(of: key)))
         apply(composer.press(key, time: now))
     }
 
     public func press(character: Character) {
         dropLostWord()
+        log(TypingEvent(t: now, e: .character, s: String(character)))
         apply(composer.press(character: character, time: now))
     }
 
     /// A key that types a string (".com").
     public func press(text: String) {
         dropLostWord()
+        log(TypingEvent(t: now, e: .text, s: text))
         apply(composer.press(text: text, time: now))
     }
 
@@ -379,6 +402,7 @@ public final class KeyboardModel {
     /// An emoji tapped on the emoji page: `form` is what goes in (a skin tone form, or
     /// the emoji itself), `base` the emoji it belongs to. Counts for Frequently used.
     public func type(emoji form: String, base: String) {
+        log(TypingEvent(t: now, e: .emoji, s: form))
         apply(composer.insert(emoji: form, time: now))
         emojiHistory.record(base, at: Date())
         emojiStore?.save(emojiHistory)
@@ -402,6 +426,7 @@ public final class KeyboardModel {
     /// would write it), then the keys type into the search field, learning nothing.
     public func beginEmojiSearch() {
         guard search == nil else { return }
+        log(TypingEvent(t: now, e: .searchOpen))
         apply(composer.cursorWillMove())
         for case .settled(let word) in composer.reset() { learn(from: word) }
         autospace?.cancel()
@@ -415,6 +440,7 @@ public final class KeyboardModel {
     /// keys type into the app again.
     public func endEmojiSearch() {
         guard search != nil else { return }
+        log(TypingEvent(t: now, e: .searchClose))
         autospace?.cancel()
         _ = composer.reset()
         search = nil
@@ -426,6 +452,7 @@ public final class KeyboardModel {
     /// The × in the search field: empty again, any open word dropped.
     public func clearSearch() {
         guard let search else { return }
+        log(TypingEvent(t: now, e: .searchClear))
         autospace?.cancel()
         _ = composer.reset()
         search.clear()
@@ -436,6 +463,7 @@ public final class KeyboardModel {
     /// A search result tapped: it goes into the app (not the search field), and counts
     /// for Frequently used like one from the page.
     public func typeFromSearch(emoji form: String, base: String) {
+        log(TypingEvent(t: now, e: .searchEmoji, s: form))
         target?.insert(form)
         onHaptic?(.key)
         emojiHistory.record(base, at: Date())
@@ -445,6 +473,7 @@ public final class KeyboardModel {
     /// A guess tapped on the bar: a guess for the open word, another reading of the
     /// last word (FIX), or a next word.
     public func choose(guess index: Int) {
+        log(TypingEvent(t: now, e: .guess, n: index))
         if case .fix(_, let chosen) = composer.state.bar, chosen != index { onFix?() }
         apply(composer.choose(guess: index, time: now))
     }
@@ -454,6 +483,7 @@ public final class KeyboardModel {
     public func chooseFix(reading: Int) {
         guard case .next(_, let fix, let chosen) = composer.state.bar,
               fix.indices.contains(reading), reading != chosen else { return }
+        log(TypingEvent(t: now, e: .fix, n: reading))
         onFix?()
         apply(composer.chooseFix(reading: reading))
     }
@@ -461,6 +491,7 @@ public final class KeyboardModel {
     /// A slide on the space bar: the open word goes in, then the cursor moves.
     public func moveCursor(by offset: Int) {
         guard offset != 0 else { return }
+        log(TypingEvent(t: now, e: .cursor, n: offset))
         apply(composer.cursorWillMove())
         output?.moveCursor(by: offset)
         composer.setContext(before: output?.textBeforeCursor)
@@ -469,6 +500,7 @@ public final class KeyboardModel {
 
     /// "Not it?" on the bar: the keys type the word meant into the bar.
     public func beginCorrection() {
+        log(TypingEvent(t: now, e: .notIt))
         composer.beginCorrection()
         autospace?.cancel()
         onChange?()
@@ -476,6 +508,7 @@ public final class KeyboardModel {
 
     /// The ✕ in the "Not it?" field.
     public func cancelCorrection() {
+        log(TypingEvent(t: now, e: .notItCancel))
         composer.cancelCorrection(time: now)
         scheduleAutospace()
         onChange?()
@@ -483,18 +516,21 @@ public final class KeyboardModel {
 
     /// Save in the "Not it?" field: the word meant replaces the swiped one.
     public func saveCorrection() {
+        log(TypingEvent(t: now, e: .notItSave))
         apply(composer.saveCorrection(time: now))
     }
 
     /// A swipe left on backspace.
     public func deleteWord() {
         dropLostWord()
+        log(TypingEvent(t: now, e: .deleteWord))
         apply(composer.deleteWord(time: now))
     }
 
     /// Held a guess on the bar and slid up: the word sticks from now on.
     public func boost(guess index: Int) {
         guard let word = barWord(at: index) else { return }
+        log(TypingEvent(t: now, e: .boost, n: index))
         var words = composer.learned
         words.boost(word, at: Date())
         learnedWords = words
@@ -504,6 +540,7 @@ public final class KeyboardModel {
     /// Held a guess on the bar and slid down: the word is not offered again.
     public func forget(guess index: Int) {
         guard let word = barWord(at: index) else { return }
+        log(TypingEvent(t: now, e: .forget, n: index))
         var words = composer.learned
         words.forget(word, at: Date())
         learnedWords = words
@@ -522,17 +559,108 @@ public final class KeyboardModel {
     /// The field changed (the host's `textDidChange`): re-read the context.
     public func contextChanged() {
         if dropLostWord() { return }
+        logContext(.context)
         composer.setContext(before: output?.textBeforeCursor)
         onChange?()
     }
 
     /// The field was replaced or the cursor moved: drop the open word.
     public func reset() {
+        logContext(.reset)
         autospace?.cancel()
         output?.dropOpenWord()
         for case .settled(let word) in composer.reset() { learn(from: word) }
         composer.setContext(before: output?.textBeforeCursor)
         onChange?()
+    }
+
+    // MARK: Recording
+
+    /// Where the typing recording goes (Settings → Debug → "Keep recording",
+    /// `TypingRecorder`); nil records nothing. The extension sets it while the setting
+    /// is on and it has Full Access. Every touch, key and tap on the bar is written down
+    /// with what it did, except in a field that never learns (an address, a code, a
+    /// password), where it pauses.
+    public var recorder: TypingRecorder? {
+        didSet {
+            guard recorder !== oldValue else { return }
+            oldValue?.flush()
+            lastContext = nil
+            if recorder != nil { snapshot() }
+        }
+    }
+    /// What the extension says about the phone and the build, for each snapshot.
+    public var device = TypingSnapshot.Device(app: "?", system: "?", model: "?")
+    /// The page showing, which the view keeps (for the snapshot and the log).
+    public private(set) var page: Layout.Page = .letters
+    /// Fingers down on the letters now: no snapshot while any is.
+    private var down: Set<Int> = []
+    private var lastContext: String?
+
+    private var recording: Bool { recorder != nil && hostField.learns }
+
+    private func log(_ event: @autoclosure () -> TypingEvent) {
+        guard recording else { return }
+        recorder?.record(event())
+    }
+
+    /// Writes down where the keyboard stands now, so a replay can start here.
+    public func snapshot() {
+        guard let recorder, hostField.learns else { return }
+        let context = TypingSnapshot.trim(target?.textBeforeCursor)
+        lastContext = context
+        recorder.snapshot(TypingSnapshot(date: Date(), settings: keyboardSettings, field: hostField, layout: composer.layout,
+                                         page: page, languages: activeLanguages, preferred: preferredLanguages,
+                                         pro: entitlement.isPro, context: context, device: device), time: now)
+    }
+
+    /// A snapshot when one is due and nothing is open: no word, no finger down.
+    private func snapshotIfIdle() {
+        guard let recorder, recorder.needsSnapshot(at: now), down.isEmpty, !composer.hasOpenWord, search == nil else { return }
+        snapshot()
+    }
+
+    /// The page the view shows changed (123, #+=, ABC).
+    public func pageChanged(_ page: Layout.Page) {
+        guard page != self.page else { return }
+        self.page = page
+        log(TypingEvent(t: now, e: .page, s: page.rawValue))
+    }
+
+    /// A touch the engine never gets (space, backspace, a symbol, no key): `phase` is
+    /// b, m, e or x, or n for a touch on no key.
+    public func otherTouch(_ phase: String, id: Int?, at point: CGPoint, time: TimeInterval, key: Key?) {
+        log(TypingEvent(t: time, e: .other, i: id, x: point.x, y: point.y, s: phase, k: key.map(TypingEvent.code(of:))))
+    }
+
+    /// Mark in the keyboard's settings: something went wrong around now. Written at
+    /// once, so it is there when the person opens the app to send it.
+    public func markMoment() {
+        guard let recorder else { return }
+        recorder.record(TypingEvent(t: now, e: .mark))
+        recorder.flush()
+    }
+
+    /// The text before the cursor as the app now has it, when it differs from the last.
+    private func logContext(_ kind: TypingEvent.Kind) {
+        guard recording else { return }
+        let context = TypingSnapshot.trim(output?.textBeforeCursor)
+        guard context != lastContext || kind == .reset else { return }
+        lastContext = context
+        recorder?.record(TypingEvent(t: now, e: kind, s: context))
+    }
+
+    /// Into a field that never learns: a pause. Back out of one: a snapshot.
+    private func recordFieldChange(from old: Field) {
+        guard let recorder else { return }
+        if old.learns, !hostField.learns {
+            recorder.record(TypingEvent(t: now, e: .pause))
+            recorder.flush()
+        } else if !old.learns, hostField.learns {
+            snapshot()
+        } else {
+            log(TypingEvent(t: now, e: .field, field: hostField))
+        }
     }
 
     /// Drops the open word when it is no longer in the field where it was typed, so the
@@ -588,6 +716,11 @@ public final class KeyboardModel {
             }
         }
         composer.setContext(before: output?.textBeforeCursor)
+        if recording {
+            let codes = TypingEvent.codes(of: effects)
+            if !codes.isEmpty { recorder?.record(TypingEvent(t: now, e: .effects, fx: codes)) }
+            snapshotIfIdle()
+        }
         scheduleAutospace()
         onChange?()
     }
@@ -600,6 +733,7 @@ public final class KeyboardModel {
         autospace = Task { [weak self] in
             try? await Task.sleep(for: .seconds(delay))
             guard !Task.isCancelled, let self, !self.dropLostWord() else { return }
+            self.log(TypingEvent(t: self.now, e: .tick))
             self.apply(self.composer.tick(time: self.now))
         }
     }

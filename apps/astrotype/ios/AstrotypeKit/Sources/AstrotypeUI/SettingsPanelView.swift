@@ -53,6 +53,13 @@ public final class SettingsPanelView: UIView {
     public var heightStory: String? {
         didSet { if heightStory != oldValue { render() } }
     }
+    /// Whether the typing recorder is on (Settings → Debug → "Keep recording"): a
+    /// Mark row shows, to note the moment something went wrong.
+    public var isRecording = false {
+        didSet { if isRecording != oldValue { render() } }
+    }
+    /// Mark tapped.
+    public var onMark: (() -> Void)?
 
     private static let headerHeight: CGFloat = 48
 
@@ -80,6 +87,10 @@ public final class SettingsPanelView: UIView {
     private let note = UILabel()
     /// The Languages row: the ones on, and a chevron to the list.
     private let languagesLink = LinkRow(title: "Languages", symbol: "character.bubble")
+    /// "Mark this moment", while recording.
+    private let markRow = LinkRow(title: "Mark this moment", symbol: "record.circle", chevron: false)
+    private lazy var markCard = card([markRow])
+    private var markedAt: Date?
     /// The list of languages, shown in place of the settings when the row is tapped.
     private let languageScroll = PanelScrollView()
     private let languageList = UIStackView()
@@ -146,6 +157,14 @@ public final class SettingsPanelView: UIView {
         nextTile.accessibilityHint = "Likely next words in the bar after each word"
         languagesLink.addAction(UIAction { [weak self] _ in self?.page = .languages }, for: .touchUpInside)
         themeLink.addAction(UIAction { [weak self] _ in self?.page = .themes }, for: .touchUpInside)
+        markRow.accessibilityHint = "Notes that something went wrong just now, to send from the app's Debug page"
+        markRow.addAction(UIAction { [weak self] _ in
+            guard let self else { return }
+            self.onMark?()
+            self.markedAt = Date()
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
+            self.render()
+        }, for: .touchUpInside)
         for (code, row) in languageRows {
             row.addAction(UIAction { [weak self] _ in self?.toggleLanguage(code) }, for: .touchUpInside)
         }
@@ -233,7 +252,7 @@ public final class SettingsPanelView: UIView {
         column.spacing = Theme.Space.s
         column.translatesAutoresizingMaskIntoConstraints = false
         let languagesCard = card([languagesLink, themeLink])
-        for view in [tileGrid, languagesCard, sliders, note, more] { column.addArrangedSubview(view) }
+        for view in [tileGrid, languagesCard, sliders, note, markCard, more] { column.addArrangedSubview(view) }
 
         // The languages page: a card of rows, the free note under it.
         languageList.axis = .vertical
@@ -393,6 +412,9 @@ public final class SettingsPanelView: UIView {
                      heightStory].compactMap { $0 }
         note.text = lines.isEmpty ? nil : lines.joined(separator: " ")
         note.isHidden = lines.isEmpty
+
+        markCard.isHidden = !isRecording
+        markRow.value = markedAt.map { "Marked \($0.formatted(date: .omitted, time: .shortened))" } ?? "Recording"
     }
 
     /// The themes page: every built-in theme and the person's own, the one in use ticked.
@@ -545,7 +567,7 @@ private final class LinkRow: UIControl {
     private let name = UILabel()
     private let detail = UILabel()
 
-    init(title: String, symbol: String) {
+    init(title: String, symbol: String, chevron showsChevron: Bool = true) {
         super.init(frame: .zero)
         let font = Theme.uiFont(size: 15, weight: .semibold, scaledWith: .body, upTo: 22)
         let icon = UIImageView(image: UIImage(systemName: symbol, withConfiguration: UIImage.SymbolConfiguration(pointSize: 15, weight: .bold)))
@@ -566,6 +588,7 @@ private final class LinkRow: UIControl {
         let chevron = UIImageView(image: UIImage(systemName: "chevron.right", withConfiguration: UIImage.SymbolConfiguration(pointSize: 13, weight: .bold)))
         chevron.tintColor = Theme.ui(.muted)
         chevron.setContentHuggingPriority(.required, for: .horizontal)
+        chevron.isHidden = !showsChevron
         let row = UIStackView(arrangedSubviews: [icon, name, detail, chevron])
         row.axis = .horizontal
         row.alignment = .center

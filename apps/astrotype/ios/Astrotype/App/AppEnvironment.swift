@@ -1,5 +1,6 @@
 import Foundation
 import AstrotypeCore
+import StoreKit
 import UIKit
 
 /// The app's services, named in one place (docs/building.md §4). `live()` is the only
@@ -41,6 +42,13 @@ struct AppEnvironment {
     /// The words the keyboard missed, typed with "Not it?" (features/missed-words),
     /// which the keyboard writes to the App Group; nil in tests.
     var missedWords: SharedWordStore?
+    /// The keyboard's typing recording in the App Group (Settings → Debug → "Keep
+    /// recording"), what sends a stretch of it, and how it is squeezed first; nil in tests.
+    var typingLog: TypingLogFiles?
+    var typingUploader: TypingLogUploader?
+    var compress: @Sendable (Data) -> Data?
+    /// Whether this is a TestFlight or Xcode build: only those offer the recorder.
+    var isTestBuild: @Sendable () async -> Bool
     /// What a recording says about where it was made (no name or account).
     var device: PracticeRecording.Device
     var metrics: Metrics
@@ -69,6 +77,18 @@ struct AppEnvironment {
             sharedWords: SharedWordStore(folder: dataFile(KeyboardFiles.sharing)),
             sharedUploader: CloudKitPracticeUploader(),
             missedWords: SharedWordStore(folder: dataFile(KeyboardFiles.misses), limit: 200),
+            typingLog: KeyboardFiles.shared(KeyboardFiles.typing).map { TypingLogFiles(folder: $0) },
+            typingUploader: CloudKitPracticeUploader(),
+            // Raw DEFLATE, which ml/download_samples.py opens with zlib.
+            compress: { data in try? (data as NSData).compressed(using: .zlib) as Data },
+            isTestBuild: {
+                #if DEBUG
+                return true
+                #else
+                guard case .verified(let transaction)? = try? await AppTransaction.shared else { return false }
+                return transaction.environment != .production
+                #endif
+            },
             device: PracticeRecording.Device(model: DeviceInfo.model, system: DeviceInfo.system,
                                              app: DeviceInfo.appVersion, writer: DeviceInfo.writerID),
             metrics: LiveMetrics(),
@@ -117,6 +137,10 @@ struct AppEnvironment {
         sharedWords: SharedWordStore? = nil,
         sharedUploader: SharedWordUploader? = nil,
         missedWords: SharedWordStore? = nil,
+        typingLog: TypingLogFiles? = nil,
+        typingUploader: TypingLogUploader? = nil,
+        compress: @escaping @Sendable (Data) -> Data? = { $0 },
+        isTestBuild: @escaping @Sendable () async -> Bool = { true },
         device: PracticeRecording.Device = PracticeRecording.Device(model: "iPhone", system: "iOS 26", app: "0.2.0", writer: "test"),
         metrics: Metrics = RecordingMetrics(),
         now: @escaping () -> Date = { Date(timeIntervalSince1970: 1_793_491_200) },
@@ -131,7 +155,8 @@ struct AppEnvironment {
                        proStore: proStore,
                        trialStore: trialStore, practiceStore: practiceStore,
                        sharedWords: sharedWords, sharedUploader: sharedUploader,
-                       missedWords: missedWords, device: device, metrics: metrics, now: now,
+                       missedWords: missedWords, typingLog: typingLog, typingUploader: typingUploader,
+                       compress: compress, isTestBuild: isTestBuild, device: device, metrics: metrics, now: now,
                        appVersion: appVersion, backup: backup, openSettings: openSettings)
     }
 }

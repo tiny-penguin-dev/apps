@@ -36,6 +36,9 @@ public enum KeyboardFiles {
     /// Words the keyboard missed, typed with "Not it?" (`SharedWordStore`, the last 200):
     /// kept for "Words it missed" whether or not they are shared (features/missed-words).
     public static let misses = "Missed"
+    /// The typing recording, the last half hour (`TypingLogFiles`): written by the
+    /// keyboard while "Keep recording" is on, read by the app to send; App Group only.
+    public static let typing = "Typing"
 
     /// A file in this process's own Application Support folder.
     public static func own(_ name: String, fileManager: FileManager = .default) -> URL {

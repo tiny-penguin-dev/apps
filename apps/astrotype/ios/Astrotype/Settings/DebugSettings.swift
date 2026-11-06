@@ -6,9 +6,11 @@ import SwiftUI
 /// close it came to iOS's limit, whether iOS ended it, and the switch for the tiny
 /// readout on the keys (Gabriel, 3 Nov 2026). Re-read every second while open. The
 /// readings come from the keyboard through the App Group (`KeyboardDebug`), so they need
-/// Full Access; nothing here is sent anywhere.
+/// Full Access; nothing here is sent anywhere, except a typing recording the person
+/// sends themselves (TestFlight builds only, Gabriel 6 Nov 2026).
 struct DebugSettings: View {
     @Bindable var model: AppModel
+    @State private var shareURL: URL?
 
     var body: some View {
         SectionLabel("Keyboard memory")
@@ -54,6 +56,10 @@ struct DebugSettings: View {
                       ? "Now, peak since it loaded, and what's left before iOS's limit. Amber past 30 MB, red past 40."
                       : "Without Full Access the keyboard in other apps keeps its own settings, so this only shows on the practice keyboard here.")
 
+        if model.isTestBuild {
+            typingRecorder
+        }
+
         if !model.keyboardSessions.isEmpty {
             SectionLabel("Recent sessions").padding(.top, Theme.Space.m)
             SettingsGroup {
@@ -76,11 +82,91 @@ struct DebugSettings: View {
             SettingsValue("Phone", subtitle: DeviceInfo.system, value: DeviceInfo.model)
         }
         .task {
+            await model.checkTestBuild()
             while !Task.isCancelled {
                 model.reloadDebug()
+                model.reloadTyping()
                 try? await Task.sleep(for: .seconds(1))
             }
         }
+    }
+
+    /// The typing recorder: keep the last half hour on the phone, send a stretch of it
+    /// for Claude to replay, mark moments from the keyboard.
+    @ViewBuilder private var typingRecorder: some View {
+        SectionLabel("Typing recorder").padding(.top, Theme.Space.m)
+        SettingsGroup {
+            SettingsToggle("Keep recording", subtitle: "The last 30 minutes of typing, kept on this phone",
+                           symbol: "record.circle", tint: Theme.danger, isOn: $model.keyboardSettings.recordsTyping)
+            if model.keyboardSettings.recordsTyping {
+                ForEach([1, 5, 30], id: \.self) { minutes in
+                    sendRow("Last \(AppModel.minutes(minutes))", subtitle: nil, minutes: minutes)
+                }
+                ForEach(model.typingMarks.prefix(5), id: \.self) { mark in
+                    let minutes = min(30, Int((model.now.timeIntervalSince(mark) / 60).rounded(.up)) + 1)
+                    sendRow("Marked \(mark.formatted(date: .omitted, time: .shortened))",
+                            subtitle: "Sends from a minute before it to now", minutes: minutes)
+                }
+            }
+        }
+        .sheet(item: $shareURL) { url in ShareSheet(items: [url]) }
+        if let note = model.typingNote {
+            GroupFootnote(note)
+        }
+        GroupFootnote(recorderFootnote)
+        if !model.typingLogsSent.isEmpty {
+            SettingsGroup {
+                SettingsRow("Sent to iCloud", subtitle: sentSubtitle, symbol: "icloud", tint: Theme.slate) {
+                    Button("Delete") { model.deleteSentTyping() }.buttonStyle(.small)
+                }
+                SettingsRow("Clear this phone's recording", symbol: "trash", tint: Theme.slate) {
+                    Button("Clear") { model.clearTypingRecording() }.buttonStyle(.small)
+                }
+            }
+        } else if model.typingKB > 0 {
+            SettingsGroup {
+                SettingsRow("Clear this phone's recording", symbol: "trash", tint: Theme.slate) {
+                    Button("Clear") { model.clearTypingRecording() }.buttonStyle(.small)
+                }
+            }
+        }
+    }
+
+    private func sendRow(_ title: String, subtitle: String?, minutes: Int) -> some View {
+        SettingsRow(title, subtitle: subtitle, symbol: "paperplane", tint: Theme.slate) {
+            if model.typingSending == minutes {
+                ProgressView().tint(Theme.accent)
+            } else {
+                HStack(spacing: Theme.Space.s) {
+                    Button {
+                        shareURL = model.typingFile(minutes: minutes)
+                    } label: {
+                        Image(systemName: "square.and.arrow.up")
+                    }
+                    .buttonStyle(.small)
+                    .accessibilityLabel("Share as a file")
+                    Button("Send") { model.sendTyping(minutes: minutes) }
+                        .buttonStyle(.small)
+                        .disabled(model.typingSending != nil)
+                }
+            }
+        }
+    }
+
+    private var recorderFootnote: String {
+        guard model.isFullAccessOn else {
+            return "Needs Full Access: the keyboard keeps the recording where this app can read it."
+        }
+        let kept = model.typingKB > 0 ? " Kept now: \(model.typingKB) KB." : ""
+        return "Every touch and what it typed, with your settings and this build, so Claude can play it back and see the bug. "
+            + "Passwords, addresses and codes are never recorded. It stays on this phone, anything older than 30 minutes is "
+            + "deleted, and nothing is sent until you tap Send. To mark a moment, hold 123 on the keyboard." + kept
+    }
+
+    private var sentSubtitle: String {
+        let logs = model.typingLogsSent
+        let last = logs.last.map { "last \($0.sent.formatted(.relative(presentation: .named))), \($0.summary)" } ?? ""
+        return (logs.count == 1 ? "1 log, " : "\(logs.count) logs, ") + last
     }
 
     private func mb(_ value: Double) -> String { "\(MemoryReading.mb(value)) MB" }

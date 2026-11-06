@@ -28,6 +28,9 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
     /// The tiny memory readout in the keys' top corner, while
     /// `KeyboardSettings.showsStats` is on (Settings → Debug). Never in the bar.
     public let stats = StatsOverlayView()
+    /// A small red dot in the keys' top left corner while the typing recorder is on
+    /// (Settings → Debug → "Keep recording"), so it is never on unnoticed.
+    public let recordingDot = UIView()
     /// Flow's meter, combo count and level pop, over the bar and the keys
     /// (features/customization).
     public let flowHUD = FlowHUDView()
@@ -49,7 +52,11 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
     public var onHeightChange: ((CGFloat) -> Void)?
 
     public private(set) var page: Layout.Page = .letters {
-        didSet { if page != oldValue { surface.layout = pageLayout(width: model.layout.width, height: keysHeight) } }
+        didSet {
+            guard page != oldValue else { return }
+            surface.layout = pageLayout(width: model.layout.width, height: keysHeight)
+            model.pageChanged(page)
+        }
     }
 
     /// The height the keys fill: what they want, or less when the view is shorter.
@@ -98,9 +105,18 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         addSubview(bar)
         addSubview(surface)
         addSubview(stats)
+        recordingDot.backgroundColor = .systemRed
+        recordingDot.layer.cornerRadius = 3
+        recordingDot.isUserInteractionEnabled = false
+        recordingDot.isHidden = true
+        recordingDot.accessibilityLabel = "Recording typing"
+        addSubview(recordingDot)
         addSubview(flowHUD)
         surface.delegate = self
         surface.onFlow = { [weak self] state in self?.flowChanged(state) }
+        surface.onOtherTouch = { [weak model] phase, id, point, time, key in
+            model?.otherTouch(phase, id: id, at: point, time: time, key: key)
+        }
         registerForTraitChanges([UITraitUserInterfaceStyle.self]) { (self: KeyboardView, _: UITraitCollection) in
             self.applyBackdrop()
         }
@@ -235,6 +251,11 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
             stats.isHidden = emojiPage != nil || panel != nil
             bringSubviewToFront(stats)
         }
+        recordingDot.isHidden = model.recorder == nil || emojiPage != nil || panel != nil
+        if !recordingDot.isHidden {
+            recordingDot.frame = CGRect(x: surface.frame.minX + 3, y: surface.frame.minY + 2, width: 6, height: 6)
+            bringSubviewToFront(recordingDot)
+        }
         // Flow sits over the bar's room and the keys.
         let hudTop = max(0, surface.frame.minY - Self.barHeight)
         flowHUD.frame = CGRect(x: 0, y: hudTop, width: width, height: surface.frame.maxY - hudTop)
@@ -308,6 +329,8 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         applyBackdrop()
         surface.spaceSlideEnabled = model.keyboardSettings.spaceSlide
         surface.backspaceSwipeEnabled = model.keyboardSettings.backspaceSwipe
+        if recordingDot.isHidden != (model.recorder == nil || emojiPage != nil || panel != nil) { setNeedsLayout() }
+        panel?.isRecording = model.recorder != nil
         if stats.isRunning != model.keyboardSettings.showsStats {
             stats.isRunning = model.keyboardSettings.showsStats
             setNeedsLayout()
@@ -372,6 +395,8 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         panel.preferredLanguages = model.preferredLanguages
         panel.onChange = { [weak self] settings in self?.model.keyboardSettings = settings }
         panel.onDone = { [weak self] in self?.hideSettings() }
+        panel.isRecording = model.recorder != nil
+        panel.onMark = { [weak self] in self?.model.markMoment() }
         panel.frame = surface.frame
         panel.granted = (bounds.height, height)
         panel.heightStory = heightStory

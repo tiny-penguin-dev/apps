@@ -13,7 +13,9 @@ import UIKit
 /// to the app (`KeyboardHealthRecorder`); nothing typed goes anywhere. With Full Access
 /// its memory readings also go to the App Group for the app's Debug page
 /// (`KeyboardDebugRecorder`), and Settings → Debug can turn on a tiny readout on the
-/// keys (`KeyboardView.stats`).
+/// keys (`KeyboardView.stats`). With Full Access and Settings → Debug → "Keep recording"
+/// on, it keeps the last half hour of typing in the App Group (`TypingRecorder`) for the
+/// app to send when the person asks; a red dot on the keys shows while it does.
 final class KeyboardViewController: UIInputViewController {
     private var keyboard: KeyboardView?
     private var target: ProxyTarget?
@@ -31,6 +33,8 @@ final class KeyboardViewController: UIInputViewController {
     private var health: KeyboardHealthRecorder?
     /// The memory readings for the app's Debug page (with Full Access, never sent).
     private var debug: KeyboardDebugRecorder?
+    /// Where the typing recording goes, with Full Access (`KeyboardFiles.typing`).
+    private var typingFolder: URL?
     private var edits = 0
     /// The last appearance the field asked for, and whether it only echoed the phone's
     /// light or dark mode (`followKeyboardAppearance`).
@@ -68,6 +72,11 @@ final class KeyboardViewController: UIInputViewController {
         model.emojiStore = FileEmojiStore(url: KeyboardFiles.own(KeyboardFiles.emoji))
         self.target = target
         if let health { model.onSettled = { [weak health] word in health?.settled(word) } }
+        model.device = TypingSnapshot.Device(app: Self.appVersion, system: "\(UIDevice.current.systemName) \(UIDevice.current.systemVersion)",
+                                             model: Self.hardware)
+        typingFolder = fullAccess ? KeyboardFiles.shared(KeyboardFiles.typing) : nil
+        // The switch can change here (a sync) or in the app (read on each appearance).
+        model.onSettingsChange = { [weak self] _ in self?.updateRecorder() }
 
         let keyboard = KeyboardView(model: model)
         keyboard.usesSystemBackdrop = true
@@ -201,9 +210,44 @@ final class KeyboardViewController: UIInputViewController {
         debug?.appeared()
         askedAppearance = nil
         followKeyboardAppearance()
+        if let model = keyboard?.model, let store = model.store, let saved = store.load(), let changed = store.lastChanged() {
+            // Settings → Debug may have changed them since the keyboard last showed.
+            model.adopt(saved, changed: changed)
+        }
         keyboard?.model.field = field
+        // Each appearance starts with a snapshot (a new recorder writes its own first).
+        let recording = keyboard?.model.recorder != nil
+        updateRecorder()
+        if recording { keyboard?.model.snapshot() }
         keyboard?.model.contextChanged()
     }
+
+    /// Starts or stops the typing recorder with the setting (Full Access only).
+    private func updateRecorder() {
+        guard let model = keyboard?.model else { return }
+        let wanted = model.keyboardSettings.recordsTyping ? typingFolder : nil
+        if let wanted, model.recorder?.files.folder != wanted {
+            model.recorder = TypingRecorder(files: TypingLogFiles(folder: wanted))
+        } else if wanted == nil, let recorder = model.recorder {
+            model.recorder = nil
+            // Turned off: what was kept goes too.
+            if !model.keyboardSettings.recordsTyping { recorder.files.removeAll() }
+        }
+        keyboard?.setNeedsLayout()
+    }
+
+    /// "1.0 (202611060412)", the extension's own version and build.
+    private static let appVersion: String = {
+        let info = Bundle.main.infoDictionary
+        return "\(info?["CFBundleShortVersionString"] as? String ?? "?") (\(info?["CFBundleVersion"] as? String ?? "?"))"
+    }()
+
+    /// The hardware model, "iPhone17,1".
+    private static let hardware: String = {
+        var info = utsname()
+        uname(&info)
+        return withUnsafeBytes(of: &info.machine) { raw in String(decoding: raw.prefix { $0 != 0 }, as: UTF8.self) }
+    }()
 
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)

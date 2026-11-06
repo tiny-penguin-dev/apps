@@ -936,11 +936,33 @@ final class KeyView: UIView {
         layer.shadowPath = layer.shadowOpacity > 0 ? UIBezierPath(roundedRect: bounds, cornerRadius: layer.cornerRadius).cgPath : nil
     }
 
-    /// A glow around the key in a colour (flow at Blizzard), or none.
+    /// A glow around the key in a colour (flow at Blizzard), or none. It fades in and
+    /// out rather than snapping (Gabriel, 6 Nov 2026).
     func setGlow(_ color: UIColor?) {
         guard color != glow else { return }
+        let fadingIn = glow == nil
+        // Start from what's on screen, so a fade that's cut short turns around smoothly.
+        let now = layer.presentation() ?? layer
+        var from = (color: now.shadowColor, opacity: now.shadowOpacity, radius: now.shadowRadius, offset: now.shadowOffset)
+        if fadingIn, let color { from = (color.cgColor, 0, 6, .zero) }
         glow = color
         applyShadow()
+        let fades: [(String, Any?, Any?)] = [
+            ("shadowColor", from.color, layer.shadowColor),
+            ("shadowOpacity", from.opacity, layer.shadowOpacity),
+            ("shadowRadius", from.radius, layer.shadowRadius),
+            ("shadowOffset", NSValue(cgSize: from.offset), NSValue(cgSize: layer.shadowOffset)),
+        ]
+        let group = CAAnimationGroup()
+        group.animations = fades.map { key, from, to in
+            let fade = CABasicAnimation(keyPath: key)
+            fade.fromValue = from
+            fade.toValue = to
+            return fade
+        }
+        group.duration = fadingIn ? 0.5 : 0.8
+        group.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+        layer.add(group, forKey: "glow")
     }
 
     private func refreshLabelVisibility() {

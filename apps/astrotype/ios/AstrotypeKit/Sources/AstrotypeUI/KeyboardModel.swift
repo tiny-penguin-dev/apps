@@ -22,10 +22,10 @@ public protocol TextTarget: AnyObject {
     /// Whether the open word is no longer where it was typed: the person selected text,
     /// or the keyboard moved to another field. It is dropped then, not edited.
     var lostOpenWord: Bool { get }
-    /// Whether the text right before the cursor is no longer the open word (the person
-    /// selected it, or moved the cursor). Checked only before a delete: the field can
-    /// lag behind fast typing, and a delete loses nothing when it is wrong.
-    var cursorLeftOpenWord: Bool { get }
+    /// Whether the field changed while the open word sat underlined and the keyboard
+    /// did nothing: the person touched the field (selected text, moved the cursor).
+    /// Checked when the host says the field changed.
+    var fieldChangedUnderOpenWord: Bool { get }
     /// What the field reports right now, for the typing recorder (`TypingEvent.fieldState`).
     var fieldState: String? { get }
     /// Forget the open word without typing it again.
@@ -35,7 +35,7 @@ public protocol TextTarget: AnyObject {
 extension TextTarget {
     public var hasText: Bool { !(textBeforeCursor ?? "").isEmpty }
     public var lostOpenWord: Bool { false }
-    public var cursorLeftOpenWord: Bool { false }
+    public var fieldChangedUnderOpenWord: Bool { false }
     public var fieldState: String? { nil }
     public func dropOpenWord() {}
 }
@@ -386,7 +386,7 @@ public final class KeyboardModel {
 
     public func press(_ key: Key) {
         if key == .backspace { logFieldState() }
-        dropLostWord(deleting: key == .backspace)
+        dropLostWord()
         log(TypingEvent(t: now, e: .key, s: TypingEvent.code(of: key)))
         apply(composer.press(key, time: now))
     }
@@ -538,7 +538,7 @@ public final class KeyboardModel {
     /// A swipe left on backspace.
     public func deleteWord() {
         logFieldState()
-        dropLostWord(deleting: true)
+        dropLostWord()
         log(TypingEvent(t: now, e: .deleteWord))
         apply(composer.deleteWord(time: now))
     }
@@ -572,10 +572,15 @@ public final class KeyboardModel {
         }
     }
 
-    /// The field changed (the host's `textDidChange`): re-read the context.
-    public func contextChanged() {
-        logFieldState()
+    /// The field changed (the host's `textDidChange`, `selectionDidChange`): re-read the
+    /// context. `why` goes to the typing recorder.
+    public func contextChanged(_ why: String = "change") {
+        logFieldState(why)
         if dropLostWord() { return }
+        if output?.fieldChangedUnderOpenWord == true {
+            reset()
+            return
+        }
         logContext(.context)
         composer.setContext(before: output?.textBeforeCursor)
         onChange?()
@@ -661,10 +666,12 @@ public final class KeyboardModel {
     }
 
     /// What the field reports (selection included), when it differs from the last.
-    private func logFieldState() {
-        guard recording, let state = output?.fieldState, state != lastFieldState else { return }
+    /// With `why` (the host said the field changed), every time, so the recording shows
+    /// which changes the host reports at all.
+    private func logFieldState(_ why: String? = nil) {
+        guard recording, let state = output?.fieldState, why != nil || state != lastFieldState else { return }
         lastFieldState = state
-        recorder?.record(TypingEvent(t: now, e: .fieldState, s: state))
+        recorder?.record(TypingEvent(t: now, e: .fieldState, s: why.map { "\($0): " + state } ?? state))
     }
 
     /// The text before the cursor as the app now has it, when it differs from the last.
@@ -694,8 +701,8 @@ public final class KeyboardModel {
     /// letter, and a word left underlined was typed again into the next field (Gabriel,
     /// 6 Nov 2026).
     @discardableResult
-    private func dropLostWord(deleting: Bool = false) -> Bool {
-        guard let output, output.lostOpenWord || (deleting && output.cursorLeftOpenWord) else { return false }
+    private func dropLostWord() -> Bool {
+        guard output?.lostOpenWord == true else { return false }
         reset()
         return true
     }

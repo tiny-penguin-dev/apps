@@ -15,7 +15,7 @@ public struct MemorySample: Codable, Sendable, Equatable {
     public var views: Int
     public var metal: Bool
     public var counts: LiveCount.Counts
-    /// Where the rest ("other") sits: graphics, Core ML, IOKit. Nil where it can't be read.
+    /// Where the rest ("other") sits: graphics, Core ML, compressed. Nil where it can't be read.
     public var split: MemorySplit?
 
     public init(reading: MemoryReading, heapMB: Double?, layers: Int = 0, views: Int = 0, metal: Bool = false,
@@ -55,28 +55,25 @@ public struct MemorySplit: Codable, Sendable, Equatable {
     /// Core ML and the Neural Engine.
     public var neural: Double
     public var media: Double
-    /// Device memory mapped into the process (IOSurfaces and the like).
-    public var iokit: Double
     /// Memory the kernel compressed; still counted against the limit.
     public var compressed: Double
 
-    public init(graphics: Double = 0, neural: Double = 0, media: Double = 0, iokit: Double = 0, compressed: Double = 0) {
+    public init(graphics: Double = 0, neural: Double = 0, media: Double = 0, compressed: Double = 0) {
         self.graphics = graphics
         self.neural = neural
         self.media = media
-        self.iokit = iokit
         self.compressed = compressed
     }
 
     func rounded() -> MemorySplit {
         MemorySplit(graphics: MemorySample.round(graphics), neural: MemorySample.round(neural),
-                    media: MemorySample.round(media), iokit: MemorySample.round(iokit),
+                    media: MemorySample.round(media),
                     compressed: MemorySample.round(compressed))
     }
 
-    /// "gfx 31.2 · iokit 8.0 · zip 2.1", leaving out the parts that are empty.
+    /// "gfx 31.2 · zip 2.1", leaving out the parts that are empty.
     public var line: String {
-        [("gfx", graphics), ("ml", neural), ("media", media), ("iokit", iokit), ("zip", compressed)]
+        [("gfx", graphics), ("ml", neural), ("media", media), ("zip", compressed)]
             .filter { $0.1 >= 0.1 }
             .map { "\($0.0) \(MemoryReading.mb($0.1))" }
             .joined(separator: " · ")

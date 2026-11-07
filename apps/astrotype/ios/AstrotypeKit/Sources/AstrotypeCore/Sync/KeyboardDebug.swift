@@ -56,8 +56,7 @@ public struct MemoryReading: Codable, Sendable, Equatable {
     }
 
     /// Where the non-malloc part of the footprint sits, from the kernel's ledgers: Metal
-    /// and IOSurfaces (graphics), Core ML (neural), media, IOKit mappings and what is
-    /// compressed. Nil off Darwin, and the parts read 0 where the kernel doesn't keep them.
+    /// and IOSurfaces (graphics), Core ML (neural), media and what is compressed. Nil off Darwin, and the parts read 0 where the kernel doesn't keep them.
     public static func split() -> MemorySplit? {
         #if canImport(Darwin)
         var info = task_vm_info_data_t()
@@ -71,7 +70,6 @@ public struct MemoryReading: Codable, Sendable, Equatable {
         return MemorySplit(graphics: mb(info.ledger_tag_graphics_footprint),
                            neural: mb(info.ledger_tag_neural_footprint),
                            media: mb(info.ledger_tag_media_footprint),
-                           iokit: mb(info.iokit_mapped),
                            compressed: mb(info.compressed))
         #else
         return nil

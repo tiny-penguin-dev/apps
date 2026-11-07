@@ -70,6 +70,11 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
     log as an `open` line (`OpenTiming`): "telemetry 12 · model 40 · keys 35 · …". `ExtensionChecks`
     writes the StoreKit, memory and size readings into the bar's idle note while
     `Flags.extensionReadout` is on.
+  - `AstrotypeLive/`: the widget extension (`com.tinypenguin.astrotype.live`), which
+    draws Live Activities. For now it only has the throwaway dictation test's
+    (`DictationLiveActivity`); see `Astrotype/DictationTest/` and
+    `AstrotypeKeyboard/DictationTest/` (Settings → Debug → Dictation test). Shared intent
+    and attribute files are copied unchanged into each target that needs them.
   - `AstrotypeKit/`: the local package, three targets:
     - `AstrotypeCore`: Core and Services. `SpaceSlide` (a finger on space: a tap, or a cursor slide after a short hold and a real move), `Layout` (key geometry, with the field's
       `BottomRow`), `Field` (what the app says about the field and what the keyboard

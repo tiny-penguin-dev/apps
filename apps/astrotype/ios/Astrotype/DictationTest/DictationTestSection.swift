@@ -11,6 +11,7 @@ struct DictationTestSection: View {
     @State private var keyboardButton = DictationProbeLog.defaults?.bool(forKey: DictationProbeLog.enabledKey) ?? false
     @State private var permission = AVAudioApplication.shared.recordPermission
     @State private var last = DictationProbeLog.last
+    @State private var started = DictationProbeLog.sessionStarted
 
     var body: some View {
         SectionLabel("Dictation test").padding(.top, Theme.Space.m)
@@ -26,8 +27,14 @@ struct DictationTestSection: View {
                     .buttonStyle(.small)
                 }
             }
-            SettingsToggle("Test panel on the keyboard", subtitle: "Two mic buttons over the keys (needs Full Access)",
+            SettingsToggle("Test panel on the keyboard", subtitle: "Talk, Intent and Here buttons over the keys (needs Full Access)",
                            symbol: "waveform", tint: Theme.slate, isOn: $keyboardButton)
+            SettingsRow("Session", subtitle: sessionText, symbol: "dot.radiowaves.left.and.right", tint: Theme.slate) {
+                Button(started == nil ? "Start" : "End") {
+                    Task { try? await DictationSession.shared.toggle(source: "App button") }
+                }
+                .buttonStyle(.small)
+            }
             SettingsRow("Last result", subtitle: last, symbol: "text.bubble", tint: Theme.slate)
         }
         .onChange(of: keyboardButton) { _, on in
@@ -36,11 +43,17 @@ struct DictationTestSection: View {
         .task {
             while !Task.isCancelled {
                 last = DictationProbeLog.last
+                started = DictationProbeLog.sessionStarted
                 permission = AVAudioApplication.shared.recordPermission
                 try? await Task.sleep(for: .seconds(1))
             }
         }
-        GroupFootnote("Throwaway test. On the keyboard, \"Mic (intent)\" asks iOS to run the recording in the app in the background, and \"Mic (here)\" records in the keyboard itself. Siri: \"Test dictation in Astrotype\", or add \"Test dictation\" to the Action Button or Back Tap in Shortcuts. The result says where it ran and whether audio came in. Nothing is kept.")
+        GroupFootnote("Throwaway test. Start a session with Siri (\"Test dictation in Astrotype\"), the Action Button or Back Tap (the \"Test dictation\" shortcut), or Start here. It shows a Live Activity and keeps the mic open in the background. Then Talk on the keyboard's panel or the Live Activity starts and stops listening. \"Intent\" and \"Here\" on the keyboard are round 1's tests. The result says where each one ran and how much audio came in. Nothing is kept.")
+    }
+
+    private var sessionText: String {
+        guard let started else { return "Off" }
+        return "On since \(started.formatted(date: .omitted, time: .shortened))"
     }
 
     private var permissionText: String {

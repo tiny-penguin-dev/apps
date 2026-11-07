@@ -3,34 +3,50 @@ import SwiftUI
 import UIKit
 
 // THROWAWAY SPIKE (Gabriel, 7 Nov 2026), see DictationProbeIntent.swift. With Settings →
-// Debug → "Dictation test button" on, a small panel floats over the top of the keys:
-// "Mic (intent)" runs `DictationProbeIntent` through `Button(intent:)`, the way a widget
-// would, and "Mic (here)" records in the keyboard itself. The last result shows under them.
+// Debug → "Test panel on the keyboard" on, a small panel floats over the top of the keys:
+// "Talk" asks the app's running dictation session to start or stop listening (a Darwin
+// notification), "Intent" runs `DictationProbeIntent` through `Button(intent:)`, and
+// "Here" records in the keyboard itself. The session's state and the last result show
+// under them.
 
 struct DictationProbePanel: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 6) {
+                Button {
+                    DictationRunner.postTalk()
+                } label: {
+                    Label("Talk", systemImage: "mic.fill")
+                }
                 Button(intent: DictationProbeIntent(source: "Keyboard intent")) {
-                    Label("Mic (intent)", systemImage: "mic.fill")
+                    Label("Intent", systemImage: "bolt")
                 }
                 Button {
                     Task {
-                        DictationProbeLog.write("Keyboard direct: recording in the keyboard…")
+                        DictationProbeLog.write("Keyboard here: recording in the keyboard…")
                         let outcome = await DictationProbeRecorder.record(seconds: 3)
-                        DictationProbeLog.write("Keyboard direct: \(outcome)")
+                        DictationProbeLog.write("Keyboard here: \(outcome)")
                     }
                 } label: {
-                    Label("Mic (here)", systemImage: "mic")
+                    Label("Here", systemImage: "mic")
                 }
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.mini)
             TimelineView(.periodic(from: .now, by: 0.5)) { _ in
-                Text(DictationProbeLog.last)
-                    .font(.system(size: 10))
-                    .lineLimit(3)
-                    .fixedSize(horizontal: false, vertical: true)
+                VStack(alignment: .leading, spacing: 2) {
+                    if let started = DictationProbeLog.sessionStarted {
+                        Text("Session on since \(started.formatted(date: .omitted, time: .shortened))")
+                            .font(.system(size: 10, weight: .semibold))
+                    } else {
+                        Text("No session (start with Siri or the Action Button)")
+                            .font(.system(size: 10, weight: .semibold))
+                    }
+                    Text(DictationProbeLog.last)
+                        .font(.system(size: 10))
+                        .lineLimit(3)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
         }
         .padding(6)

@@ -47,6 +47,15 @@ import Testing
         #expect(composer.state.openWord == "bri")
     }
 
+    /// At "Words only", letters with no word near them stay in the field as they are
+    /// tapped, rather than vanishing mid-word (Gabriel, 7 Nov 2026: "overwritten",
+    /// which the dictionary doesn't have, disappeared from "overwri" on).
+    @Test func atFullLettersWithNothingNearStayWhileTyping() {
+        var composer = Self.composer(strictness: 1)
+        Synth.taps(&composer, "overwrit")
+        #expect(composer.state.openWord == "overwrit")
+    }
+
     @Test func atZeroWhatWasTappedGoesIn() {
         let typed = Self.peck("bting", strictness: 0)
         #expect(typed.word == "bting")
@@ -59,8 +68,8 @@ import Testing
         // What was tapped stays last in the bar, to pick or to hold and learn
         // (Gabriel, 7 Nov 2026), but never goes in by itself.
         #expect(typed.bar.last == "bting")
-        // Nothing near: nothing goes in rather than letters that are not a word.
-        #expect(Self.peck("qzxqzv", strictness: 1).word == nil)
+        // Nothing near: a word it doesn't know, so the letters go in as typed.
+        #expect(Self.peck("qzxqzv", strictness: 1).word == "qzxqzv")
     }
 
     @Test func lettersFarFromAnyWordStayBelowFull() {

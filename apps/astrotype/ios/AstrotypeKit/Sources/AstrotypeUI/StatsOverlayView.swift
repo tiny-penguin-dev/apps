@@ -19,7 +19,6 @@ public final class StatsOverlayView: UILabel {
     public private(set) var peakMB = 0.0
     /// The last memory-by-region line, kept between the readings that walk the regions.
     private var regions: String?
-    private var shownLines = 0
 
     public override init(frame: CGRect) {
         super.init(frame: frame)
@@ -56,9 +55,10 @@ public final class StatsOverlayView: UILabel {
             + (sample.split.map { $0.line.isEmpty ? "" : "\n" + $0.line } ?? "")
             + "\n" + sample.counts.line
             + (regions.map { "\n" + $0 } ?? "")
-        // The keyboard sizes the overlay to its text, so a new line lays it out again.
-        let lines = text?.split(separator: "\n").count ?? 0
-        if lines != shownLines { shownLines = lines; superview?.setNeedsLayout() }
+        // The keyboard sizes the overlay to its text, so text that needs more (or less)
+        // room lays it out again.
+        let needed = ceil(sizeThatFits(CGSize(width: bounds.width, height: .greatestFiniteMagnitude)).height)
+        if needed != bounds.height { superview?.setNeedsLayout() }
         textColor = reading.budgetFraction >= 1 ? Theme.ui(.danger)
             : reading.budgetFraction >= 0.75 ? Theme.ui(.sun) : Theme.ui(.muted)
     }

@@ -51,6 +51,11 @@ final class DictationSession {
     private init() {}
 
     func toggle(source: String) async throws {
+        // A session the app crashed with (or iOS ended) is still in the App Group and
+        // may still have its Live Activity up.
+        if !isRunning, DictationProbeLog.sessionStarted != nil {
+            DictationProbeLog.sessionStarted = nil
+        }
         if isRunning {
             await stop(source: source)
         } else {
@@ -97,10 +102,7 @@ final class DictationSession {
             await endActivity()
             return try fail(source, "Mic: no input (sample rate 0).")
         }
-        let meter = meter
-        input.installTap(onBus: 0, bufferSize: 2048, format: format) { buffer, _ in
-            meter.add(buffer)
-        }
+        Self.installTap(on: input, format: format, meter: meter)
         do {
             try engine.start()
         } catch {
@@ -203,6 +205,15 @@ final class DictationSession {
             nil,
             .deliverImmediately
         )
+    }
+
+    /// Not on the main actor: the tap's closure runs on the audio thread, and a closure
+    /// made inside a main-actor method is main-actor too, so Swift 6 stopped the app the
+    /// first time audio came in (ASTROTYPE-5, 7 Nov 2026).
+    nonisolated private static func installTap(on input: AVAudioInputNode, format: AVAudioFormat, meter: Meter) {
+        input.installTap(onBus: 0, bufferSize: 2048, format: format) { buffer, _ in
+            meter.add(buffer)
+        }
     }
 
     /// Counts what comes in while listening, from the audio thread.

@@ -633,6 +633,33 @@ final class AppModel {
     /// How a list entry was deleted, for the metrics.
     enum DeleteGesture: String { case swipe, select }
 
+    // MARK: Never suggest (features/word-control)
+
+    /// Typed in with + on Never suggest: never offered again, on every device, even a
+    /// word the dictionary has. Returns false for text that isn't one word. Counted as
+    /// `word.blocked` (`how`: settings).
+    @discardableResult
+    func blockWord(_ text: String) -> Bool {
+        guard let word = LearnedWords.addable(text) else { return false }
+        var learned = learnedWords
+        learned.block(word, at: now)
+        saveWords(learned)
+        environment.metrics.count("word.blocked", ["how": "settings"])
+        sync()
+        return true
+    }
+
+    /// Dropped from Never suggest, by a swipe or several with Select: offered again.
+    /// Counted as `word.allowed`.
+    func allow(_ words: [String], how: DeleteGesture) {
+        guard !words.isEmpty else { return }
+        var learned = learnedWords
+        for word in words { learned.allow(word, at: now) }
+        saveWords(learned)
+        environment.metrics.count("word.allowed", by: words.count, ["how": how.rawValue])
+        sync()
+    }
+
     // MARK: Word pairs
 
     /// The pairs the keyboard learned, for Settings → Word pairs (re-read first: the

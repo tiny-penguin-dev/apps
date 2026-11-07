@@ -23,6 +23,10 @@ public struct GuessTally: Codable, Sendable, Equatable {
     /// Words typed with "Not it?" because the swipe missed them (features/missed-words).
     public var missed = 0
 
+    /// What was done to words from the bar (features/word-control), by metric and how:
+    /// "word.menu", "word.blocked|menu", "word.boosted|slide", "word.allowed|undo".
+    public var actions: [String: Int] = [:]
+
     public init(swiped: Int = 0, swipedFirst: Int = 0, pecked: Int = 0, peckedFirst: Int = 0, missed: Int = 0, next: Int = 0) {
         self.swiped = swiped
         self.swipedFirst = swipedFirst
@@ -40,6 +44,12 @@ public struct GuessTally: Codable, Sendable, Equatable {
         peckedFirst = try c.decodeIfPresent(Int.self, forKey: .peckedFirst) ?? 0
         next = try c.decodeIfPresent(Int.self, forKey: .next) ?? 0
         missed = try c.decodeIfPresent(Int.self, forKey: .missed) ?? 0
+        actions = try c.decodeIfPresent([String: Int].self, forKey: .actions) ?? [:]
+    }
+
+    /// Counts one thing done to a word from the bar: `name` is the metric, `how` its tag.
+    public mutating func addAction(_ name: String, how: String? = nil) {
+        actions[how.map { name + "|" + $0 } ?? name, default: 0] += 1
     }
 
     public var words: Int { swiped + pecked }
@@ -77,6 +87,10 @@ public struct GuessTally: Codable, Sendable, Equatable {
     public func report(to metrics: Metrics) {
         if missed > 0 { metrics.count("miss.saved", by: missed, [:]) }
         if next > 0 { metrics.count("nextword.picked", by: next, [:]) }
+        for (key, count) in actions where count > 0 {
+            let parts = key.split(separator: "|", maxSplits: 1).map(String.init)
+            metrics.count(parts[0], by: count, parts.count > 1 ? ["how": parts[1]] : [:])
+        }
         for (kind, words, first) in [("swipe", swiped, swipedFirst), ("tap", pecked, peckedFirst)] where words > 0 {
             metrics.count("guess.words", by: words, ["kind": kind])
             if first > 0 { metrics.count("guess.first", by: first, ["kind": kind]) }

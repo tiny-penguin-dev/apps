@@ -71,6 +71,7 @@ public struct TypingReplay: Sendable {
         var layout = Layout.qwerty(width: 390)
         var field = Field()
         var learned = log.learned ?? LearnedWords()
+        var lastWordChange: (word: String, before: LearnedWords.Entry?)?
         var learner = PersonalLearner(model: log.personal ?? PersonalModel(), device: "replay", now: log.from)
         var effects: [Int: [String]] = [:]
         var differences: [Difference] = []
@@ -223,7 +224,15 @@ public struct TypingReplay: Sendable {
             case .deleteWord: out = c.deleteWord(time: t)
             case .boost, .forget:
                 if let word = Self.barWord(c.state.bar, event.n ?? 0) {
-                    if event.e == .boost { learned.boost(word, at: log.from) } else { learned.forget(word, at: log.from) }
+                    lastWordChange = (word, learned.entry(for: word))
+                    if event.e == .boost { learned.teach(word, at: log.from) } else { learned.block(word, at: log.from) }
+                    c.learned = learned
+                    out = c.learnedDidChange(time: t)
+                }
+            case .wordUndo:
+                if let (word, before) = lastWordChange, word == event.s {
+                    lastWordChange = nil
+                    learned.restore(word, to: before, at: log.from)
                     c.learned = learned
                     out = c.learnedDidChange(time: t)
                 }

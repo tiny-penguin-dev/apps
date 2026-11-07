@@ -105,6 +105,35 @@ import Testing
         #expect(words.contains("lanata"))
     }
 
+    /// Never suggest, Suggest more and Undo (features/word-control).
+    @Test func blockAllowTeachAndUndo() {
+        var words = LearnedWords()
+        words.learn("zorb", at: Self.start)
+        #expect(words.isUsedOnce("zorb"))
+        words.block("zorb", at: Self.start.addingTimeInterval(1))
+        #expect(words.isBlocked("zorb") && !words.contains("zorb"))
+        #expect(words.blocked.map(\.word) == ["zorb"])
+        // Tapping it out again does not unblock it.
+        words.learn("zorb", at: Self.start.addingTimeInterval(2))
+        #expect(words.isBlocked("zorb"))
+        words.allow("zorb", at: Self.start.addingTimeInterval(3))
+        #expect(!words.isBlocked("zorb") && !words.contains("zorb"))
+        words.learn("zorb", at: Self.start.addingTimeInterval(4))
+        #expect(words.contains("zorb"))
+
+        // Learn it: offered at once, boosted, no longer "used once".
+        words.teach("Ximena", at: Self.start.addingTimeInterval(5))
+        #expect(words.contains("ximena") && words.isBoosted("ximena") && !words.isUsedOnce("ximena"))
+
+        // Undo puts the entry back and wins a merge with the change.
+        let before = words.entry(for: "the")
+        words.block("the", at: Self.start.addingTimeInterval(6))
+        let blockedElsewhere = words
+        words.restore("the", to: before, at: Self.start.addingTimeInterval(7))
+        #expect(!words.isBlocked("the"))
+        #expect(!blockedElsewhere.merged(with: words).isBlocked("the"))
+    }
+
     @Test func onlyOneWordCanBeAdded() {
         #expect(LearnedWords.addable("  Mañana ") == "mañana")
         #expect(LearnedWords.addable("don't") == "don't")

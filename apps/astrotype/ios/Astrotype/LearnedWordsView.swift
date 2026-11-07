@@ -5,19 +5,28 @@ import SwiftUI
 /// The words the keyboard learned from the person, newest first (DESIGN.md screen 9,
 /// "learned words", and features/learned-words). Swipe one away, or Select several, and
 /// they are not offered again, here or on any synced device; + adds one by hand.
+/// "Used once" shows the words it picked up a single time, where old typos hide
+/// (features/word-control).
 struct LearnedWordsView: View {
     var model: AppModel
     @State private var editMode: EditMode = .inactive
     @State private var picked: Set<String> = []
     @State private var adding = false
+    @State private var filter = Filter.all
+
+    enum Filter: String, CaseIterable, Identifiable {
+        case all = "All", usedOnce = "Used once"
+        var id: Self { self }
+    }
 
     var body: some View {
-        let words = model.learnedWords.recent
+        let all = model.learnedWords.recent
+        let words = filter == .all ? all : all.filter(model.learnedWords.isUsedOnce)
         Group {
-            if words.isEmpty {
+            if all.isEmpty {
                 VStack(alignment: .leading, spacing: Theme.Space.m) {
                     Text("No learned words yet").font(.sw(.heading))
-                    Text("Peck out a word the keyboard doesn't know and it learns it when you write it. Hold a guess on the bar and slide up to keep it, or down to drop it. Or tap + to add one.")
+                    Text("Peck out a word the keyboard doesn't know and it learns it once you go on to the next word. Hold a guess on the bar to teach or block it. Or tap + to add one.")
                         .font(.sw(.small)).foregroundStyle(Theme.muted)
                 }
                 .padding(.horizontal, Theme.Space.gutter)
@@ -26,6 +35,15 @@ struct LearnedWordsView: View {
             } else {
                 List(selection: $picked) {
                     Section {
+                        Picker("Show", selection: $filter) {
+                            ForEach(Filter.allCases) { Text($0.rawValue).tag($0) }
+                        }
+                        .pickerStyle(.segmented)
+                        .listRowBackground(Color.clear)
+                        .listRowInsets(EdgeInsets())
+                    }
+                    .selectionDisabled()
+                    Section {
                         ForEach(words, id: \.self) { word in
                             HStack {
                                 Text(word).font(.sw(.body))
@@ -33,7 +51,7 @@ struct LearnedWordsView: View {
                                 if model.learnedWords.isAdded(word) {
                                     Chip("Added", tint: Theme.accent)
                                 } else if model.learnedWords.isBoosted(word) {
-                                    Chip("Kept", tint: Theme.mint)
+                                    Chip("More", tint: Theme.sun)
                                 }
                             }
                             .listRowBackground(Theme.card)
@@ -42,7 +60,9 @@ struct LearnedWordsView: View {
                             model.forget(offsets.map { words[$0] }, how: .swipe)
                         }
                     } footer: {
-                        Text(editMode.isEditing ? "Tap the words to delete." : "Swipe a word left to drop it, or tap Select to drop several. Tap + to add one.")
+                        Text(editMode.isEditing ? "Tap the words to delete."
+                             : filter == .usedOnce ? (words.isEmpty ? "No words it has seen only once." : "Words it has seen you write only once. Typos tend to end up here: tap Select to drop several.")
+                             : "Swipe a word left to drop it, or tap Select to drop several. Tap + to add one.")
                             .font(.sw(.small)).foregroundStyle(Theme.muted)
                     }
                 }
@@ -151,10 +171,13 @@ struct SelectButton: View {
     }
 }
 
-/// The bar under a list while selecting: how many are picked, and Delete N.
+/// The bar under a list while selecting: how many are picked, and Delete N (or another
+/// `verb`, like Never suggest's "Allow").
 struct DeleteBar: View {
     var count: Int
     var noun: String
+    var verb = "Delete"
+    var destructive = true
     var delete: () -> Void
     @State private var deleted = 0
 
@@ -163,12 +186,12 @@ struct DeleteBar: View {
             Text(count == 0 ? "Select \(noun)s" : "\(count) \(noun)\(count == 1 ? "" : "s") selected")
                 .font(.sw(.body)).fontWeight(.bold)
             Spacer()
-            Button(count == 0 ? "Delete" : "Delete \(count)", role: .destructive) {
+            Button(count == 0 ? verb : "\(verb) \(count)", role: destructive ? .destructive : nil) {
                 deleted += 1
                 delete()
             }
                 .font(.sw(.body)).fontWeight(.heavy)
-                .foregroundStyle(count == 0 ? Theme.muted : Theme.danger)
+                .foregroundStyle(count == 0 ? Theme.muted : destructive ? Theme.danger : Theme.accent)
                 .disabled(count == 0)
                 .sensoryFeedback(.impact(weight: .light), trigger: deleted)
         }

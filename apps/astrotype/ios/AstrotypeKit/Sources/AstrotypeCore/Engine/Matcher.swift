@@ -212,6 +212,17 @@ public struct Matcher: Sendable {
     /// pecked letters that begin a word ("bri" on the way to "bring") then stay as they
     /// are; when it is true (on space) they too must make a word, as `strictness` says.
     public func candidates(for pieces: [Piece], limit: Int = 3, final: Bool = true) -> [Candidate] {
+        let all = allCandidates(for: pieces, limit: limit, final: final)
+        guard !learned.entries.isEmpty else { return all }
+        // Blocked words (Never suggest) are never offered, except the letters exactly as
+        // tapped: typing a word out still types it (features/word-control).
+        let tapped = pieces.allSatisfy(\.isTap)
+            ? String(pieces.sorted { $0.start < $1.start }.flatMap(\.keys)).lowercased() : nil
+        let kept = all.filter { !learned.isBlocked($0.word) || $0.word.lowercased() == tapped }
+        return kept.isEmpty ? Array(all.prefix(1)) : kept
+    }
+
+    private func allCandidates(for pieces: [Piece], limit: Int, final: Bool) -> [Candidate] {
         // Letters picked from a held key ("ñ") search as their plain key and must come
         // out as picked.
         let picked = pieces.sorted { $0.start < $1.start }.flatMap(\.keys).filter { $0.unicodeScalars.contains { $0.value >= 0x80 } }
@@ -369,6 +380,14 @@ public struct Matcher: Sendable {
         }
     }
 
+    /// Whether `word` (as written, any case) is in the dictionary or the person's own
+    /// words: the bar's word menu says "Suggest more" for these, "Learn it" otherwise.
+    public func knows(_ word: String) -> Bool {
+        let lower = word.lowercased()
+        if learned.contains(lower) { return true }
+        return dictionary.spellings(of: Lexicon.fold(lower)).contains { $0.word == lower }
+    }
+
     /// In the dictionary or the person's own words.
     func isKnown(_ word: String) -> Bool {
         dictionary.contains(word) || learnedLexicon.contains(word)
@@ -406,7 +425,13 @@ public struct Matcher: Sendable {
                 near = Array(near.dropFirst()) + [split]
             }
         }
-        guard strictness < 1 else { return near }
+        // "Words only": the nearest word always goes in, but the letters as pecked stay
+        // last in the bar, so they can still be picked or held and learned
+        // (Gabriel, 7 Nov 2026).
+        guard strictness < 1 else {
+            guard pecked, !near.isEmpty, limit > 1 else { return near }
+            return Array(near.prefix(limit - 1)) + [literal]
+        }
         guard let best = near.first else { return [literal] }
         let threshold = best == split ? splitStrictness : strictness
         let sure = !pecked || (threshold > 0 && confidence(of: best, over: literal) >= 1 - threshold)

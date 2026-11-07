@@ -48,17 +48,17 @@ import Testing
         #expect(pro.touchDown(id: 2, at: h, time: 0.05) != [.notice(.twoThumbsIsPro)])
     }
 
-    @Test func anUnknownTappedWordIsLearnedOnCommit() {
+    @Test func anUnknownTappedWordIsLearnedWhenItSettles() {
         var composer = Synth.composer()
         let lifted = Synth.taps(&composer, "zorblat")
         #expect(composer.state.openWord == "zorblat")
-        let effects = composer.press(.space, time: lifted + 0.1)
+        let effects = composer.press(.space, time: lifted + 0.1) + composer.keyboardWillHide()
         #expect(effects.contains(.learn("zorblat")))
 
         // The host adds it; the next time it goes in it counts one more use.
         composer.learned.learn("zorblat")
         let again = Synth.taps(&composer, "zorblat", at: lifted + 1)
-        let effects2 = composer.press(.space, time: again + 0.1)
+        let effects2 = composer.press(.space, time: again + 0.1) + composer.keyboardWillHide()
         #expect(effects2.contains(.learn("zorblat")))
 
         // Dictionary words are never learned.

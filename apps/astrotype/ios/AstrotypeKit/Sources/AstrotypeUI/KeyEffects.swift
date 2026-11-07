@@ -40,11 +40,13 @@ final class TrailDrawing {
 }
 
 /// Calls a closure from a display link (a display link needs an Objective-C target).
+/// The closure returns false when its owner is gone, and the link stops: the run loop
+/// keeps a link alive, so it would otherwise tick forever.
 @MainActor
 private final class LinkTarget: NSObject {
-    let tick: @MainActor () -> Void
-    init(_ tick: @escaping @MainActor () -> Void) { self.tick = tick }
-    @objc func step() { tick() }
+    let tick: @MainActor () -> Bool
+    init(_ tick: @escaping @MainActor () -> Bool) { self.tick = tick }
+    @objc func step(_ link: CADisplayLink) { if !tick() { link.invalidate() } }
 }
 
 /// The small images particles are drawn with, made once.
@@ -156,7 +158,9 @@ enum Palette {
 /// touch: it only draws.
 @MainActor
 final class KeyEffects {
-    unowned let surface: KeySurfaceView
+    /// Weak: a burst or a display link tick can outlive the surface by a frame (the
+    /// Style preview closing mid-burst crashed reading it unowned, ASTROTYPE-4).
+    private(set) weak var surface: KeySurfaceView?
     var settings: EffectsSettings? = .calm {
         didSet { if settings != oldValue { settingsChanged() } }
     }
@@ -213,6 +217,9 @@ final class KeyEffects {
         self.surface = surface
         layer.isOpaque = false
     }
+
+    /// The screen scale to draw at.
+    private var scale: CGFloat { surface?.traitCollection.displayScale ?? UITraitCollection.current.displayScale }
 
     private var reduceMotion: Bool { UIAccessibility.isReduceMotionEnabled }
 
@@ -280,8 +287,8 @@ final class KeyEffects {
     func layout(_ bounds: CGRect) {
         guard layer.frame != bounds else { return }
         layer.frame = bounds
-        sky?.layout(bounds, scale: surface.traitCollection.displayScale)
-        letters?.layout(bounds, scale: surface.traitCollection.displayScale)
+        sky?.layout(bounds, scale: scale)
+        letters?.layout(bounds, scale: scale)
         layoutFall()
         lettersDirty = true
         if letters != nil { ensureLink() }
@@ -317,13 +324,13 @@ final class KeyEffects {
             } else {
                 host.addSublayer(renderer.layer)
             }
-            renderer.layout(layer.bounds, scale: surface.traitCollection.displayScale)
+            renderer.layout(layer.bounds, scale: scale)
             letters = renderer
         }
         letters?.keyMode = wantsMetalKeys ? settings?.keys ?? .none : .none
         if drawsLetters {
             letters?.mode = settings?.letters ?? .none
-            letters?.prepare(letters: surface.lettersOnKeys(), font: style.letterFont(), scale: surface.traitCollection.displayScale)
+            letters?.prepare(letters: surface?.lettersOnKeys() ?? [], font: style.letterFont(), scale: scale)
         } else {
             letters?.mode = .none
             letters?.dropLetters()
@@ -350,7 +357,7 @@ final class KeyEffects {
         guard isLetter, !drawsLetters else { return }
         if settings.letters == .pop || settings.letters.usesMetal {
             // Pop, or a Metal effect when Metal can't run now.
-            surface.popLetter(key, scale: 1.4 + 0.08 * CGFloat(level.rawValue))
+            surface?.popLetter(key, scale: 1.4 + 0.08 * CGFloat(level.rawValue))
         }
     }
 
@@ -418,7 +425,7 @@ final class KeyEffects {
         if blizzard, nextGlitch == 0 { nextGlitch = now + 0.3 }
         if blizzard != glowing {
             glowing = blizzard
-            surface.setGlow(blizzard ? style.accent.withAlphaComponent(0.8) : nil)
+            surface?.setGlow(blizzard ? style.accent.withAlphaComponent(0.8) : nil)
         }
         let aurora = settings?.flow == true && settings?.skyOn == true && level >= .aurora && !reduceMotion
         if aurora { showSky() } else { hideSky() }
@@ -432,7 +439,7 @@ final class KeyEffects {
         let look = particles(for: settings.tap, side: .left)
         burst(at: centre, look: look, count: 30 + 10 * level.rawValue, speed: 460, lifetime: 0.6, scale: look.scale * 1.3, force: true)
         if settings.tap == .glitch || settings.fall == .static {
-            surface.glitchKeys(count: 6 + 3 * level.rawValue, strength: 10)
+            surface?.glitchKeys(count: 6 + 3 * level.rawValue, strength: 10)
         }
     }
 
@@ -443,8 +450,8 @@ final class KeyEffects {
         let static_ = settings.falling && settings.fall == .static
         let torn = settings.skyOn && settings.sky == .glitch && level >= .aurora
         guard static_ || torn else { return }
-        if static_ { surface.glitchKeys(count: level >= .aurora ? 5 : 3, strength: level >= .aurora ? 9 : 6) }
-        if torn { surface.tearRow(strength: 12) }
+        if static_ { surface?.glitchKeys(count: level >= .aurora ? 5 : 3, strength: level >= .aurora ? 9 : 6) }
+        if torn { surface?.tearRow(strength: 12) }
         nextGlitch = time + Double.random(in: torn ? 0.18...0.6 : 0.3...0.9)
     }
 
@@ -453,8 +460,8 @@ final class KeyEffects {
     private func ensureLink() {
         undrawnFrames = 0
         guard link == nil else { return }
-        let target = LinkTarget { [weak self] in self?.step() }
-        let link = CADisplayLink(target: target, selector: #selector(LinkTarget.step))
+        let target = LinkTarget { [weak self] in self?.step() ?? false }
+        let link = CADisplayLink(target: target, selector: #selector(LinkTarget.step(_:)))
         link.preferredFrameRateRange = CAFrameRateRange(minimum: 30, maximum: 60, preferred: 60)
         link.add(to: .main, forMode: .common)
         self.link = link
@@ -467,7 +474,13 @@ final class KeyEffects {
         linkTarget = nil
     }
 
-    private func step() {
+    /// One frame. False when the surface is gone and the link should stop.
+    private func step() -> Bool {
+        guard let surface else {
+            stopLink()
+            bursting = false
+            return false
+        }
         let time = now
         if flow.score > 0 { updateLevel() }
         glitchTick(time)
@@ -502,6 +515,7 @@ final class KeyEffects {
             }
         }
         if !busy { stopLink() }
+        return true
     }
 
     // MARK: Taps
@@ -533,7 +547,7 @@ final class KeyEffects {
             }
         case .glitch:
             glitchTap(at: point, grow: grow)
-            if let key = surface.key(at: point) { surface.glitchKey(key, strength: 5 * grow) }
+            if let surface, let key = surface.key(at: point) { surface.glitchKey(key, strength: 5 * grow) }
         case .fireworks:
             ping(makeRing(at: point, color: Palette.cycling(at: now), radius: 12 * grow), delay: 0)
             fallthrough
@@ -1142,7 +1156,7 @@ final class KeyEffects {
                 return
             }
             let renderer = SkyRenderer(metal: metal)
-            renderer.layout(layer.bounds, scale: surface.traitCollection.displayScale)
+            renderer.layout(layer.bounds, scale: scale)
             renderer.layer.opacity = 0
             host.insertSublayer(renderer.layer, at: 0)
             sky = renderer
@@ -1182,9 +1196,9 @@ final class KeyEffects {
         ensureLink()
         Task { @MainActor [weak self] in
             for i in 0..<60 {
-                guard let self, self.bursting else { break }
+                guard let self, self.bursting, let surface = self.surface else { break }
                 let word = Self.burstWords[i % Self.burstWords.count]
-                let points = word.compactMap { self.surface.centre(of: $0) }
+                let points = word.compactMap { surface.centre(of: $0) }
                 guard let first = points.first else { continue }
                 let side: Side = first.x < self.layer.bounds.midX ? .left : .right
                 let steps = max(8, points.count * 4)
@@ -1199,15 +1213,15 @@ final class KeyEffects {
                     let p = CGPoint(x: a.x + (b.x - a.x) * u, y: a.y + (b.y - a.y) * u)
                     drawn.append(p)
                     if let trail { self.moveTrail(trail, points: drawn) }
-                    let key = self.surface.key(at: p)
+                    let key = surface.key(at: p)
                     if key != lit {
-                        if let lit { self.surface.unlight(lit) }
-                        if let key { self.surface.light(key, side: side) }
+                        if let lit { surface.unlight(lit) }
+                        if let key { surface.light(key, side: side) }
                         lit = key
                     }
                     try? await Task.sleep(for: .seconds(duration / Double(steps)))
                 }
-                if let lit { self.surface.unlight(lit) }
+                if let lit { surface.unlight(lit) }
                 if let trail { self.endTrail(trail) }
                 self.word(at: drawn.last ?? first, side: side)
                 try? await Task.sleep(for: .seconds(max(0.06, 0.5 - Double(i) * 0.009)))

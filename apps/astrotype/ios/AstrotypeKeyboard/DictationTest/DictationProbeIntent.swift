@@ -1,27 +1,21 @@
 import AppIntents
-import AVFoundation
 import Foundation
 
-// THROWAWAY SPIKE (Gabriel, 7 Nov 2026): can the keyboard start the microphone without
-// switching apps? This file is copied, unchanged, into the app (Astrotype/DictationTest)
-// and the keyboard (AstrotypeKeyboard/DictationTest), so both have the same intent type.
+// THROWAWAY SPIKE (Gabriel, 7 Nov 2026): can dictation start without switching apps?
+// This file is copied, unchanged, into the app (Astrotype/DictationTest), the keyboard
+// (AstrotypeKeyboard/DictationTest) and the widget extension (AstrotypeLive), so all
+// three have the same intent types. Each target has its own `DictationRunner` that does
+// the work: the app's runs a dictation session (Live Activity first, then the mic, like
+// Lanata's Talk to Lanata), the keyboard's tries the mic in the keyboard, and the
+// widget's should never run (these are LiveActivityIntents, which iOS runs in the app).
 //
-// The question: when the keyboard shows `Button(intent: DictationProbeIntent())`, does
-// iOS run `perform()` in the APP's process in the background (as it does for a widget's
-// or Live Activity's `LiveActivityIntent` / `AudioRecordingIntent`), or right here in the
-// keyboard? `perform()` writes down which process ran it, then tries to record for three
-// seconds and writes how loud it was. The keyboard and Settings → Debug show the result.
-//
-// The app also offers it to Shortcuts and Siri (`DictationProbeShortcuts`, app only), so
-// the Action Button, Back Tap or "Hey Siri" can start it without opening the app.
-//
-// No Live Activity yet: Apple says recording from the background stops unless one is
-// showing. If the mic starts for a moment and then goes silent, that's why, and the
-// real build adds one (it needs a widget extension).
+// Round 1 (7 Nov): a keyboard `Button(intent:)` ran in the keyboard and the mic failed;
+// Siri ran it in the app, but the audio session was refused without a Live Activity.
 
+/// Starts the dictation test session in the app, or ends it if it's running.
 struct DictationProbeIntent: AudioRecordingIntent, LiveActivityIntent {
     static let title: LocalizedStringResource = "Test dictation"
-    static let description = IntentDescription("Astrotype test: records three seconds in the background and notes where it ran.")
+    static let description = IntentDescription("Astrotype test: starts or stops a dictation session in the background, with a Live Activity.")
 
     @Parameter(title: "Started from", default: "Shortcut")
     var source: String
@@ -33,22 +27,49 @@ struct DictationProbeIntent: AudioRecordingIntent, LiveActivityIntent {
     }
 
     func perform() async throws -> some IntentResult {
-        let started = Date()
-        let process = Bundle.main.bundleIdentifier ?? "?"
-        let place = process.hasSuffix(".keyboard") ? "the keyboard" : "the app"
-        DictationProbeLog.write("\(source): running in \(place)…")
-        let outcome = await DictationProbeRecorder.record(seconds: 3)
-        let took = Date().timeIntervalSince(started)
-        DictationProbeLog.write("\(source): ran in \(place) (\(process)). \(outcome) Took \(String(format: "%.1f", took)) s.")
+        DictationProbeLog.write("\(source): running in \(DictationProbeLog.place)…")
+        try await DictationRunner.toggle(source: source)
         return .result()
     }
 }
 
-/// The last result, in the App Group so the keyboard and the app both see it.
+/// Starts or stops listening in a running session (the Live Activity's Talk button).
+struct DictationTalkIntent: LiveActivityIntent {
+    static let title: LocalizedStringResource = "Talk (dictation test)"
+    static let description = IntentDescription("Astrotype test: starts or stops listening in the running dictation session.")
+
+    func perform() async throws -> some IntentResult {
+        await DictationRunner.talk(source: "Live Activity Talk, in \(DictationProbeLog.place)")
+        return .result()
+    }
+}
+
+/// Ends the session (the Live Activity's Stop button).
+struct StopDictationProbeIntent: LiveActivityIntent {
+    static let title: LocalizedStringResource = "Stop dictation test"
+    static let description = IntentDescription("Astrotype test: ends the dictation session.")
+
+    func perform() async throws -> some IntentResult {
+        await DictationRunner.stop(source: "Live Activity Stop, in \(DictationProbeLog.place)")
+        return .result()
+    }
+}
+
+/// The last result and the session's state, in the App Group so all three see them.
 enum DictationProbeLog {
     static let key = "dictationProbe.result"
     static let enabledKey = "dictationProbe.keyboardButton"
+    static let sessionKey = "dictationProbe.session"
+    /// Posted by the keyboard's Talk button; the app's session listens for it.
+    static let talkNotification = "com.tinypenguin.astrotype.dictation.talk"
     static var defaults: UserDefaults? { UserDefaults(suiteName: "group.com.tinypenguin.astrotype") }
+
+    static var place: String {
+        let id = Bundle.main.bundleIdentifier ?? "?"
+        if id.hasSuffix(".keyboard") { return "the keyboard" }
+        if id.hasSuffix(".live") { return "the widget extension" }
+        return "the app"
+    }
 
     static func write(_ text: String) {
         let stamp = Date().formatted(date: .omitted, time: .standard)
@@ -56,72 +77,16 @@ enum DictationProbeLog {
     }
 
     static var last: String { defaults?.string(forKey: key) ?? "Not run yet" }
+
+    /// When the app's session started, or nil when none is running.
+    static var sessionStarted: Date? {
+        get { defaults?.object(forKey: sessionKey) as? Date }
+        set { defaults?.set(newValue, forKey: sessionKey) }
+    }
 }
 
-/// Records from the microphone for a few seconds and says what it heard (not kept).
-enum DictationProbeRecorder {
-    static func record(seconds: Double) async -> String {
-        switch AVAudioApplication.shared.recordPermission {
-        case .granted: break
-        case .denied: return "Mic: permission denied."
-        default: return "Mic: permission not asked yet (Settings → Debug → Allow microphone)."
-        }
-        let session = AVAudioSession.sharedInstance()
-        do {
-            try session.setCategory(.playAndRecord, mode: .measurement, options: [.mixWithOthers, .defaultToSpeaker])
-            try session.setActive(true)
-        } catch {
-            return "Mic: session failed (\((error as NSError).code))."
-        }
-        let engine = AVAudioEngine()
-        let input = engine.inputNode
-        let format = input.outputFormat(forBus: 0)
-        guard format.sampleRate > 0 else {
-            try? session.setActive(false, options: .notifyOthersOnDeactivation)
-            return "Mic: no input (sample rate 0)."
-        }
-        let meter = Meter()
-        input.installTap(onBus: 0, bufferSize: 2048, format: format) { buffer, _ in
-            meter.add(buffer)
-        }
-        do {
-            try engine.start()
-        } catch {
-            input.removeTap(onBus: 0)
-            try? session.setActive(false, options: .notifyOthersOnDeactivation)
-            return "Mic: engine failed (\((error as NSError).code))."
-        }
-        try? await Task.sleep(for: .seconds(seconds))
-        engine.stop()
-        input.removeTap(onBus: 0)
-        try? session.setActive(false, options: .notifyOthersOnDeactivation)
-        return meter.summary(expected: seconds * format.sampleRate)
-    }
-
-    /// Counts frames and the loudest moment, from the audio thread.
-    final class Meter: @unchecked Sendable {
-        private let lock = NSLock()
-        private var frames = 0.0
-        private var peak: Float = 0
-        private var silent = 0
-
-        func add(_ buffer: AVAudioPCMBuffer) {
-            guard let data = buffer.floatChannelData?[0] else { return }
-            var loudest: Float = 0
-            for i in 0..<Int(buffer.frameLength) { loudest = max(loudest, abs(data[i])) }
-            lock.lock()
-            frames += Double(buffer.frameLength)
-            peak = max(peak, loudest)
-            if loudest < 0.0001 { silent += 1 }
-            lock.unlock()
-        }
-
-        func summary(expected: Double) -> String {
-            lock.lock(); defer { lock.unlock() }
-            guard frames > 0 else { return "Mic: started but no audio came in." }
-            let db = peak > 0 ? 20 * log10(peak) : -160
-            let heard = Int((frames / expected * 100).rounded())
-            return "Mic: got \(heard)% of the audio, loudest \(Int(db)) dB\(silent > 0 ? ", \(silent) silent chunks" : "")."
-        }
-    }
+/// A short failure the intent shows (Siri says it, Shortcuts shows it).
+struct DictationProbeFailure: Error, CustomLocalizedStringResourceConvertible {
+    let message: String
+    var localizedStringResource: LocalizedStringResource { "\(message)" }
 }

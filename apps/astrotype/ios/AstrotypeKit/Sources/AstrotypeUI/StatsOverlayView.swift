@@ -3,7 +3,7 @@ import AstrotypeCore
 import Synchronization
 import UIKit
 
-/// The keyboard's stats overlay (Settings → Debug → "Stats on the keyboard"): three tiny
+/// The keyboard's stats overlay (Settings → Debug → "Stats on the keyboard"): a few tiny
 /// lines in a corner of the keys, "23.4/40 MB · peak 25.1 · 31 left", what it is made
 /// of, "heap 12.3 · other 11.1 · 412 layers" (a heap that grows is a leak in our
 /// objects; "other" or layers that grow is drawing left behind), and the live counts
@@ -17,6 +17,8 @@ import UIKit
 public final class StatsOverlayView: UILabel {
     /// The most memory seen since this view was made, in MB.
     public private(set) var peakMB = 0.0
+    /// The last memory-by-region line, kept between the readings that walk the regions.
+    private var regions: String?
 
     public override init(frame: CGRect) {
         super.init(frame: frame)
@@ -45,12 +47,18 @@ public final class StatsOverlayView: UILabel {
     public func show(_ sample: MemorySample) {
         peakMB = max(peakMB, sample.mb)
         guard isRunning else { return }
+        if let fresh = sample.regions { regions = fresh }
         let reading = sample.reading
         text = reading.overlay(peakMB: peakMB) + "\n"
             + MemoryReading.breakdown(footprintMB: sample.mb, heapMB: sample.heap, layers: sample.layers,
                                       views: sample.views, metal: sample.metal)
             + (sample.split.map { $0.line.isEmpty ? "" : "\n" + $0.line } ?? "")
             + "\n" + sample.counts.line
+            + (regions.map { "\n" + $0 } ?? "")
+        // The keyboard sizes the overlay to its text, so text that needs more (or less)
+        // room lays it out again.
+        let needed = ceil(sizeThatFits(CGSize(width: bounds.width, height: .greatestFiniteMagnitude)).height)
+        if needed != bounds.height { superview?.setNeedsLayout() }
         textColor = reading.budgetFraction >= 1 ? Theme.ui(.danger)
             : reading.budgetFraction >= 0.75 ? Theme.ui(.sun) : Theme.ui(.muted)
     }

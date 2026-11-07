@@ -17,6 +17,9 @@ public struct MemorySample: Codable, Sendable, Equatable {
     public var counts: LiveCount.Counts
     /// Where the rest ("other") sits: graphics, Core ML, compressed. Nil where it can't be read.
     public var split: MemorySplit?
+    /// The biggest kinds of memory by region (`MemoryRegions.line`), on the readings
+    /// that walk the regions (show, hide, warnings, the overlay every few seconds).
+    public var regions: String?
 
     public init(reading: MemoryReading, heapMB: Double?, layers: Int = 0, views: Int = 0, metal: Bool = false,
                 counts: LiveCount.Counts = LiveCount.now, split: MemorySplit? = nil) {
@@ -38,6 +41,7 @@ public struct MemorySample: Codable, Sendable, Equatable {
         if let heap { parts.append("heap \(MemoryReading.mb(heap))") }
         if let split, !split.line.isEmpty { parts.append(split.line) }
         if left > 0 { parts.append("\(Int(left.rounded())) left") }
+        if let regions, !regions.isEmpty { parts.append("[\(regions)]") }
         parts.append("\(layers) layers")
         if metal { parts.append("metal") }
         parts.append(counts.line)

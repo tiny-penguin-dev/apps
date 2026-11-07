@@ -123,6 +123,9 @@ public struct MemoryReading: Codable, Sendable, Equatable {
 public enum LiveCount {
     public static let controllers = Atomic<Int>(0)
     public static let models = Atomic<Int>(0)
+    /// Keyboard views (the keys and everything drawn on them) still alive. One per
+    /// controller; more means old ones are held after their controller went.
+    public static let keyboardViews = Atomic<Int>(0)
     public static let dictionaryLoads = Atomic<Int>(0)
     /// iCloud sync rounds started in this process.
     public static let syncs = Atomic<Int>(0)
@@ -136,19 +139,36 @@ public enum LiveCount {
         public var loads: Int
         public var syncs: Int
         public var waiting: Int
+        /// Keyboard views alive (`LiveCount.keyboardViews`); 0 in logs from before it was counted.
+        public var views: Int
 
-        public init(keyboards: Int = 0, models: Int = 0, loads: Int = 0, syncs: Int = 0, waiting: Int = 0) {
+        public init(keyboards: Int = 0, models: Int = 0, loads: Int = 0, syncs: Int = 0, waiting: Int = 0,
+                    views: Int = 0) {
             self.keyboards = keyboards
             self.models = models
             self.loads = loads
             self.syncs = syncs
             self.waiting = waiting
+            self.views = views
+        }
+
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            keyboards = try c.decode(Int.self, forKey: .keyboards)
+            models = try c.decode(Int.self, forKey: .models)
+            loads = try c.decode(Int.self, forKey: .loads)
+            syncs = try c.decode(Int.self, forKey: .syncs)
+            waiting = try c.decodeIfPresent(Int.self, forKey: .waiting) ?? 0
+            views = try c.decodeIfPresent(Int.self, forKey: .views) ?? 0
         }
 
         /// "1 keyboard · 1 model · 2 loads · 3 syncs", with ", 1 waiting" while a sync is out.
         public var line: String {
             func n(_ count: Int, _ word: String) -> String { "\(count) \(word)\(count == 1 ? "" : "s")" }
-            let line = [n(keyboards, "keyboard"), n(models, "model"), n(loads, "load"), n(syncs, "sync")].joined(separator: " · ")
+            var parts = [n(keyboards, "keyboard")]
+            if views > keyboards { parts.append(n(views, "key view")) }
+            parts += [n(models, "model"), n(loads, "load"), n(syncs, "sync")]
+            let line = parts.joined(separator: " · ")
             return waiting > 0 ? line + ", \(waiting) waiting" : line
         }
     }
@@ -156,7 +176,7 @@ public enum LiveCount {
     public static var now: Counts {
         Counts(keyboards: controllers.load(ordering: .relaxed), models: models.load(ordering: .relaxed),
                loads: dictionaryLoads.load(ordering: .relaxed), syncs: syncs.load(ordering: .relaxed),
-               waiting: syncsWaiting.load(ordering: .relaxed))
+               waiting: syncsWaiting.load(ordering: .relaxed), views: keyboardViews.load(ordering: .relaxed))
     }
 
     public static var summary: String { now.line }

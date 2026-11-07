@@ -39,6 +39,23 @@ import Testing
         #expect(MemorySplit().line.isEmpty)
     }
 
+    @Test func namesRegionKindsBiggestFirst() {
+        let line = MemoryRegions.line([51: 31.24, 1: 20, 2: 6, 88: 8.1, 0: 0.3, 240: 1])
+        #expect(line == "CA 31.2 · malloc 26.0 · IOSurface 8.1 · tag 240 1.0")
+        var s = sample(40)
+        s.regions = line
+        #expect(s.line.contains("[CA 31.2 · malloc 26.0"))
+    }
+
+    @Test func countsKeyViewsOnlyWhenMoreThanKeyboards() throws {
+        #expect(LiveCount.Counts(keyboards: 1, models: 1, loads: 1, syncs: 1, views: 1).line == "1 keyboard · 1 model · 1 load · 1 sync")
+        #expect(LiveCount.Counts(keyboards: 1, models: 1, loads: 1, syncs: 1, views: 4).line
+                == "1 keyboard · 4 key views · 1 model · 1 load · 1 sync")
+        let old = #"{"keyboards":1,"models":1,"loads":1,"syncs":2}"#
+        let decoded = try JSONDecoder().decode(LiveCount.Counts.self, from: Data(old.utf8))
+        #expect(decoded == LiveCount.Counts(keyboards: 1, models: 1, loads: 1, syncs: 2))
+    }
+
     @Test func memoryEventsRoundTripAndShowInTheTimeline() throws {
         let event = TypingEvent(t: 1.5, e: .memory, s: "hide", mem: sample(48))
         let decoded = try JSONDecoder().decode(TypingEvent.self, from: JSONEncoder().encode(event))

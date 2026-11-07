@@ -54,7 +54,9 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
     `KeyboardHealthRecorder` and the log (`mem` events: on show, hide and memory
     warnings, every 10 s, on a 5 MB jump, and when a `LiveCount` changes;
     `MemoryLogPacer`). Each sample splits the non-malloc part with the kernel's
-    ledgers (`MemorySplit`: gfx, ml, media, zip). iOS makes a new controller per presentation and can keep old
+    ledgers (`MemorySplit`: gfx, ml, media, zip); show, hide and warning readings (and the
+    overlay every 5 s) also walk the VM regions by tag (`MemoryRegions`: CA, malloc,
+    IOSurface, ...), and `LiveCount.keyboardViews` counts KeyboardViews alive. iOS makes a new controller per presentation and can keep old
     ones alive, so the model, sync and Pro check live once per process in
     `KeyboardShared`; each controller adds its own view and `ProxyTarget` and becomes
     `showing` on appear. `ExtensionChecks`

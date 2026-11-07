@@ -254,8 +254,10 @@ This is the product, so it gets its own section.
   teaches two thumbs from the first word.
 - **Typing a word** (5.2): pieces → open word in the bar and the field → space, pause or
   punctuation commits → the bar offers fixes for a moment → next word.
-- **Learning** (5.3): tapping out an unknown word letter by letter learns it on commit.
-  Hold a guess in the bar and slide up or down to boost or forget it (not in the mockup).
+- **Learning** (5.3): tapping out an unknown word letter by letter learns it once it
+  settles (the next word starts), so a word fixed before that is never learned. Hold a
+  guess in the bar for the word menu (Never suggest · word · Suggest more / Learn it,
+  then Undo), or slide up or down to boost or block it at once (features/word-control).
 - **Practice** (5.4): Home → Speed test → Result → Again or Done. Home → Drill → five words
   → back to Home with the drill ticked.
 - **Customize** (5.5): Home → Settings. Pro rows carry the PRO badge and open the Pro

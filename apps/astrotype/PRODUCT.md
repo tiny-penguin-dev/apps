@@ -279,6 +279,7 @@ and `guess.*` rows below).
 | `personal.reset` | How often people wipe what the keyboard learned (features/smart-matching) |
 | `words.added`, `words.deleted` (by count; `how`: `swipe` / `select`) | Learned words typed in by hand, and dropped (features/learned-words) |
 | `pairs.opened`, `pairs.deleted` (by count; `how`) | Whether anyone looks at the word pairs, and how many they delete (features/learned-words) |
+| `word.menu`, `word.blocked`, `word.boosted`, `word.allowed` (`how`: `menu` / `slide` / `voiceover` / `settings` / `swipe` / `select` / `undo`) | Whether people teach and block words from the bar, and how (features/word-control) |
 | `languages.enabled` (`set`: `en`, `es`, `en+es`) | Which languages people turn on, and how many want two at once (features/languages) |
 | `keyboard.memory_peak` (MB, per time the keyboard is shown; `parts`: what was open, like `keys`, `emoji`, `emoji+settings`, `metal`) | Memory regressions before they hit the extension's limit (budget: 40 MB), and which part of the keyboard caused them |
 | `miss.saved` (count) | Words typed with "Not it?" because a swipe missed them (features/missed-words). Falling over time means the matcher is getting better |

@@ -52,6 +52,7 @@ final class KeyboardShared {
                                              system: "\(UIDevice.current.systemName) \(UIDevice.current.systemVersion)",
                                              model: KeyboardViewController.hardware)
         model.onSettled = { [weak self] word in self?.showing?.health?.settled(word) }
+        model.onWordAction = { [weak self] name, how in self?.showing?.health?.wordAction(name, how: how) }
         // The switch can change here (a sync) or in the app (read on each appearance).
         // Set before the sync wraps it.
         model.onSettingsChange = { [weak self] _ in self?.showing?.updateRecorder() }

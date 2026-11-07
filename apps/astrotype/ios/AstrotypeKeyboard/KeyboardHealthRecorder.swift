@@ -57,6 +57,12 @@ final class KeyboardHealthRecorder {
         if health.settled(word) { store.save(health) }
     }
 
+    /// Something done to a word from the bar (`KeyboardModel.onWordAction`).
+    func wordAction(_ name: String, how: String?) {
+        guard let store else { return }
+        if health.wordAction(name, how: how) { store.save(health) }
+    }
+
     func disappeared() {
         guard let store else { return }
         health.end(footprintMB: Self.footprintMB(), headroomMB: Self.headroomMB())

@@ -157,6 +157,16 @@ public struct KeyboardHealth: Codable, Sendable, Equatable {
         return (last.guesses.words + last.guesses.next) % 10 == 0
     }
 
+    /// Something done to a word from the bar (`GuessTally.addAction`). Always worth
+    /// writing: it is rare.
+    @discardableResult
+    public mutating func wordAction(_ name: String, how: String? = nil) -> Bool {
+        guard var last = sessions.last, !last.ended else { return false }
+        last.guesses.addAction(name, how: how)
+        sessions[sessions.count - 1] = last
+        return true
+    }
+
     /// The sessions the app should send now: started after `sent`, and finished. One
     /// still open counts as finished once it is `openFor` old, since it was never going
     /// to end normally. Stops at the first one that is not finished yet (the keyboard

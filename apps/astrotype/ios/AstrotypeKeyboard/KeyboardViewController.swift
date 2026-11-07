@@ -158,24 +158,25 @@ final class KeyboardViewController: UIInputViewController {
         keyboard.attachToModel()
         // Our globe key only where iOS draws none (Home button phones); elsewhere the
         // emoji key takes its place, as on Apple's keyboard (features/emoji).
-        keyboard?.showsGlobe = needsInputModeSwitchKey
+        keyboard.showsGlobe = needsInputModeSwitchKey
         applyHeight(fresh: true)
         health?.appeared()
         debug?.appeared()
         sampler.start()
         askedAppearance = nil
         followKeyboardAppearance()
-        if let model = keyboard?.model, let store = model.store, let saved = store.load(), let changed = store.lastChanged() {
+        let model = keyboard.model
+        if let store = model.store, let saved = store.load(), let changed = store.lastChanged() {
             // Settings → Debug may have changed them since the keyboard last showed.
             model.adopt(saved, changed: changed)
         }
-        keyboard?.model.field = field
+        model.field = field
         // Each appearance starts with a snapshot (a new recorder writes its own first).
-        let recording = keyboard?.model.recorder != nil
+        let recording = model.recorder != nil
         updateRecorder()
-        if recording { keyboard?.model.snapshot() }
+        if recording { model.snapshot() }
         logMemory("show")
-        keyboard?.model.contextChanged()
+        model.contextChanged()
     }
 
     /// Starts or stops the typing recorder with the setting (Full Access only).

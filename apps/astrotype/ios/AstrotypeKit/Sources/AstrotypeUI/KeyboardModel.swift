@@ -249,9 +249,21 @@ public final class KeyboardModel {
         guard codes != composer.nextWordModels.map(\.code) else { return }
         nextWordLoad?.cancel()
         nextWordLoad = Task { [weak self] in
-            let models = await Task.detached(priority: .utility) { codes.compactMap(load) }.value
+            let (models, line) = await Task.detached(priority: .utility) { () -> ([NextWordModel], String) in
+                let before = MemoryReading.current()?.footprintMB ?? 0
+                let started = Date()
+                let models = codes.compactMap(load)
+                let ms = Int(Date().timeIntervalSince(started) * 1000)
+                let after = MemoryReading.current()?.footprintMB ?? 0
+                let line = "\(models.map(\.code).joined(separator: "+")) \(ms) ms "
+                    + String(format: "%.1f → %.1f MB", before, after)
+                return (models, line)
+            }.value
             guard !Task.isCancelled, let self, self.composer.languageCode == code,
                   models.map(\.code) != self.composer.nextWordModels.map(\.code) else { return }
+            // What they cost, so the typing log shows it on a real phone (a second load
+            // in the same process is the shared copy, near zero).
+            self.recorder?.record(TypingEvent(t: self.now, e: .nextWordLoad, s: line))
             self.composer.nextWordModels = models
             self.onChange?()
         }

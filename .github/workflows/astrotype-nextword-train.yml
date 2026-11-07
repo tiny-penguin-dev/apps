@@ -137,6 +137,8 @@ jobs:
             -f language="$LANG_CODE" -f size="${{ inputs.size }}" -f hours="${{ inputs.hours }}" \
             -f resume_run="${{ github.run_id }}"
 
+      # Opening the pull request needs "Allow GitHub Actions to create and approve pull
+      # requests" in the repository's Actions settings; without it the branch is still pushed.
       - name: Score, export and open a pull request
         if: steps.train.outputs.more == '0'
         run: |
@@ -160,4 +162,5 @@ jobs:
 
           $(tail -1 export.txt)
 
-          Start **Astrotype iOS** on this branch to build it (PRs opened by a workflow don't start other workflows)."
+          Start **Astrotype iOS** on this branch to build it (PRs opened by a workflow don't start other workflows)." \
+            || echo "::warning::The model is on branch $branch, but the repository doesn't let Actions open pull requests. Open one from ${{ github.server_url }}/${{ github.repository }}/pull/new/$branch"

@@ -33,6 +33,10 @@ final class KeyboardShared {
         // The languages turned on, or the phone's (features/languages), with their word
         // pairs. Pro is not known yet, so both load; the model drops to one when the
         // entitlement says the keyboard is free.
+        // The dictionaries are read in place from files in the extension's Caches,
+        // made there the first time, instead of held in memory (`Language.cacheFolder`).
+        Language.cacheFolder = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first?
+            .appendingPathComponent("Dictionaries", isDirectory: true)
         let codes = (settingsStore.load() ?? KeyboardSettings())
             .activeLanguages(preferred: Locale.preferredLanguages, allowsTwo: true)
         let language = (try? Language.bundled(codes)) ?? (try? Language.bundled())

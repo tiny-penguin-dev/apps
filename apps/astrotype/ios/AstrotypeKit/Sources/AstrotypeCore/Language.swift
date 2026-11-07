@@ -72,9 +72,12 @@ public struct Language: Sendable {
     }
 
     private static func load(_ code: String) throws -> Language {
-        let entries = try Lexicon.readEntries(from: resource("lexicon", "tsv", language: code))
-        let ngrams = (try? resource("bigrams", "bin", language: code)).flatMap { try? NgramModel(contentsOf: $0) }
-        return Language(code: code, lexicon: Lexicon(entries: entries), ngrams: ngrams)
+        Language(code: code, lexicon: try lexicon([code]), ngrams: ngrams(code))
+    }
+
+    /// The word pairs in the package, mapped from the file (`NgramModel(contentsOf:)`).
+    private static func ngrams(_ code: String) -> NgramModel? {
+        (try? resource("bigrams", "bin", language: code)).flatMap { try? NgramModel(contentsOf: $0) }
     }
 
     /// Several bundled languages typed at once: one dictionary of all their words, each
@@ -85,19 +88,67 @@ public struct Language: Sendable {
     }
 
     private static func load(_ codes: [String]) throws -> Language {
-        var lists: [[Lexicon.Entry]] = []
-        var models: [NgramModel] = []
-        var parts: [Language] = []
-        for code in codes {
-            let entries = try Lexicon.readEntries(from: resource("lexicon", "tsv", language: code))
-            lists.append(entries)
-            let model = (try? resource("bigrams", "bin", language: code)).flatMap { try? NgramModel(contentsOf: $0) }
-            if let model { models.append(model) }
-            parts.append(Language(code: code, lexicon: Lexicon(entries: entries), ngrams: model))
-        }
-        var both = Language(code: codes.joined(separator: "+"), lexicon: Lexicon(entries: combined(lists)), ngramModels: models)
+        let parts = try codes.map { try load($0) }
+        var both = Language(code: codes.joined(separator: "+"), lexicon: try lexicon(codes),
+                            ngramModels: parts.flatMap(\.ngramModels))
         both.parts = parts
         return both
+    }
+
+    // MARK: Dictionary files
+
+    /// Where the dictionaries are kept ready to read (`Lexicon.encode`), so they are
+    /// mapped from storage instead of held in memory: about 12 MB less for the keyboard
+    /// with two languages. Nil keeps them in memory (the app, the tests). Set before the
+    /// first language loads; the keyboard uses its own Caches folder.
+    public static var cacheFolder: URL? {
+        get { cacheFolderLock.withLock { $0 } }
+        set { cacheFolderLock.withLock { $0 = newValue } }
+    }
+    private static let cacheFolderLock = Mutex<URL?>(nil)
+
+    /// The dictionary of `codes` (merged by `combined` when several): mapped from its
+    /// file in `cacheFolder`, made there from `lexicon.tsv` the first time and after an
+    /// update changes the word lists. In memory when there is no folder or it can't be
+    /// written.
+    static func lexicon(_ codes: [String], folder: URL? = cacheFolder) throws -> Lexicon {
+        let sources = try codes.map { try resource("lexicon", "tsv", language: $0) }
+        let entries = {
+            let lists = try sources.map(Lexicon.readEntries)
+            return lists.count == 1 ? lists[0] : combined(lists)
+        }
+        guard let folder else { return Lexicon(entries: try entries()) }
+        let prefix = "lexicon-\(codes.joined(separator: "+"))-"
+        let file = folder.appendingPathComponent(prefix + stamp(sources) + ".aslx")
+        if let mapped = try? Lexicon(mapping: file) { return mapped }
+        let data = Lexicon.encode(try entries())
+        do {
+            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            try data.write(to: file, options: .atomic)
+            // Older files for the same languages (an earlier version's words).
+            let names = (try? FileManager.default.contentsOfDirectory(atPath: folder.path)) ?? []
+            for name in names where name.hasPrefix(prefix) && name != file.lastPathComponent {
+                try? FileManager.default.removeItem(at: folder.appendingPathComponent(name))
+            }
+            return try Lexicon(mapping: file)
+        } catch {
+            return try Lexicon(data: data)
+        }
+    }
+
+    /// Names a dictionary file by the format and its word lists' sizes and dates, so a
+    /// new version of either makes a new file.
+    static func stamp(_ sources: [URL]) -> String {
+        var hash: UInt64 = 0xcbf2_9ce4_8422_2325
+        var parts = ["v\(Lexicon.formatVersion)"]
+        for url in sources {
+            let attributes = try? FileManager.default.attributesOfItem(atPath: url.path)
+            let size = (attributes?[.size] as? NSNumber)?.int64Value ?? 0
+            let date = (attributes?[.modificationDate] as? Date)?.timeIntervalSince1970 ?? 0
+            parts.append("\(size):\(Int64(date))")
+        }
+        for byte in parts.joined(separator: "|").utf8 { hash = (hash ^ UInt64(byte)) &* 0x100_0000_01b3 }
+        return String(hash, radix: 16)
     }
 
     // MARK: Keeping to one language

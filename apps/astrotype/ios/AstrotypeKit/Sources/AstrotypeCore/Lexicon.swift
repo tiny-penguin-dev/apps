@@ -1,38 +1,63 @@
 import Foundation
 
-/// The decoder's dictionary as a compact trie in flat arrays (no per-node
-/// objects), so it stays small enough for a keyboard extension.
+/// The decoder's dictionary as a compact trie in flat tables (no per-node objects),
+/// read in place from one block of bytes (`MappedBytes`): a file mapped into memory
+/// for the bundled languages (`Language.cacheFolder`), or a copy in memory for word
+/// lists made on the phone. Mapped, the tables cost the keyboard no memory iOS counts.
 /// Node 0 is the root. Letters are 1...26 for a–z, matching the model's classes;
 /// accented words sit under their plain letters with their spellings kept (`fold`,
 /// `spellings(at:)`), since the keys a thumb crosses are a to z.
-public struct Lexicon: Sendable {
+///
+/// The file ("ASLX", `formatVersion`), little-endian, each table on a 4-byte boundary:
+///
+///     magic · version UInt16 · 0 UInt16 · nodes N · edges E · spelled nodes S
+///     · spellings P · spelling text bytes T (UInt32 each) · log probability offset Float32
+///     · edgeStart Int32[N] · parent Int32[N] · wordLogPrior Float32[N] · bestBelow Float32[N]
+///     · edgeTargets Int32[E] · spelledNodes Int32[S] (ascending) · spellingStart UInt32[S+1]
+///     · spellingPrior Float32[P] · spellingTextStart UInt32[P+1]
+///     · edgeCount UInt8[N] · label UInt8[N] · edgeLabels UInt8[E] · spelling text UInt8[T]
+public struct Lexicon: @unchecked Sendable {
     public struct Entry: Sendable {
         public var word: String
         public var frequency: Double
     }
 
+    static let magic: [UInt8] = Array("ASLX".utf8)
+    public static let formatVersion: UInt16 = 1
+    static let headerSize = 32
+
+    /// The bytes the tables below point into; kept alive with them. Read-only, so the
+    /// lexicon is safe to share between threads.
+    private let bytes: MappedBytes
     /// For each node: where its edges start in `edgeLabels`/`edgeTargets`, and how many.
-    var edgeStart: [Int32] = []
-    var edgeCount: [UInt8] = []
-    var edgeLabels: [UInt8] = []
-    var edgeTargets: [Int32] = []
+    let edgeStart: UnsafeBufferPointer<Int32>
+    let edgeCount: UnsafeBufferPointer<UInt8>
+    let edgeLabels: UnsafeBufferPointer<UInt8>
+    let edgeTargets: UnsafeBufferPointer<Int32>
     /// For each node: its parent, the letter that leads to it, and the word prior
     /// `log(freq / maxFreq)` when a word ends here (NaN otherwise).
-    var parent: [Int32] = []
-    var label: [UInt8] = []
-    var wordLogPrior: [Float] = []
+    let parent: UnsafeBufferPointer<Int32>
+    let label: UnsafeBufferPointer<UInt8>
+    let wordLogPrior: UnsafeBufferPointer<Float>
     /// For each node: the best word prior at or below it, for ranking completions.
-    var bestBelow: [Float] = []
+    let bestBelow: UnsafeBufferPointer<Float>
     /// Added to a word's log prior gives `log P(word)` over the whole dictionary:
     /// `log(maxFreq / sum of frequencies)`.
-    public private(set) var logProbabilityOffset: Float = 0
+    public let logProbabilityOffset: Float
 
-    /// For nodes whose word is written differently from its keys ("canción" under
-    /// "cancion") or has more than one spelling ("está" and "esta" under "esta"): every
-    /// spelling with its own log prior, likeliest first.
-    var spellingTable: [Int32: [(word: String, logPrior: Float)]] = [:]
+    /// Nodes whose word is written differently from its keys ("canción" under
+    /// "cancion") or has more than one spelling ("está" and "esta" under "esta"), and
+    /// for each its spellings with their own log priors, likeliest first.
+    private let spelledNodes: UnsafeBufferPointer<Int32>
+    private let spellingStart: UnsafeBufferPointer<UInt32>
+    private let spellingPrior: UnsafeBufferPointer<Float>
+    private let spellingTextStart: UnsafeBufferPointer<UInt32>
+    private let spellingText: UnsafeBufferPointer<UInt8>
 
     public var nodeCount: Int { parent.count }
+
+    /// Whether the tables are read from a mapped file rather than held in memory.
+    public var isMapped: Bool { bytes.isMapped }
 
     /// A word as the keys spell it: lowercase, accents and tildes off, so "Año" is
     /// "ano" and "pingüino" is "pinguino". The trie is keyed by these, and the
@@ -71,9 +96,52 @@ public struct Lexicon: Sendable {
         try Lexicon(contentsOf: Language.resource("lexicon", "tsv", language: "en"))
     }
 
-    /// Words with accents are stored under their folded keys (`fold`), with the key's
-    /// frequency the sum of its spellings', and the spellings kept for `spellings(at:)`.
-    public init(entries rawEntries: [Entry]) {
+    /// A lexicon of `entries`, held in memory.
+    public init(entries: [Entry]) {
+        // Our own encoding always reads back.
+        try! self.init(bytes: MappedBytes(copying: Self.encode(entries)))
+    }
+
+    /// A lexicon file written by `encode`, mapped from storage.
+    public init(mapping url: URL) throws {
+        try self.init(bytes: MappedBytes(mapping: url))
+    }
+
+    /// A lexicon file written by `encode`, copied into memory.
+    public init(data: Data) throws {
+        try self.init(bytes: MappedBytes(copying: data))
+    }
+
+    private init(bytes: MappedBytes) throws {
+        guard bytes.count >= Self.headerSize else { throw TableFileError.corrupt }
+        let header = bytes.buffer(at: 0, count: Self.headerSize, as: UInt8.self)
+        guard Array(header[0..<4]) == Self.magic,
+              bytes.buffer(at: 4, count: 1, as: UInt16.self)[0] == Self.formatVersion else { throw TableFileError.corrupt }
+        let counts = bytes.buffer(at: 8, count: 5, as: UInt32.self).map(Int.init)
+        let (nodes, edges, spelled, spellings, text) = (counts[0], counts[1], counts[2], counts[3], counts[4])
+        var reader = SectionReader(bytes, after: Self.headerSize)
+        self.bytes = bytes
+        logProbabilityOffset = bytes.buffer(at: 28, count: 1, as: Float.self)[0]
+        edgeStart = try reader.next(nodes)
+        parent = try reader.next(nodes)
+        wordLogPrior = try reader.next(nodes)
+        bestBelow = try reader.next(nodes)
+        edgeTargets = try reader.next(edges)
+        spelledNodes = try reader.next(spelled)
+        spellingStart = try reader.next(spelled + 1)
+        spellingPrior = try reader.next(spellings)
+        spellingTextStart = try reader.next(spellings + 1)
+        edgeCount = try reader.next(nodes)
+        label = try reader.next(nodes)
+        edgeLabels = try reader.next(edges)
+        spellingText = try reader.next(text)
+        guard nodes > 0 else { throw TableFileError.corrupt }
+    }
+
+    /// The file for `entries`: words with accents are stored under their folded keys
+    /// (`fold`), with the key's frequency the sum of its spellings', and the spellings
+    /// kept for `spellings(at:)`.
+    public static func encode(_ rawEntries: [Entry]) -> Data {
         // Only a list with accented words needs keys and spellings sorted out (English
         // has none, and loads as it always did).
         var entries = rawEntries
@@ -93,12 +161,13 @@ public struct Lexicon: Sendable {
         }
         let maxFreq = entries.map(\.frequency).max() ?? 1
         let sum = entries.reduce(0) { $0 + $1.frequency }
-        logProbabilityOffset = sum > 0 ? Float(log(maxFreq / sum)) : 0
+        let logProbabilityOffset = sum > 0 ? Float(log(maxFreq / sum)) : 0
         // Build with per-node child lists first, then flatten.
         var children: [[(UInt8, Int32)]] = [[]]
-        parent = [-1]
-        label = [0]
-        wordLogPrior = [.nan]
+        var parent: [Int32] = [-1]
+        var label: [UInt8] = [0]
+        var wordLogPrior: [Float] = [.nan]
+        var spellingTable: [Int32: [(word: String, logPrior: Float)]] = [:]
         for entry in entries {
             var node: Int32 = 0
             var valid = true
@@ -126,6 +195,10 @@ public struct Lexicon: Sendable {
                 }
             }
         }
+        var edgeStart: [Int32] = []
+        var edgeCount: [UInt8] = []
+        var edgeLabels: [UInt8] = []
+        var edgeTargets: [Int32] = []
         edgeStart.reserveCapacity(children.count)
         edgeCount.reserveCapacity(children.count)
         for list in children {
@@ -136,9 +209,10 @@ public struct Lexicon: Sendable {
                 edgeTargets.append(target)
             }
         }
+        children = []
         // Children are created after their parents, so a reverse pass sees every
         // child's best before its parent's.
-        bestBelow = [Float](repeating: -.infinity, count: parent.count)
+        var bestBelow = [Float](repeating: -.infinity, count: parent.count)
         for node in stride(from: parent.count - 1, through: 0, by: -1) {
             var best = wordLogPrior[node].isNaN ? -Float.infinity : wordLogPrior[node]
             let start = Int(edgeStart[node])
@@ -147,6 +221,45 @@ public struct Lexicon: Sendable {
             }
             bestBelow[node] = best
         }
+        // The spellings, by node.
+        var spelledNodes: [Int32] = []
+        var spellingStart: [UInt32] = [0]
+        var spellingPrior: [Float] = []
+        var spellingTextStart: [UInt32] = [0]
+        var spellingText: [UInt8] = []
+        for node in spellingTable.keys.sorted() {
+            spelledNodes.append(node)
+            for spelling in spellingTable[node]! {
+                spellingPrior.append(spelling.logPrior)
+                spellingText.append(contentsOf: spelling.word.utf8)
+                spellingTextStart.append(UInt32(spellingText.count))
+            }
+            spellingStart.append(UInt32(spellingPrior.count))
+        }
+
+        var out = SectionWriter()
+        for byte in Self.magic { out.append(byte) }
+        out.append(Self.formatVersion)
+        out.append(UInt16(0))
+        for count in [parent.count, edgeTargets.count, spelledNodes.count, spellingPrior.count, spellingText.count] {
+            out.append(UInt32(count))
+        }
+        out.append(logProbabilityOffset)
+        out.section(edgeStart)
+        out.section(parent)
+        out.section(wordLogPrior)
+        out.section(bestBelow)
+        out.section(edgeTargets)
+        out.section(spelledNodes)
+        out.section(spellingStart)
+        out.section(spellingPrior)
+        out.section(spellingTextStart)
+        out.section(edgeCount)
+        out.section(label)
+        out.section(edgeLabels)
+        out.section(spellingText)
+        out.pad()
+        return out.data
     }
 
     /// Spells the word that ends at `node`.
@@ -163,9 +276,26 @@ public struct Lexicon: Sendable {
     /// How the word ending at `node` is written, likeliest first, with each one's log
     /// prior: one entry, the key itself, for a word with no accents.
     public func spellings(at node: Int32) -> [(word: String, logPrior: Float)] {
-        if let table = spellingTable[node] { return table }
+        if let index = spelledIndex(of: node) {
+            return (Int(spellingStart[index])..<Int(spellingStart[index + 1])).map { i in
+                let text = UnsafeBufferPointer(rebasing: spellingText[Int(spellingTextStart[i])..<Int(spellingTextStart[i + 1])])
+                return (String(decoding: text, as: UTF8.self), spellingPrior[i])
+            }
+        }
         guard let prior = logPrior(at: node) else { return [] }
         return [(word(at: node), prior)]
+    }
+
+    /// Where `node` is in `spelledNodes`, by binary search.
+    private func spelledIndex(of node: Int32) -> Int? {
+        var low = 0
+        var high = spelledNodes.count - 1
+        while low <= high {
+            let mid = (low + high) / 2
+            if spelledNodes[mid] == node { return mid }
+            if spelledNodes[mid] < node { low = mid + 1 } else { high = mid - 1 }
+        }
+        return nil
     }
 
     /// The spellings of a key (`fold`ed letters), likeliest first; empty if it is no word.
@@ -174,7 +304,7 @@ public struct Lexicon: Sendable {
     }
 
     /// Whether any word is written with letters beyond a to z.
-    public var hasSpellings: Bool { !spellingTable.isEmpty }
+    public var hasSpellings: Bool { !spelledNodes.isEmpty }
 
     /// The node reached by spelling `word`, if it's a path in the trie.
     public func node(for word: String) -> Int32? {

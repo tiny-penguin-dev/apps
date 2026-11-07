@@ -70,7 +70,7 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
       language's files from `Resources/<code>/`: `Lexicon`, the trie from
       `lexicon.tsv`, and `NgramModel`, the word pairs from `bigrams.bin`; English and
       Spanish, `Language.bundled(["en", "es"])` for both at once, a sentence keeping to the first language it shows (`Language.lock(for:)`, `Composer.lockedLanguage`, unless `mixesLanguages`); accented words sit
-      under their plain letters, `Lexicon.fold`, and `Matcher` writes the accents back), `Flags`, and `Engine/`: `Composer` (touches in, effects out, pure,
+      under their plain letters, `Lexicon.fold`, and `Matcher` writes the accents back; both are flat tables read in place from one block of bytes, `Storage/MappedBytes`: the word pairs mapped straight from `bigrams.bin` (format version 2), and each dictionary written once to a ready-to-read file in `Language.cacheFolder`, the keyboard's Caches, then mapped, so the keyboard holds neither in memory; the app and tests leave the folder nil and keep them in memory), `Flags`, and `Engine/`: `Composer` (touches in, effects out, pure,
       time passed in), `Matcher` (pieces to ranked candidates: trie search plus DTW,
       two-thumb orderings and split swipes, both thumbs swiping at once in
       `Matcher+Together` (letters woven by when each key was reached), the words before the open one from
@@ -120,7 +120,7 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
       `Engine/TypingReplay` (a log through a fresh `Composer` as `KeyboardModel`
       drives it, effects compared with the phone's; keep it in step with
       `KeyboardModel`). Foundation only; tests run on Linux.
-    - `AstrotypeTools`: the `astrotype-tools` command line (`build-ngrams`, `replay`,
+    - `AstrotypeTools`: the `astrotype-tools` command line (`build-ngrams`, `upgrade-ngrams` (an older `bigrams.bin` in the current format), `replay`,
       `tune` (`Tuning`'s search over `Matcher.Weights`), `synth` (`SyntheticTyping`'s
       made-up words to measure against), `prompts`,
       `next`, `typing` (a typing log's timeline and replay)), argument parsing over `AstrotypeCore` and nothing else.

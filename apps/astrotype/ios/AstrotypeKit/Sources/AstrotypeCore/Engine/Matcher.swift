@@ -427,9 +427,13 @@ public struct Matcher: Sendable {
         }
         // "Words only": the nearest word always goes in, but the letters as pecked stay
         // last in the bar, so they can still be picked or held and learned
-        // (Gabriel, 7 Nov 2026).
+        // (Gabriel, 7 Nov 2026). Pecked letters with no word near them are a word the
+        // keyboard doesn't know ("overwritten"), not a slip: they stay as typed rather
+        // than vanishing from the field mid-word (Gabriel, 7 Nov 2026).
         guard strictness < 1 else {
-            guard pecked, !near.isEmpty, limit > 1 else { return near }
+            guard pecked else { return near }
+            guard !near.isEmpty else { return [literal] }
+            guard limit > 1 else { return near }
             return Array(near.prefix(limit - 1)) + [literal]
         }
         guard let best = near.first else { return [literal] }

@@ -51,7 +51,8 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       LANG_CODE: ${{ inputs.language }}
-      WORK: ${{ github.workspace }}/../nextword
+      # Outside the checkout, by its full path: upload-artifact refuses paths with "..".
+      WORK: /home/runner/nextword
     steps:
       - uses: actions/checkout@v4
         with:
@@ -71,7 +72,7 @@ jobs:
         id: cache
         uses: actions/cache@v4
         with:
-          path: ${{ github.workspace }}/../nextword/data/${{ inputs.language }}
+          path: /home/runner/nextword/data/${{ inputs.language }}
           key: nextword-data-${{ inputs.language }}-${{ hashFiles('apps/astrotype/ml/nextword/make_text.py', 'apps/astrotype/ios/AstrotypeKit/Sources/AstrotypeCore/Resources/*/lexicon.tsv') }}
 
       - name: Make the sentences
@@ -119,11 +120,14 @@ jobs:
             --minutes "$minutes" --total-minutes "$total" --eval-every 30 --eval-sentences 5000
           echo "more=$(( left - minutes > 10 ? 1 : 0 ))" >> "$GITHUB_OUTPUT"
 
+      # Uploaded even when training stopped early, so the hours spent aren't lost.
       - name: Keep the checkpoint
+        if: always()
         uses: actions/upload-artifact@v4
         with:
+          if-no-files-found: error
           name: nextword-${{ inputs.language }}-checkpoint
-          path: ${{ github.workspace }}/../nextword/run/
+          path: /home/runner/nextword/run/
           retention-days: 14
 
       - name: Start the next job of the chain

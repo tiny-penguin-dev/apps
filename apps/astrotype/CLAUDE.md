@@ -62,7 +62,12 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
     time it is about to show (`makeKeyboard`, not in `viewDidLoad`: iOS makes keyboards
     it never shows, and each cost ~9 MB of keys), becomes `showing` on appear, and
     takes its KeyboardView out of its view on `viewDidDisappear` (iOS keeps old
-    controllers' views in its windows). `ExtensionChecks`
+    controllers' views in its windows). The first load stays light: Sentry and the
+    recorders start in `makeKeyboard` too, the Metal shaders compile off the main
+    thread (`MetalKeyboard.load`; the keys draw their own letters until then), and the
+    Core ML next-word models and the first iCloud sync wait a second after the keys
+    are on screen (`KeyboardShared.settleIn`). Each opening's steps go into the typing
+    log as an `open` line (`OpenTiming`): "telemetry 12 · model 40 · keys 35 · …". `ExtensionChecks`
     writes the StoreKit, memory and size readings into the bar's idle note while
     `Flags.extensionReadout` is on.
   - `AstrotypeKit/`: the local package, three targets:

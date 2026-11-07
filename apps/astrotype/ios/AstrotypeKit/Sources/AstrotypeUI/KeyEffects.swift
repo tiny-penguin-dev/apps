@@ -148,10 +148,27 @@ final class KeyEffects {
         return constrained ? min(settings.topLevel, FlowLevel.toboggan.rawValue) : settings.topLevel
     }
 
-    /// Whether the Metal letters draw the letter keys' labels.
-    var drawsLetters: Bool {
+    /// Whether the settings and the phone's state call for the Metal letters now.
+    private var wantsMetalLetters: Bool {
         guard let settings, settings.letters.usesMetal, !reduceMotion, !constrained else { return false }
-        return MetalKeyboard.shared != nil
+        return true
+    }
+
+    /// Whether the Metal letters draw the letter keys' labels: wanted, and Metal is in
+    /// (`MetalKeyboard.load`); until then the keys draw their own.
+    var drawsLetters: Bool { wantsMetalLetters && MetalKeyboard.shared != nil }
+
+    /// Called when Metal is in after an effect asked for it, so the keys' labels can
+    /// move to the Metal letters (`KeySurfaceView.applyLetterMode`).
+    var onMetalReady: (() -> Void)?
+
+    /// Asks for Metal, off the main thread; the letters and the sky are made when it is in.
+    private func requestMetal() {
+        MetalKeyboard.load { [weak self] in
+            guard let self else { return }
+            onMetalReady?()
+            applyLevel()
+        }
     }
 
     private var now: TimeInterval { CACurrentMediaTime() }
@@ -199,6 +216,7 @@ final class KeyEffects {
     /// letters.
     func lettersChanged() {
         guard drawsLetters, let metal = MetalKeyboard.shared, let host else {
+            if wantsMetalLetters, MetalKeyboard.shared == nil { requestMetal() }
             letters?.layer.removeFromSuperlayer()
             letters = nil
             return
@@ -726,7 +744,10 @@ final class KeyEffects {
     private func showSky() {
         skyGoneAt = nil
         if sky == nil {
-            guard let metal = MetalKeyboard.shared, let host else { return }
+            guard let metal = MetalKeyboard.shared, let host else {
+                if MetalKeyboard.shared == nil { requestMetal() }
+                return
+            }
             let renderer = SkyRenderer(metal: metal)
             renderer.layout(layer.bounds, scale: surface.traitCollection.displayScale)
             renderer.layer.opacity = 0

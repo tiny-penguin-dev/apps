@@ -52,6 +52,8 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
     public var onPart: ((KeyboardHealth.Part) -> Void)?
     /// Whether the Metal effects are loaded in this process (then they stay).
     public static var metalLoaded: Bool { MetalKeyboard.loaded }
+    /// How long the Metal shaders took to compile, ms; 0 until they have.
+    public static var metalLoadMillis: Int { MetalKeyboard.loadMillis }
 
     public private(set) var page: Layout.Page = .letters {
         didSet {

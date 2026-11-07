@@ -161,6 +161,7 @@ public final class KeySurfaceView: UIView {
         isMultipleTouchEnabled = true
         backgroundColor = Theme.ui(.kb)
         fx.onFlow = { [weak self] state in self?.flowChanged(state) }
+        fx.onMetalReady = { [weak self] in self?.applyLetterMode() }
         rebuild()
     }
 

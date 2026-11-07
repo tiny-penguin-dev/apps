@@ -67,6 +67,8 @@ public struct TypingEvent: Codable, Sendable, Equatable {
         /// A memory reading (`mem`), with why it was logged in `s`: "show", "hide",
         /// "warning", "tick", "jump" or "count" (`MemoryLogPacer`).
         case memory = "mem"
+        /// How long the keyboard took to open, step by step (`s`, `OpenTiming.line`).
+        case open
     }
 
     /// The keyboard's clock, seconds.

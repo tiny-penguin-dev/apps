@@ -18,7 +18,7 @@ public enum MemoryRegions {
         #if canImport(Darwin)
         var byTag: [Int: Double] = [:]
         var address: vm_address_t = 0
-        let page = Double(vm_page_size)
+        let page = Double(getpagesize())
         let wordCount = MemoryLayout<vm_region_extended_info_data_t>.size / MemoryLayout<natural_t>.size
         for _ in 0..<100_000 {
             var size: vm_size_t = 0

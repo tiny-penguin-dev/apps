@@ -131,8 +131,9 @@ button.r{cursor:pointer}
 .icon{width:40px;height:40px;border:0;background:transparent;border-radius:12px;display:grid;place-items:center;cursor:pointer;color:var(--muted)}
 .icon svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
 /* WordMenu (new): the bar while a guess is held */
-.wm{display:flex;align-items:center;gap:6px;min-width:0;justify-content:center;width:100%}
-.wm .word{font-weight:900;font-size:17px;padding:7px 10px;border-radius:16px;background:var(--card);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:0 1 auto;min-width:3.5em;max-width:40%}
+.wm{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:6px;min-width:0;width:100%}
+.wm .side{display:flex;min-width:0}.wm .side.l{justify-content:flex-end}.wm .side.r{justify-content:flex-start}
+.wm .word{border:0;cursor:pointer;color:var(--ink);font-weight:900;font-size:17px;padding:7px 10px;border-radius:16px;background:var(--card);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:0 1 auto;min-width:3.5em;max-width:9em}
 .act{display:inline-flex;align-items:center;gap:5px;border:0;border-radius:999px;font-weight:800;font-size:14px;padding:8px 12px;cursor:pointer;white-space:nowrap;flex:none}
 .act svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
 .act.never{background:var(--right);color:var(--accent-ink)}
@@ -206,7 +207,7 @@ const S = {screen:'bar', size:'', anim:true};
 
 const WHY = {
   bar:'Today: the next words after "I\'ll see you at the". Holding a word and sliding up or down already boosts or hides it, but nothing on screen says so.',
-  menu:'Hold any word on the bar (a guess, a next word, or a fix) for a third of a second. The bar turns into the word menu. Tap an action, ✕, or anywhere on the keys to go back. Sliding up or down on the held word still works as a shortcut.',
+  menu:'Hold any word on the bar (a guess, a next word, or a fix) for a third of a second. The bar turns into the word menu: the word stays in the middle, Never suggest on its left, Suggest more on its right. Tap an action; tap the word or any key to go back. Sliding up or down on the held word still works as a shortcut.',
   blocked:'"Never suggest" hides the word from every guess and next word, on all your devices. The bar says what happened for 4 seconds with Undo, then goes back. Tapping out the word letter by letter still types it.',
   learning:'The exact letters you tapped are always on the bar, even at "Words only". Hold them and tap Learn it to teach the word now. A word you tap out and leave in is learned anyway once you move on; one you fix first is not.',
   words:'Your words gets a new "Never suggest" row. The footer says how to teach or block a word.',
@@ -238,9 +239,10 @@ function menu(word, learning){
   const second = learning
     ? `<button class="act more" data-go="bar">${ICON.learn}<span class="long">Learn it</span><span class="short">Learn</span></button>`
     : `<button class="act more" data-go="bar">${ICON.more}<span class="long">Suggest more</span><span class="short">More</span></button>`;
-  return `<div><button class="icon" aria-label="Cancel" data-go="${learning?'learning':'bar'}">${ICON.close}</button></div>
-    <div class="center"><div class="wm anim${word.length>5?' tight':''}"><span class="word">${esc(word)}</span>
-      <button class="act never" data-go="blocked">${ICON.never}<span class="long">Never suggest</span><span class="short">Never</span></button>${second}</div></div><div></div>`;
+  return `<div class="center" style="grid-column:1/-1"><div class="wm anim${word.length>7?' tight':''}">
+      <span class="side l"><button class="act never" data-go="blocked">${ICON.never}<span class="long">Never suggest</span><span class="short">Never</span></button></span>
+      <button class="word" data-go="${learning?'learning':'bar'}" aria-label="Cancel, keep ${esc(word)} as it is">${esc(word)}</button>
+      <span class="side r">${second}</span></div></div>`;
 }
 
 const SCREENS = {

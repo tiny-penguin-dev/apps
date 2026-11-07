@@ -6,7 +6,7 @@ one-off typos stop piling up as "words".
 
 ## Product
 
-Status: Draft
+Status: Approved 2026-11-07 (Gabriel: "Build it", in the project thread)
 
 - **The problem** (Gabriel, 7 Nov 2026):
   - Keeping to known words ("Real words" near "Words only") works well, so the words
@@ -25,8 +25,9 @@ Status: Draft
   guess annoys you). The lists are powerful.
 - **How it works:**
   - **Hold a word on the bar** (a guess, a next word, or a fix reading) for a third of
-    a second. The bar turns into the **word menu**: ✕, the word, **Never suggest** and
-    **Suggest more**. For a word it doesn't know yet (the letters you just pecked out),
+    a second. The bar turns into the **word menu**: the word in the middle,
+    **Never suggest** on its left and **Suggest more** on its right.
+    (Gabriel, 7 Nov 2026). For a word it doesn't know yet (the letters you just pecked out),
     the second button reads **Learn it**.
     - *Never suggest:* the word is never offered again as a guess, a fix or a next
       word, on any of your devices. The bar says "Won't suggest “end”" with **Undo**
@@ -35,7 +36,8 @@ Status: Draft
     - *Suggest more / Learn it:* the word is learned now and ranked
       higher, as a boost from the slide does today. The bar says "Will suggest
       “Ximena” more" with Undo.
-    - ✕, a key, or 4 seconds with no touch closes the menu with nothing changed.
+    - Tapping the word, a key, or 4 seconds with no touch closes the menu with nothing
+      changed.
     - Sliding up or down on the held word still works, as a shortcut.
   - **Learning keeps what you meant, not what you fixed.** A word you peck out that
     the dictionary doesn't know is still learned the first time (Gabriel, 7 Nov 2026:
@@ -83,7 +85,7 @@ Status: Draft
 
 ## Design
 
-Status: Draft
+Status: Approved 2026-11-07 (Gabriel: "Build it", in the project thread)
 
 - **Mockups:** `design/mockups/word-control.html` (Artifact: https://claude.ai/artifact/P8xuLiKGC4tuKJrfxkUTRT). Screens:
   guesses as today, the hold menu, after Never suggest, Learn it on a new word,
@@ -92,9 +94,9 @@ Status: Draft
 - **Keyboard:**
   - Today (`design/screens/bar.png`) → hold (`menu.png`, `menu-dark.png`) → blocked
     (`blocked.png`). Learn it on letters it doesn't know: `learning.png`.
-  - The menu takes the bar's whole width, like the fix row: ✕ in the left slot, then
-    the word in its pill, then the two actions. The right slot (the pencil) is empty
-    while it's open.
+  - The menu takes the bar's whole width, side slots included (no ✕: the word itself
+    cancels): the word in its pill in the centre, Never suggest left of it, Suggest more (or Learn it)
+    right of it, each action sized to its label so the word stays dead centre.
   - When the word plus both full labels don't fit (long words, the small phone:
     `menu-small.png`), the labels shorten to **Never** / **More** / **Learn**, keeping
     their icons. The word truncates last, with an ellipsis in the middle at most.
@@ -132,7 +134,7 @@ Status: Draft
 
 ## Build
 
-Status: Draft
+Status: Approved 2026-11-07 (Gabriel: "Build it", in the project thread)
 
 - **Approach:** everything already lives in `LearnedWords` (weight, uses, added,
   changed, merged per word across devices by the later change). A blocked word is

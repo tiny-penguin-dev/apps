@@ -75,26 +75,45 @@ Status: Approved 2026-11-06 (Gabriel: "Go ahead and build it")
   - *Effects:*
     - **Effects** on or off (off: keys just press, saves the most battery).
     - **Start from:** presets that set everything below: Calm (today's look, free),
-      Sparkle, Arcade, Aurora. Changing anything shows "Your mix".
-    - **Taps:** None, Ring (today), Ripple, Sparks, Stars, Snow. **Key flash:** Thumb
-      colours (today), Theme colour, Off.
-    - **Swipes:** trail None, Line (today), Comet, Glitter, Rainbow.
+      Arcade, Glitch, Rainbow, Space, Zen and Sugar Rush. Changing anything shows "Your
+      mix". (Gabriel, 7 Nov 2026: quicker and wilder, flying in every direction instead
+      of one side; Sparkle and Aurora went.)
+      - *Arcade:* 8-bit pixel blasts, dashed pixel trails, blocky letters that hop,
+        pixel fountains, and a neon retro grid racing in under a striped sun.
+      - *Glitch:* split-colour bars, a jittering red/cyan trail, Glitch letters, static
+        and keys that jolt at Blizzard, rows that tear over a glitching sky at the top.
+      - *Rainbow:* fireworks, rainbow key flashes and trails, Disco letters (spin and
+        flash through the rainbow), confetti cannons from both corners, a prism sky.
+      - *Space:* stars in every direction, comets, Warp letters, stars rushing out from
+        the middle, and at the top a black hole the letters lean into.
+      - *Zen:* still fun but slow: petals, a silk trail, Wave letters, petals drifting in
+        from both sides, rippling water.
+      - *Sugar Rush:* the girly one, just as fast: hearts everywhere, candy-pink
+        flashes, heart trails, Jelly letters, heart cannons, candy clouds with hearts.
+      Each new level also blasts the preset's particles out from the middle.
+    - **Taps:** None, Ring (today), Ripple, Sparks, Stars, Snow, Pixels, Fireworks,
+      Glitch, Hearts, Petals. **Key flash:** Thumb colours (today), Theme colour,
+      Rainbow, Candy pinks, Off.
+    - **Swipes:** trail None, Line (today), Comet, Glitter, Rainbow, Pixels, Glitch,
+      Hearts, Silk.
     - **Letters:** what the letters themselves do when a thumb hits them. None
-      (today), Pop (the letter bounces up), and four drawn by Metal: Jelly (it
+      (today), Pop (the letter bounces up), and seven drawn by Metal: Jelly (it
       squashes and wobbles), Wave (a ripple runs out from the touch through the
       letters around it), Glitch (red and cyan split apart and the letter slices
-      sideways) and Liquid (it melts and drips, then pulls back together). With flow
-      on they get stronger at each level, and at Aurora the letters shimmer in the
-      thumb colours.
+      sideways), Liquid (it melts and drips, then pulls back together), Pixel (blocky,
+      hops like a sprite), Disco (spins and flashes) and Warp (stretches out from the
+      middle). With flow on they get stronger at each level, and at Aurora the letters
+      shimmer in the thumb colours.
     - **Flow** ("Build up as I type"): words typed fast without fixes fill a flow meter;
       each level adds more. A pause or a delete calms it down. Four levels, penguin
       themed, each one its own switch:
       1. **Waddle** (about 5 words): a combo count (×12) on the bar, taps and letter
          effects grow a little.
       2. **Toboggan** (about 15): trails become comets, finished words throw sparks.
-      3. **Blizzard** (about 30): stars, snow or confetti fall across the keys, keys glow.
-      4. **Aurora** (about 50): a sky moves behind the keys: Aurora, Starfield or Deep ice
-         (Metal shaders).
+      3. **Blizzard** (about 30): stars, snow, confetti, pixels, static, warp, petals or
+         hearts fly across the keys from every side, keys glow.
+      4. **Aurora** (about 50): a sky moves behind the keys: Aurora, Starfield, Ice,
+         Retro grid, Glitch, Prism, Black hole, Ripples or Candy clouds (Metal shaders).
       "Builds" (Slowly to Quickly) scales the word counts. Each new level pops its name
       on the bar with a soft haptic.
   - *In the keyboard (hold 123):* the Trails tile becomes **Effects**, and a Theme row

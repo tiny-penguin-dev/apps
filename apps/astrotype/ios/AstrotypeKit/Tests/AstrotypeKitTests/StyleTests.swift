@@ -147,17 +147,45 @@ import Testing
             #expect(EffectsSettings.preset(preset).preset == preset)
         }
         var settings = KeyboardSettings()
-        settings.effects = .preset(.aurora)
+        settings.effects = .preset(.space)
         #expect(settings.activeEffects(allows: false) == .calm)
-        #expect(settings.activeEffects(allows: true) == .preset(.aurora))
+        #expect(settings.activeEffects(allows: true) == .preset(.space))
         settings.effects.letters = .glitch
         #expect(settings.effects.preset == nil)
         #expect(EffectsSettings.Letters.glitch.usesMetal)
         #expect(!EffectsSettings.Letters.pop.usesMetal)
+        var flashy = EffectsSettings.calm
+        flashy.flash = .candy
+        #expect(!flashy.isFree)
+    }
+
+    @Test func theLivelyPresetsAreAllDifferent() {
+        let lively = EffectsSettings.Preset.allCases.filter { $0 != .calm }
+        #expect(lively.map(\.name) == ["Arcade", "Glitch", "Rainbow", "Space", "Zen", "Sugar Rush"])
+        let looks = lively.map { EffectsSettings.preset($0) }
+        #expect(Set(looks).count == lively.count)
+        #expect(Set(looks.map(\.sky)).count == lively.count)
+        #expect(Set(looks.map(\.fall)).count == lively.count)
+        #expect(looks.allSatisfy { $0.flow && $0.topLevel == 4 })
+        // Glitch letters moved from Arcade to Glitch.
+        #expect(EffectsSettings.preset(.glitch).letters == .glitch)
+        #expect(EffectsSettings.preset(.arcade).letters != .glitch)
+    }
+
+    @Test func effectsFromTheOldPresetsStillRead() throws {
+        // Sparkle and Aurora went, but what they set is still a valid mix.
+        let aurora = Data(#"{"tap":"stars","trail":"comet","letters":"liquid","flow":true,"fall":"snow","sky":"aurora"}"#.utf8)
+        let effects = try JSONDecoder().decode(EffectsSettings.self, from: aurora)
+        #expect(effects.sky == .aurora)
+        #expect(effects.preset == nil)
+        let sky = Data(#"{"sky":"blackHole","fall":"static"}"#.utf8)
+        let read = try JSONDecoder().decode(EffectsSettings.self, from: sky)
+        #expect(read.sky == .blackHole)
+        #expect(read.fall == .static)
     }
 
     @Test func theTopLevelFollowsTheSwitches() {
-        var effects = EffectsSettings.preset(.aurora)
+        var effects = EffectsSettings.preset(.space)
         #expect(effects.topLevel == 4)
         effects.skyOn = false
         #expect(effects.topLevel == 3)

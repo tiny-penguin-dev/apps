@@ -498,18 +498,18 @@ private struct EffectsPage: View {
 
             SectionLabel("Each touch").padding(.top, Theme.Space.m)
             SettingsGroup {
-                pickerRow("Tap", symbol: "hand.tap", value: binding(\.tap), options: EffectsSettings.Tap.allCases) { tapName($0) }
+                pickerRow("Tap", symbol: "hand.tap", value: binding(\.tap), options: EffectsSettings.Tap.allCases) { $0.name }
                 pickerRow("Letters", symbol: "textformat", value: binding(\.letters), options: EffectsSettings.Letters.allCases) {
-                    lettersName($0)
+                    $0.name
                 }
                 pickerRow("Key flash", symbol: "light.max", value: binding(\.flash), options: EffectsSettings.Flash.allCases) {
-                    flashName($0)
+                    $0.name
                 }
                 pickerRow("Trail", symbol: "scribble", value: binding(\.trail), options: EffectsSettings.Trail.allCases) {
-                    $0.rawValue.capitalized
+                    $0.name
                 }
             }
-            GroupFootnote("Jelly, Wave, Glitch and Liquid bend the letters with Metal. In Low Power Mode they pop instead.")
+            GroupFootnote("Every letter effect but Pop bends the letters with Metal. In Low Power Mode they pop instead.")
 
             SectionLabel("Flow").padding(.top, Theme.Space.m)
             SettingsGroup {
@@ -522,18 +522,18 @@ private struct EffectsPage: View {
                                    tint: Theme.left, isOn: binding(\.combo))
                     SettingsToggle("2 · Toboggan", subtitle: "Comets and sparks, about \(words(.toboggan, effects)) words",
                                    tint: Theme.right, isOn: binding(\.comets))
-                    SettingsToggle("3 · Blizzard", subtitle: "Falling \(effects.fall.rawValue) and glowing keys, about \(words(.blizzard, effects)) words",
+                    SettingsToggle("3 · Blizzard", subtitle: "\(effects.fall.name) from every side and glowing keys, about \(words(.blizzard, effects)) words",
                                    tint: Theme.ice, isOn: binding(\.falling))
                     if effects.falling {
-                        pickerRow("Falling", symbol: "snowflake", value: binding(\.fall), options: EffectsSettings.Fall.allCases) {
-                            $0.rawValue.capitalized
+                        pickerRow("Flying", symbol: "snowflake", value: binding(\.fall), options: EffectsSettings.Fall.allCases) {
+                            $0.name
                         }
                     }
-                    SettingsToggle("4 · Aurora", subtitle: "The sky behind the keys, about \(words(.aurora, effects)) words",
+                    SettingsToggle("4 · Aurora", subtitle: "\(effects.sky.name) behind the keys, about \(words(.aurora, effects)) words",
                                    tint: Theme.mint, isOn: binding(\.skyOn))
                     if effects.skyOn {
                         pickerRow("Sky", symbol: "sparkles", value: binding(\.sky), options: EffectsSettings.Sky.allCases) {
-                            $0 == .ice ? "Ice" : $0.rawValue.capitalized
+                            $0.name
                         }
                     }
                 }
@@ -542,7 +542,7 @@ private struct EffectsPage: View {
                 if lowPower {
                     SettingsGroup {
                         SettingsRow("Low Power Mode is on",
-                                    subtitle: "Flow stops at Toboggan, and Jelly, Wave, Glitch and Liquid pop instead. Turn it off in Settings → Battery to see Blizzard and Aurora.",
+                                    subtitle: "Flow stops at Toboggan, and the Metal letters pop instead. Turn it off in Settings → Battery to see Blizzard and Aurora.",
                                     symbol: "battery.25percent", tint: Theme.sun)
                     }
                     .padding(.top, Theme.Space.s)
@@ -610,22 +610,6 @@ private struct EffectsPage: View {
 
     private func buildName(_ build: Double) -> String {
         build < 0.34 ? "Slowly" : build > 0.66 ? "Quickly" : "Steady"
-    }
-
-    private func tapName(_ tap: EffectsSettings.Tap) -> String {
-        tap == .none ? "None" : tap.rawValue.capitalized
-    }
-
-    private func lettersName(_ letters: EffectsSettings.Letters) -> String {
-        letters == .none ? "Still" : letters.rawValue.capitalized
-    }
-
-    private func flashName(_ flash: EffectsSettings.Flash) -> String {
-        switch flash {
-        case .thumb: "Thumb's colour"
-        case .theme: "Theme's colour"
-        case .off: "Off"
-        }
     }
 }
 

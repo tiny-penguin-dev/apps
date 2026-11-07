@@ -215,6 +215,20 @@ public final class KeySurfaceView: UIView {
         applyLetterMode()
     }
 
+    /// Off screen: the effects drop their drawing surfaces (`KeyEffects.resting`) and
+    /// the keys draw their own letters; `wake` brings the effects back.
+    public func rest() {
+        guard !fx.resting else { return }
+        fx.resting = true
+        applyLetterMode()
+    }
+
+    public func wake() {
+        guard fx.resting else { return }
+        fx.resting = false
+        applyLetterMode()
+    }
+
     /// The Metal letters draw the letter keys' labels while a Metal letter effect is on.
     private func applyLetterMode() {
         let elsewhere = fx.drawsLetters
@@ -234,6 +248,11 @@ public final class KeySurfaceView: UIView {
             }
         }
         return out
+    }
+
+    /// Every key's frame, for the Metal key effects.
+    func keyFrames() -> [(key: Key, frame: CGRect)] {
+        keyViews.flatMap { key, views in views.map { (key, $0.frame) } }
     }
 
     /// The letters on the keys, both cases, for the Metal letters' atlas.
@@ -725,7 +744,7 @@ public final class KeySurfaceView: UIView {
         }
         for view in mine.isEmpty ? views : mine {
             if let color { view.flash(color: color) } else { view.press() }
-            if key.character != nil { fx.letterHit(key, at: CGPoint(x: view.frame.midX, y: view.frame.midY)) }
+            fx.keyHit(key, at: CGPoint(x: view.frame.midX, y: view.frame.midY))
         }
         fx.keysChanged()
     }

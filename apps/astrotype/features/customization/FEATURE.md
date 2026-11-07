@@ -91,6 +91,15 @@ Status: Approved 2026-11-06 (Gabriel: "Go ahead and build it")
       - *Sugar Rush:* the girly one, just as fast: hearts everywhere, candy-pink
         flashes, heart trails, Jelly letters, heart cannons, candy clouds with hearts.
       Each new level also blasts the preset's particles out from the middle.
+    - **Keys:** what the keys themselves do, drawn by Metal over them (Gabriel, 7 Nov
+      2026: "make it affect keys in cool ways"): Plain (free), Neon (outlines flare,
+      lights chase round the keys with flow), Glitch (outlines split red and cyan,
+      blocks corrupt, slices tear), Holo foil (a rainbow sheen), Warp (stars rush out of
+      a key; at the top each key's edge facing the black hole burns), Ripple (rings run
+      through the keys) and Candy gloss (a shine, pink glow, sparkles). It shares the
+      Metal letters' layer, so it costs no second drawable.
+    - **Edges:** the keyboard doesn't reach the screen's edges, so skies fade out before
+      theirs and particles start a little in from the sides.
     - **Taps:** None, Ring (today), Ripple, Sparks, Stars, Snow, Pixels, Fireworks,
       Glitch, Hearts, Petals. **Key flash:** Thumb colours (today), Theme colour,
       Rainbow, Candy pinks, Off.

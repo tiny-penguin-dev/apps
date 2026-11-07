@@ -502,6 +502,9 @@ private struct EffectsPage: View {
                 pickerRow("Letters", symbol: "textformat", value: binding(\.letters), options: EffectsSettings.Letters.allCases) {
                     $0.name
                 }
+                pickerRow("Keys", symbol: "keyboard", value: binding(\.keys), options: EffectsSettings.Keys.allCases) {
+                    $0.name
+                }
                 pickerRow("Key flash", symbol: "light.max", value: binding(\.flash), options: EffectsSettings.Flash.allCases) {
                     $0.name
                 }
@@ -509,7 +512,7 @@ private struct EffectsPage: View {
                     $0.name
                 }
             }
-            GroupFootnote("Every letter effect but Pop bends the letters with Metal. In Low Power Mode they pop instead.")
+            GroupFootnote("Every letter effect but Pop, and every Keys effect, is drawn with Metal. In Low Power Mode letters pop and keys stay plain.")
 
             SectionLabel("Flow").padding(.top, Theme.Space.m)
             SettingsGroup {

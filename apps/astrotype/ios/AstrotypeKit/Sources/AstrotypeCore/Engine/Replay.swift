@@ -51,15 +51,17 @@ public enum Replay {
 
     /// Replays one recording. The layout is rebuilt from the recording's width, split
     /// and height, and the touches scaled onto it; the context before each word is what
-    /// the replay itself has written so far.
+    /// the replay itself has written so far. `nextWordModels` weigh in on the guesses as
+    /// they do on the keyboard (features/next-word-model).
     public static func run(_ recording: PracticeRecording, language: Language,
                            settings: Composer.Settings = Replay.settings, before: String = "",
-                           weights: Matcher.Weights? = nil) throws(Skip) -> Outcome {
+                           weights: Matcher.Weights? = nil, nextWordModels: [NextWordModel] = []) throws(Skip) -> Outcome {
         guard !recording.commits.isEmpty else { throw .noCommits }
         guard !recording.touches.isEmpty else { throw .noTouches }
         let layout = Layout.qwerty(width: recording.layoutWidth, split: recording.split, height: recording.layoutHeight)
         var composer = Composer(language: language, layout: layout, settings: settings)
         if let weights { composer.matcher.weights = weights }
+        composer.nextWordModels = nextWordModels
         let expected = recording.expected.split(separator: " ").map(String.init)
         var events = events(of: recording, layout: layout)
         events.sort { $0.time == $1.time ? $0.order < $1.order : $0.time < $1.time }
@@ -155,11 +157,11 @@ public enum Replay {
         return settings
     }
 
-    private enum Kind {
+    enum Kind {
         case down(CGPoint), move(CGPoint), up(CGPoint), commit(String)
     }
 
-    private struct Event {
+    struct Event {
         var time: TimeInterval
         var id: Int
         var kind: Kind
@@ -174,7 +176,7 @@ public enum Replay {
         }
     }
 
-    private static func events(of recording: PracticeRecording, layout: Layout) -> [Event] {
+    static func events(of recording: PracticeRecording, layout: Layout) -> [Event] {
         var events: [Event] = []
         for touch in recording.touches {
             let points = touch.points.filter { $0.count >= 3 }

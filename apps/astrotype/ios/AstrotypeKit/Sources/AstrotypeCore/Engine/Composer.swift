@@ -905,6 +905,10 @@ public struct Composer: Sendable {
     /// The open word's guesses, cased, best first; sets `candidates`. With `exactTaps`
     /// and only taps, the letters as tapped come first, then the matcher's other readings.
     private mutating func guesses(final: Bool) -> [String] {
+        // The next-word model weighs in on which guess fits the sentence; it read this
+        // sentence already for the bar, so this is mostly its kept answer.
+        matcher.nextWords = nextWordModels.filter { lockedLanguage == nil || $0.code == lockedLanguage }
+            .compactMap { $0.scores(before: contextBefore) }
         candidates = matcher.candidates(for: pieces, limit: settings.guessCount, final: final)
         var words = candidates.map { cased($0.word) }
         if let tapped = tappedLetters {
@@ -957,6 +961,8 @@ public struct Composer: Sendable {
         var matcher = matcher
         // The words before the first one are the context.
         matcher.context = WordContext.words(before: String(contextBefore.dropLast(before.word.count + before.trailing.count)))
+        // The model's answer is for the sentence after the first word: the pairs judge.
+        matcher.nextWords = []
         guard let whole = matcher.join(before.pieces, pieces, written: (before.word, word)) else { return nil }
         let joined = Self.cased(matcher.dictionary.spellings(of: whole.word).first?.word ?? whole.word, as: before.casing)
         let apart = before.word + " " + word

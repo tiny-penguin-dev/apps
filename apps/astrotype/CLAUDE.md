@@ -81,7 +81,7 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
       time passed in), `Matcher` (pieces to ranked candidates: trie search plus DTW,
       two-thumb orderings and split swipes, both thumbs swiping at once in
       `Matcher+Together` (letters woven by when each key was reached), the words before the open one from
-      `WordContext` and the person's `PersonalIndex`), `NextWords` (the likely next words for
+      `WordContext` and the person's `PersonalIndex`, and the next-word model's say on each word when one is loaded, `Matcher.nextWords`), `NextWords` (the likely next words for
       the bar, from the word pairs and the person's own), `PersonalModel` (what the keyboard
       learns from the person: word and pair counts that fade, thumb offsets per key, one
       shard per install, merged and forgotten across devices; `SettledWord`, which the

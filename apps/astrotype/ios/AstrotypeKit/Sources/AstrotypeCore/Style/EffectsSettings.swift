@@ -35,6 +35,20 @@ public struct EffectsSettings: Codable, Hashable, Sendable {
         public var usesMetal: Bool { self != .none && self != .pop }
         public var name: String { self == .none ? "Still" : rawValue.capitalized }
     }
+    /// What the keys themselves do, drawn with Metal over them: a hit key lights up in
+    /// the preset's way, and with flow every key joins in (Gabriel, 7 Nov 2026: "make it
+    /// affect keys in cool ways").
+    public enum Keys: String, Codable, CaseIterable, Sendable {
+        case none, neon, glitch, prism, warp, ripple, candy
+        public var name: String {
+            switch self {
+            case .none: "Plain"
+            case .prism: "Holo foil"
+            case .candy: "Candy gloss"
+            default: rawValue.capitalized
+            }
+        }
+    }
     /// What flies across the keys at Blizzard, from every side.
     public enum Fall: String, Codable, CaseIterable, Sendable {
         case stars, snow, confetti, pixels, `static`, warp, petals, hearts
@@ -82,6 +96,7 @@ public struct EffectsSettings: Codable, Hashable, Sendable {
     public var flash: Flash
     public var trail: Trail
     public var letters: Letters
+    public var keys: Keys
     /// Effects grow as the person types fast without fixes (`FlowMeter`).
     public var flow: Bool
     /// How quickly flow builds, 0 (slowly) to 1 (quickly). Scales the word counts.
@@ -95,13 +110,14 @@ public struct EffectsSettings: Codable, Hashable, Sendable {
     public var skyOn: Bool
     public var sky: Sky
 
-    public init(tap: Tap = .ring, flash: Flash = .thumb, trail: Trail = .line, letters: Letters = .none, flow: Bool = false,
+    public init(tap: Tap = .ring, flash: Flash = .thumb, trail: Trail = .line, letters: Letters = .none, keys: Keys = .none, flow: Bool = false,
                 build: Double = 0.5, combo: Bool = true, comets: Bool = true, falling: Bool = true, fall: Fall = .snow,
                 skyOn: Bool = true, sky: Sky = .aurora) {
         self.tap = tap
         self.flash = flash
         self.trail = trail
         self.letters = letters
+        self.keys = keys
         self.flow = flow
         self.build = build
         self.combo = combo
@@ -120,15 +136,15 @@ public struct EffectsSettings: Codable, Hashable, Sendable {
         switch preset {
         case .calm: calm
         // An old arcade: 8-bit blasts, blocky letters, a neon grid racing in.
-        case .arcade: EffectsSettings(tap: .pixels, flash: .theme, trail: .pixels, letters: .pixel, flow: true, fall: .pixels, sky: .retro)
+        case .arcade: EffectsSettings(tap: .pixels, flash: .theme, trail: .pixels, letters: .pixel, keys: .neon, flow: true, fall: .pixels, sky: .retro)
         // The keys themselves glitch: split colours, static, torn rows.
-        case .glitch: EffectsSettings(tap: .glitch, flash: .theme, trail: .glitch, letters: .glitch, flow: true, fall: .static, sky: .glitch)
-        case .rainbow: EffectsSettings(tap: .fireworks, flash: .rainbow, trail: .rainbow, letters: .disco, flow: true, fall: .confetti, sky: .prism)
+        case .glitch: EffectsSettings(tap: .glitch, flash: .theme, trail: .glitch, letters: .glitch, keys: .glitch, flow: true, fall: .static, sky: .glitch)
+        case .rainbow: EffectsSettings(tap: .fireworks, flash: .rainbow, trail: .rainbow, letters: .disco, keys: .prism, flow: true, fall: .confetti, sky: .prism)
         // Lift off, warp, and at the top fall into a black hole.
-        case .space: EffectsSettings(tap: .stars, trail: .comet, letters: .warp, flow: true, fall: .warp, sky: .blackHole)
+        case .space: EffectsSettings(tap: .stars, trail: .comet, letters: .warp, keys: .warp, flow: true, fall: .warp, sky: .blackHole)
         // Still playful, but slow and soft: petals, silk, ripples.
-        case .zen: EffectsSettings(tap: .petals, trail: .silk, letters: .wave, flow: true, fall: .petals, sky: .ripples)
-        case .sugarRush: EffectsSettings(tap: .hearts, flash: .candy, trail: .hearts, letters: .jelly, flow: true, fall: .hearts, sky: .candy)
+        case .zen: EffectsSettings(tap: .petals, trail: .silk, letters: .wave, keys: .ripple, flow: true, fall: .petals, sky: .ripples)
+        case .sugarRush: EffectsSettings(tap: .hearts, flash: .candy, trail: .hearts, letters: .jelly, keys: .candy, flow: true, fall: .hearts, sky: .candy)
         }
     }
 
@@ -139,7 +155,7 @@ public struct EffectsSettings: Codable, Hashable, Sendable {
     /// or none, still letters, no flow.
     public var isFree: Bool {
         (tap == .ring || tap == .none) && (trail == .line || trail == .none) && (flash == .thumb || flash == .off) && letters == .none
-            && !flow
+            && keys == .none && !flow
     }
 
     /// The highest level the switches allow (Aurora needs the sky on, and so on down);
@@ -162,6 +178,7 @@ public struct EffectsSettings: Codable, Hashable, Sendable {
         flash = (try? c.decodeIfPresent(Flash.self, forKey: .flash)) ?? d.flash
         trail = (try? c.decodeIfPresent(Trail.self, forKey: .trail)) ?? d.trail
         letters = (try? c.decodeIfPresent(Letters.self, forKey: .letters)) ?? d.letters
+        keys = (try? c.decodeIfPresent(Keys.self, forKey: .keys)) ?? d.keys
         flow = try c.decodeIfPresent(Bool.self, forKey: .flow) ?? d.flow
         build = try c.decodeIfPresent(Double.self, forKey: .build) ?? d.build
         combo = try c.decodeIfPresent(Bool.self, forKey: .combo) ?? d.combo

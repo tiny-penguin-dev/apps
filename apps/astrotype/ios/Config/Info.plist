@@ -12,5 +12,12 @@
 	<!-- Sentry DSN, filled in at build time. See docs/telemetry.md. -->
 	<key>SentryDSN</key>
 	<string>$(SENTRY_DSN)</string>
+	<!-- Throwaway dictation test (Astrotype/DictationTest): record in the background. -->
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Astrotype is testing dictation: it records a few seconds to check the microphone works, and keeps nothing.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>audio</string>
+	</array>
 </dict>
 </plist>

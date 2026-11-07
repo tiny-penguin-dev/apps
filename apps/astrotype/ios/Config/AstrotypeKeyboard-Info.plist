@@ -9,6 +9,9 @@
 	<!-- The keyboard extension. It asks for Full Access (RequestsOpenAccess), which the
 	     app explains and iCloud sync, haptics and crash reports use; the keyboard types without it
 	     (PRODUCT.md §8). -->
+	<!-- Throwaway dictation test (AstrotypeKeyboard/DictationTest). -->
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Astrotype is testing dictation: it records a few seconds to check the microphone works, and keeps nothing.</string>
 	<key>NSExtension</key>
 	<dict>
 		<key>NSExtensionAttributes</key>

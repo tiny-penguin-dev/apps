@@ -161,6 +161,11 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         LiveCount.keyboardViews.subtract(1, ordering: .relaxed)
     }
 
+    /// Off screen: drops the drawing surfaces the effects hold (`KeySurfaceView.rest`),
+    /// so a hidden keyboard costs little. `wake` before it shows again.
+    public func rest() { surface.rest() }
+    public func wake() { surface.wake() }
+
     public var enableInputClicksWhenVisible: Bool { true }
 
     /// The height to ask the host for at a width: the keys where Apple's are (at the

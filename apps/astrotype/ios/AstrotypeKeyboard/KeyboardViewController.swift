@@ -57,6 +57,13 @@ final class KeyboardViewController: UIInputViewController {
 
     deinit {
         if counted { LiveCount.controllers.subtract(1, ordering: .relaxed) }
+        // iOS can free a controller without ever calling `viewDidDisappear`, and keeps
+        // its view in a window: the keys stayed behind, one per keyboard (Gabriel, 7 Nov
+        // 2026: "5 key views" with 1 keyboard). Taken out here, they go with it.
+        MainActor.assumeIsolated {
+            keyboard?.rest()
+            keyboard?.removeFromSuperview()
+        }
     }
 
     override func viewDidLoad() {
@@ -162,6 +169,7 @@ final class KeyboardViewController: UIInputViewController {
         if opening == nil { opening = OpenTiming(now: uptime) } else { opening?.step("wait", now: uptime) }
         let keyboard = makeKeyboard()
         mount(keyboard)
+        keyboard.wake()
         heightRetries = 0
         // The process's one model types into whichever keyboard is showing.
         KeyboardShared.current?.showing = self
@@ -277,6 +285,9 @@ final class KeyboardViewController: UIInputViewController {
         super.viewDidDisappear(animated)
         guard !isVisible else { return }
         keyboard?.removeFromSuperview()
+        // And its drawing surfaces go: one key view stayed alive after its keyboard
+        // went (Gabriel, 7 Nov 2026: "1 keyboard · 2 key views"), holding ~7 MB.
+        keyboard?.rest()
     }
 
     override func didReceiveMemoryWarning() {

@@ -223,7 +223,7 @@ final class KeyEffects {
 
     /// Whether the Metal letters draw the letter keys' labels: wanted, and Metal is in
     /// (`MetalKeyboard.load`); until then the keys draw their own.
-    var drawsLetters: Bool { wantsMetalLetters && MetalKeyboard.shared != nil }
+    var drawsLetters: Bool { !resting && wantsMetalLetters && MetalKeyboard.shared != nil }
 
     /// Called when Metal is in after an effect asked for it, so the keys' labels can
     /// move to the Metal letters (`KeySurfaceView.applyLetterMode`).
@@ -282,8 +282,8 @@ final class KeyEffects {
     /// The letter or key effect, the theme or the keys changed: make, remake or drop the
     /// Metal layer over the keys (letters and key effects share it).
     func lettersChanged() {
-        guard wantsMetalLayer, let metal = MetalKeyboard.shared, let host else {
-            if wantsMetalLayer, MetalKeyboard.shared == nil { requestMetal() }
+        guard !resting, wantsMetalLayer, let metal = MetalKeyboard.shared, let host else {
+            if !resting, wantsMetalLayer, MetalKeyboard.shared == nil { requestMetal() }
             letters?.layer.removeFromSuperlayer()
             letters = nil
             return
@@ -389,6 +389,7 @@ final class KeyEffects {
 
     /// What each level brings, switched on or off as flow climbs or falls.
     private func applyLevel() {
+        guard !resting else { return }
         let settings = self.settings
         let blizzard = settings?.flow == true && settings?.falling == true && level >= .blizzard && !reduceMotion
         if blizzard { startFall() } else { stopFall() }

@@ -215,6 +215,20 @@ public final class KeySurfaceView: UIView {
         applyLetterMode()
     }
 
+    /// Off screen: the effects drop their drawing surfaces (`KeyEffects.resting`) and
+    /// the keys draw their own letters; `wake` brings the effects back.
+    public func rest() {
+        guard !fx.resting else { return }
+        fx.resting = true
+        applyLetterMode()
+    }
+
+    public func wake() {
+        guard fx.resting else { return }
+        fx.resting = false
+        applyLetterMode()
+    }
+
     /// The Metal letters draw the letter keys' labels while a Metal letter effect is on.
     private func applyLetterMode() {
         let elsewhere = fx.drawsLetters

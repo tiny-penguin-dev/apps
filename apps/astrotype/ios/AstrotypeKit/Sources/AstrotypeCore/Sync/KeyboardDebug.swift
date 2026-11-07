@@ -55,6 +55,27 @@ public struct MemoryReading: Codable, Sendable, Equatable {
         #endif
     }
 
+    /// Where the non-malloc part of the footprint sits, from the kernel's ledgers: Metal
+    /// and IOSurfaces (graphics), Core ML (neural), media and what is compressed. Nil off Darwin, and the parts read 0 where the kernel doesn't keep them.
+    public static func split() -> MemorySplit? {
+        #if canImport(Darwin)
+        var info = task_vm_info_data_t()
+        var count = mach_msg_type_number_t(MemoryLayout<task_vm_info_data_t>.stride / MemoryLayout<natural_t>.stride)
+        let result = withUnsafeMutablePointer(to: &info) { pointer in
+            task_info(mach_task_self_, task_flavor_t(TASK_VM_INFO),
+                      UnsafeMutableRawPointer(pointer).assumingMemoryBound(to: integer_t.self), &count)
+        }
+        guard result == KERN_SUCCESS else { return nil }
+        func mb(_ bytes: some BinaryInteger) -> Double { Double(bytes) / 1_048_576 }
+        return MemorySplit(graphics: mb(info.ledger_tag_graphics_footprint),
+                           neural: mb(info.ledger_tag_neural_footprint),
+                           media: mb(info.ledger_tag_media_footprint),
+                           compressed: mb(info.compressed))
+        #else
+        return nil
+        #endif
+    }
+
     /// The keyboard's stats overlay: "23.4/40 MB · peak 25.1 · 31 left", small enough
     /// to sit in a corner of the keys.
     public func overlay(peakMB: Double) -> String {

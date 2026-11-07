@@ -125,7 +125,7 @@ final class MetalKeyboard: @unchecked Sendable {
     /// Letters: each letter is a 6×6 grid (216 vertices) bent by the effect, drawn from
     /// a glyph atlas. Uniforms and instances are all float4s so Swift and Metal agree on
     /// the layout.
-    static let source = """
+    nonisolated static let source = """
     #include <metal_stdlib>
     using namespace metal;
 

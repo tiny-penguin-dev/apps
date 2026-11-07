@@ -187,6 +187,25 @@ final class KeyEffects {
     private var bursting = false
     private var glowing = false
 
+    /// Off screen (`KeySurfaceView.rest`): the Metal letters, the sky, the fall and the
+    /// display link are dropped, so a hidden keyboard holds no drawing surfaces
+    /// (Gabriel, 7 Nov 2026: a key view iOS kept after its keyboard went still held
+    /// ~7 MB of IOSurface). They come back with `applyLevel` and `lettersChanged`.
+    var resting = false {
+        didSet {
+            guard resting != oldValue else { return }
+            if resting {
+                stopLink()
+                removeFall()
+                sky?.layer.removeFromSuperlayer()
+                sky = nil
+                skyGoneAt = nil
+            } else {
+                applyLevel()
+            }
+        }
+    }
+
     init(surface: KeySurfaceView) {
         self.surface = surface
         layer.isOpaque = false

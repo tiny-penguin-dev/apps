@@ -157,6 +157,10 @@ import Testing
         var flashy = EffectsSettings.calm
         flashy.flash = .candy
         #expect(!flashy.isFree)
+        var glowing = EffectsSettings.calm
+        glowing.keys = .neon
+        #expect(!glowing.isFree)
+        #expect(EffectsSettings.calm.keys == .none)
     }
 
     @Test func theLivelyPresetsAreAllDifferent() {
@@ -167,6 +171,8 @@ import Testing
         #expect(Set(looks.map(\.sky)).count == lively.count)
         #expect(Set(looks.map(\.fall)).count == lively.count)
         #expect(looks.allSatisfy { $0.flow && $0.topLevel == 4 })
+        #expect(Set(looks.map(\.keys)).count == lively.count)
+        #expect(!looks.contains { $0.keys == .none })
         // Glitch letters moved from Arcade to Glitch.
         #expect(EffectsSettings.preset(.glitch).letters == .glitch)
         #expect(EffectsSettings.preset(.arcade).letters != .glitch)

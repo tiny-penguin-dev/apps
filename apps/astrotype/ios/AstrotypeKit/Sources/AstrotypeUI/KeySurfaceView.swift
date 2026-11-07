@@ -236,6 +236,11 @@ public final class KeySurfaceView: UIView {
         return out
     }
 
+    /// Every key's frame, for the Metal key effects.
+    func keyFrames() -> [(key: Key, frame: CGRect)] {
+        keyViews.flatMap { key, views in views.map { (key, $0.frame) } }
+    }
+
     /// The letters on the keys, both cases, for the Metal letters' atlas.
     func lettersOnKeys() -> [Character] {
         var out = Set<Character>()
@@ -725,7 +730,7 @@ public final class KeySurfaceView: UIView {
         }
         for view in mine.isEmpty ? views : mine {
             if let color { view.flash(color: color) } else { view.press() }
-            if key.character != nil { fx.letterHit(key, at: CGPoint(x: view.frame.midX, y: view.frame.midY)) }
+            fx.keyHit(key, at: CGPoint(x: view.frame.midX, y: view.frame.midY))
         }
         fx.keysChanged()
     }

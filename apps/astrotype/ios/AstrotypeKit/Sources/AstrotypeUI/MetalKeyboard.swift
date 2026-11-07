@@ -28,6 +28,7 @@ final class MetalKeyboard: @unchecked Sendable {
     let queue: any MTLCommandQueue
     let sky: any MTLRenderPipelineState
     let letters: any MTLRenderPipelineState
+    let keys: any MTLRenderPipelineState
 
     /// Makes `shared` off the main thread and calls `ready` on it once it is there (at
     /// once when it already is). Nothing is called when the phone can't run Metal.
@@ -59,6 +60,7 @@ final class MetalKeyboard: @unchecked Sendable {
             let library = try device.makeLibrary(source: Self.source, options: nil)
             sky = try Self.pipeline(device, library, vertex: "sky_vertex", fragment: "sky_fragment")
             letters = try Self.pipeline(device, library, vertex: "letter_vertex", fragment: "letter_fragment")
+            keys = try Self.pipeline(device, library, vertex: "key_vertex", fragment: "key_fragment")
         } catch {
             return nil
         }
@@ -283,8 +285,11 @@ final class MetalKeyboard: @unchecked Sendable {
                 col += heart * step(0.6, k) * mix(pink, float3(1.0), 0.35) * 0.75;
             }
         }
-        col = clamp(col, 0.0, 1.0);
-        float a = max(max(col.r, max(col.g, col.b)), dark);
+        // The keys don't reach the screen's edges, so the sky fades out before its own
+        // edges instead of looking cut off (Gabriel, 7 Nov 2026).
+        float edge = smoothstep(0.0, 0.12, uv.x) * smoothstep(0.0, 0.12, 1.0 - uv.x) * smoothstep(0.0, 0.16, uv.y) * smoothstep(0.0, 0.12, 1.0 - uv.y);
+        col = clamp(col, 0.0, 1.0) * edge;
+        float a = max(max(col.r, max(col.g, col.b)), dark * edge);
         return float4(col, a);
     }
 
@@ -457,6 +462,140 @@ final class MetalKeyboard: @unchecked Sendable {
         float a = c * in.color.a;
         return float4(in.color.rgb * a, a);
     }
+
+    // Key effects: one quad per key, a little bigger than the key for its glow, and a
+    // rounded-rectangle distance in the fragment so the effect hugs the key's shape.
+    struct KeyOut {
+        float4 position [[position]];
+        float2 local;
+        float2 halfSize;
+        float2 world;
+        float2 info;
+        float2 centre;
+    };
+
+    vertex KeyOut key_vertex(uint vid [[vertex_id]], uint iid [[instance_id]],
+                             constant LetterUniforms &u [[buffer(0)]],
+                             const device LetterInstance *instances [[buffer(1)]]) {
+        LetterInstance inst = instances[iid];
+        float ox = (vid == 1 || vid == 3 || vid == 4) ? 1.0 : 0.0;
+        float oy = (vid == 2 || vid == 4 || vid == 5) ? 1.0 : 0.0;
+        float2 hs = inst.rect.zw * 0.5;
+        float2 centre = inst.rect.xy + hs;
+        float2 local = (float2(ox, oy) * 2.0 - 1.0) * (hs + 12.0);
+        float2 pos = centre + local;
+        KeyOut o;
+        o.position = float4(pos.x / u.info0.x * 2.0 - 1.0, 1.0 - pos.y / u.info0.y * 2.0, 0.0, 1.0);
+        o.local = local;
+        o.halfSize = hs;
+        o.world = pos;
+        o.info = inst.extra.xy;
+        o.centre = centre;
+        return o;
+    }
+
+    static float roundBox(float2 p, float2 b, float r) {
+        float2 q = abs(p) - b + r;
+        return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r;
+    }
+
+    fragment float4 key_fragment(KeyOut in [[stage_in]], constant LetterUniforms &u [[buffer(0)]]) {
+        float2 q = in.local;
+        float2 hs = in.halfSize;
+        float radius = min(u.info1.w, min(hs.x, hs.y));
+        float d = roundBox(q, hs, radius);
+        float inside = 1.0 - smoothstep(-0.75, 0.75, d);
+        float border = 1.0 - smoothstep(0.6, 2.0, abs(d));
+        float halo = exp(-max(d, 0.0) / 4.0) * step(0.0, d);
+        float time = u.info0.z;
+        float level = u.info0.w;
+        int mode = int(u.info1.z + 0.5);
+        float age = in.info.x;
+        float seed = in.info.y;
+        float hit = age < 3.0 ? 1.0 : 0.0;
+        float3 col = float3(0.0);
+        if (mode == 1) {
+            // Neon: the hit key's outline flares; with flow, lights chase round every key.
+            float e = exp(-age * 3.0) * hit;
+            float3 neon = mix(float3(1.0, 0.17, 0.84), float3(0.13, 0.9, 1.0), step(0.5, fract(seed * 7.0)));
+            float march = step(0.55, fract(atan2(q.y, q.x) / 6.2832 * 4.0 - time * 1.5 + seed));
+            float ambient = (level >= 2.0 ? 0.35 : 0.0) + (level >= 4.0 ? 0.35 : 0.0);
+            float k = max(e * 1.3, ambient * march);
+            float scan = step(0.5, fract(q.y * 0.5 + time * 6.0));
+            col = neon * (border * k + halo * 0.7 * k) + neon * inside * e * 0.35 * scan;
+        } else if (mode == 2) {
+            // Glitch: the outline splits red and cyan, blocks inside corrupt, slices tear.
+            float e = exp(-age * 4.0) * hit;
+            if (level >= 3.0 && hash1(seed * 17.0 + floor(time * 9.0)) > 0.93) { e = max(e, 0.75); }
+            float tt = floor(time * 24.0);
+            float2 off = float2(hash1(tt + seed * 5.0) - 0.5, (hash1(tt * 1.3 + seed) - 0.5) * 0.4) * 10.0 * e;
+            float slice = step(0.75, hash1(floor((q.y + hs.y) / 4.0) + tt + seed * 3.0)) * e;
+            float2 qs = q + float2(slice * 6.0, 0.0);
+            float red = 1.0 - smoothstep(0.6, 2.0, abs(roundBox(qs - off, hs, radius)));
+            float cyan = 1.0 - smoothstep(0.6, 2.0, abs(roundBox(qs + off, hs, radius)));
+            float b = hash2(floor((q + hs) / float2(5.0, 3.0)) + tt * 0.71 + seed * 11.0);
+            float blocks = inside * step(1.0 - 0.35 * e, b);
+            float3 bc = mix(float3(1.0, 0.12, 0.31), float3(0.1, 0.9, 1.0), step(0.5, fract(b * 13.0)));
+            bc = mix(bc, float3(1.0), step(0.85, fract(b * 29.0)));
+            col = float3(1.0, 0.12, 0.31) * red * e + float3(0.1, 0.9, 1.0) * cyan * e + bc * blocks * 0.85 + inside * slice * 0.25;
+        } else if (mode == 3) {
+            // Holo foil: a rainbow sheen drifts over the keys; a hit key flares and shines.
+            float e = exp(-age * 2.5) * hit;
+            float amount = e + (level >= 2.0 ? 0.2 : 0.0) + (level >= 4.0 ? 0.2 : 0.0);
+            float h = in.world.x * 0.004 + in.world.y * 0.006 - time * 0.35 + seed * 0.2;
+            float band = 0.5 + 0.5 * sin((q.x - q.y) * 0.18 + time * 3.0);
+            float sweep = exp(-sq((q.x + q.y) / max(hs.x + hs.y, 1.0) - (age * 3.0 - 1.0)) * 6.0) * hit;
+            col = rainbow(h) * inside * amount * 0.45 * band + rainbow(h + 0.5) * border * amount * 0.9 + float3(1.0) * inside * sweep * 0.5;
+        } else if (mode == 4) {
+            // Warp: stars rush out of a hit key; at the top each key's edge facing the
+            // black hole burns.
+            float e = exp(-age * 2.5) * hit;
+            float amb = level >= 3.0 ? 0.3 : 0.0;
+            float r = length(q) / max(length(hs), 1.0);
+            float ang = atan2(q.y, q.x);
+            float2 g = float2(ang * 3.82, log(r + 0.02) * 3.0 - time * 5.0);
+            float2 f = fract(g) - 0.5;
+            float k = hash2(floor(g) + seed * 7.0);
+            float star = (1.0 - smoothstep(0.0, 0.1, abs(f.x))) * (1.0 - smoothstep(0.05, 0.45, abs(f.y))) * step(0.68, k);
+            col = float3(0.8, 0.9, 1.0) * star * inside * max(e, amb) + float3(0.45, 0.65, 1.0) * (border + halo * 0.5) * e;
+            if (level >= 4.0) {
+                float2 toward = u.info0.xy * 0.5 - in.centre;
+                float facing = dot(normalize(q + 0.0001), normalize(toward + 0.0001));
+                float burn = smoothstep(0.2, 1.0, facing) * (0.6 + 0.4 * sin(time * 4.0 + seed * 6.0));
+                col += float3(1.0, 0.55, 0.2) * (border + halo * 0.8) * burn;
+            }
+        } else if (mode == 5) {
+            // Ripple: soft rings run out from each touch through the keys.
+            float3 tint = mix(float3(0.45, 0.9, 0.8), float3(0.72, 0.62, 1.0), 0.5 + 0.5 * sin(time * 0.6 + in.world.x * 0.01));
+            float ring = 0.0;
+            int n = int(u.info1.y + 0.5);
+            for (int i = 0; i < 4; i++) {
+                if (i >= n) { break; }
+                float4 t = u.touches[i];
+                float dd = distance(in.world, t.xy);
+                ring += exp(-sq((dd - t.z * 240.0) / 16.0)) * exp(-t.z * 1.6);
+            }
+            float e = exp(-age * 2.0) * hit;
+            float breathe = level >= 3.0 ? 0.18 * (0.5 + 0.5 * sin(time * 1.3 + seed * 6.283)) : 0.0;
+            col = tint * (inside * (ring * 0.3 + e * 0.2) + border * (ring * 0.7 + e * 0.5 + breathe) + halo * breathe);
+        } else if (mode == 6) {
+            // Candy gloss: a shine sweeps the hit key, a pink glow, sparkles inside.
+            float e = exp(-age * 2.5) * hit;
+            float amb = (level >= 2.0 ? 0.3 : 0.0) + (level >= 4.0 ? 0.25 : 0.0);
+            float3 pink = mix(float3(1.0, 0.31, 0.64), float3(0.77, 0.55, 1.0), 0.5 + 0.5 * sin(time * 1.5 + seed * 6.0));
+            float sweep = exp(-sq((q.x * 0.8 + q.y * 0.6) / max(hs.x, 1.0) - (age * 4.0 - 1.5)) * 5.0) * hit;
+            float2 g = (q + hs) / 7.0;
+            float2 f = fract(g) - 0.5;
+            float k = hash2(floor(g) + seed * 3.0 + floor(time * 2.0));
+            float tw = (1.0 - smoothstep(0.0, 0.05, abs(f.x))) * (1.0 - smoothstep(0.0, 0.35, abs(f.y)))
+                     + (1.0 - smoothstep(0.0, 0.05, abs(f.y))) * (1.0 - smoothstep(0.0, 0.35, abs(f.x)));
+            float sparkle = inside * tw * step(0.82, k) * max(e, level >= 3.0 ? 0.6 : 0.0);
+            col = pink * (border + halo * 0.8) * max(e, amb) + float3(1.0) * inside * sweep * 0.55 + float3(1.0, 0.9, 0.95) * sparkle;
+        }
+        col = clamp(col, 0.0, 1.0);
+        float a = max(col.r, max(col.g, col.b));
+        return float4(col, a);
+    }
     """
 }
 
@@ -500,11 +639,15 @@ final class SkyRenderer {
 }
 
 /// The letter keys' labels, drawn with Metal so the letter effects (all but Pop) can
-/// bend them. The keys hide their own labels while this draws (`KeyView.lettersElsewhere`).
+/// bend them, and the key effects under them (`EffectsSettings.Keys`). One layer for
+/// both, so a second full-size drawable isn't needed. The keys hide their own labels while this draws (`KeyView.lettersElsewhere`).
 @MainActor
 final class LetterRenderer {
     let layer: CAMetalLayer
+    /// The letter effect, or None when the keys draw their own letters.
     var mode: EffectsSettings.Letters = .none
+    /// What the keys themselves do (`EffectsSettings.Keys`), drawn under the letters.
+    var keyMode: EffectsSettings.Keys = .none
 
     private struct Uniforms {
         var info0: SIMD4<Float>
@@ -531,6 +674,8 @@ final class LetterRenderer {
     private var touches: [(point: CGPoint, time: TimeInterval)] = []
     private var buffers: [any MTLBuffer] = []
     private var next = 0
+    private var keyBuffers: [any MTLBuffer] = []
+    private var keyNext = 0
     private var prepared: (letters: [Character], font: UIFont, scale: CGFloat)?
 
     init(metal: MetalKeyboard) {
@@ -540,6 +685,13 @@ final class LetterRenderer {
 
     func layout(_ bounds: CGRect, scale: CGFloat) {
         MetalKeyboard.size(layer, bounds: bounds, scale: scale)
+    }
+
+    /// Drop the atlas (the keys draw their own letters).
+    func dropLetters() {
+        prepared = nil
+        glyphs = [:]
+        atlas = nil
     }
 
     /// Draw the letters into the atlas, once for each set of letters, font and scale.
@@ -585,7 +737,7 @@ final class LetterRenderer {
         cell = CGSize(width: cellPoints, height: cellPoints)
     }
 
-    private var duration: TimeInterval { mode == .liquid ? 1.6 : 1.0 }
+    private var duration: TimeInterval { mode == .liquid || keyMode != .none ? 1.6 : 1.0 }
 
     func hit(_ key: Key, at point: CGPoint, time: TimeInterval) {
         hits[key] = (time, Float.random(in: 0...1))
@@ -597,12 +749,12 @@ final class LetterRenderer {
         hits.values.contains { time - $0.time < duration } || touches.contains { time - $0.time < 1.5 }
     }
 
-    func render(keys: [(key: Key, letter: Character, frame: CGRect, ink: UIColor)], time: TimeInterval, level: Int,
-                style: KeyStyle) {
+    func render(keys: [(key: Key, letter: Character, frame: CGRect, ink: UIColor)], frames: [(key: Key, frame: CGRect)],
+                time: TimeInterval, level: Int, style: KeyStyle) {
         hits = hits.filter { time - $0.value.time < 3 }
         touches.removeAll { time - $0.time >= 1.5 }
         var instances: [Instance] = []
-        if let _ = atlas, style.shape.showsLetters {
+        if mode != .none, atlas != nil, style.shape.showsLetters {
             instances.reserveCapacity(keys.count)
             for key in keys {
                 guard let uv = glyphs[key.letter] else { continue }
@@ -626,16 +778,47 @@ final class LetterRenderer {
         case .disco: 6
         case .warp: 7
         }
+        let keyModeValue: Float = switch keyMode {
+        case .none: 0
+        case .neon: 1
+        case .glitch: 2
+        case .prism: 3
+        case .warp: 4
+        case .ripple: 5
+        case .candy: 6
+        }
+        var keyInstances: [Instance] = []
+        if keyMode != .none {
+            keyInstances.reserveCapacity(frames.count)
+            for key in frames {
+                let hit = hits[key.key]
+                let age = hit.map { Float(time - $0.time) } ?? 99
+                let seed = hit?.seed ?? Float(abs(sin(Double(key.frame.minX) * 12.9898 + Double(key.frame.minY) * 78.233)))
+                keyInstances.append(Instance(rect: SIMD4(Float(key.frame.minX), Float(key.frame.minY), Float(key.frame.width), Float(key.frame.height)),
+                                             uv: .zero, color: .zero, extra: SIMD4(age, seed, 0, 0)))
+            }
+        }
         var uniforms = Uniforms(
             info0: SIMD4(Float(layer.bounds.width), Float(layer.bounds.height), Float((time - start).truncatingRemainder(dividingBy: 3600)), Float(level)),
-            info1: SIMD4(modeValue, Float(touchList.count), 0, 0),
+            info1: SIMD4(modeValue, Float(touchList.count), keyModeValue, Float(style.shape.corner)),
             touches: (touch(0), touch(1), touch(2), touch(3)),
             left: Self.rgba(style.thumb(.left)), right: Self.rgba(style.thumb(.right)))
-        let buffer = instances.isEmpty ? nil : instanceBuffer(instances)
+        let buffer = instances.isEmpty ? nil : Self.instanceBuffer(instances, device: metal.device, ring: &buffers, next: &next)
+        let keyBuffer = keyInstances.isEmpty ? nil : Self.instanceBuffer(keyInstances, device: metal.device, ring: &keyBuffers, next: &keyNext)
         let pipeline = metal.letters
+        let keyPipeline = metal.keys
         let atlas = self.atlas
+        let keyCount = keyInstances.count
         metal.draw(on: layer) { encoder in
-            guard let buffer, let atlas, uniforms.info0.x > 0 else { return }
+            guard uniforms.info0.x > 0 else { return }
+            if let keyBuffer {
+                encoder.setRenderPipelineState(keyPipeline)
+                encoder.setVertexBytes(&uniforms, length: MemoryLayout<Uniforms>.stride, index: 0)
+                encoder.setFragmentBytes(&uniforms, length: MemoryLayout<Uniforms>.stride, index: 0)
+                encoder.setVertexBuffer(keyBuffer, offset: 0, index: 1)
+                encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 6, instanceCount: keyCount)
+            }
+            guard let buffer, let atlas else { return }
             encoder.setRenderPipelineState(pipeline)
             encoder.setVertexBytes(&uniforms, length: MemoryLayout<Uniforms>.stride, index: 0)
             encoder.setFragmentBytes(&uniforms, length: MemoryLayout<Uniforms>.stride, index: 0)
@@ -646,11 +829,12 @@ final class LetterRenderer {
     }
 
     /// Three buffers taken in turn, so the GPU never reads one being written.
-    private func instanceBuffer(_ instances: [Instance]) -> (any MTLBuffer)? {
+    private static func instanceBuffer(_ instances: [Instance], device: any MTLDevice, ring buffers: inout [any MTLBuffer],
+                                       next: inout Int) -> (any MTLBuffer)? {
         let length = MemoryLayout<Instance>.stride * instances.count
         if buffers.count < 3 || buffers[next].length < length {
             let capacity = max(length, MemoryLayout<Instance>.stride * 64)
-            guard let buffer = metal.device.makeBuffer(length: capacity, options: .storageModeShared) else { return nil }
+            guard let buffer = device.makeBuffer(length: capacity, options: .storageModeShared) else { return nil }
             if buffers.count < 3 { buffers.append(buffer); next = buffers.count - 1 } else { buffers[next] = buffer }
         }
         let buffer = buffers[next]

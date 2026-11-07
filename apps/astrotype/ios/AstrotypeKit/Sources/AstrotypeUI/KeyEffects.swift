@@ -212,6 +212,15 @@ final class KeyEffects {
         return true
     }
 
+    /// Whether the settings and the phone's state call for the Metal key effects now.
+    private var wantsMetalKeys: Bool {
+        guard let settings, settings.keys != .none, !reduceMotion, !constrained else { return false }
+        return true
+    }
+
+    /// The Metal layer over the keys is wanted for the letters, the key effects or both.
+    private var wantsMetalLayer: Bool { wantsMetalLetters || wantsMetalKeys }
+
     /// Whether the Metal letters draw the letter keys' labels: wanted, and Metal is in
     /// (`MetalKeyboard.load`); until then the keys draw their own.
     var drawsLetters: Bool { wantsMetalLetters && MetalKeyboard.shared != nil }
@@ -270,11 +279,11 @@ final class KeyEffects {
 
     // MARK: Letters
 
-    /// The letter effect, the theme or the keys changed: make, remake or drop the Metal
-    /// letters.
+    /// The letter or key effect, the theme or the keys changed: make, remake or drop the
+    /// Metal layer over the keys (letters and key effects share it).
     func lettersChanged() {
-        guard drawsLetters, let metal = MetalKeyboard.shared, let host else {
-            if wantsMetalLetters, MetalKeyboard.shared == nil { requestMetal() }
+        guard wantsMetalLayer, let metal = MetalKeyboard.shared, let host else {
+            if wantsMetalLayer, MetalKeyboard.shared == nil { requestMetal() }
             letters?.layer.removeFromSuperlayer()
             letters = nil
             return
@@ -289,8 +298,14 @@ final class KeyEffects {
             renderer.layout(layer.bounds, scale: surface.traitCollection.displayScale)
             letters = renderer
         }
-        letters?.mode = settings?.letters ?? .none
-        letters?.prepare(letters: surface.lettersOnKeys(), font: style.letterFont(), scale: surface.traitCollection.displayScale)
+        letters?.keyMode = wantsMetalKeys ? settings?.keys ?? .none : .none
+        if drawsLetters {
+            letters?.mode = settings?.letters ?? .none
+            letters?.prepare(letters: surface.lettersOnKeys(), font: style.letterFont(), scale: surface.traitCollection.displayScale)
+        } else {
+            letters?.mode = .none
+            letters?.dropLetters()
+        }
         lettersDirty = true
         ensureLink()
     }
@@ -302,13 +317,16 @@ final class KeyEffects {
         ensureLink()
     }
 
-    /// A thumb hit a letter.
-    func letterHit(_ key: Key, at point: CGPoint) {
-        guard let settings, settings.letters != .none, !reduceMotion else { return }
-        if let letters {
+    /// A thumb hit a key: the key effect, and the letter effect when it is a letter.
+    func keyHit(_ key: Key, at point: CGPoint) {
+        guard let settings, !reduceMotion else { return }
+        let isLetter = key.character != nil && settings.letters != .none
+        if let letters, letters.keyMode != .none || (isLetter && drawsLetters) {
             letters.hit(key, at: point, time: now)
             ensureLink()
-        } else if settings.letters == .pop || settings.letters.usesMetal {
+        }
+        guard isLetter, !drawsLetters else { return }
+        if settings.letters == .pop || settings.letters.usesMetal {
             // Pop, or a Metal effect when Metal can't run now.
             surface.popLetter(key, scale: 1.4 + 0.08 * CGFloat(level.rawValue))
         }
@@ -431,9 +449,12 @@ final class KeyEffects {
         glitchTick(time)
         var busy = flow.score > 0 || bursting
         if let letters {
-            let moving = letters.isAnimating(time: time) || level >= .aurora || (letters.mode == .disco && level >= .toboggan)
+            let moving = letters.isAnimating(time: time) || level >= .aurora
+                || ((letters.mode == .disco || letters.keyMode != .none) && level >= .toboggan)
             if moving || lettersDirty {
-                letters.render(keys: surface.letterKeys(), time: time, level: level.rawValue, style: style)
+                letters.render(keys: letters.mode != .none ? surface.letterKeys() : [],
+                               frames: letters.keyMode != .none ? surface.keyFrames() : [],
+                               time: time, level: level.rawValue, style: style)
                 lettersDirty = false
             }
             busy = busy || moving
@@ -518,7 +539,7 @@ final class KeyEffects {
         case .fireworks:
             return Look(image: Sprites.dot, colors: Palette.rainbow, count: 26, perLevel: 4, speed: 300, lifetime: 0.5, scale: 0.38, gravity: 260)
         case .glitch:
-            return Look(image: Sprites.bar, colors: Palette.glitch, count: 12, speed: 280, lifetime: 0.22, scale: 0.6)
+            return Look(image: Sprites.pixel, colors: Palette.glitch, count: 14, speed: 280, lifetime: 0.24, scale: 0.9)
         case .hearts:
             return Look(image: Sprites.heart, colors: Palette.candy + [.white], count: 10, perLevel: 3, speed: 240, lifetime: 0.5,
                         scale: 0.45, gravity: -90, spin: 2)
@@ -527,47 +548,43 @@ final class KeyEffects {
         }
     }
 
-    /// Glitch: bars of split colour jump about around the touch for a moment.
+    /// Glitch: blocks of the touch's area break off in split red and cyan and jump
+    /// about in every direction for a moment (Gabriel, 7 Nov 2026: not just lines).
     private func glitchTap(at point: CGPoint, grow: CGFloat) {
-        let bars = 5 + level.rawValue
-        for i in 0..<bars {
-            let bar = CALayer()
-            let width = CGFloat.random(in: 18...54) * grow
-            bar.bounds = CGRect(x: 0, y: 0, width: width, height: CGFloat.random(in: 2...5))
-            bar.position = CGPoint(x: point.x + CGFloat.random(in: -28...28) * grow, y: point.y + CGFloat.random(in: -20...20) * grow)
-            bar.backgroundColor = Palette.glitch[i % Palette.glitch.count].cgColor
-            bar.opacity = 0
-            layer.addSublayer(bar)
-            let jump = CAKeyframeAnimation(keyPath: "position.x")
-            jump.values = (0..<5).map { _ in point.x + CGFloat.random(in: -40...40) * grow }
-            jump.calculationMode = .discrete
-            let flicker = CAKeyframeAnimation(keyPath: "opacity")
-            flicker.values = [0.95, 0, 0.9, 0.6, 0.85, 0]
-            flicker.calculationMode = .discrete
-            let group = CAAnimationGroup()
-            group.animations = [jump, flicker]
-            group.duration = 0.24
-            group.beginTime = bar.convertTime(CACurrentMediaTime(), from: nil) + Double(i) * 0.012
-            group.fillMode = .forwards
-            group.isRemovedOnCompletion = false
-            CATransaction.begin()
-            CATransaction.setCompletionBlock { bar.removeFromSuperlayer() }
-            bar.add(group, forKey: "glitch")
-            CATransaction.commit()
+        let blocks = 6 + level.rawValue
+        for i in 0..<blocks {
+            let size = CGSize(width: CGFloat.random(in: 4...16) * grow, height: CGFloat.random(in: 4...14) * grow)
+            let centre = CGPoint(x: point.x + CGFloat.random(in: -26...26) * grow, y: point.y + CGFloat.random(in: -22...22) * grow)
+            let hops = (0..<5).map { _ in CGPoint(x: centre.x + CGFloat.random(in: -18...18) * grow, y: centre.y + CGFloat.random(in: -14...14) * grow) }
+            // A red copy and a cyan copy a few points apart, and sometimes a white one.
+            var copies: [(UIColor, CGFloat)] = [(Palette.glitch[0], -2.5), (Palette.glitch[1], 2.5)]
+            if i % 3 == 0 { copies.append((.white, 0)) }
+            for (color, shift) in copies {
+                let block = CALayer()
+                block.bounds = CGRect(origin: .zero, size: size)
+                block.position = centre
+                block.backgroundColor = color.cgColor
+                block.opacity = 0
+                block.compositingFilter = color == .white ? nil : "screenBlendMode"
+                layer.addSublayer(block)
+                let jump = CAKeyframeAnimation(keyPath: "position")
+                jump.values = hops.map { NSValue(cgPoint: CGPoint(x: $0.x + shift, y: $0.y)) }
+                jump.calculationMode = .discrete
+                let flicker = CAKeyframeAnimation(keyPath: "opacity")
+                flicker.values = [0.9, 0.2, 0.95, 0.5, 0.85, 0]
+                flicker.calculationMode = .discrete
+                let group = CAAnimationGroup()
+                group.animations = [jump, flicker]
+                group.duration = 0.26
+                group.beginTime = block.convertTime(CACurrentMediaTime(), from: nil) + Double(i) * 0.01
+                group.fillMode = .forwards
+                group.isRemovedOnCompletion = false
+                CATransaction.begin()
+                CATransaction.setCompletionBlock { block.removeFromSuperlayer() }
+                block.add(group, forKey: "glitch")
+                CATransaction.commit()
+            }
         }
-    }
-
-    private var snowColor: UIColor { style.backgroundIsDark ? .white : style.colors.left.uiColor }
-
-    private func makeRing(at point: CGPoint, color: UIColor, radius: CGFloat) -> CAShapeLayer {
-        let ring = CAShapeLayer()
-        ring.bounds = CGRect(x: 0, y: 0, width: 2 * radius, height: 2 * radius)
-        ring.position = point
-        ring.path = UIBezierPath(ovalIn: ring.bounds).cgPath
-        ring.fillColor = nil
-        ring.strokeColor = color.cgColor
-        ring.lineWidth = 2
-        return ring
     }
 
     /// The effects' ring is quicker than the keyboard's old one (Gabriel, 7 Nov 2026).
@@ -692,7 +709,7 @@ final class KeyEffects {
             _ = shape(width: 4, opacity: 0.85, color: Palette.glitch[0])
             _ = shape(width: 4, opacity: 0.85, color: Palette.glitch[1])
             _ = shape(width: 6, opacity: 0.95, color: trail.color)
-            trail.emitter = stream(at: point, image: Sprites.bar, colors: Palette.glitch, rate: 40, scale: 0.4, spread: 10)
+            trail.emitter = stream(at: point, image: Sprites.pixel, colors: Palette.glitch, rate: 45, scale: 0.7, spread: 10)
         case .hearts:
             _ = shape(width: 5, opacity: 0.8, color: Palette.candy[0])
             trail.emitter = stream(at: point, image: Sprites.heart, colors: Palette.candy, rate: 45, scale: 0.35, spread: 6)
@@ -952,14 +969,23 @@ final class KeyEffects {
             sources = [(.bottom, fountain), (.top, rain)]
         case .static:
             let bars = cells(Sprites.bar, Palette.glitch) { c in
-                c.birthRate = 14
+                c.birthRate = 6
                 c.lifetime = 0.12
                 c.lifetimeRange = 0.08
                 c.scale = 1
                 c.scaleRange = 0.7
                 c.alphaRange = 0.5
             }
-            sources = [(.area, bars)]
+            // Mostly blocks, a few thin bars: static, not just lines.
+            let blocks = cells(Sprites.pixel, Palette.glitch) { c in
+                c.birthRate = 12
+                c.lifetime = 0.14
+                c.lifetimeRange = 0.08
+                c.scale = 1.1
+                c.scaleRange = 0.8
+                c.alphaRange = 0.5
+            }
+            sources = [(.area, bars + blocks)]
         case .warp:
             // Stars rush out from the middle and grow as they pass.
             let stars = cells(Sprites.dot, Palette.space.map { $0.withAlphaComponent(0.4) }) { c in
@@ -1027,12 +1053,13 @@ final class KeyEffects {
             let (position, size): (CGPoint, CGSize) = switch place {
             case .top: (CGPoint(x: b.midX, y: -6), CGSize(width: b.width, height: 1))
             case .bottom: (CGPoint(x: b.midX, y: b.maxY + 6), CGSize(width: b.width, height: 1))
-            case .left: (CGPoint(x: -6, y: b.midY), CGSize(width: 1, height: b.height))
-            case .right: (CGPoint(x: b.maxX + 6, y: b.midY), CGSize(width: 1, height: b.height))
+            // The keyboard doesn't reach the screen's edges, so the sides start a little in.
+            case .left: (CGPoint(x: 10, y: b.midY), CGSize(width: 1, height: b.height * 0.8))
+            case .right: (CGPoint(x: b.maxX - 10, y: b.midY), CGSize(width: 1, height: b.height * 0.8))
             case .centre: (CGPoint(x: b.midX, y: b.midY), .zero)
-            case .area: (CGPoint(x: b.midX, y: b.midY), b.size)
-            case .bottomLeft: (CGPoint(x: 0, y: b.maxY + 4), .zero)
-            case .bottomRight: (CGPoint(x: b.maxX, y: b.maxY + 4), .zero)
+            case .area: (CGPoint(x: b.midX, y: b.midY), CGSize(width: b.width - 24, height: b.height - 16))
+            case .bottomLeft: (CGPoint(x: 16, y: b.maxY), .zero)
+            case .bottomRight: (CGPoint(x: b.maxX - 16, y: b.maxY), .zero)
             }
             emitter.emitterShape = size == .zero ? .point : .rectangle
             emitter.emitterPosition = position

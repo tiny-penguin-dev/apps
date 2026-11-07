@@ -97,20 +97,8 @@ final class KeyboardViewController: UIInputViewController {
         // on the emoji page or the settings panel) and the typing log.
         sampler.root = { [weak keyboard] in keyboard }
         sampler.onSample = { [weak self] sample in self?.took(sample) }
-        view.addSubview(keyboard)
-        // Pinned with constraints, not placed by frame: iOS works the keyboard's height
-        // out from the constraints inside its view, and ignored the height constraint
-        // below while the keys were frame-based. It took it only when the settings panel
-        // (built with constraints) was added (Gabriel, 3 Nov 2026: "Opened at 224 of the
-        // 264 pt asked, still 224 after asking again", then it grew when 123 was held).
-        keyboard.translatesAutoresizingMaskIntoConstraints = false
-        NSLayoutConstraint.activate([
-            keyboard.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            keyboard.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            keyboard.topAnchor.constraint(equalTo: view.topAnchor),
-            keyboard.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-        ])
         self.keyboard = keyboard
+        mount(keyboard)
 
         // A sync each time iOS makes a keyboard, as when each one had its own model.
         shared.sync?.sync()
@@ -129,8 +117,28 @@ final class KeyboardViewController: UIInputViewController {
         }
     }
 
+    /// Puts the keys in the controller's view.
+    ///
+    /// Pinned with constraints, not placed by frame: iOS works the keyboard's height
+    /// out from the constraints inside its view, and ignored the height constraint
+    /// below while the keys were frame-based. It took it only when the settings panel
+    /// (built with constraints) was added (Gabriel, 3 Nov 2026: "Opened at 224 of the
+    /// 264 pt asked, still 224 after asking again", then it grew when 123 was held).
+    private func mount(_ keyboard: KeyboardView) {
+        guard keyboard.superview !== view else { return }
+        view.addSubview(keyboard)
+        keyboard.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            keyboard.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            keyboard.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            keyboard.topAnchor.constraint(equalTo: view.topAnchor),
+            keyboard.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+        ])
+    }
+
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
+        if let keyboard { mount(keyboard) }
         heightRetries = 0
         // The process's one model types into whichever keyboard is showing.
         KeyboardShared.current?.showing = self
@@ -217,6 +225,18 @@ final class KeyboardViewController: UIInputViewController {
         if KeyboardShared.current?.showing === self { keyboard?.model.keyboardWillHide() }
         health?.disappeared()
         debug?.disappeared()
+    }
+
+    /// Takes the keys out of the controller's view once it has gone. iOS keeps the old
+    /// controllers' views in its own windows after it frees the controllers, and every
+    /// one held its keys with their drawing and Metal surfaces, about 9 MB each
+    /// (Gabriel, 7 Nov 2026: "1 keyboard · 13 key views" at 140 MB, IOSurface 91 MB).
+    /// Taken out, the keys go with their controller; they come back if this one shows
+    /// again.
+    override func viewDidDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated)
+        guard !isVisible else { return }
+        keyboard?.removeFromSuperview()
     }
 
     override func didReceiveMemoryWarning() {

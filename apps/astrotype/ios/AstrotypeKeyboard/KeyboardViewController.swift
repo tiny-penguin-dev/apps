@@ -1,5 +1,6 @@
 import AstrotypeCore
 import AstrotypeUI
+import SwiftUI
 import Synchronization
 import UIKit
 
@@ -51,6 +52,8 @@ final class KeyboardViewController: UIInputViewController {
     /// Whether this keyboard has had its sync (one per keyboard iOS shows).
     private var synced = false
     private var uptime: Double { ProcessInfo.processInfo.systemUptime }
+    /// The dictation test panel (throwaway spike, DictationTest/).
+    private var dictationProbe: UIHostingController<DictationProbePanel>?
 
     deinit {
         if counted { LiveCount.controllers.subtract(1, ordering: .relaxed) }
@@ -185,6 +188,7 @@ final class KeyboardViewController: UIInputViewController {
         if recording { model.snapshot() }
         logMemory("show")
         model.contextChanged()
+        updateDictationProbe(&dictationProbe)
     }
 
     /// Starts or stops the typing recorder with the setting (Full Access only).

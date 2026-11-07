@@ -62,4 +62,18 @@ import Testing
         #expect(decoded == event)
         #expect(!event.isInput)
     }
+
+    @Test func briefSaysOnlyWhatIsOutOfRange() {
+        let quiet = MemorySample(reading: MemoryReading(footprintMB: 23.44, headroomMB: 120), heapMB: 13.2, layers: 130,
+                                 counts: .init(keyboards: 1, models: 1, loads: 1, syncs: 3, views: 1))
+        #expect(quiet.brief(peakMB: 48.12) == "23.4 MB · peak 48.1")
+        // The peak is never below now.
+        #expect(quiet.brief(peakMB: 10) == "23.4 MB · peak 23.4")
+        let loud = MemorySample(reading: MemoryReading(footprintMB: 86, headroomMB: 12.7), heapMB: 26, layers: 130,
+                                counts: .init(keyboards: 3, models: 2, loads: 2, syncs: 3, waiting: 1, views: 5))
+        #expect(loud.brief(peakMB: 90) == "86.0 MB · peak 90.0 · 12 left · heap 26.0 · 3 keyboards · 5 key views · 2 models · 2 loads · 1 waiting")
+        // No headroom reading (not iOS) is not "0 left".
+        let linux = MemorySample(reading: MemoryReading(footprintMB: 20, headroomMB: 0), heapMB: nil, counts: .init(keyboards: 1))
+        #expect(linux.brief(peakMB: 20) == "20.0 MB · peak 20.0")
+    }
 }

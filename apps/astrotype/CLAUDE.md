@@ -139,8 +139,10 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
     - `AstrotypeUI`: the design system (`Theme` tokens, `Components`, `Art`, `EdgeFade`: a scroll
       view's `fadeEdges`, used by the settings panel and both emoji rows) and the
       keyboard's views: `KeyboardView` (bar plus keys, the pages, the settings panel,
-      the `StatsOverlayView` memory line in the keys' top corner while
-      `KeyboardSettings.showsStats` is on; owns a `KeyboardModel`), `BarView` (left key, centred words, the pencil and its fix row), `KeySurfaceView` (touch stream, flashes,
+      the `StatsOverlayView` one-line memory brief (`MemorySample.brief`: now and
+      peak, more only when out of range) centred below the keys while
+      `KeyboardSettings.showsStats` is on, and the recording dot in the "123" key's
+      corner; owns a `KeyboardModel`), `BarView` (left key, centred words, the pencil and its fix row), `KeySurfaceView` (touch stream, flashes,
       trails, rings, and the gestures: space slide (and a held space typed as soon as another finger lands), backspace swipe and hold, "123"
       hold, the slide from "123" to a number or symbol, and a held letter's accents, `AccentCallout`; keys drawn from a `KeyStyle`),
       `KeyEffects` (taps, trails, letter effects and flow with Core Animation; the presets Calm, Arcade, Glitch,

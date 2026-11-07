@@ -16,6 +16,8 @@ let usage = """
 usage:
   astrotype-tools build-ngrams <pairs.tsv> <out.bin> [--max-pairs N] [--lambda L]
       the word-pair binary from `previous<TAB>next<TAB>count` lines (ml/ngrams/count_pairs.py)
+  astrotype-tools upgrade-ngrams <in.bin> <out.bin>
+      rewrites a word-pair binary in the current format, which the keyboard reads in place
   astrotype-tools replay <folder-or-file.json> [--language en|es|en+es] [--misses N] [--prior P --context C --length L]
       plays practice recordings and shared words through the engine and reports first-guess accuracy
   astrotype-tools tune <folder> [--language en|es|en+es] [--rounds N]
@@ -75,6 +77,15 @@ func buildNgrams(_ plain: [String], _ options: [String: String]) {
     guard let model = try? NgramModel(data: data) else { fail("the model written does not read back") }
     print("\(lines) pair lines in · \(model.vocabularyCount) words · \(model.pairCount) pairs · \(data.count / 1024) KB · λ \(model.lambda)")
     print("after <s>: " + model.likelyWords(after: NgramModel.sentenceStart, limit: 8).joined(separator: " "))
+}
+
+func upgradeNgrams(_ plain: [String]) {
+    guard plain.count == 2 else { fail(usage) }
+    guard let data = FileManager.default.contents(atPath: plain[0]) else { fail("cannot read \(plain[0])") }
+    let upgraded: Data
+    do { upgraded = try NgramModel.upgraded(data) } catch { fail("not a word-pair model: \(error)") }
+    do { try upgraded.write(to: URL(fileURLWithPath: plain[1])) } catch { fail("cannot write \(plain[1]): \(error)") }
+    print("\(data.count / 1024) KB → \(upgraded.count / 1024) KB")
 }
 
 func items(at path: String) -> [Replay.Item] {
@@ -212,6 +223,7 @@ guard let command = arguments.first else { fail(usage) }
 let (plain, options) = parse(arguments.dropFirst())
 switch command {
 case "build-ngrams": buildNgrams(plain, options)
+case "upgrade-ngrams": upgradeNgrams(plain)
 case "replay": replay(plain, options)
 case "next": next(plain, options)
 case "nexteval": nextEval(plain, options)

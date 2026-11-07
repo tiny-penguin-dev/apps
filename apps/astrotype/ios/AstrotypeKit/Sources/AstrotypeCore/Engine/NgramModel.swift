@@ -1,86 +1,219 @@
 import Foundation
 
 /// Which words tend to follow which, for ranking guesses by the sentence so far
-/// (features/smart-matching/FEATURE.md). A word-pair model in a compact binary the
-/// keyboard loads in one read, about 1 MB for 300,000 pairs:
+/// (features/smart-matching/FEATURE.md). A word-pair model in a compact binary read in
+/// place (`MappedBytes`), mapped from the file, so it costs the keyboard no memory iOS
+/// counts: about 1.2 MB for 300,000 pairs. Version 2, little-endian, each table on a
+/// 4-byte boundary:
 ///
 ///     "ASNG" · version UInt16 · flags UInt16 · vocabulary N UInt32 · pairs M UInt32
-///     · lambda Float32 · scale Float32
-///     · N words, each UInt8 length + UTF-8 bytes, sorted ascending (binary search)
-///     · N + 1 UInt32 offsets into the pairs, one per previous word
-///     · M UInt16 next-word ids (UInt32 when flags bit 0 is set), ascending per previous word
+///     · lambda Float32 · scale Float32 · word bytes W UInt32
+///     · wordStart UInt32[N + 1] into the word bytes, words sorted by their UTF-8 bytes
+///     · offsets UInt32[N + 1] into the pairs, one per previous word
+///     · M next-word ids, UInt16 (UInt32 when flags bit 0 is set), ascending per previous word
 ///     · M UInt8 quantised costs: round(−log P(next | previous) × scale), 255 at most
+///     · the words' UTF-8 bytes, W of them
 ///
+/// Version 1 (length-prefixed words, no word table) still reads, into memory.
 /// `<s>` is a word of its own, the start of a sentence. The same type writes the
 /// format (`Builder`), so `astrotype-tools build-ngrams` and the tests share it.
 ///
 ///     let model = try NgramModel(contentsOf: url)
 ///     model.logProbability(of: "store", after: "the")          // log P(store | the), nil if unseen
 ///     model.contextBonus(for: "store", after: "the", unigramLogProbability: -9.1)
-public struct NgramModel: Sendable, Equatable {
+public struct NgramModel: @unchecked Sendable, Equatable {
     public static let sentenceStart = "<s>"
     static let magic: [UInt8] = Array("ASNG".utf8)
-    public static let formatVersion: UInt16 = 1
+    public static let formatVersion: UInt16 = 2
+    static let headerSize = 28
 
     /// Interpolation weight on the pair probability: `λ·P(w|prev) + (1−λ)·P(w)`.
-    public var lambda: Float
+    public let lambda: Float
     /// Quantisation: costs are `−log P × scale`, rounded to a byte.
-    public var scale: Float
-    /// The vocabulary, sorted.
-    public private(set) var words: [String]
-    private var offsets: [UInt32]
-    private var nexts: [UInt32]
-    private var costs: [UInt8]
+    public let scale: Float
+    /// The bytes the tables point into, kept alive with them; read-only.
+    private let bytes: MappedBytes
+    private let wordStart: UnsafeBufferPointer<UInt32>
+    private let wordBytes: UnsafeBufferPointer<UInt8>
+    private let offsets: UnsafeBufferPointer<UInt32>
+    private let narrowNexts: UnsafeBufferPointer<UInt16>
+    private let wideNexts: UnsafeBufferPointer<UInt32>
+    private let costs: UnsafeBufferPointer<UInt8>
 
-    public var vocabularyCount: Int { words.count }
-    public var pairCount: Int { nexts.count }
+    public var vocabularyCount: Int { wordStart.count - 1 }
+    public var pairCount: Int { costs.count }
+    /// Whether the tables are read from a mapped file rather than held in memory.
+    public var isMapped: Bool { bytes.isMapped }
+
+    /// The vocabulary, sorted. Made on each call: for tests and tools.
+    public var words: [String] { (0..<vocabularyCount).map(word(at:)) }
+
+    public static func == (a: NgramModel, b: NgramModel) -> Bool {
+        a.bytes === b.bytes || a.bytes.sameBytes(as: b.bytes)
+    }
 
     // MARK: Reading
 
+    /// The model in the file at `url`: mapped in place when it is version 2.
     public init(contentsOf url: URL) throws {
-        try self.init(data: try Data(contentsOf: url))
+        let mapped = try MappedBytes(mapping: url)
+        if mapped.count >= 6, mapped.buffer(at: 4, count: 1, as: UInt16.self)[0] == Self.formatVersion {
+            try self.init(bytes: mapped)
+        } else {
+            try self.init(data: try Data(contentsOf: url))
+        }
     }
 
+    /// A model from a file's bytes (either version), held in memory.
     public init(data: Data) throws {
-        var reader = ByteReader(data)
-        guard try reader.bytes(4) == Self.magic else { throw Failure.notAModel }
-        let version = try reader.uint16()
-        guard version == Self.formatVersion else { throw Failure.unsupportedVersion(Int(version)) }
-        let flags = try reader.uint16()
-        let wide = flags & 1 != 0
-        let count = Int(try reader.uint32())
-        let pairs = Int(try reader.uint32())
-        lambda = try reader.float()
-        scale = try reader.float()
-        var words: [String] = []
-        words.reserveCapacity(count)
-        for _ in 0..<count {
-            let length = Int(try reader.uint8())
-            words.append(String(decoding: try reader.bytes(length), as: UTF8.self))
+        guard data.count >= 6, Array(data.prefix(4)) == Self.magic else {
+            throw data.starts(with: Self.magic) ? Failure.corrupt : Failure.notAModel
         }
-        self.words = words
-        offsets = try (0...count).map { _ in try reader.uint32() }
-        nexts = try (0..<pairs).map { _ in wide ? try reader.uint32() : UInt32(try reader.uint16()) }
-        costs = try reader.bytes(pairs)
-        guard offsets.last.map(Int.init) == pairs else { throw Failure.corrupt }
+        let version = UInt16(data[data.startIndex + 4]) | UInt16(data[data.startIndex + 5]) << 8
+        switch version {
+        case Self.formatVersion: try self.init(bytes: MappedBytes(copying: data))
+        case 1: try self.init(bytes: MappedBytes(copying: Self.upgrade(data)))
+        default: throw Failure.unsupportedVersion(Int(version))
+        }
+    }
+
+    private init(bytes: MappedBytes) throws {
+        guard bytes.count >= Self.headerSize,
+              Array(bytes.buffer(at: 0, count: 4, as: UInt8.self)) == Self.magic else { throw Failure.corrupt }
+        let flags = bytes.buffer(at: 6, count: 1, as: UInt16.self)[0]
+        let counts = bytes.buffer(at: 8, count: 2, as: UInt32.self).map(Int.init)
+        let (vocabulary, pairs) = (counts[0], counts[1])
+        lambda = bytes.buffer(at: 16, count: 1, as: Float.self)[0]
+        scale = bytes.buffer(at: 20, count: 1, as: Float.self)[0]
+        let wordByteCount = Int(bytes.buffer(at: 24, count: 1, as: UInt32.self)[0])
+        self.bytes = bytes
+        do {
+            var reader = SectionReader(bytes, after: Self.headerSize)
+            wordStart = try reader.next(vocabulary + 1)
+            offsets = try reader.next(vocabulary + 1)
+            if flags & 1 != 0 {
+                wideNexts = try reader.next(pairs)
+                narrowNexts = UnsafeBufferPointer(start: nil, count: 0)
+            } else {
+                narrowNexts = try reader.next(pairs)
+                wideNexts = UnsafeBufferPointer(start: nil, count: 0)
+            }
+            costs = try reader.next(pairs)
+            wordBytes = try reader.next(wordByteCount)
+        } catch {
+            throw Failure.corrupt
+        }
+        guard offsets.last.map(Int.init) == pairs, wordStart.last.map(Int.init) == wordByteCount else { throw Failure.corrupt }
     }
 
     public enum Failure: Error, Equatable {
         case notAModel, unsupportedVersion(Int), corrupt
     }
 
+    /// A version 1 file as version 2.
+    /// A file's bytes in the current version, for `astrotype-tools upgrade-ngrams`.
+    public static func upgraded(_ data: Data) throws -> Data {
+        _ = try NgramModel(data: data)
+        let version = UInt16(data[data.startIndex + 4]) | UInt16(data[data.startIndex + 5]) << 8
+        return version == formatVersion ? data : try upgrade(data)
+    }
+
+    static func upgrade(_ data: Data) throws -> Data {
+        var reader = ByteReader(data)
+        guard try reader.bytes(4) == Self.magic else { throw Failure.notAModel }
+        let version = try reader.uint16()
+        guard version == 1 else { throw Failure.unsupportedVersion(Int(version)) }
+        let wide = try reader.uint16() & 1 != 0
+        let count = Int(try reader.uint32())
+        let pairs = Int(try reader.uint32())
+        let lambda = try reader.float()
+        let scale = try reader.float()
+        var words: [String] = []
+        words.reserveCapacity(count)
+        for _ in 0..<count {
+            let length = Int(try reader.uint8())
+            words.append(String(decoding: try reader.bytes(length), as: UTF8.self))
+        }
+        let offsets = try (0...count).map { _ in Int(try reader.uint32()) }
+        let nexts = try (0..<pairs).map { _ in wide ? Int(try reader.uint32()) : Int(try reader.uint16()) }
+        let costs = try reader.bytes(pairs)
+        guard offsets.last == pairs else { throw Failure.corrupt }
+        let perPrevious = (0..<count).map { p in
+            (offsets[p]..<offsets[p + 1]).map { (next: nexts[$0], cost: costs[$0]) }
+        }
+        return encode(lambda: lambda, scale: scale, words: words, perPrevious: perPrevious)
+    }
+
+    /// The version 2 file: words sorted by their UTF-8 bytes, ids and pairs renumbered
+    /// to match.
+    static func encode(lambda: Float, scale: Float, words: [String], perPrevious: [[(next: Int, cost: UInt8)]]) -> Data {
+        let utf8 = words.map { Array($0.utf8) }
+        let order = utf8.indices.sorted { utf8[$0].lexicographicallyPrecedes(utf8[$1]) }
+        var newID = [Int](repeating: 0, count: words.count)
+        for (new, old) in order.enumerated() { newID[old] = new }
+        let wide = words.count > Int(UInt16.max)
+
+        var wordStart: [UInt32] = [0]
+        var wordBytes: [UInt8] = []
+        var offsets: [UInt32] = [0]
+        var nexts: [UInt32] = []
+        var costs: [UInt8] = []
+        for old in order {
+            wordBytes.append(contentsOf: utf8[old])
+            wordStart.append(UInt32(wordBytes.count))
+            for entry in perPrevious[old].map({ (next: newID[$0.next], cost: $0.cost) }).sorted(by: { $0.next < $1.next }) {
+                nexts.append(UInt32(entry.next))
+                costs.append(entry.cost)
+            }
+            offsets.append(UInt32(nexts.count))
+        }
+        var out = SectionWriter()
+        for byte in Self.magic { out.append(byte) }
+        out.append(Self.formatVersion)
+        out.append(UInt16(wide ? 1 : 0))
+        out.append(UInt32(words.count))
+        out.append(UInt32(nexts.count))
+        out.append(lambda)
+        out.append(scale)
+        out.append(UInt32(wordBytes.count))
+        out.section(wordStart)
+        out.section(offsets)
+        if wide { out.section(nexts) } else { out.section(nexts.map { UInt16($0) }) }
+        out.section(costs)
+        out.section(wordBytes)
+        out.pad()
+        return out.data
+    }
+
     // MARK: Lookup
 
-    /// The id of a word, by binary search over the sorted vocabulary.
+    /// The word with id `id`.
+    public func word(at id: Int) -> String {
+        String(decoding: UnsafeBufferPointer(rebasing: wordBytes[Int(wordStart[id])..<Int(wordStart[id + 1])]), as: UTF8.self)
+    }
+
+    @inline(__always)
+    private func next(_ i: Int) -> UInt32 {
+        wideNexts.isEmpty ? UInt32(narrowNexts[i]) : wideNexts[i]
+    }
+
+    /// The id of a word, by binary search over the vocabulary's bytes.
     public func id(of word: String) -> Int? {
-        var low = 0
-        var high = words.count - 1
-        while low <= high {
-            let mid = (low + high) / 2
-            if words[mid] == word { return mid }
-            if words[mid] < word { low = mid + 1 } else { high = mid - 1 }
+        var word = word
+        return word.withUTF8 { target in
+            var low = 0
+            var high = vocabularyCount - 1
+            while low <= high {
+                let mid = (low + high) / 2
+                let start = Int(wordStart[mid])
+                let length = Int(wordStart[mid + 1]) - start
+                var order = memcmp(wordBytes.baseAddress! + start, target.baseAddress ?? wordBytes.baseAddress!, min(length, target.count))
+                if order == 0 { order = length == target.count ? 0 : (length < target.count ? -1 : 1) }
+                if order == 0 { return mid }
+                if order < 0 { low = mid + 1 } else { high = mid - 1 }
+            }
+            return nil
         }
-        return nil
     }
 
     /// `log P(word | previous)`, nil when either word is unknown or the pair was not seen.
@@ -91,8 +224,9 @@ public struct NgramModel: Sendable, Equatable {
         var high = Int(offsets[p + 1]) - 1
         while low <= high {
             let mid = (low + high) / 2
-            if nexts[mid] == target { return -Float(costs[mid]) / scale }
-            if nexts[mid] < target { low = mid + 1 } else { high = mid - 1 }
+            let candidate = next(mid)
+            if candidate == target { return -Float(costs[mid]) / scale }
+            if candidate < target { low = mid + 1 } else { high = mid - 1 }
         }
         return nil
     }
@@ -128,7 +262,7 @@ public struct NgramModel: Sendable, Equatable {
         var best: [(cost: UInt8, next: UInt32)] = []
         best.reserveCapacity(limit + 1)
         for i in Int(offsets[p])..<Int(offsets[p + 1]) {
-            let entry = (cost: costs[i], next: nexts[i])
+            let entry = (cost: costs[i], next: next(i))
             if best.count == limit, let worst = best.last,
                entry.cost > worst.cost || (entry.cost == worst.cost && entry.next > worst.next) { continue }
             var at = best.count
@@ -138,7 +272,7 @@ public struct NgramModel: Sendable, Equatable {
             best.insert(entry, at: at)
             if best.count > limit { best.removeLast() }
         }
-        return best.map { (words[Int($0.next)], -Float($0.cost) / scale) }
+        return best.map { (word(at: Int($0.next)), -Float($0.cost) / scale) }
     }
 
     // MARK: Building
@@ -192,35 +326,8 @@ public struct NgramModel: Sendable, Equatable {
                 let cost = min(255, Int((-log(p) * scale).rounded()))
                 perPrevious[ids[pair.previous]!].append((ids[pair.word]!, UInt8(cost)))
             }
-            let wide = words.count > Int(UInt16.max)
-            var out = Data()
-            out.append(contentsOf: NgramModel.magic)
-            out.append(uint16: NgramModel.formatVersion)
-            out.append(uint16: wide ? 1 : 0)
-            out.append(uint32: UInt32(words.count))
-            out.append(uint32: UInt32(kept.count))
-            out.append(float: lambda)
-            out.append(float: scale)
-            for word in words {
-                let bytes = Array(word.utf8.prefix(255))
-                out.append(UInt8(bytes.count))
-                out.append(contentsOf: bytes)
-            }
-            var offset: UInt32 = 0
-            for list in perPrevious {
-                out.append(uint32: offset)
-                offset += UInt32(list.count)
-            }
-            out.append(uint32: offset)
-            var costBytes = Data()
-            for list in perPrevious {
-                for entry in list.sorted(by: { $0.next < $1.next }) {
-                    if wide { out.append(uint32: UInt32(entry.next)) } else { out.append(uint16: UInt16(entry.next)) }
-                    costBytes.append(entry.cost)
-                }
-            }
-            out.append(costBytes)
-            return out
+            return NgramModel.encode(lambda: lambda, scale: scale, words: words,
+                                     perPrevious: perPrevious.map { $0.map { (next: $0.next, cost: $0.cost) } })
         }
     }
 }

@@ -69,6 +69,9 @@ public struct TypingEvent: Codable, Sendable, Equatable {
         case memory = "mem"
         /// How long the keyboard took to open, step by step (`s`, `OpenTiming.line`).
         case open
+        /// The next-word models loaded (features/next-word-model): `s` is the languages,
+        /// how long it took and the memory before and after, as "en+es 140 ms 31.2 → 34.0 MB".
+        case nextWordLoad = "nwl"
     }
 
     /// The keyboard's clock, seconds.

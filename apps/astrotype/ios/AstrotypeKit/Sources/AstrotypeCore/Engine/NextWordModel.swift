@@ -30,7 +30,9 @@ public final class NextWordModel: @unchecked Sendable {
     private let offerable: [Bool]
     private let predictor: NextWordPredicting
     private let lock = NSLock()
-    private var cache: (ids: [Int32], limit: Int, guesses: [(String, Float)])?
+    /// The last sentence the network read and its answer: the bar and the open word's
+    /// guesses ask about the same sentence, so the network runs once for both.
+    private var cache: (ids: [Int32], scores: [Float])?
 
     /// `vocabulary` is `nextword-vocab.txt`: one word per line, the line number its id,
     /// the four specials (`<pad>`, `<s>`, `<unk>`, `,`) first.
@@ -58,20 +60,33 @@ public final class NextWordModel: @unchecked Sendable {
     /// with their probabilities. Empty inside a word or when the network can't answer.
     /// The last answer is kept, so asking again for the same sentence costs nothing.
     public func guesses(before text: String, limit: Int) -> [(word: String, probability: Float)] {
-        guard limit > 0, let tokens = WordContext.tokens(before: text) else { return [] }
+        guard limit > 0, let scores = scores(before: text) else { return [] }
+        return Self.top(scores.logProbabilities, limit: limit, offerable: offerable, words: words)
+    }
+
+    /// The network's say on every word after `text` (the text before the cursor, the
+    /// open word left out), for ranking the open word's guesses (`Matcher.nextWords`).
+    /// Nil inside a word or when the network can't answer.
+    public func scores(before text: String) -> NextWordScores? {
+        guard let tokens = WordContext.tokens(before: text) else { return nil }
         let input = window(for: tokens)
         lock.lock()
-        if let cache, cache.ids == input, cache.limit == limit {
+        if let cache, cache.ids == input {
             lock.unlock()
-            return cache.guesses
+            return NextWordScores(model: self, logProbabilities: cache.scores)
         }
         lock.unlock()
-        guard let scores = predictor.logProbabilities(input) else { return [] }
-        let top = Self.top(scores, limit: limit, offerable: offerable, words: words)
+        guard let scores = predictor.logProbabilities(input), scores.count >= words.count else { return nil }
         lock.lock()
-        cache = (input, limit, top)
+        cache = (input, scores)
         lock.unlock()
-        return top
+        return NextWordScores(model: self, logProbabilities: scores)
+    }
+
+    /// A word's row, nil for a word the model doesn't know (or a special).
+    func row(of word: String) -> Int? {
+        guard let id = ids[word], id > Self.breakID else { return nil }
+        return Int(id)
     }
 
     /// The `limit` best offerable rows, as words with probabilities.
@@ -86,6 +101,18 @@ public final class NextWordModel: @unchecked Sendable {
             if best.count > limit { best.removeLast() }
         }
         return best.map { (words[$0.0], exp($0.1)) }
+    }
+}
+
+/// What a next-word model said could follow one sentence: the log-probability of
+/// each word it knows (`NextWordModel.scores(before:)`).
+public struct NextWordScores: Sendable {
+    public let model: NextWordModel
+    public let logProbabilities: [Float]
+
+    /// The log-probability of `word` coming next, nil for a word the model doesn't know.
+    public func logProbability(of word: String) -> Float? {
+        model.row(of: WordContext.normalize(Substring(word))).map { logProbabilities[$0] }
     }
 }
 

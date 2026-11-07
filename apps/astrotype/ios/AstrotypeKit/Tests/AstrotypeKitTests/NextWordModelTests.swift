@@ -90,4 +90,39 @@ struct NextWordModelTests {
                                       count: 2, fromModel: [("house", 0.4), ("office", 0.3), ("same", 0.1)])
         #expect(words == ["house", "office"])
     }
+
+    // Swipe guesses (features/next-word-model): ids 4 or, 5 our, 6 house.
+    let swipeVocabulary = ["<pad>", "<s>", "<unk>", ",", "or", "our", "house"]
+
+    private func swipe(_ letters: String, after text: String, liking: [Int: Float]?) throws -> (guesses: [String], calls: Int) {
+        let fake = FakePredictor(rows: 16) { _ in liking ?? [:] }
+        var composer = Composer(language: try Language.bundled(["en"]), layout: Synth.layout)
+        composer.setContext(before: text)
+        // The bar asks the model about this sentence as soon as it loads.
+        if liking != nil { composer.nextWordModels = [NextWordModel(code: "en", vocabulary: swipeVocabulary, predictor: fake)] }
+        _ = Synth.swipe(&composer, letters)
+        guard case .guesses(let words, _) = composer.state.bar else { return ([], fake.calls) }
+        return (words.map { $0.lowercased() }, fake.calls)
+    }
+
+    @Test func theModelPicksBetweenSwipesThatFitAlike() throws {
+        // A straight swipe from "o" to "r" passes over "u": "or" and "our" both fit.
+        let plain = try swipe("or", after: "please read ", liking: nil).guesses
+        #expect(plain.contains("or") && plain.contains("our"))
+        let ours = try swipe("or", after: "please read ", liking: [5: 0.3, 4: 0.0005]).guesses
+        #expect(ours.first == "our")
+        let or = try swipe("or", after: "tea ", liking: [4: 0.3, 5: 0.0005]).guesses
+        #expect(or.first == "or")
+    }
+
+    @Test func theModelDoesNotOverrideTheSwipesShape() throws {
+        // The model is sure of "house", but the swipe went nowhere near it.
+        let guesses = try swipe("or", after: "at the ", liking: [6: 0.9]).guesses
+        #expect(guesses.first != "house")
+    }
+
+    @Test func theBarAndTheSwipeShareOneModelCall() throws {
+        let calls = try swipe("or", after: "please read ", liking: [5: 0.3]).calls
+        #expect(calls == 1)
+    }
 }

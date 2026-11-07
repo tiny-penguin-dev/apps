@@ -65,6 +65,18 @@ public struct Matcher: Sendable {
     /// before count against the swipe's shape. The same scale as `priorWeight`, so a
     /// pair ten times likelier than the word alone is worth a word ten times as common.
     public var contextWeight = 0.12
+    /// What the next-word models said could follow the words before the open word
+    /// (features/next-word-model), one per language loaded; empty leaves the context
+    /// to the word pairs. A word a model knows is ranked by it instead of by the pairs:
+    /// it reads the whole sentence, so it can tell a swipe that fits the shape but
+    /// makes no sense there from the one that fits both.
+    public var nextWords: [NextWordScores] = []
+    /// Score per unit of the next-word model's bonus (`modelBonus`), on the same scale
+    /// as `contextWeight`.
+    public var modelWeight = 0.12
+    /// How much of the model's guess goes into the bonus, the rest the word's plain
+    /// frequency, so a word the model finds unlikely loses at most `-log(1 - modelMix)`.
+    public var modelMix: Float = 0.9
     /// Score per unit of log ratio between the person's use of a word and the
     /// dictionary's (`personalBonus`): the same scale as `priorWeight`, so a word the
     /// person uses ten times more than most people gains what a word ten times as
@@ -167,7 +179,29 @@ public struct Matcher: Sendable {
     /// The word right before the open one, for the pair model; nil without context.
     var previousWord: String? { context.last.map(Lexicon.fold) }
 
-    /// The context's say on `word`, given the word's log prior from the dictionary.
+    /// The words before's say on `word` as score, given its log prior from the
+    /// dictionary: the next-word model's when one knows the word, else the pairs'.
+    func contextScore(for word: String, prior: Float) -> Double {
+        if !nextWords.isEmpty, let bonus = modelBonus(for: word, prior: prior) { return modelWeight * bonus }
+        return contextWeight * contextBonus(for: word, prior: prior)
+    }
+
+    /// The next-word models' say on `word`: the log ratio of how likely they find it
+    /// here (mixed with its plain frequency) to its plain frequency, the best of the
+    /// models that know it; nil when none does.
+    func modelBonus(for word: String, prior: Float) -> Double? {
+        let unigram = exp(prior + dictionary.logProbabilityOffset)
+        guard unigram > 0 else { return nil }
+        var best: Float?
+        for scores in nextWords {
+            guard let logP = scores.logProbability(of: word) else { continue }
+            let mixed = modelMix * exp(logP) + (1 - modelMix) * unigram
+            best = max(best ?? -.infinity, min(NgramModel.maximumBonus, log(mixed) - log(unigram)))
+        }
+        return best.map(Double.init)
+    }
+
+    /// The word pairs' say on `word`, given the word's log prior from the dictionary.
     func contextBonus(for word: String, prior: Float) -> Double {
         guard let previous = previousWord else { return 0 }
         return pairModelsBonus(word, after: previous, prior: prior)
@@ -401,7 +435,7 @@ public struct Matcher: Sendable {
             .filter { $0 != typed }
             .map { word in
                 let own = dictionary.logPrior(of: word) ?? -20
-                return Candidate(word: word, score: priorWeight * Double(own) + contextWeight * contextBonus(for: word, prior: own)
+                return Candidate(word: word, score: priorWeight * Double(own) + contextScore(for: word, prior: own)
                                  + personalBonus(for: word, prior: own) - 1)
             }
             .sorted { $0.score > $1.score }
@@ -613,7 +647,7 @@ public struct Matcher: Sendable {
             let typed = String(pieces.flatMap(\.keys))
             guard isKnown(typed) else { return nil }
             let prior = dictionary.logPrior(of: typed) ?? ownPrior(typed)
-            return Candidate(word: typed, score: priorWeight * Double(prior) + contextWeight * contextBonus(for: typed, prior: prior))
+            return Candidate(word: typed, score: priorWeight * Double(prior) + contextScore(for: typed, prior: prior))
         }
         return Self.ranked(matches([pieces])).first
     }
@@ -629,7 +663,7 @@ public struct Matcher: Sendable {
 
     /// What the words before and the word pairs say of `first` then `second`.
     private func pairBonus(_ first: String, _ p1: Float, _ second: String, _ p2: Float) -> Double {
-        contextWeight * (contextBonus(for: first, prior: p1) + pairModelsBonus(second, after: first, prior: p2))
+        contextScore(for: first, prior: p1) + contextWeight * pairModelsBonus(second, after: first, prior: p2)
     }
 
     /// The best split, when no other place for the space reads nearly as well.
@@ -684,7 +718,7 @@ public struct Matcher: Sendable {
                 let word = lexicon.word(at: node)
                 guard word != letters else { continue }
                 let prior = fixed?(word) ?? own
-                let ranking: Double = priorWeight * Double(prior) + contextWeight * contextBonus(for: word, prior: prior)
+                let ranking: Double = priorWeight * Double(prior) + contextScore(for: word, prior: prior)
                 let value: Double = ranking + personalBonus(for: word, prior: prior) + learned.weight(of: word) - cost
                 best[word] = max(best[word] ?? -.infinity, value)
             }
@@ -1082,7 +1116,7 @@ public struct Matcher: Sendable {
             let d = Double(Geometry.distance(tap.point, CGPoint(x: frame.midX, y: frame.midY))) / unit
             missed += tapWeight * d * d
         }
-        return -pathWeight * path - missed + priorWeight * Double(prior) + contextWeight * contextBonus(for: word, prior: prior)
+        return -pathWeight * path - missed + priorWeight * Double(prior) + contextScore(for: word, prior: prior)
             + personalBonus(for: word, prior: prior) + learned.weight(of: word)
     }
 

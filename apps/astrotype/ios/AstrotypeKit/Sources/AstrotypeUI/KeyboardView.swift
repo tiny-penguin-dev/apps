@@ -101,6 +101,7 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
 
     public init(model: KeyboardModel) {
         self.model = model
+        LiveCount.keyboardViews.add(1, ordering: .relaxed)
         super.init(frame: CGRect(x: 0, y: 0, width: model.layout.width, height: Self.barHeight + model.layout.height))
         asked = height
         backgroundColor = Theme.ui(.kb)
@@ -150,6 +151,10 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
     }
 
     public required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
+
+    deinit {
+        LiveCount.keyboardViews.subtract(1, ordering: .relaxed)
+    }
 
     public var enableInputClicksWhenVisible: Bool { true }
 
@@ -254,8 +259,8 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         // The stats sit over the top right of the keys, under the panel and the emoji
         // page, and take no touches.
         if stats.isRunning {
-            let width = min(surface.frame.width - 8, 280)
-            stats.frame = CGRect(x: surface.frame.maxX - width - 4, y: surface.frame.minY + 1, width: width, height: 33)
+            let width = min(surface.frame.width - 8, 360)
+            stats.frame = CGRect(x: surface.frame.maxX - width - 4, y: surface.frame.minY + 1, width: width, height: StatsOverlayView.height)
             stats.isHidden = emojiPage != nil || panel != nil
             bringSubviewToFront(stats)
         }

@@ -43,6 +43,8 @@ final class KeyboardViewController: UIInputViewController {
     /// Counted live once loaded (`LiveCount`), uncounted when freed.
     private var counted = false
     private let sampler = MemorySampler()
+    /// Readings taken, so the overlay walks the memory regions every fifth one.
+    private var ticks = 0
     private var memoryLog = MemoryLogPacer()
 
     deinit {
@@ -404,6 +406,9 @@ final class KeyboardViewController: UIInputViewController {
 
     /// The once-a-second reading (`MemorySampler`), to everything that shows or keeps one.
     private func took(_ sample: MemorySample) {
+        var sample = sample
+        ticks += 1
+        if keyboard?.stats.isRunning == true, ticks % 5 == 1 { sample.regions = MemoryRegions.current().map { MemoryRegions.line($0) } }
         health?.sample(sample.reading)
         if sample.metal { health?.used(.metal) }
         debug?.sample(sample.reading)
@@ -415,7 +420,8 @@ final class KeyboardViewController: UIInputViewController {
 
     /// A reading for the typing log now, for its own reason (shown, hidden, a warning).
     private func logMemory(_ why: String) {
-        guard let model = keyboard?.model, model.recorder != nil, let sample = sampler.take() else { return }
+        guard let model = keyboard?.model, model.recorder != nil, var sample = sampler.take() else { return }
+        sample.regions = MemoryRegions.current().map { MemoryRegions.line($0) }
         memoryLog.logged(sample, at: ProcessInfo.processInfo.systemUptime)
         model.logMemory(sample, why: why)
     }

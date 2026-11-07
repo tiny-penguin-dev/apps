@@ -587,6 +587,19 @@ final class KeyEffects {
         }
     }
 
+    private var snowColor: UIColor { style.backgroundIsDark ? .white : style.colors.left.uiColor }
+
+    private func makeRing(at point: CGPoint, color: UIColor, radius: CGFloat) -> CAShapeLayer {
+        let ring = CAShapeLayer()
+        ring.bounds = CGRect(x: 0, y: 0, width: 2 * radius, height: 2 * radius)
+        ring.position = point
+        ring.path = UIBezierPath(ovalIn: ring.bounds).cgPath
+        ring.fillColor = nil
+        ring.strokeColor = color.cgColor
+        ring.lineWidth = 2
+        return ring
+    }
+
     /// The effects' ring is quicker than the keyboard's old one (Gabriel, 7 Nov 2026).
     private static let quickRing: TimeInterval = 0.4
 

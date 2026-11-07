@@ -250,6 +250,13 @@ public final class KeySurfaceView: UIView {
         return out
     }
 
+    /// The page key's frame ("123" on the letters, "ABC" on the numbers and symbols),
+    /// the bottom-left key, for the recording dot. Nil before the keys are laid out.
+    var pageKeyFrame: CGRect? {
+        let page = keyViews[.numbers] ?? keyViews[.letters] ?? []
+        return page.map(\.frame).min { $0.minX < $1.minX }
+    }
+
     /// Every key's frame, for the Metal key effects.
     func keyFrames() -> [(key: Key, frame: CGRect)] {
         keyViews.flatMap { key, views in views.map { (key, $0.frame) } }

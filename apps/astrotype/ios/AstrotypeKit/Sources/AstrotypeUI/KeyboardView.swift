@@ -26,7 +26,7 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
     public let bar = BarView()
     public let surface = KeySurfaceView()
     /// The tiny memory readout in the keys' top corner, while
-    /// `KeyboardSettings.showsStats` is on (Settings → Debug). Never in the bar.
+    /// `KeyboardSettings.showsStats` is on (Settings → Debug): one line below the keys.
     public let stats = StatsOverlayView()
     /// A small red dot in the keys' top left corner while the typing recorder is on
     /// (Settings → Debug → "Keep recording"), so it is never on unnoticed.
@@ -266,18 +266,23 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         } else {
             surface.isHidden = false
         }
-        // The stats sit over the top right of the keys, under the panel and the emoji
-        // page, and take no touches.
+        // The stats sit centred in the strip below the keys (iOS gives it no touches
+        // anyway), under the panel and the emoji page (Gabriel, 7 Nov 2026: small, one
+        // line, at the very bottom).
         if stats.isRunning {
-            let width = min(surface.frame.width - 8, 360)
-            let height = ceil(stats.sizeThatFits(CGSize(width: width, height: .greatestFiniteMagnitude)).height)
-            stats.frame = CGRect(x: surface.frame.maxX - width - 4, y: surface.frame.minY + 1, width: width, height: height)
+            let size = stats.sizeThatFits(CGSize(width: width - 8, height: .greatestFiniteMagnitude))
+            let w = min(ceil(size.width) + 4, width - 8), h = ceil(size.height)
+            stats.frame = CGRect(x: ((width - w) / 2).rounded(), y: bounds.height - h - 1, width: w, height: h)
             stats.isHidden = emojiPage != nil || panel != nil
             bringSubviewToFront(stats)
         }
+        // The recording dot sits in the bottom-left corner of the page key ("123" or
+        // "ABC"), out of the way of the letters (Gabriel, 7 Nov 2026).
         recordingDot.isHidden = model.recorder == nil || emojiPage != nil || panel != nil
         if !recordingDot.isHidden {
-            recordingDot.frame = CGRect(x: surface.frame.minX + 3, y: surface.frame.minY + 2, width: 6, height: 6)
+            let corner = surface.pageKeyFrame.map { convert($0, from: surface) }
+                ?? CGRect(x: surface.frame.minX, y: surface.frame.maxY - 8, width: 8, height: 8)
+            recordingDot.frame = CGRect(x: corner.minX + 4, y: corner.maxY - 10, width: 6, height: 6)
             bringSubviewToFront(recordingDot)
         }
         if let panel {

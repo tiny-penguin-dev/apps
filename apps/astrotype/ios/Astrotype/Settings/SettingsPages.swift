@@ -201,6 +201,8 @@ private struct WordsSettings: View {
         SettingsGroup {
             SettingsLink("Learned words", subtitle: learnedSubtitle, symbol: "book.closed", tint: Theme.mint,
                          value: "\(model.learnedWords.recent.count)") { path.append(.learnedWords) }
+            SettingsLink("Never suggest", subtitle: "Words it won't offer", symbol: "nosign", tint: Theme.right,
+                         value: "\(model.learnedWords.blocked.count)") { path.append(.neverSuggest) }
             SettingsLink("Word pairs", subtitle: "Words you write one after another", symbol: "text.word.spacing", tint: Theme.mint,
                          value: model.personalSummary.pairs.formatted()) { path.append(.wordPairs) }
             SettingsLink("Words it missed", subtitle: missedSubtitle, symbol: "pencil", tint: Theme.mint,
@@ -209,7 +211,7 @@ private struct WordsSettings: View {
                            isOn: $model.learnsFromYou)
         }
         .onAppear { model.reloadMissed() }
-        GroupFootnote("Your word pairs and where your thumbs land, kept on this phone. With Full Access they follow you to your other devices.")
+        GroupFootnote("It learns a new word when you tap it out and leave it in. Hold a guess on the keyboard to teach or block a word right away. Your word pairs and where your thumbs land are kept on this phone; with Full Access they follow you to your other devices.")
 
         SettingsGroup {
             Button { confirmingForget = true } label: {

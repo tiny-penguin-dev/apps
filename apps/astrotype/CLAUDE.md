@@ -24,7 +24,7 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
     the keyboard's memory against 40 MB from `KeyboardDebug`, the switch for the
     stats overlay on the keys, and in TestFlight builds the typing recorder: "Keep
     recording", send the last 1/5/30 minutes or from a mark, share as a file, delete
-    what was sent), `LearnedWordsView` (+ to add a word, Select to drop several), `WordPairsView` ("Word pairs", what Learns from you learned, features/learned-words), `MissedWordsView` ("Words it missed", features/missed-words), `SharingView` ("What
+    what was sent), `LearnedWordsView` (+ to add a word, Select to drop several, a Used once filter), `NeverSuggestView` (blocked words: allow again, + to block one; features/word-control), `WordPairsView` ("Word pairs", what Learns from you learned, features/learned-words), `MissedWordsView` ("Words it missed", features/missed-words), `SharingView` ("What
     gets shared": the words waiting to go up, drawn on the keys), `PracticeView`,
     `ProView` (the subscription screen, StoreKit's `SubscriptionStoreView`),
     `TrialOverView` (the sheet, once), `MilestoneView` (the sheet, once each),

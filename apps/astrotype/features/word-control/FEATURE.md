@@ -78,8 +78,6 @@ Status: Approved 2026-11-07 (Gabriel: "Build it", in the project thread)
   - `word.blocked` with `how` = menu / slide / settings.
   - `word.boosted` with `how` = menu / slide (Learn it counts here too).
   - `word.allowed` with `how` = swipe / select / undo.
-  - `word.unlearned`: a just-learned word fixed before moving on (how much junk this
-    stops).
 - **Open questions** for Gabriel: none. You said on 7 Nov 2026 that a word you type
   should always be learned, and that the junk comes from typing and then fixing.
 
@@ -160,10 +158,10 @@ Status: Approved 2026-11-07 (Gabriel: "Build it", in the project thread)
   - `LearnedWords`: `block(_:)` (today's `forget`, kept as an alias), `allow(_:)`
     (drops the entry), `teach(_:)` (learned now and boosted), `blocked` (the list with
     the day), `usedOnce`.
-  - `Composer`: `Effect.block(String)` / `.teach(String)` from the menu, and
-    `Bar.menu(word, learning:)` / `Bar.note(text)` states, so `BarView` stays a view.
-    `KeyboardModel` applies them like the slide's `onBoost` / `onForget` today, and
-    `TypingReplay` mirrors it.
+  - The menu and the undo note are `BarView` view state, like the fix row. Its
+    actions call `KeyboardModel.boost` / `forget` (now `teach` / `block`, with a `how`)
+    and `undoWordChange` (`LearnedWords.restore`, dated now so it wins a sync); the
+    typing log gets a `wordUndo` event and `TypingReplay` mirrors it.
   - App: `AppModel.allow`, `block`, `teach`; `NeverSuggestView`; `LearnedWordsView`
     gets the More chip and the Used once filter.
 - **Phases:**
@@ -178,6 +176,8 @@ Status: Approved 2026-11-07 (Gabriel: "Build it", in the project thread)
 - **Risks:** a fix made by moving the cursor back into a word isn't seen, so that typo
   is still learned (the Used once filter is the cleanup). Settling later means the
   learned word reaches iCloud a word later, which doesn't matter.
-- **Metrics:** the five under Product, through `LiveMetrics` (app) and the keyboard's
+- **Metrics:** the four under Product, through `LiveMetrics` (app) and the keyboard's
   tally (`GuessTally`) for the bar ones.
-- **Last step:** fold this into `PRODUCT.md` and `DESIGN.md` ("Learning").
+- **Last step:** fold this into `PRODUCT.md` and `DESIGN.md` ("Learning"). Done in
+  the build PR (DESIGN.md "Learning", PRODUCT.md metrics).
+- **Built** 2026-11-07, both phases in one PR.

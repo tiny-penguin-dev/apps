@@ -56,7 +56,9 @@ import Testing
     @Test func atFullOnlyRealWordsGoIn() {
         let typed = Self.peck("bting", strictness: 1)
         #expect(typed.word == "bring")
-        #expect(!typed.bar.contains("bting"))
+        // What was tapped stays last in the bar, to pick or to hold and learn
+        // (Gabriel, 7 Nov 2026), but never goes in by itself.
+        #expect(typed.bar.last == "bting")
         // Nothing near: nothing goes in rather than letters that are not a word.
         #expect(Self.peck("qzxqzv", strictness: 1).word == nil)
     }
@@ -102,37 +104,80 @@ import Testing
         #expect(strict.composerSettings().strictness == 1)
     }
 
-    /// A word learned when it went in and deleted straight away was a slip: forgotten.
-    @Test func deletingAWordJustLearnedForgetsIt() {
-        // Swipe-left delete right after the word went in.
+    /// A pecked word is learned when it settles (the next word starts, the keyboard
+    /// goes away), so one fixed before that never is (Gabriel, 7 Nov 2026: "it's
+    /// learning more than that when I type and correct a word").
+    @Test func aWordIsLearnedOnlyOnceItSettles() {
+        func learns(_ effects: [Composer.Effect]) -> [String] {
+            effects.compactMap { if case .learn(let w) = $0 { w } else { nil } }
+        }
+        // Left in: learned as the next word starts.
         var composer = Self.composer(strictness: 0)
         var t = Synth.taps(&composer, "qzxqzv")
-        #expect(composer.press(.space, time: t + 0.1).contains(.learn("qzxqzv")))
-        #expect(composer.deleteWord(time: t + 0.3).contains(.unlearn("qzxqzv")))
+        var effects = composer.press(.space, time: t + 0.1)
+        #expect(learns(effects).isEmpty)
+        effects = Synth.tap(&composer, "a", at: t + 0.5)
+        #expect(learns(effects) == ["qzxqzv"])
 
-        // Backspace into it and on through every letter.
+        // Swiped away right after it went in: never learned.
         composer = Self.composer(strictness: 0)
         t = Synth.taps(&composer, "qzxqzv")
-        _ = composer.press(.space, time: t + 0.1)
-        var effects: [Composer.Effect] = []
-        for i in 0..<7 { effects += composer.press(.backspace, time: t + 0.2 + Double(i) * 0.1) }
-        #expect(effects.filter { $0 == .unlearn("qzxqzv") }.count == 1)
+        effects = composer.press(.space, time: t + 0.1)
+        effects += composer.deleteWord(time: t + 0.3)
+        effects += composer.keyboardWillHide()
+        #expect(learns(effects).isEmpty)
 
-        // Fixed by backspace and typed on: kept.
+        // Backspaced into and fixed ("qzxqzv" to "qzxqzq"): only the fix is learned.
         composer = Self.composer(strictness: 0)
         t = Synth.taps(&composer, "qzxqzv")
-        _ = composer.press(.space, time: t + 0.1)
-        effects = composer.press(.backspace, time: t + 0.2)
+        effects = composer.press(.space, time: t + 0.1)
+        effects += composer.press(.backspace, time: t + 0.2)
         effects += composer.press(.backspace, time: t + 0.3)
         Synth.tap(&composer, "q", at: t + 0.4)
         effects += composer.press(.space, time: t + 0.6)
-        #expect(!effects.contains(.unlearn("qzxqzv")))
+        effects += composer.keyboardWillHide()
+        #expect(learns(effects) == ["qzxqzq"])
 
-        // A word it knew is never unlearned.
+        // Backspaced into and fixed to a real word: nothing is learned.
         composer = Self.composer(strictness: 0)
-        t = Synth.taps(&composer, "the")
-        _ = composer.press(.space, time: t + 0.1)
-        #expect(!composer.deleteWord(time: t + 0.3).contains { if case .unlearn = $0 { true } else { false } })
+        t = Synth.taps(&composer, "helo")
+        effects = composer.press(.space, time: t + 0.1)
+        effects += composer.press(.backspace, time: t + 0.2)
+        effects += composer.press(.backspace, time: t + 0.3)
+        Synth.tap(&composer, "l", at: t + 0.4)
+        Synth.tap(&composer, "o", at: t + 0.55)
+        effects += composer.press(.space, time: t + 0.8)
+        effects += composer.keyboardWillHide()
+        #expect(!learns(effects).contains("helo"))
+        #expect(learns(effects).isEmpty)
+    }
+
+    /// Letters that read as two words with the space missed are a slip, not a word.
+    @Test func runTogetherWordsAreNotLearned() {
+        var composer = Self.composer(strictness: 0)
+        composer.settings.splitStrictness = 0
+        let t = Synth.taps(&composer, "thecat")
+        var effects = composer.press(.space, time: t + 0.1)
+        effects += composer.keyboardWillHide()
+        #expect(!effects.contains { if case .learn = $0 { true } else { false } })
+    }
+
+    /// Never suggest: a blocked word is not offered, but tapping it out still types it,
+    /// and that does not unblock it.
+    @Test func aBlockedWordIsNeverOffered() {
+        var words = LearnedWords()
+        words.block("bring")
+        var composer = Self.composer()
+        composer.learned = words
+        let t = Synth.taps(&composer, "bting")
+        let effects = composer.press(.space, time: t + 0.1)
+        #expect(!effects.contains(.commit("bring")))
+
+        var exact = Self.composer()
+        exact.learned = words
+        let u = Synth.taps(&exact, "bring")
+        #expect(exact.press(.space, time: u + 0.1).contains(.commit("bring")))
+        #expect(exact.learned.isBlocked("bring"))
     }
 
     /// A word of your own written once ranks like a rare word; written often, like a

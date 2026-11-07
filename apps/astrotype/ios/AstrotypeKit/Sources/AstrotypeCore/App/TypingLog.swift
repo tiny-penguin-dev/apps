@@ -38,8 +38,9 @@ public struct TypingEvent: Codable, Sendable, Equatable {
         case notIt = "nit", notItCancel = "nitx", notItSave = "nits"
         /// A swipe left on backspace.
         case deleteWord = "dw"
-        /// A guess held and slid up (`n`) or down (`n`).
-        case boost, forget
+        /// A guess held and slid up (`n`) or down (`n`), or Suggest more / Never suggest
+        /// from the word menu; Undo of the last of them (`s`, the word).
+        case boost, forget, wordUndo = "wu"
         /// Autospace's timer fired.
         case tick
         /// The text before the cursor (`s`, the end of it) after the app changed it,
@@ -116,7 +117,7 @@ public struct TypingEvent: Codable, Sendable, Equatable {
     public var isInput: Bool {
         switch e {
         case .down, .move, .up, .cancel, .pick, .key, .character, .text, .emoji, .searchOpen, .searchClose, .searchClear,
-             .searchEmoji, .guess, .fix, .cursor, .notIt, .notItCancel, .notItSave, .deleteWord, .boost, .forget, .tick, .hide:
+             .searchEmoji, .guess, .fix, .cursor, .notIt, .notItCancel, .notItSave, .deleteWord, .boost, .forget, .wordUndo, .tick, .hide:
             true
         default:
             false
@@ -490,6 +491,7 @@ extension TypingLog {
             case .key: lines.append("\(time)  key \(event.s.flatMap(TypingEvent.key(code:)).map(Self.name) ?? event.s ?? "")")
             case .character, .text, .emoji: lines.append("\(time)  \(event.e) \(event.s ?? "")")
             case .guess, .fix, .boost, .forget, .cursor: lines.append("\(time)  \(event.e) \(event.n ?? 0)")
+            case .wordUndo: lines.append("\(time)  undo \(event.s ?? "")")
             case .context, .reset: lines.append("\(time)  \(event.e == .reset ? "reset" : "field now") \"\((event.s ?? "").suffix(40))\"")
             case .settings: lines.append("\(time)  settings changed")
             case .field: lines.append("\(time)  field \(event.field?.kind.rawValue ?? "")")

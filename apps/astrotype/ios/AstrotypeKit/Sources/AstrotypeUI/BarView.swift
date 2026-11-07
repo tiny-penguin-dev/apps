@@ -12,7 +12,11 @@ import UIKit
 /// readings of the last word wait behind the pencil: tapped, the bar becomes the fix
 /// row (✕, the readings, "Type it"). "Type it", or the pencil when there is nothing to
 /// pick, opens the "Not it?" field where the word meant is typed (features/missed-words).
-/// Holding a guess and sliding up boosts it, down forgets it (DESIGN.md "Learning").
+/// Holding a guess and letting go opens the word menu (features/word-control): the
+/// word in the middle, "Never suggest" on its left, "Suggest more" (or "Learn it" for
+/// letters it does not know) on its right; the word itself, a key or a few seconds
+/// close it. Then "Won't suggest “end”" with Undo for a moment. Sliding up or down
+/// while holding still boosts or blocks at once (DESIGN.md "Learning").
 /// A bar above the keys (`axis` horizontal) or a column beside them (vertical: the
 /// middle of a split keyboard, the side of a wide one); in a column, touches between
 /// the guesses fall through to the keys under it, and there is no `leadingKey`.
@@ -20,7 +24,8 @@ import UIKit
 ///     bar.bar = model.state.bar
 ///     bar.onChoose = { index in model.choose(guess: index) }
 ///     bar.onChooseFix = { reading in model.chooseFix(reading: reading) }
-///     bar.onBoost = { index in model.boost(guess: index) }
+///     bar.onBoost = { index, how in model.boost(guess: index, how: how) }
+///     bar.knows = { index in model.knows(guess: index) }
 ///     bar.canCorrect = model.state.canCorrect
 ///     bar.onNotIt = { model.beginCorrection() }
 ///     bar.leadingKey = globe
@@ -37,8 +42,19 @@ public final class BarView: UIView {
     public var canCorrect = false {
         didSet { if canCorrect != oldValue { render() } }
     }
-    public var onBoost: ((Int) -> Void)?
-    public var onForget: ((Int) -> Void)?
+    /// A guess boosted or blocked, and how: "menu" or "slide".
+    public var onBoost: ((Int, String) -> Void)?
+    public var onForget: ((Int, String) -> Void)?
+    /// Undo on the bar after a boost or a block.
+    public var onUndo: (() -> Void)?
+    /// The word menu opened (counted only).
+    public var onMenu: (() -> Void)?
+    /// Whether the guess at an index is a word the keyboard knows: "Suggest more" for
+    /// one, "Learn it" for letters it does not.
+    public var knows: ((Int) -> Bool)?
+
+    /// How long the word menu waits for a tap, and the undo note shows.
+    static let menuTimeout: TimeInterval = 4
 
     /// A key for the bar's left end, 44 pt wide: the globe, set by the keyboard when it
     /// draws one (features/space-bar). Hidden while the left end shows ✕, and in a column.
@@ -79,6 +95,9 @@ public final class BarView: UIView {
         didSet {
             guard bar != oldValue else { return }
             showsFixes = false
+            menu = nil
+            // Typing on: the undo note has had its moment.
+            if case .guesses = bar { undo = nil }
             render()
             if case .next(let words, _, _) = bar, words != Self.nextWords(of: oldValue) { fadeIn() }
         }
@@ -86,6 +105,32 @@ public final class BarView: UIView {
 
     /// The fix row is open: the pencil was tapped while next words showed.
     private var showsFixes = false
+
+    /// The word menu is open on this guess (features/word-control).
+    private var menu: (index: Int, word: String, knows: Bool)? {
+        didSet { menuShort = false; restartTimer() }
+    }
+    /// The menu's actions show their short labels ("Never", "More"): the long ones
+    /// did not fit around the word.
+    private var menuShort = false
+    /// What the bar says after a boost or a block, with Undo beside it.
+    private var undo: String? {
+        didSet { restartTimer() }
+    }
+    private var menuTask: Task<Void, Never>?
+
+    /// The menu and the undo note go after `menuTimeout` with nothing touched.
+    private func restartTimer() {
+        menuTask?.cancel()
+        guard menu != nil || undo != nil else { return }
+        menuTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(Self.menuTimeout))
+            guard !Task.isCancelled, let self else { return }
+            self.menu = nil
+            self.undo = nil
+            self.render()
+        }
+    }
 
     private static func nextWords(of bar: Composer.Bar) -> [String] {
         if case .next(let words, _, _) = bar { return words }
@@ -250,6 +295,19 @@ public final class BarView: UIView {
         closeButton.frame = left
         leadingKey?.frame = left
         pencilButton.frame = CGRect(x: inset.maxX - end, y: 0, width: end, height: inset.height)
+        if menu != nil || undo != nil {
+            // The whole bar, the ends included; the word (or the note) dead centre.
+            let fit = stack.systemLayoutSizeFitting(CGSize(width: inset.width, height: inset.height),
+                                                    withHorizontalFittingPriority: .fittingSizeLevel, verticalFittingPriority: .required)
+            if menu != nil, !menuShort, fit.width > inset.width {
+                menuShort = true
+                render()
+                return
+            }
+            let width = min(inset.width, fit.width)
+            stack.frame = CGRect(x: bounds.midX - width / 2, y: 0, width: width, height: inset.height)
+            return
+        }
         let middle = inset.insetBy(dx: end + Theme.Space.xs, dy: 0)
         label.frame = middle
         fitMiddle(width: middle.width)
@@ -312,11 +370,13 @@ public final class BarView: UIView {
         let correcting: String?
         if case .correcting(let typed) = bar { correcting = typed } else { correcting = nil }
         if !readings.isEmpty, case .next = bar {} else { showsFixes = false }
+        if correcting != nil || axis == .vertical { menu = nil; undo = nil }
         let fixing = showsFixes && correcting == nil && notice == nil
-        pencilButton.isHidden = !(canCorrect || !readings.isEmpty) || notice != nil || correcting != nil || fixing
-        closeButton.isHidden = correcting == nil && !fixing
+        let wordBar = (menu != nil || undo != nil) && notice == nil
+        pencilButton.isHidden = !(canCorrect || !readings.isEmpty) || notice != nil || correcting != nil || fixing || wordBar
+        closeButton.isHidden = (correcting == nil && !fixing) || wordBar
         closeButton.accessibilityLabel = correcting != nil ? "Cancel" : "Back to the next words"
-        leadingKey?.isHidden = axis == .vertical || !closeButton.isHidden
+        leadingKey?.isHidden = axis == .vertical || !closeButton.isHidden || wordBar
         saveButton.isHidden = correcting == nil
         fieldLabel.isHidden = correcting == nil
         if let correcting, notice == nil {
@@ -335,6 +395,16 @@ public final class BarView: UIView {
         }
         label.isHidden = true
         stack.isHidden = false
+        if let menu, notice == nil {
+            renderMenu(menu)
+            setNeedsLayout()
+            return
+        }
+        if let undo, notice == nil {
+            renderUndo(undo)
+            setNeedsLayout()
+            return
+        }
         if fixing {
             for reading in readings {
                 addReading(reading.word, index: reading.index)
@@ -466,7 +536,107 @@ public final class BarView: UIView {
         hold.minimumPressDuration = 0.35
         hold.allowableMovement = 60
         button.addGestureRecognizer(hold)
+        // VoiceOver can't hold and slide: the menu's two actions, without the menu.
+        button.accessibilityCustomActions = [
+            UIAccessibilityCustomAction(name: "Never suggest") { [weak self] _ in
+                self?.act(.forget, index: index, word: word, knows: true, how: "voiceover"); return true
+            },
+            UIAccessibilityCustomAction(name: "Suggest more") { [weak self] _ in
+                self?.act(.boost, index: index, word: word, knows: true, how: "voiceover"); return true
+            },
+        ]
         stack.addArrangedSubview(button)
+    }
+
+    // MARK: Word menu
+
+    /// Never suggest · the word · Suggest more (or Learn it), the word dead centre: the
+    /// two actions are made the same width.
+    private func renderMenu(_ menu: (index: Int, word: String, knows: Bool)) {
+        let never = menuAction(menuShort ? "Never" : "Never suggest", symbol: "nosign", tone: .right) { [weak self] in
+            self?.act(.forget, index: menu.index, word: menu.word, knows: menu.knows, how: "menu")
+        }
+        never.accessibilityLabel = "Never suggest \(menu.word)"
+        let more = menu.knows
+            ? menuAction(menuShort ? "More" : "Suggest more", symbol: "arrow.up", tone: .mint) { [weak self] in
+                self?.act(.boost, index: menu.index, word: menu.word, knows: true, how: "menu")
+            }
+            : menuAction(menuShort ? "Learn" : "Learn it", symbol: "checkmark", tone: .mint) { [weak self] in
+                self?.act(.boost, index: menu.index, word: menu.word, knows: false, how: "menu")
+            }
+        more.accessibilityLabel = menu.knows ? "Suggest \(menu.word) more" : "Learn \(menu.word)"
+        let word = UIButton(configuration: guessConfiguration(menu.word, chosen: true))
+        word.accessibilityLabel = menu.word
+        word.accessibilityHint = "Closes the menu"
+        word.addAction(UIAction { [weak self] _ in
+            self?.menu = nil
+            self?.render()
+        }, for: .touchUpInside)
+        word.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        for view in [never, word, more] { stack.addArrangedSubview(view) }
+        never.widthAnchor.constraint(equalTo: more.widthAnchor).isActive = true
+        UIAccessibility.post(notification: .layoutChanged, argument: never)
+    }
+
+    private func menuAction(_ title: String, symbol: String, tone: Theme.Tone, action: @escaping () -> Void) -> UIButton {
+        var config = UIButton.Configuration.filled()
+        config.cornerStyle = .capsule
+        config.baseBackgroundColor = Theme.ui(tone)
+        config.baseForegroundColor = Theme.ui(.accentInk)
+        config.image = UIImage(systemName: symbol, withConfiguration: UIImage.SymbolConfiguration(pointSize: 13, weight: .bold))
+        config.imagePadding = Theme.Space.xs
+        config.contentInsets = NSDirectionalEdgeInsets(top: 7, leading: Theme.Space.m, bottom: 7, trailing: Theme.Space.m)
+        config.attributedTitle = AttributedString(title, attributes: AttributeContainer([
+            .font: Theme.uiFont(size: 14, weight: .bold, scaledWith: .footnote, upTo: 16),
+        ]))
+        let button = UIButton(configuration: config)
+        button.setContentCompressionResistancePriority(.required, for: .horizontal)
+        button.addAction(UIAction { _ in action() }, for: .touchUpInside)
+        return button
+    }
+
+    /// "Won't suggest “end”" and Undo.
+    private func renderUndo(_ text: String) {
+        let note = UILabel()
+        note.text = text
+        note.font = Theme.uiFont(size: 14, weight: .bold, scaledWith: .footnote, upTo: 16)
+        note.textColor = Theme.ui(.muted)
+        note.lineBreakMode = .byTruncatingMiddle
+        note.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        var config = UIButton.Configuration.filled()
+        config.cornerStyle = .capsule
+        config.baseBackgroundColor = Theme.ui(.ice)
+        config.baseForegroundColor = Theme.ui(.accent)
+        config.contentInsets = NSDirectionalEdgeInsets(top: 6, leading: Theme.Space.m, bottom: 6, trailing: Theme.Space.m)
+        config.attributedTitle = AttributedString("Undo", attributes: AttributeContainer([
+            .font: Theme.uiFont(size: 14, weight: .bold, scaledWith: .footnote, upTo: 16),
+        ]))
+        let button = UIButton(configuration: config)
+        button.setContentCompressionResistancePriority(.required, for: .horizontal)
+        button.addAction(UIAction { [weak self] _ in
+            self?.undo = nil
+            self?.onUndo?()
+            self?.render()
+        }, for: .touchUpInside)
+        stack.addArrangedSubview(note)
+        stack.addArrangedSubview(button)
+        UIAccessibility.post(notification: .announcement, argument: text)
+    }
+
+    /// Boost or block a guess, then say so with Undo.
+    private func act(_ verdict: Verdict, index: Int, word: String, knows: Bool, how: String) {
+        menu = nil
+        let shown = "\u{201C}\(word)\u{201D}"
+        switch verdict {
+        case .forget:
+            onForget?(index, how)
+            undo = "Won't suggest \(shown)"
+        case .boost:
+            onBoost?(index, how)
+            undo = knows ? "Will suggest \(shown) more" : "Learned \(shown)"
+        }
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        render()
     }
 
     // MARK: Hold and slide
@@ -493,13 +663,17 @@ public final class BarView: UIView {
         case .ended:
             let index = indices[button.tag]
             let verdict = holdVerdict
+            let word = button.accessibilityLabel ?? ""
             holdStart = nil
             holdVerdict = nil
             paint(button, verdict: nil, held: false)
-            switch verdict {
-            case .boost: onBoost?(index)
-            case .forget: onForget?(index)
-            case nil: break
+            let knows = knows?(index) ?? true
+            if let verdict {
+                act(verdict, index: index, word: word, knows: knows, how: "slide")
+            } else if axis == .horizontal {
+                menu = (index, word, knows)
+                onMenu?()
+                render()
             }
         default:
             holdStart = nil

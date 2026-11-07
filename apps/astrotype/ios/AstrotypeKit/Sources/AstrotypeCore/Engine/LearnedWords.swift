@@ -5,7 +5,7 @@ import Foundation
 ///
 ///     var words = LearnedWords()
 ///     words.learn("flotilla", at: now)     // once more each time it goes in
-///     words.boost("penguin"); words.forget("teh")
+///     words.boost("penguin"); words.block("teh"); words.allow("teh")
 public struct LearnedWords: Sendable, Equatable, Codable {
     public struct Entry: Sendable, Equatable, Codable {
         /// Added to a candidate's score from the bar: positive after a boost, negative
@@ -49,13 +49,15 @@ public struct LearnedWords: Sendable, Equatable, Codable {
     public init() {}
 
     /// A word the person put in that the dictionary does not know: typed letter by
-    /// letter the first time, then each time it goes in again. A forgotten word starts over.
+    /// letter the first time, then each time it goes in again. A blocked word stays
+    /// blocked (Never suggest); only `allow`, `teach` or `add` bring it back.
     public mutating func learn(_ word: String, at date: Date = Date()) {
         let w = word.lowercased()
-        guard let old = entries[w], old.weight >= 0 else {
+        guard let old = entries[w] else {
             entries[w] = Entry(weight: 0, changed: date, uses: 1)
             return
         }
+        guard old.weight >= 0 else { return }
         entries[w] = Entry(weight: old.weight, changed: date, uses: old.uses + 1, added: old.added == true)
     }
 
@@ -100,9 +102,71 @@ public struct LearnedWords: Sendable, Equatable, Codable {
         entries[w] = Entry(weight: max(old?.weight ?? 0, 0) + 1.5, changed: date, uses: old?.uses ?? 0, added: old?.added == true)
     }
 
+    /// "Suggest more" or "Learn it" from the bar's word menu (features/word-control):
+    /// learned now if it was not, unblocked, and boosted.
+    public mutating func teach(_ word: String, at date: Date = Date()) {
+        let w = word.lowercased()
+        let old = entries[w]
+        entries[w] = Entry(weight: max(old?.weight ?? 0, 0) + 1.5, changed: date, uses: max(old?.uses ?? 0, 1), added: old?.added == true)
+    }
+
     /// Stop offering a guess (slide down on the bar).
     public mutating func forget(_ word: String, at date: Date = Date()) {
         entries[word.lowercased()] = Entry(weight: -10, changed: date, uses: 0)
+    }
+
+    /// "Never suggest": the word is never offered again, as a guess, a fix or a next
+    /// word, though typing it letter by letter still types it (features/word-control).
+    public mutating func block(_ word: String, at date: Date = Date()) {
+        forget(word, at: date)
+    }
+
+    /// Back from Never suggest: offered again like any word, learned or not (the
+    /// entry goes back to plain, so a word the dictionary has ranks as it does there,
+    /// and one it does not is learned again the next time it is tapped out).
+    public mutating func allow(_ word: String, at date: Date = Date()) {
+        let w = word.lowercased()
+        guard isBlocked(w) else { return }
+        entries[w] = Entry(weight: 0, changed: date, uses: 0)
+    }
+
+    /// The entry for `word` as it stands, to put back with `restore` (Undo on the bar).
+    public func entry(for word: String) -> Entry? {
+        entries[word.lowercased()]
+    }
+
+    /// Undo on the bar: the word as it was before the last change, dated now so the
+    /// undo wins over the change on every device (`merged`).
+    public mutating func restore(_ word: String, to old: Entry?, at date: Date = Date()) {
+        var entry = old ?? Entry(weight: 0, changed: date, uses: 0)
+        entry.changed = date
+        entries[word.lowercased()] = entry
+    }
+
+    /// Whether `word` is on Never suggest.
+    public func isBlocked(_ word: String) -> Bool {
+        (entries[word.lowercased()]?.weight ?? 0) < 0
+    }
+
+    /// A word on Never suggest and when it went on.
+    public struct Blocked: Sendable, Equatable, Identifiable {
+        public var word: String
+        public var since: Date
+        public var id: String { word }
+    }
+
+    /// The words on Never suggest, the newest first.
+    public var blocked: [Blocked] {
+        entries.filter { $0.value.weight < 0 }
+            .sorted { $0.value.changed > $1.value.changed || ($0.value.changed == $1.value.changed && $0.key < $1.key) }
+            .map { Blocked(word: $0.key, since: $0.value.changed) }
+    }
+
+    /// Whether `word` is one the keyboard learned by itself and has seen written once:
+    /// what Learned words' "Used once" filter shows, where old typos hide.
+    public func isUsedOnce(_ word: String) -> Bool {
+        guard let entry = entries[word], contains(word) else { return false }
+        return entry.uses <= 1 && entry.weight <= 0 && entry.added != true
     }
 
     public func weight(of word: String) -> Double {

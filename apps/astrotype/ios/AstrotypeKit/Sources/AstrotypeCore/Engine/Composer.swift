@@ -110,11 +110,12 @@ public struct Composer: Sendable {
         /// Remove the marked text.
         case clearMark
         case haptic(Haptic)
-        /// A word pecked out letter by letter that the keyboard did not know went in:
-        /// the host adds it to the learned words (and keeps them).
+        /// A word pecked out letter by letter that the keyboard did not know went in and
+        /// stayed in (it settled): the host adds it to the learned words (and keeps them).
+        /// A word fixed before the next one starts is never learned (features/word-control).
         case learn(String)
-        /// A word learned (or counted once more) on its commit was deleted straight
-        /// away: it was a slip. The host takes the use back (`LearnedWords.unlearn`).
+        /// Takes back one use of a learned word (`LearnedWords.unlearn`). No longer sent
+        /// since words are learned when they settle; kept so old typing logs still read.
         case unlearn(String)
         /// Something to say in the bar for a moment; nothing changed in the field.
         case notice(Notice)
@@ -149,7 +150,7 @@ public struct Composer: Sendable {
         /// The keyboard's first guess when the word went in, which the person may not
         /// have taken (a later guess picked from the bar).
         var firstGuess: String?
-        /// The word was learned when it went in (`.learn`).
+        /// The word to learn when it settles (`.learn`), if it is still there then.
         var learned: String?
         /// A next-word guess tapped on the bar, not typed: nothing to reopen.
         var picked = false
@@ -227,9 +228,6 @@ public struct Composer: Sendable {
     /// How soon a second space counts as a double tap.
     static let doubleSpaceWindow: TimeInterval = 0.4
     private var contextBefore = ""
-    /// A word learned on its commit and reopened by backspace: deleting it all the way
-    /// forgets it again.
-    private var reopenedLearned: String?
     /// The last next-word guesses, lowercase, by the word they follow and how many: the
     /// context is passed back after every change, mostly unchanged.
     private var nextCache: (previous: String, count: Int, words: [String])?
@@ -585,7 +583,6 @@ public struct Composer: Sendable {
         committed = Committed(word: word, trailing: " ", pieces: [], guesses: [word], casing: casing,
                               previous: matcher.context.last, firstGuess: word, learned: learn, picked: true)
         effects += [.insert(gap + word + " "), .haptic(.commit)]
-        if let learn { effects.append(.learn(learn)) }
         autoSpaced = true
         wordSpace = true
         lastSpace = nil
@@ -652,7 +649,7 @@ public struct Composer: Sendable {
             committed = Committed(word: word, trailing: " ", pieces: pieces, guesses: words, casing: casing,
                                   previous: matcher.context.last,
                                   fixedFrom: original.flatMap { $0.lowercased() == meant ? nil : $0 },
-                                  firstGuess: words.first, learned: learn, missed: true)
+                                  firstGuess: words.first, missed: true)
             pieces = []
             candidates = []
             autospaceDue = nil
@@ -667,7 +664,8 @@ public struct Composer: Sendable {
             last.word = word
             last.fixedFrom = original.lowercased() == meant ? nil : original
             last.missed = true
-            if let learn { last.learned = learn }
+            // Learned now, below: the word was spelled out on purpose.
+            last.learned = nil
             committed = last
         } else {
             state.bar = .idle
@@ -826,7 +824,6 @@ public struct Composer: Sendable {
     public mutating func reset() -> [Effect] {
         correction = nil
         let effects = settle()
-        reopenedLearned = nil
         pieces = []
         open = [:]
         candidates = []
@@ -847,7 +844,6 @@ public struct Composer: Sendable {
             state.bar = .correcting("")
             return [.haptic(.key)]
         }
-        let learned = committed?.learned
         committed = nil
         state.bar = .idle
         autospaceDue = nil
@@ -858,16 +854,14 @@ public struct Composer: Sendable {
             pieces = []
             candidates = []
             refreshState()
-            return [.haptic(.key), .clearMark] + unlearnReopened()
+            return [.haptic(.key), .clearMark]
         }
-        reopenedLearned = nil
         var count = 0
         var rest = Substring(contextBefore)
         while let last = rest.last, last.isWhitespace || last.isNewline { count += 1; rest = rest.dropLast() }
         while let last = rest.last, !(last.isWhitespace || last.isNewline) { count += 1; rest = rest.dropLast() }
         refreshState()
-        var effects: [Effect] = [.haptic(.key), .deleteBackward(max(1, count))]
-        if let learned { effects.append(.unlearn(learned)) }
+        let effects: [Effect] = [.haptic(.key), .deleteBackward(max(1, count))]
         return effects
     }
 
@@ -943,7 +937,6 @@ public struct Composer: Sendable {
         joinable = nil
         if !byHand, let before, let joined = join(word, to: before, trailing: trailing) { return joined }
         let learn = wordToLearn(word)
-        reopenedLearned = nil
         committed = Committed(word: word, trailing: trailing, pieces: pieces, guesses: words, casing: casing,
                               previous: matcher.context.last, firstGuess: words.first, learned: learn)
         pieces = []
@@ -951,8 +944,7 @@ public struct Composer: Sendable {
         autospaceDue = nil
         state.bar = words.count > 1 ? .fix(words, chosen: chosen) : .idle
         refreshState()
-        var effects: [Effect] = [.commit(word)] + (trailing.isEmpty ? [] : [.insert(trailing)]) + [.haptic(.commit)]
-        if let learn { effects.append(.learn(learn)) }
+        let effects: [Effect] = [.commit(word)] + (trailing.isEmpty ? [] : [.insert(trailing)]) + [.haptic(.commit)]
         return effects
     }
 
@@ -971,7 +963,6 @@ public struct Composer: Sendable {
         let all = (before.pieces + pieces).sorted { $0.start < $1.start }
         pieces = all
         let learn = wordToLearn(joined)
-        reopenedLearned = nil
         committed = Committed(word: joined, trailing: trailing, pieces: all, guesses: [joined, apart], casing: before.casing,
                               previous: before.previous, firstGuess: joined, learned: learn)
         pieces = []
@@ -979,13 +970,12 @@ public struct Composer: Sendable {
         autospaceDue = nil
         state.bar = .fix([joined, apart], chosen: 0)
         refreshState()
-        var effects: [Effect] = [
+        let effects: [Effect] = [
             .commit(word),
             .deleteBackward(before.word.count + before.trailing.count + word.count),
             .insert(joined + trailing),
             .haptic(.commit),
         ]
-        if let learn { effects.append(.learn(learn)) }
         return effects
     }
 
@@ -999,17 +989,13 @@ public struct Composer: Sendable {
         state.bar = settled.isEmpty ? .idle : .guesses(settled, chosen: 0)
     }
 
-    /// The reopened word was learned on its commit and is now gone: forget it.
-    private mutating func unlearnReopened() -> [Effect] {
-        defer { reopenedLearned = nil }
-        return reopenedLearned.map { [.unlearn($0)] } ?? []
-    }
-
     /// A word pecked out tap by tap that neither the dictionary nor the person's words
-    /// know is learned on commit (DESIGN.md "Learning"); one that was forgotten is
-    /// learned again. A word of the person's own counts one more use each time it goes
-    /// in, however it was typed, so the words they write often rise. Swiped words the
-    /// keyboard did not know are guesses, so they never are.
+    /// know is learned when it settles (DESIGN.md "Learning", features/word-control).
+    /// A word of the person's own counts one more use each time it goes in, however it
+    /// was typed, so the words they write often rise. Swiped words the keyboard did not
+    /// know are guesses, so they never are; nor are blocked words (Never suggest), nor
+    /// letters that read as two words with the space missed ("textseparately"), which
+    /// wait in the bar for "Learn it".
     private func wordToLearn(_ word: String) -> String? {
         guard !settings.exactTaps else { return nil }
         let lower = word.lowercased()
@@ -1017,7 +1003,8 @@ public struct Composer: Sendable {
         guard lower.count >= 2, key.utf8.allSatisfy({ $0 >= 97 && $0 <= 122 }),
               !matcher.dictionary.spellings(of: key).contains(where: { $0.word == lower }) else { return nil }
         if matcher.learned.contains(lower) { return lower }
-        guard pieces.count >= 2, pieces.allSatisfy(\.isTap) else { return nil }
+        guard pieces.count >= 2, pieces.allSatisfy(\.isTap), !matcher.learned.isBlocked(lower),
+              matcher.split(key) == nil else { return nil }
         return lower
     }
 
@@ -1029,14 +1016,13 @@ public struct Composer: Sendable {
                 autospaceDue = nil
                 state.bar = .idle
                 refreshState()
-                return [.clearMark] + unlearnReopened()
+                return [.clearMark]
             }
             return reguess(time: time)
         }
         if let last = committed, !last.picked, contextBefore.isEmpty || contextBefore.hasSuffix(last.word + last.trailing) {
             // Reopen the word just written, so it can be changed or added to.
             committed = nil
-            reopenedLearned = last.learned
             pieces = last.pieces
             casing = last.casing
             let words = guesses(final: false)
@@ -1062,7 +1048,11 @@ public struct Composer: Sendable {
     private mutating func settle() -> [Effect] {
         guard let last = committed else { return [] }
         committed = nil
-        return Self.settled(last, layout: layout).map { [.settled($0)] } ?? []
+        // Learned only now, so a word fixed before the next one began (backspace into
+        // it, "helo" to "hello") never is (Gabriel, 7 Nov 2026: fixed typos piled up).
+        var effects: [Effect] = last.learned.map { [.learn($0)] } ?? []
+        if let settled = Self.settled(last, layout: layout) { effects.append(.settled(settled)) }
+        return effects
     }
 
     /// A settled word with where the thumbs landed for its letters, when the touches

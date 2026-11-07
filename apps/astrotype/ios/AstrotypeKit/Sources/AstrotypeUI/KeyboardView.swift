@@ -129,8 +129,11 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         surface.layout = model.layout
         bar.onChoose = { [weak self] index in self?.model.choose(guess: index) }
         bar.onChooseFix = { [weak self] reading in self?.model.chooseFix(reading: reading) }
-        bar.onBoost = { [weak self] index in self?.model.boost(guess: index) }
-        bar.onForget = { [weak self] index in self?.model.forget(guess: index) }
+        bar.onBoost = { [weak self] index, how in self?.model.boost(guess: index, how: how) }
+        bar.onForget = { [weak self] index, how in self?.model.forget(guess: index, how: how) }
+        bar.onUndo = { [weak self] in self?.model.undoWordChange() }
+        bar.onMenu = { [weak self] in self?.model.wordMenuOpened() }
+        bar.knows = { [weak self] index in self?.model.knows(guess: index) ?? true }
         bar.onNotIt = { [weak self] in self?.model.beginCorrection() }
         bar.onCancelCorrection = { [weak self] in self?.model.cancelCorrection() }
         bar.onSaveCorrection = { [weak self] in self?.model.saveCorrection() }

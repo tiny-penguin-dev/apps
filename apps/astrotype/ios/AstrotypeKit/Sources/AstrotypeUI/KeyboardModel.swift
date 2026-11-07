@@ -592,22 +592,60 @@ public final class KeyboardModel {
         apply(composer.deleteWord(time: now))
     }
 
-    /// Held a guess on the bar and slid up: the word sticks from now on.
-    public func boost(guess index: Int) {
+    /// "Suggest more" or "Learn it" from the word menu, or a hold slid up
+    /// (features/word-control): the word is learned now if it was not, and ranks higher.
+    public func boost(guess index: Int, how: String = "slide") {
         guard let word = barWord(at: index) else { return }
         log(TypingEvent(t: now, e: .boost, n: index))
-        var words = composer.learned
-        words.boost(word, at: Date())
-        learnedWords = words
-        onWordsChange?(words)
+        changeWord(word) { $0.teach(word, at: Date()) }
+        onWordAction?("word.boosted", how)
     }
 
-    /// Held a guess on the bar and slid down: the word is not offered again.
-    public func forget(guess index: Int) {
+    /// "Never suggest" from the word menu, or a hold slid down: the word is not offered
+    /// again, on any device.
+    public func forget(guess index: Int, how: String = "slide") {
         guard let word = barWord(at: index) else { return }
         log(TypingEvent(t: now, e: .forget, n: index))
+        changeWord(word) { $0.block(word, at: Date()) }
+        onWordAction?("word.blocked", how)
+    }
+
+    /// Undo on the bar: the last word changed from the bar goes back as it was.
+    public func undoWordChange() {
+        guard let (word, before) = lastWordChange else { return }
+        lastWordChange = nil
+        log(TypingEvent(t: now, e: .wordUndo, s: word))
         var words = composer.learned
-        words.forget(word, at: Date())
+        words.restore(word, to: before, at: Date())
+        learnedWords = words
+        onWordsChange?(words)
+        onWordAction?("word.allowed", "undo")
+    }
+
+    /// The word menu opened on a held guess (counted only).
+    public func wordMenuOpened() {
+        onWordAction?("word.menu", nil)
+    }
+
+    /// The last word changed from the bar and how it was before, for Undo.
+    public private(set) var lastWordChange: (word: String, before: LearnedWords.Entry?)?
+
+    /// Something was done to a word from the bar (features/word-control): the metric's
+    /// name and its `how`, for the host to count (`GuessTally.addAction`).
+    public var onWordAction: ((String, String?) -> Void)?
+
+    /// Whether the guess at `index` is a word the keyboard already knows (the
+    /// dictionary's or the person's): the word menu offers "Suggest more" for one,
+    /// "Learn it" for letters it does not know.
+    public func knows(guess index: Int) -> Bool {
+        guard let word = barWord(at: index) else { return true }
+        return composer.matcher.knows(word)
+    }
+
+    private func changeWord(_ word: String, _ change: (inout LearnedWords) -> Void) {
+        var words = composer.learned
+        lastWordChange = (word, words.entry(for: word))
+        change(&words)
         learnedWords = words
         onWordsChange?(words)
     }

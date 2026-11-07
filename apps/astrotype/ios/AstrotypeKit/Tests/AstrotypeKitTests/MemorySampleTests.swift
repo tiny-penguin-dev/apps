@@ -29,6 +29,16 @@ import Testing
         #expect(s.line == "52.1 MB · heap 40.2 · 125 left · 130 layers · metal · 1 keyboard · 2 models · 2 loads · 3 syncs, 1 waiting")
     }
 
+    @Test func splitsOtherMemoryLeavingOutEmptyParts() throws {
+        let s = MemorySample(reading: MemoryReading(footprintMB: 86, headroomMB: 90), heapMB: 26, layers: 130,
+                             counts: LiveCount.Counts(keyboards: 1, models: 1, loads: 1, syncs: 1),
+                             split: MemorySplit(graphics: 41.26, neural: 0.04, iokit: 8, compressed: 2.13))
+        #expect(s.split?.line == "gfx 41.3 · iokit 8.0 · zip 2.1")
+        #expect(s.line.hasPrefix("86.0 MB · heap 26.0 · gfx 41.3 · iokit 8.0 · zip 2.1 · 90 left"))
+        #expect(try JSONDecoder().decode(MemorySample.self, from: JSONEncoder().encode(s)) == s)
+        #expect(MemorySplit().line.isEmpty)
+    }
+
     @Test func memoryEventsRoundTripAndShowInTheTimeline() throws {
         let event = TypingEvent(t: 1.5, e: .memory, s: "hide", mem: sample(48))
         let decoded = try JSONDecoder().decode(TypingEvent.self, from: JSONEncoder().encode(event))

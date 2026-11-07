@@ -26,7 +26,7 @@ public final class StatsOverlayView: UILabel {
         textColor = Theme.ui(.muted)
         textAlignment = .right
         alpha = 0.85
-        numberOfLines = 3
+        numberOfLines = 0
         isHidden = true
     }
 
@@ -49,6 +49,7 @@ public final class StatsOverlayView: UILabel {
         text = reading.overlay(peakMB: peakMB) + "\n"
             + MemoryReading.breakdown(footprintMB: sample.mb, heapMB: sample.heap, layers: sample.layers,
                                       views: sample.views, metal: sample.metal)
+            + (sample.split.map { $0.line.isEmpty ? "" : "\n" + $0.line } ?? "")
             + "\n" + sample.counts.line
         textColor = reading.budgetFraction >= 1 ? Theme.ui(.danger)
             : reading.budgetFraction >= 0.75 ? Theme.ui(.sun) : Theme.ui(.muted)
@@ -60,7 +61,7 @@ public extension MemorySample {
     @MainActor static func now(in root: UIView?) -> MemorySample? {
         guard let reading = MemoryReading.current() else { return nil }
         return MemorySample(reading: reading, heapMB: MemoryReading.heapMB(), layers: count(root?.layer),
-                            views: count(root), metal: MetalKeyboard.loaded)
+                            views: count(root), metal: MetalKeyboard.loaded, split: MemoryReading.split())
     }
 
     /// The views in the tree under `view`, itself included.

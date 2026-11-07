@@ -252,6 +252,39 @@ public final class KeySurfaceView: UIView {
         keyViews.values.forEach { $0.forEach { $0.setGlow(color) } }
     }
 
+    /// Jolt a few keys sideways for a moment (the Glitch effects). It only draws: the
+    /// keys' frames, and so where touches land, never move.
+    func glitchKeys(count: Int, strength: CGFloat) {
+        let views = keyViews.values.flatMap { $0 }
+        for view in views.shuffled().prefix(count) { Self.jolt(view.layer, by: strength) }
+    }
+
+    func glitchKey(_ key: Key, strength: CGFloat) {
+        keyViews[key]?.forEach { Self.jolt($0.layer, by: strength) }
+    }
+
+    /// Shift one row of keys together, like a torn screen (the glitch sky).
+    func tearRow(strength: CGFloat) {
+        let views = keyViews.values.flatMap { $0 }
+        guard let pick = views.randomElement() else { return }
+        let dx = CGFloat.random(in: 0.4...1) * strength * (Bool.random() ? 1 : -1)
+        for view in views where abs(view.frame.midY - pick.frame.midY) < 4 { Self.jolt(view.layer, by: strength, fixed: dx) }
+    }
+
+    private static func jolt(_ layer: CALayer, by strength: CGFloat, fixed: CGFloat? = nil) {
+        let s = max(strength, 1)
+        let jump = CAKeyframeAnimation(keyPath: "transform.translation.x")
+        jump.values = [0, fixed ?? .random(in: -s...s), (fixed ?? .random(in: -s...s)) * 0.5, fixed ?? .random(in: -s...s), 0]
+        jump.calculationMode = .discrete
+        let flicker = CAKeyframeAnimation(keyPath: "opacity")
+        flicker.values = [1, 0.55, 1, 0.75, 1]
+        flicker.calculationMode = .discrete
+        let group = CAAnimationGroup()
+        group.animations = [jump, flicker]
+        group.duration = 0.18
+        layer.add(group, forKey: "glitch")
+    }
+
     /// Bounce a letter (the Pop letter effect).
     func popLetter(_ key: Key, scale: CGFloat) {
         keyViews[key]?.forEach { $0.pop(scale: scale) }
@@ -686,6 +719,8 @@ public final class KeySurfaceView: UIView {
         switch effects?.flash {
         case .thumb: color = style.thumb(side)
         case .theme: color = style.accent
+        case .rainbow: color = Palette.cycling(at: CACurrentMediaTime())
+        case .candy: color = Palette.candy.randomElement()
         case .off, nil: color = nil
         }
         for view in mine.isEmpty ? views : mine {

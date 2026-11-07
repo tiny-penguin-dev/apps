@@ -4,31 +4,74 @@ import Foundation
 /// (features/customization, "Effects"). `KeyboardSettings.trails` stays the switch for
 /// all of it; this says which effects.
 ///
-///     var effects = EffectsSettings.preset(.aurora)
+///     var effects = EffectsSettings.preset(.space)
 ///     effects.letters = .glitch
 ///     effects.isFree   // false: only Calm is free
 public struct EffectsSettings: Codable, Hashable, Sendable {
-    public enum Tap: String, Codable, CaseIterable, Sendable { case none, ring, ripple, sparks, stars, snow }
-    public enum Flash: String, Codable, CaseIterable, Sendable { case thumb, theme, off }
-    public enum Trail: String, Codable, CaseIterable, Sendable { case none, line, comet, glitter, rainbow }
-    /// What a hit letter does. Jelly, Wave, Glitch and Liquid are drawn with Metal.
-    public enum Letters: String, Codable, CaseIterable, Sendable {
-        case none, pop, jelly, wave, glitch, liquid
-        public var usesMetal: Bool { self == .jelly || self == .wave || self == .glitch || self == .liquid }
+    /// What a tap throws. Everything but Ring flies out in every direction.
+    public enum Tap: String, Codable, CaseIterable, Sendable {
+        case none, ring, ripple, sparks, stars, snow, pixels, fireworks, glitch, hearts, petals
+        public var name: String { self == .none ? "None" : rawValue.capitalized }
     }
-    /// What falls at Blizzard.
-    public enum Fall: String, Codable, CaseIterable, Sendable { case stars, snow, confetti }
-    /// The sky behind the keys at Aurora.
-    public enum Sky: String, Codable, CaseIterable, Sendable { case aurora, starfield, ice }
+    public enum Flash: String, Codable, CaseIterable, Sendable {
+        case thumb, theme, rainbow, candy, off
+        public var name: String {
+            switch self {
+            case .thumb: "Thumb's colour"
+            case .theme: "Theme's colour"
+            case .rainbow: "Rainbow"
+            case .candy: "Candy pinks"
+            case .off: "Off"
+            }
+        }
+    }
+    public enum Trail: String, Codable, CaseIterable, Sendable {
+        case none, line, comet, glitter, rainbow, pixels, glitch, hearts, silk
+        public var name: String { self == .none ? "None" : rawValue.capitalized }
+    }
+    /// What a hit letter does. All but None and Pop are drawn with Metal.
+    public enum Letters: String, Codable, CaseIterable, Sendable {
+        case none, pop, jelly, wave, glitch, liquid, pixel, disco, warp
+        public var usesMetal: Bool { self != .none && self != .pop }
+        public var name: String { self == .none ? "Still" : rawValue.capitalized }
+    }
+    /// What flies across the keys at Blizzard, from every side.
+    public enum Fall: String, Codable, CaseIterable, Sendable {
+        case stars, snow, confetti, pixels, `static`, warp, petals, hearts
+        public var name: String {
+            switch self {
+            case .warp: "Warp speed"
+            default: rawValue.capitalized
+            }
+        }
+    }
+    /// The sky behind the keys at the top level.
+    public enum Sky: String, Codable, CaseIterable, Sendable {
+        case aurora, starfield, ice, retro, glitch, prism, blackHole, ripples, candy
+        public var name: String {
+            switch self {
+            case .ice: "Ice"
+            case .retro: "Retro grid"
+            case .blackHole: "Black hole"
+            case .candy: "Candy clouds"
+            default: rawValue.capitalized
+            }
+        }
+    }
 
+    /// The looks to start from (Gabriel, 7 Nov 2026: quicker, wilder, in every
+    /// direction; Sparkle and Aurora went).
     public enum Preset: String, Codable, CaseIterable, Sendable {
-        case calm, sparkle, arcade, aurora
+        case calm, arcade, glitch, rainbow, space, zen, sugarRush
         public var name: String {
             switch self {
             case .calm: "Calm"
-            case .sparkle: "Sparkle"
             case .arcade: "Arcade"
-            case .aurora: "Aurora"
+            case .glitch: "Glitch"
+            case .rainbow: "Rainbow"
+            case .space: "Space"
+            case .zen: "Zen"
+            case .sugarRush: "Sugar Rush"
             }
         }
     }
@@ -76,9 +119,16 @@ public struct EffectsSettings: Codable, Hashable, Sendable {
     public static func preset(_ preset: Preset) -> EffectsSettings {
         switch preset {
         case .calm: calm
-        case .sparkle: EffectsSettings(tap: .sparks, trail: .glitter, letters: .pop, flow: true, fall: .stars, skyOn: false)
-        case .arcade: EffectsSettings(tap: .ripple, flash: .theme, trail: .rainbow, letters: .glitch, flow: true, fall: .confetti, sky: .starfield)
-        case .aurora: EffectsSettings(tap: .stars, trail: .comet, letters: .liquid, flow: true, fall: .snow, sky: .aurora)
+        // An old arcade: 8-bit blasts, blocky letters, a neon grid racing in.
+        case .arcade: EffectsSettings(tap: .pixels, flash: .theme, trail: .pixels, letters: .pixel, flow: true, fall: .pixels, sky: .retro)
+        // The keys themselves glitch: split colours, static, torn rows.
+        case .glitch: EffectsSettings(tap: .glitch, flash: .theme, trail: .glitch, letters: .glitch, flow: true, fall: .static, sky: .glitch)
+        case .rainbow: EffectsSettings(tap: .fireworks, flash: .rainbow, trail: .rainbow, letters: .disco, flow: true, fall: .confetti, sky: .prism)
+        // Lift off, warp, and at the top fall into a black hole.
+        case .space: EffectsSettings(tap: .stars, trail: .comet, letters: .warp, flow: true, fall: .warp, sky: .blackHole)
+        // Still playful, but slow and soft: petals, silk, ripples.
+        case .zen: EffectsSettings(tap: .petals, trail: .silk, letters: .wave, flow: true, fall: .petals, sky: .ripples)
+        case .sugarRush: EffectsSettings(tap: .hearts, flash: .candy, trail: .hearts, letters: .jelly, flow: true, fall: .hearts, sky: .candy)
         }
     }
 
@@ -88,7 +138,8 @@ public struct EffectsSettings: Codable, Hashable, Sendable {
     /// Only Calm's choices are free: ring or no taps, line or no trails, thumb flashes
     /// or none, still letters, no flow.
     public var isFree: Bool {
-        (tap == .ring || tap == .none) && (trail == .line || trail == .none) && flash != .theme && letters == .none && !flow
+        (tap == .ring || tap == .none) && (trail == .line || trail == .none) && (flash == .thumb || flash == .off) && letters == .none
+            && !flow
     }
 
     /// The highest level the switches allow (Aurora needs the sky on, and so on down);

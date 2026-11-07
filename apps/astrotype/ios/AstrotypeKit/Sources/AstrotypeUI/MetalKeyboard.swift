@@ -129,6 +129,8 @@ final class MetalKeyboard: @unchecked Sendable {
     #include <metal_stdlib>
     using namespace metal;
 
+    // x * x: pow of a negative number is undefined in Metal.
+    static float sq(float x) { return x * x; }
     static float hash1(float n) { return fract(sin(n) * 43758.5453); }
     static float hash2(float2 p) { return fract(sin(dot(p, float2(127.1, 311.7))) * 43758.5453); }
 
@@ -142,25 +144,30 @@ final class MetalKeyboard: @unchecked Sendable {
         return o;
     }
 
+    static float3 rainbow(float h) { return 0.5 + 0.5 * cos(6.2832 * (h + float3(0.0, 0.33, 0.67))); }
+
     fragment float4 sky_fragment(SkyOut in [[stage_in]], constant float4 &info [[buffer(0)]]) {
         float2 uv = in.uv;
         float2 r = info.xy;
         float t = info.z;
-        float m = info.w;
+        int mode = int(info.w + 0.5);
+        float aspect = r.x / max(r.y, 1.0);
+        float2 p = (uv - 0.5) * float2(aspect, 1.0);
         float3 col = float3(0.0);
-        if (m < 0.5) {
+        // Opacity without colour, for the black hole's dark middle.
+        float dark = 0.0;
+        if (mode == 0) {
             // Aurora: four bands that sway.
             for (int i = 0; i < 4; i++) {
                 float fi = float(i);
-                float w = 0.62 - fi * 0.1 + sin(uv.x * (2.5 + fi) + t * 0.35 + fi * 1.7) * 0.09 + sin(uv.x * 7.0 + t * 0.8 + fi) * 0.025;
-                float b = exp(-pow((uv.y - w) * (8.0 + fi * 2.0), 2.0));
-                col += b * mix(float3(0.18, 0.95, 0.62), float3(0.55, 0.35, 1.0), fi / 3.0) * (0.65 + 0.35 * sin(uv.x * 30.0 + t * 1.6 + fi * 3.0));
+                float w = 0.62 - fi * 0.1 + sin(uv.x * (2.5 + fi) + t * 0.6 + fi * 1.7) * 0.09 + sin(uv.x * 7.0 + t * 1.2 + fi) * 0.025;
+                float b = exp(-sq((uv.y - w) * (8.0 + fi * 2.0)));
+                col += b * mix(float3(0.18, 0.95, 0.62), float3(0.55, 0.35, 1.0), fi / 3.0) * (0.65 + 0.35 * sin(uv.x * 30.0 + t * 2.4 + fi * 3.0));
             }
-        } else if (m < 1.5) {
+        } else if (mode == 1) {
             // Starfield: three layers of stars flying out.
-            float2 p = (uv - 0.5) * float2(r.x / r.y, 1.0);
             for (int l = 0; l < 3; l++) {
-                float z = fract(t * 0.12 + float(l) / 3.0);
+                float z = fract(t * 0.3 + float(l) / 3.0);
                 float s = mix(18.0, 3.0, z);
                 float2 g = p * s;
                 float2 id = floor(g);
@@ -170,24 +177,114 @@ final class MetalKeyboard: @unchecked Sendable {
                 col += float3(0.9, 0.85, 1.0) * (1.0 - smoothstep(0.0, 0.09, d)) * smoothstep(0.0, 0.3, z) * (1.0 - smoothstep(0.75, 1.0, z)) * step(0.55, k);
             }
             col += float3(0.45, 0.15, 0.75) * 0.25 * max(0.0, 1.0 - length(p));
-        } else {
+        } else if (mode == 2) {
             // Ice: caustics.
-            float2 p = uv * 6.0;
-            float2 q = p;
+            float2 q0 = uv * 6.0;
+            float2 q = q0;
             float c = 1.0;
             for (int n = 0; n < 4; n++) {
-                float tt = t * 0.4 * (1.0 - 3.5 / float(n + 1));
-                q = p + float2(cos(tt - q.x) + sin(tt + q.y), sin(tt - q.y) + cos(tt + q.x));
-                float2 v = float2(p.x * 0.005 / (sin(q.x + tt) + 1e-4), p.y * 0.005 / (cos(q.y + tt) + 1e-4));
+                float tt = t * 0.6 * (1.0 - 3.5 / float(n + 1));
+                q = q0 + float2(cos(tt - q.x) + sin(tt + q.y), sin(tt - q.y) + cos(tt + q.x));
+                float2 v = float2(q0.x * 0.005 / (sin(q.x + tt) + 1e-4), q0.y * 0.005 / (cos(q.y + tt) + 1e-4));
                 c += 1.0 / max(length(v), 1e-4);
             }
             c /= 4.0;
             c = 1.17 - pow(abs(c), 1.4);
             float v = pow(abs(c), 8.0);
             col = float3(0.2, 0.75, 0.95) * clamp(v, 0.0, 1.0) * 0.9 + float3(0.05, 0.2, 0.35) * 0.6;
+        } else if (mode == 3) {
+            // Retro grid: a neon floor racing in under a striped sun, with scanlines.
+            float horizon = 0.42;
+            if (uv.y > horizon) {
+                float2 d = (uv - float2(0.5, horizon + 0.2)) * float2(aspect, 1.0);
+                float sun = 1.0 - smoothstep(0.17, 0.18, length(d));
+                float cut = step(0.0, sin((uv.y - horizon) * 70.0 + t * 3.0)) + step(horizon + 0.2, uv.y);
+                col += sun * min(cut, 1.0) * mix(float3(1.0, 0.15, 0.55), float3(1.0, 0.85, 0.2), smoothstep(horizon, horizon + 0.38, uv.y));
+                col += float3(0.4, 0.05, 0.55) * (1.0 - smoothstep(horizon, 1.0, uv.y)) * 0.5;
+            } else {
+                float depth = 1.0 / max(horizon - uv.y, 0.002);
+                float x = (uv.x - 0.5) * depth * 0.5;
+                float z = depth * 0.25 + t * 2.5;
+                float gx = abs(fract(x) - 0.5);
+                float gz = abs(fract(z) - 0.5);
+                float lx = smoothstep(0.5 - 1.5 * fwidth(x), 0.5, gx);
+                float lz = smoothstep(0.5 - 1.5 * fwidth(z), 0.5, gz);
+                float fade = 1.0 - exp(-(horizon - uv.y) * 10.0);
+                col += float3(1.0, 0.2, 0.9) * max(lx, lz) * fade;
+                col += float3(0.25, 0.0, 0.4) * (1.0 - uv.y / horizon) * 0.4;
+            }
+            col *= 0.8 + 0.2 * step(0.5, fract(uv.y * r.y * 0.25));
+        } else if (mode == 4) {
+            // Glitch: torn bands, blocks of split colour, a rolling bar and noise.
+            float tt = floor(t * 15.0);
+            float band = floor(uv.y * 24.0);
+            float n = hash2(float2(band, tt));
+            float shift = n > 0.8 ? (hash1(band + tt) - 0.5) * 0.25 : 0.0;
+            float2 q = float2(uv.x + shift, uv.y);
+            float b = hash2(floor(q * float2(18.0, 10.0)) + tt * 0.37);
+            float3 split = mix(float3(1.0, 0.1, 0.35), float3(0.1, 0.9, 1.0), step(0.5, hash1(b * 91.0)));
+            col += step(0.93, b) * split * 0.8;
+            col += float3(0.2, 1.0, 0.6) * 0.15 * step(0.5, fract(uv.y * r.y * 0.25 + t * 20.0)) * step(0.7, n);
+            col += float3(0.7, 0.9, 1.0) * 0.3 * exp(-sq((uv.y - fract(t * 0.7)) * 30.0));
+            col += hash2(floor(uv * r * 0.5) + tt) * 0.07;
+        } else if (mode == 5) {
+            // Prism: a rainbow that swirls out from the middle.
+            float ang = atan2(p.y, p.x);
+            float d = length(p);
+            float h = ang / 6.2832 + d * 1.5 - t * 0.5 + 0.1 * sin(d * 10.0 - t * 3.0);
+            float rays = 0.6 + 0.4 * sin(ang * 8.0 + t * 2.0);
+            col = rainbow(h) * rays * (0.45 + 0.25 * sin(d * 12.0 - t * 4.0));
+        } else if (mode == 6) {
+            // Black hole: a glowing disk and stars spiralling in, round a dark middle.
+            float d = length(p);
+            float ang = atan2(p.y, p.x);
+            float tw = ang + 0.9 / (d + 0.08) + t * 1.4;
+            float disk = pow(0.5 + 0.5 * sin(tw * 3.0 + log(d + 1e-3) * 6.0 + t * 4.0), 3.0);
+            float glow = disk * smoothstep(0.1, 0.22, d) * exp(-d * 2.5);
+            float ring = exp(-sq((d - 0.16) * 16.0));
+            col += float3(1.0, 0.55, 0.2) * glow * 1.2 + float3(1.0, 0.85, 0.6) * ring * 0.9 + float3(0.5, 0.25, 1.0) * glow * 0.4;
+            float2 g = float2((ang + 0.6 / (d + 0.1)) * 3.82, log(d + 1e-3) * 5.0 + t * 3.0);
+            float2 f = fract(g) - 0.5;
+            float k = hash2(floor(g));
+            float streak = (1.0 - smoothstep(0.0, 0.1, abs(f.x))) * (1.0 - smoothstep(0.05, 0.45, abs(f.y))) * step(0.72, k);
+            col += float3(0.85, 0.9, 1.0) * streak * smoothstep(0.12, 0.3, d);
+            float core = 1.0 - smoothstep(0.1, 0.135, d);
+            col *= 1.0 - core;
+            dark = core * 0.92;
+        } else if (mode == 7) {
+            // Ripples: slow rings spreading on still water, breathing.
+            float w = 0.0;
+            for (int i = 0; i < 3; i++) {
+                float fi = float(i);
+                float2 c = float2(sin(t * 0.2 + fi * 2.1) * 0.5 * aspect, cos(t * 0.17 + fi * 1.3) * 0.25);
+                float d = length(p - c);
+                w += sin(d * 26.0 - t * 2.2 + fi) * exp(-d * 2.2);
+            }
+            float3 tint = mix(float3(0.25, 0.8, 0.72), float3(0.62, 0.52, 1.0), 0.5 + 0.5 * sin(t * 0.3 + p.x * 2.0));
+            float breathe = 0.5 + 0.5 * sin(t * 0.8);
+            col = tint * (0.08 + 0.07 * breathe) + tint * smoothstep(0.4, 1.0, w * 0.5 + 0.5) * 0.35;
+        } else {
+            // Candy clouds: pink and lilac swirls with hearts floating up.
+            float pl = sin(p.x * 5.0 + t * 1.3) + sin(p.y * 6.0 - t * 1.7) + sin((p.x + p.y) * 4.0 + t * 2.1);
+            float3 pink = float3(1.0, 0.35, 0.7);
+            float3 lilac = float3(0.75, 0.45, 1.0);
+            col = mix(pink, lilac, 0.5 + 0.5 * sin(pl)) * 0.32;
+            for (int l = 0; l < 2; l++) {
+                float fl = float(l);
+                float2 g = p * (5.0 + fl * 3.0) - float2(0.0, t * (1.2 + fl * 0.6));
+                float2 id = floor(g);
+                float k = hash2(id + fl * 13.0);
+                float2 f = fract(g) - 0.5 - (float2(k, fract(k * 7.0)) - 0.5) * 0.3;
+                float hx = f.x * 3.0;
+                float hy = f.y * 3.0 + 0.15;
+                float q = hx * hx + hy * hy - 1.0;
+                float v = q * q * q - hx * hx * hy * hy * hy;
+                float heart = 1.0 - smoothstep(-0.02, 0.04, v);
+                col += heart * step(0.6, k) * mix(pink, float3(1.0), 0.35) * 0.75;
+            }
         }
         col = clamp(col, 0.0, 1.0);
-        float a = max(col.r, max(col.g, col.b));
+        float a = max(max(col.r, max(col.g, col.b)), dark);
         return float4(col, a);
     }
 
@@ -209,6 +306,8 @@ final class MetalKeyboard: @unchecked Sendable {
     struct LetterOut {
         float4 position [[position]];
         float2 uv;
+        float2 g;
+        float4 cellRect;
         float4 color;
         float fx;
         float uvw;
@@ -256,7 +355,7 @@ final class MetalKeyboard: @unchecked Sendable {
                 float4 t = u.touches[i];
                 float d = distance(centre, t.xy);
                 float front = t.z * 420.0;
-                float ring = exp(-pow((d - front) / 40.0, 2.0)) * exp(-t.z * 2.5);
+                float ring = exp(-sq((d - front) / 40.0)) * exp(-t.z * 2.5);
                 local.y -= ring * 0.22 * size.y;
                 local *= 1.0 + ring * 0.2;
             }
@@ -277,6 +376,38 @@ final class MetalKeyboard: @unchecked Sendable {
             local.x += sin(g.y * 5.0 + age * 6.0) * 0.04 * size.x * e;
             local.x *= 1.0 + 0.12 * e * (1.0 - g.y);
             fx = e;
+        } else if (mode == 5) {
+            // Pixel: the letter hops in steps like an 8-bit sprite and grows blockier.
+            float e = exp(-age * 5.0) * hit;
+            float hop = floor(max(0.0, sin(age * 12.0)) * exp(-age * 3.0) * 4.0 + 0.5) / 4.0;
+            local.y -= hop * 0.35 * size.y * hit;
+            local *= 1.0 + floor(e * 4.0) / 4.0 * 0.3;
+            fx = e;
+        } else if (mode == 6) {
+            // Disco: the letter spins once, jumps, and flashes through the rainbow.
+            float spin = smoothstep(0.0, 0.45, age) * 6.2832 * hit;
+            float cs = cos(spin);
+            float sn = sin(spin);
+            local = float2(local.x * cs - local.y * sn, local.x * sn + local.y * cs);
+            local *= 1.0 + 0.45 * exp(-age * 6.0) * hit;
+            local.y -= sin(min(age * 9.0, 3.1416)) * 0.3 * size.y * hit;
+            fx = exp(-age * 4.0) * hit;
+        } else if (mode == 7) {
+            // Warp: the letter stretches out from the middle at speed; at the top level
+            // every letter leans in and turns, falling into the black hole.
+            float e = exp(-age * 5.0) * hit;
+            float2 sc = u.info0.xy * 0.5;
+            float2 v = centre - sc;
+            float2 dir = v / max(length(v), 1.0);
+            local += dir * dot(local, dir) * 1.4 * e + dir * e * size.y * 0.5;
+            if (level >= 4.0) {
+                float pull = 0.5 + 0.5 * sin(time * 1.4 + seed * 6.283);
+                float ang = 0.035 * pull;
+                float2 rv = float2(v.x * cos(ang) - v.y * sin(ang), v.x * sin(ang) + v.y * cos(ang));
+                local += rv * (1.0 - 0.04 * pull) - v;
+                local *= 1.0 - 0.12 * pull;
+            }
+            fx = e;
         }
 
         float2 pos = centre + local;
@@ -289,8 +420,16 @@ final class MetalKeyboard: @unchecked Sendable {
             float s = 0.5 + 0.5 * sin(time * 2.2 + centre.x * 0.025 + centre.y * 0.01);
             c.rgb = mix(c.rgb, mix(u.left.rgb, u.right.rgb, s), 0.55);
         }
+        if (mode == 6) {
+            float glow = clamp(fx + (level >= 2.0 ? 0.35 : 0.0) + (level >= 4.0 ? 0.3 : 0.0), 0.0, 1.0);
+            c.rgb = mix(c.rgb, rainbow(time * 0.8 + centre.x * 0.004 + seed), glow);
+        } else if (mode == 7) {
+            c.rgb = mix(c.rgb, float3(0.7, 0.85, 1.0), fx * 0.6);
+        }
         o.color = c;
         o.fx = fx;
+        o.g = g;
+        o.cellRect = inst.uv;
         o.uvw = inst.uv.z - inst.uv.x;
         return o;
     }
@@ -309,13 +448,19 @@ final class MetalKeyboard: @unchecked Sendable {
             return float4(col, a) * in.color.a;
         }
         if (mode == 4) { c = mix(c, smoothstep(0.25, 0.55, c), in.fx); }
+        if (mode == 5) {
+            // Pixel: sample the glyph on a coarse grid with hard edges.
+            float n = mix(20.0, 7.0, clamp(in.fx, 0.0, 1.0));
+            float2 gq = (floor(in.g * n) + 0.5) / n;
+            c = step(0.45, atlas.sample(s, mix(in.cellRect.xy, in.cellRect.zw, gq)).r);
+        }
         float a = c * in.color.a;
         return float4(in.color.rgb * a, a);
     }
     """
 }
 
-/// The sky behind the keys at Aurora, drawn at half resolution.
+/// The sky behind the keys at the top flow level, drawn at half resolution.
 @MainActor
 final class SkyRenderer {
     let layer: CAMetalLayer
@@ -336,6 +481,12 @@ final class SkyRenderer {
         case .aurora: 0
         case .starfield: 1
         case .ice: 2
+        case .retro: 3
+        case .glitch: 4
+        case .prism: 5
+        case .blackHole: 6
+        case .ripples: 7
+        case .candy: 8
         }
         let size = layer.drawableSize
         var info = SIMD4<Float>(Float(size.width), Float(size.height), Float((time - start).truncatingRemainder(dividingBy: 3600)), mode)
@@ -348,8 +499,8 @@ final class SkyRenderer {
     }
 }
 
-/// The letter keys' labels, drawn with Metal so Jelly, Wave, Glitch and Liquid can bend
-/// them. The keys hide their own labels while this draws (`KeyView.lettersElsewhere`).
+/// The letter keys' labels, drawn with Metal so the letter effects (all but Pop) can
+/// bend them. The keys hide their own labels while this draws (`KeyView.lettersElsewhere`).
 @MainActor
 final class LetterRenderer {
     let layer: CAMetalLayer
@@ -434,7 +585,7 @@ final class LetterRenderer {
         cell = CGSize(width: cellPoints, height: cellPoints)
     }
 
-    private var duration: TimeInterval { mode == .liquid ? 1.6 : 1.2 }
+    private var duration: TimeInterval { mode == .liquid ? 1.6 : 1.0 }
 
     func hit(_ key: Key, at point: CGPoint, time: TimeInterval) {
         hits[key] = (time, Float.random(in: 0...1))
@@ -471,6 +622,9 @@ final class LetterRenderer {
         case .wave: 2
         case .glitch: 3
         case .liquid: 4
+        case .pixel: 5
+        case .disco: 6
+        case .warp: 7
         }
         var uniforms = Uniforms(
             info0: SIMD4(Float(layer.bounds.width), Float(layer.bounds.height), Float((time - start).truncatingRemainder(dividingBy: 3600)), Float(level)),

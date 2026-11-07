@@ -70,12 +70,48 @@ enum Sprites {
         ctx.setFillColor(UIColor.white.cgColor)
         ctx.fill(CGRect(origin: .zero, size: size))
     }
+    /// A hard square, for 8-bit blasts.
+    static let pixel: CGImage? = render(CGSize(width: 6, height: 6)) { ctx, size in
+        ctx.setFillColor(UIColor.white.cgColor)
+        ctx.fill(CGRect(origin: .zero, size: size))
+    }
+    /// A thin bar of static.
+    static let bar: CGImage? = render(CGSize(width: 36, height: 2)) { ctx, size in
+        ctx.setFillColor(UIColor.white.cgColor)
+        ctx.fill(CGRect(origin: .zero, size: size))
+    }
+    static let heart: CGImage? = render(CGSize(width: 22, height: 20)) { ctx, size in
+        ctx.setFillColor(UIColor.white.cgColor)
+        ctx.addPath(heartPath(in: CGRect(origin: .zero, size: size)))
+        ctx.fillPath()
+    }
+    static let petal: CGImage? = render(CGSize(width: 20, height: 11)) { ctx, size in
+        let colors = [UIColor.white.cgColor, UIColor.white.withAlphaComponent(0.55).cgColor] as CFArray
+        ctx.addEllipse(in: CGRect(origin: .zero, size: size))
+        ctx.clip()
+        guard let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: colors, locations: [0, 1]) else { return }
+        ctx.drawLinearGradient(gradient, start: .zero, end: CGPoint(x: size.width, y: size.height), options: [])
+    }
 
     private static func render(_ size: CGSize, _ draw: (CGContext, CGSize) -> Void) -> CGImage? {
         let format = UIGraphicsImageRendererFormat()
         format.scale = 2
         format.opaque = false
         return UIGraphicsImageRenderer(size: size, format: format).image { draw($0.cgContext, size) }.cgImage
+    }
+
+    static func heartPath(in rect: CGRect) -> CGPath {
+        let w = rect.width, h = rect.height, x = rect.minX, y = rect.minY
+        let path = CGMutablePath()
+        path.move(to: CGPoint(x: x + w / 2, y: y + h))
+        path.addCurve(to: CGPoint(x: x, y: y + h * 0.3), control1: CGPoint(x: x + w * 0.2, y: y + h * 0.8),
+                      control2: CGPoint(x: x, y: y + h * 0.55))
+        path.addArc(center: CGPoint(x: x + w * 0.25, y: y + h * 0.27), radius: w * 0.25, startAngle: .pi, endAngle: 0, clockwise: false)
+        path.addArc(center: CGPoint(x: x + w * 0.75, y: y + h * 0.27), radius: w * 0.25, startAngle: .pi, endAngle: 0, clockwise: false)
+        path.addCurve(to: CGPoint(x: x + w / 2, y: y + h), control1: CGPoint(x: x + w, y: y + h * 0.55),
+                      control2: CGPoint(x: x + w * 0.8, y: y + h * 0.8))
+        path.closeSubpath()
+        return path
     }
 
     static func starPath(in rect: CGRect, inner: CGFloat, points: Int = 5) -> CGPath {
@@ -90,6 +126,25 @@ enum Sprites {
         }
         path.closeSubpath()
         return path
+    }
+}
+
+/// The colours the presets throw around.
+@MainActor
+enum Palette {
+    static let neon = [UIColor(red: 1, green: 0.17, blue: 0.84, alpha: 1), UIColor(red: 0.13, green: 0.9, blue: 1, alpha: 1),
+                       UIColor(red: 1, green: 0.9, blue: 0.2, alpha: 1), UIColor(red: 0.24, green: 1, blue: 0.43, alpha: 1)]
+    static let glitch = [UIColor(red: 1, green: 0.12, blue: 0.31, alpha: 1), UIColor(red: 0.1, green: 0.9, blue: 1, alpha: 1), UIColor.white]
+    static let rainbow = (0..<6).map { UIColor(hue: CGFloat($0) / 6, saturation: 0.85, brightness: 1, alpha: 1) }
+    static let candy = [UIColor(red: 1, green: 0.31, blue: 0.64, alpha: 1), UIColor(red: 1, green: 0.54, blue: 0.78, alpha: 1),
+                        UIColor(red: 0.77, green: 0.55, blue: 1, alpha: 1), UIColor(red: 1, green: 0.7, blue: 0.66, alpha: 1)]
+    static let zen = [UIColor(red: 0.68, green: 0.92, blue: 0.85, alpha: 1), UIColor(red: 0.79, green: 0.72, blue: 1, alpha: 1),
+                      UIColor(red: 1, green: 0.82, blue: 0.86, alpha: 1), UIColor(white: 1, alpha: 0.9)]
+    static let space = [UIColor.white, UIColor(red: 0.7, green: 0.82, blue: 1, alpha: 1), UIColor(red: 1, green: 0.85, blue: 0.55, alpha: 1)]
+
+    /// A hue that moves round the rainbow over about a second.
+    static func cycling(at time: TimeInterval) -> UIColor {
+        UIColor(hue: CGFloat((time * 0.9).truncatingRemainder(dividingBy: 1)), saturation: 0.8, brightness: 1, alpha: 1)
     }
 }
 
@@ -119,8 +174,11 @@ final class KeyEffects {
     private var lastState = FlowState.off
     private var link: CADisplayLink?
     private var linkTarget: LinkTarget?
-    private var fall: CAEmitterLayer?
+    /// What flies across the keys at Blizzard: one emitter per side it comes from.
+    private var falls: [(emitter: CAEmitterLayer, place: Place)] = []
     private var fallKind: EffectsSettings.Fall?
+    /// When the keys next glitch (static at Blizzard, a torn row at the top).
+    private var nextGlitch: TimeInterval = 0
     private var sky: SkyRenderer?
     private var skyGoneAt: TimeInterval?
     private var letters: LetterRenderer?
@@ -201,12 +259,12 @@ final class KeyEffects {
     private func settingsChanged() {
         if settings?.flow != true { flow.reset() }
         updateLevel()
-        if fall != nil, fallKind != settings?.fall { removeFall() }
+        if !falls.isEmpty, fallKind != settings?.fall { removeFall() }
         applyLevel()
     }
 
     private func styleChanged() {
-        if fall != nil { removeFall(); applyLevel() }
+        if !falls.isEmpty { removeFall(); applyLevel() }
         lettersChanged()
     }
 
@@ -262,7 +320,8 @@ final class KeyEffects {
         guard let settings, settings.flow else { return }
         flow.word(at: now)
         if settings.comets, level >= .toboggan, !reduceMotion {
-            burst(at: point, image: Sprites.dot, colors: [style.thumb(side), .white], count: 14, speed: 150, lifetime: 0.45, scale: 0.5)
+            let look = particles(for: settings.tap, side: side)
+            burst(at: point, look: look, count: 18 + 4 * level.rawValue, speed: 320, lifetime: 0.4, scale: look.scale * 1.1)
         }
         updateLevel()
         ensureLink()
@@ -293,6 +352,7 @@ final class KeyEffects {
             level = reached
             applyLevel()
         }
+        if up { levelUp() }
         publish(leveledUp: up)
     }
 
@@ -314,13 +374,37 @@ final class KeyEffects {
         let settings = self.settings
         let blizzard = settings?.flow == true && settings?.falling == true && level >= .blizzard && !reduceMotion
         if blizzard { startFall() } else { stopFall() }
+        if blizzard, nextGlitch == 0 { nextGlitch = now + 0.3 }
         if blizzard != glowing {
             glowing = blizzard
             surface.setGlow(blizzard ? style.accent.withAlphaComponent(0.8) : nil)
         }
         let aurora = settings?.flow == true && settings?.skyOn == true && level >= .aurora && !reduceMotion
         if aurora { showSky() } else { hideSky() }
-        fall?.birthRate = level >= .aurora ? 1.6 : 1
+        for fall in falls { fall.emitter.birthRate = level >= .aurora ? 1.6 : 1 }
+    }
+
+    /// A new level: a blast from the middle of the keys in every direction.
+    private func levelUp() {
+        guard let settings, !reduceMotion, level >= .waddle else { return }
+        let centre = CGPoint(x: layer.bounds.midX, y: layer.bounds.midY)
+        let look = particles(for: settings.tap, side: .left)
+        burst(at: centre, look: look, count: 30 + 10 * level.rawValue, speed: 460, lifetime: 0.6, scale: look.scale * 1.3, force: true)
+        if settings.tap == .glitch || settings.fall == .static {
+            surface.glitchKeys(count: 6 + 3 * level.rawValue, strength: 10)
+        }
+    }
+
+    /// Glitch flow: keys jolt now and then with static at Blizzard, and whole rows tear
+    /// with the glitch sky at the top.
+    private func glitchTick(_ time: TimeInterval) {
+        guard let settings, settings.flow, !reduceMotion, level >= .blizzard, time >= nextGlitch else { return }
+        let static_ = settings.falling && settings.fall == .static
+        let torn = settings.skyOn && settings.sky == .glitch && level >= .aurora
+        guard static_ || torn else { return }
+        if static_ { surface.glitchKeys(count: level >= .aurora ? 5 : 3, strength: level >= .aurora ? 9 : 6) }
+        if torn { surface.tearRow(strength: 12) }
+        nextGlitch = time + Double.random(in: torn ? 0.18...0.6 : 0.3...0.9)
     }
 
     // MARK: Ticks
@@ -344,9 +428,10 @@ final class KeyEffects {
     private func step() {
         let time = now
         if flow.score > 0 { updateLevel() }
+        glitchTick(time)
         var busy = flow.score > 0 || bursting
         if let letters {
-            let moving = letters.isAnimating(time: time) || level >= .aurora
+            let moving = letters.isAnimating(time: time) || level >= .aurora || (letters.mode == .disco && level >= .toboggan)
             if moving || lettersDirty {
                 letters.render(keys: surface.letterKeys(), time: time, level: level.rawValue, style: style)
                 lettersDirty = false
@@ -390,17 +475,85 @@ final class KeyEffects {
             for i in 0..<3 {
                 let ring = makeRing(at: point, color: color, radius: (12 + CGFloat(i) * 7) * grow)
                 ring.lineWidth = 2.5 - CGFloat(i) * 0.5
-                ping(ring, delay: Double(i) * 0.08)
+                ping(ring, delay: Double(i) * 0.06)
             }
-        case .sparks:
-            burst(at: point, image: Sprites.dot, colors: [color, .white], count: 10 + 2 * level.rawValue, speed: 130 * grow,
-                  lifetime: 0.35, scale: 0.45 * grow)
+        case .glitch:
+            glitchTap(at: point, grow: grow)
+            if let key = surface.key(at: point) { surface.glitchKey(key, strength: 5 * grow) }
+        case .fireworks:
+            ping(makeRing(at: point, color: Palette.cycling(at: now), radius: 12 * grow), delay: 0)
+            fallthrough
+        default:
+            let look = particles(for: settings.tap, side: side)
+            burst(at: point, look: look, count: look.count + look.perLevel * level.rawValue, speed: look.speed * grow,
+                  lifetime: look.lifetime, scale: look.scale * grow)
+        }
+    }
+
+    /// How each tap's particles look and move. Quick and in every direction (Gabriel,
+    /// 7 Nov 2026); Petals stay soft and slow for Zen.
+    private struct Look {
+        var image: CGImage?
+        var colors: [UIColor]
+        var count = 12
+        var perLevel = 2
+        var speed: CGFloat = 260
+        var lifetime: Float = 0.32
+        var scale: CGFloat = 0.45
+        var gravity: CGFloat = 0
+        var spin: CGFloat = 0
+    }
+
+    private func particles(for tap: EffectsSettings.Tap, side: Side) -> Look {
+        let color = style.thumb(side)
+        switch tap {
+        case .none, .ring, .ripple, .sparks:
+            return Look(image: Sprites.dot, colors: [color, .white], count: 14, perLevel: 3)
         case .stars:
-            burst(at: point, image: Sprites.star, colors: [color, Theme.ui(.sun)], count: 3 + level.rawValue, speed: 70 * grow,
-                  lifetime: 0.7, scale: 0.45 * grow, upward: true, spin: 3)
+            return Look(image: Sprites.star, colors: [color, Theme.ui(.sun), .white], count: 8, speed: 220, lifetime: 0.45, scale: 0.4, spin: 5)
         case .snow:
-            burst(at: point, image: Sprites.dot, colors: [snowColor], count: 6 + 2 * level.rawValue, speed: 45 * grow,
-                  lifetime: 0.9, scale: 0.35 * grow, gravity: 70)
+            return Look(image: Sprites.dot, colors: [snowColor], count: 12, speed: 130, lifetime: 0.55, scale: 0.32, gravity: 140)
+        case .pixels:
+            return Look(image: Sprites.pixel, colors: Palette.neon, count: 18, perLevel: 3, speed: 250, lifetime: 0.38, scale: 0.75, gravity: 320)
+        case .fireworks:
+            return Look(image: Sprites.dot, colors: Palette.rainbow, count: 26, perLevel: 4, speed: 300, lifetime: 0.5, scale: 0.38, gravity: 260)
+        case .glitch:
+            return Look(image: Sprites.bar, colors: Palette.glitch, count: 12, speed: 280, lifetime: 0.22, scale: 0.6)
+        case .hearts:
+            return Look(image: Sprites.heart, colors: Palette.candy + [.white], count: 10, perLevel: 3, speed: 240, lifetime: 0.5,
+                        scale: 0.45, gravity: -90, spin: 2)
+        case .petals:
+            return Look(image: Sprites.petal, colors: Palette.zen, count: 9, perLevel: 1, speed: 95, lifetime: 0.95, scale: 0.55, spin: 1.6)
+        }
+    }
+
+    /// Glitch: bars of split colour jump about around the touch for a moment.
+    private func glitchTap(at point: CGPoint, grow: CGFloat) {
+        let bars = 5 + level.rawValue
+        for i in 0..<bars {
+            let bar = CALayer()
+            let width = CGFloat.random(in: 18...54) * grow
+            bar.bounds = CGRect(x: 0, y: 0, width: width, height: CGFloat.random(in: 2...5))
+            bar.position = CGPoint(x: point.x + CGFloat.random(in: -28...28) * grow, y: point.y + CGFloat.random(in: -20...20) * grow)
+            bar.backgroundColor = Palette.glitch[i % Palette.glitch.count].cgColor
+            bar.opacity = 0
+            layer.addSublayer(bar)
+            let jump = CAKeyframeAnimation(keyPath: "position.x")
+            jump.values = (0..<5).map { _ in point.x + CGFloat.random(in: -40...40) * grow }
+            jump.calculationMode = .discrete
+            let flicker = CAKeyframeAnimation(keyPath: "opacity")
+            flicker.values = [0.95, 0, 0.9, 0.6, 0.85, 0]
+            flicker.calculationMode = .discrete
+            let group = CAAnimationGroup()
+            group.animations = [jump, flicker]
+            group.duration = 0.24
+            group.beginTime = bar.convertTime(CACurrentMediaTime(), from: nil) + Double(i) * 0.012
+            group.fillMode = .forwards
+            group.isRemovedOnCompletion = false
+            CATransaction.begin()
+            CATransaction.setCompletionBlock { bar.removeFromSuperlayer() }
+            bar.add(group, forKey: "glitch")
+            CATransaction.commit()
         }
     }
 
@@ -417,6 +570,9 @@ final class KeyEffects {
         return ring
     }
 
+    /// The effects' ring is quicker than the keyboard's old one (Gabriel, 7 Nov 2026).
+    private static let quickRing: TimeInterval = 0.4
+
     /// Today's tap ring: it grows from half size and fades.
     private func ping(_ ring: CAShapeLayer, delay: TimeInterval) {
         ring.opacity = 0
@@ -429,7 +585,7 @@ final class KeyEffects {
         fade.toValue = 0
         let group = CAAnimationGroup()
         group.animations = [grow, fade]
-        group.duration = Theme.Motion.tapRing
+        group.duration = Self.quickRing
         group.beginTime = ring.convertTime(CACurrentMediaTime(), from: nil) + delay
         group.fillMode = .forwards
         group.isRemovedOnCompletion = false
@@ -439,40 +595,38 @@ final class KeyEffects {
         CATransaction.commit()
     }
 
-    /// A short spray of particles from a point.
-    private func burst(at point: CGPoint, image: CGImage?, colors: [UIColor], count: Int, speed: CGFloat, lifetime: Float,
-                       scale: CGFloat, gravity: CGFloat = 0, upward: Bool = false, spin: CGFloat = 0) {
-        guard let image, bursts < 14, !colors.isEmpty else { return }
+    /// A short spray of particles from a point, in every direction.
+    private func burst(at point: CGPoint, look: Look, count: Int, speed: CGFloat, lifetime: Float, scale: CGFloat, force: Bool = false) {
+        guard let image = look.image, bursts < (force ? 24 : 18), !look.colors.isEmpty else { return }
         let emitter = CAEmitterLayer()
         emitter.frame = layer.bounds
         emitter.emitterPosition = point
         emitter.emitterShape = .point
         emitter.renderMode = .unordered
-        emitter.emitterCells = colors.map { color in
+        emitter.emitterCells = look.colors.map { color in
             let cell = CAEmitterCell()
             cell.contents = image
             cell.color = color.cgColor
-            cell.birthRate = Float(count) / Float(colors.count) / 0.06
+            cell.birthRate = Float(count) / Float(look.colors.count) / 0.05
             cell.lifetime = lifetime
             cell.lifetimeRange = lifetime * 0.3
             cell.velocity = speed
-            cell.velocityRange = speed * 0.45
-            cell.emissionLongitude = upward ? -.pi / 2 : 0
-            cell.emissionRange = upward ? .pi / 2.5 : .pi * 2
-            cell.yAcceleration = gravity
+            cell.velocityRange = speed * 0.5
+            cell.emissionRange = .pi * 2
+            cell.yAcceleration = look.gravity
             cell.scale = scale
             cell.scaleRange = scale * 0.35
-            cell.scaleSpeed = -scale * 0.5
+            cell.scaleSpeed = -scale * 0.6
             cell.alphaSpeed = -1 / lifetime
-            cell.spin = spin
-            cell.spinRange = spin * 2
+            cell.spin = look.spin
+            cell.spinRange = look.spin * 2
             return cell
         }
         emitter.beginTime = CACurrentMediaTime()
         layer.addSublayer(emitter)
         bursts += 1
         Task { @MainActor [weak self] in
-            try? await Task.sleep(for: .milliseconds(60))
+            try? await Task.sleep(for: .milliseconds(50))
             emitter.birthRate = 0
             try? await Task.sleep(for: .seconds(Double(lifetime) * 1.4 + 0.1))
             emitter.removeFromSuperlayer()
@@ -485,7 +639,8 @@ final class KeyEffects {
     func beginTrail(side: Side, at point: CGPoint) -> TrailDrawing? {
         guard let settings, settings.trail != .none else { return nil }
         var kind = settings.trail
-        if settings.flow, settings.comets, level >= .toboggan, kind != .rainbow { kind = .comet }
+        // At Toboggan the plain trails become comets; the presets' own keep their look.
+        if settings.flow, settings.comets, level >= .toboggan, kind == .line || kind == .glitter { kind = .comet }
         if reduceMotion { kind = .line }
         let trail = TrailDrawing(side: side, kind: kind, color: style.thumb(side))
         trail.container.frame = layer.bounds
@@ -510,7 +665,7 @@ final class KeyEffects {
             _ = shape(width: 9, opacity: 0.85, color: trail.color)
         case .glitter:
             _ = shape(width: 3, opacity: 0.45, color: trail.color)
-            trail.emitter = stream(at: point, image: Sprites.dot, colors: [trail.color, Theme.ui(.sun)], rate: 70, scale: 0.3, spread: 8)
+            trail.emitter = stream(at: point, image: Sprites.dot, colors: [trail.color, Theme.ui(.sun)], rate: 90, scale: 0.3, spread: 8)
         case .comet:
             _ = shape(width: 3, opacity: 0.3, color: trail.color)
             _ = shape(width: 7, opacity: 0.6, color: trail.color)
@@ -526,7 +681,25 @@ final class KeyEffects {
             head.position = point
             trail.container.addSublayer(head)
             trail.head = head
-            trail.emitter = stream(at: point, image: Sprites.dot, colors: [trail.color, .white], rate: 50, scale: 0.35, spread: 4)
+            trail.emitter = stream(at: point, image: Sprites.dot, colors: [trail.color, .white], rate: 70, scale: 0.35, spread: 4)
+        case .pixels:
+            let dashes = shape(width: 7, opacity: 0.95, color: trail.color)
+            dashes.lineCap = .butt
+            dashes.lineJoin = .miter
+            dashes.lineDashPattern = [7, 4]
+            trail.emitter = stream(at: point, image: Sprites.pixel, colors: Palette.neon, rate: 60, scale: 0.6, spread: 6)
+        case .glitch:
+            _ = shape(width: 4, opacity: 0.85, color: Palette.glitch[0])
+            _ = shape(width: 4, opacity: 0.85, color: Palette.glitch[1])
+            _ = shape(width: 6, opacity: 0.95, color: trail.color)
+            trail.emitter = stream(at: point, image: Sprites.bar, colors: Palette.glitch, rate: 40, scale: 0.4, spread: 10)
+        case .hearts:
+            _ = shape(width: 5, opacity: 0.8, color: Palette.candy[0])
+            trail.emitter = stream(at: point, image: Sprites.heart, colors: Palette.candy, rate: 45, scale: 0.35, spread: 6)
+        case .silk:
+            _ = shape(width: 20, opacity: 0.16, color: trail.color)
+            _ = shape(width: 9, opacity: 0.32, color: trail.color)
+            _ = shape(width: 2.5, opacity: 0.9, color: .white)
         case .rainbow:
             let gradient = CAGradientLayer()
             gradient.type = .conic
@@ -563,10 +736,10 @@ final class KeyEffects {
             cell.contents = image
             cell.color = color.cgColor
             cell.birthRate = rate / Float(colors.count)
-            cell.lifetime = 0.6
-            cell.lifetimeRange = 0.2
-            cell.velocity = 18
-            cell.velocityRange = 14
+            cell.lifetime = 0.45
+            cell.lifetimeRange = 0.15
+            cell.velocity = 45
+            cell.velocityRange = 35
             cell.emissionRange = .pi * 2
             cell.scale = scale
             cell.scaleRange = scale * 0.5
@@ -590,6 +763,16 @@ final class KeyEffects {
                 shape.path = Self.path(Array(points.suffix(count)))
             }
             trail.head?.position = last
+        case .glitch:
+            let path = Self.path(points)
+            for (i, shape) in trail.shapes.enumerated() {
+                shape.path = path
+                // The red and cyan copies jump about beside the line.
+                if i < 2 {
+                    let side: CGFloat = i == 0 ? 1 : -1
+                    shape.setAffineTransform(CGAffineTransform(translationX: side * CGFloat.random(in: 1...5), y: CGFloat.random(in: -2...2)))
+                }
+            }
         default:
             let path = Self.path(points)
             trail.shapes.forEach { $0.path = path }
@@ -612,7 +795,11 @@ final class KeyEffects {
         trail.emitter?.birthRate = 0
         let container = trail.container
         let emitter = trail.emitter
-        let seconds = trail.kind == .line ? Theme.Motion.trailFade : 0.55
+        let seconds = switch trail.kind {
+        case .line: Theme.Motion.trailFade
+        case .silk: 1.0
+        default: 0.4
+        }
         if reduceMotion {
             Task { @MainActor in
                 try? await Task.sleep(for: .seconds(seconds))
@@ -642,100 +829,233 @@ final class KeyEffects {
 
     // MARK: Blizzard: things fall
 
+    /// Where an emitter sits on the keys.
+    private enum Place { case top, bottom, left, right, centre, area, bottomLeft, bottomRight }
+
     private func startFall() {
-        guard let settings else { return }
-        if fall != nil { return }
-        let emitter = CAEmitterLayer()
-        emitter.renderMode = .unordered
+        guard let settings, falls.isEmpty else { return }
         let kind = settings.fall
-        func cell(_ image: CGImage?, _ color: UIColor) -> CAEmitterCell {
+        func cell(_ image: CGImage?, _ color: UIColor, _ setup: (CAEmitterCell) -> Void) -> CAEmitterCell {
             let cell = CAEmitterCell()
             cell.contents = image
             cell.color = color.cgColor
+            setup(cell)
             return cell
         }
-        switch kind {
-        case .stars:
-            emitter.emitterShape = .rectangle
-            emitter.emitterCells = [UIColor(red: 1, green: 0.96, blue: 0.76, alpha: 1), style.thumb(.left)].map { color in
-                let c = cell(Sprites.twinkle, color)
-                c.birthRate = 4
-                c.lifetime = 1.4
-                c.lifetimeRange = 0.5
-                c.scale = 0.25
-                c.scaleRange = 0.15
-                c.scaleSpeed = 0.15
-                c.alphaSpeed = -0.7
-                c.spin = 1
-                c.spinRange = 2
-                return c
-            }
-        case .snow:
-            emitter.emitterShape = .line
-            let c = cell(Sprites.dot, snowColor.withAlphaComponent(0.9))
-            c.birthRate = 9
-            c.lifetime = 6
-            c.velocity = 26
-            c.velocityRange = 14
-            c.emissionLongitude = .pi / 2
-            c.emissionRange = .pi / 8
-            c.yAcceleration = 4
-            c.xAcceleration = -2
-            c.scale = 0.3
-            c.scaleRange = 0.18
-            emitter.emitterCells = [c]
-        case .confetti:
-            emitter.emitterShape = .line
-            emitter.emitterCells = [Theme.ui(.right), Theme.ui(.sun), Theme.ui(.mint), Theme.ui(.left), UIColor(red: 0.48, green: 0.38, blue: 1, alpha: 1)].map { color in
-                let c = cell(Sprites.confetti, color)
-                c.birthRate = 1.8
-                c.lifetime = 5
-                c.velocity = 50
-                c.velocityRange = 25
-                c.emissionLongitude = .pi / 2
-                c.emissionRange = .pi / 6
-                c.yAcceleration = 18
+        func cells(_ image: CGImage?, _ colors: [UIColor], _ setup: @escaping (CAEmitterCell) -> Void) -> [CAEmitterCell] {
+            colors.map { cell(image, $0, setup) }
+        }
+        /// A cannon from a bottom corner: up and in, then down again.
+        func cannon(_ image: CGImage?, _ colors: [UIColor], left: Bool, rate: Float, spin: CGFloat) -> [CAEmitterCell] {
+            cells(image, colors) { c in
+                c.birthRate = rate
+                c.lifetime = 2.2
+                c.velocity = 430
+                c.velocityRange = 120
+                c.emissionLongitude = -.pi / 2 + (left ? 0.5 : -0.5)
+                c.emissionRange = 0.4
+                c.yAcceleration = 400
                 c.scale = 0.7
                 c.scaleRange = 0.3
-                c.spin = 3
-                c.spinRange = 4
-                return c
+                c.spin = spin
+                c.spinRange = spin * 2
             }
         }
-        emitter.beginTime = CACurrentMediaTime()
-        fall = emitter
+        var sources: [(Place, [CAEmitterCell])] = []
+        switch kind {
+        case .stars:
+            let twinkles = cells(Sprites.twinkle, [UIColor(red: 1, green: 0.96, blue: 0.76, alpha: 1), style.thumb(.left)]) { c in
+                c.birthRate = 7
+                c.lifetime = 0.9
+                c.lifetimeRange = 0.3
+                c.scale = 0.25
+                c.scaleRange = 0.15
+                c.scaleSpeed = 0.3
+                c.alphaSpeed = -1.1
+                c.spin = 2
+                c.spinRange = 3
+            }
+            let shooting = cells(Sprites.star, [.white, Theme.ui(.sun)]) { c in
+                c.birthRate = 2.5
+                c.lifetime = 1
+                c.velocity = 260
+                c.velocityRange = 80
+                c.emissionRange = .pi * 2
+                c.scale = 0.15
+                c.scaleSpeed = 0.45
+                c.spin = 3
+            }
+            sources = [(.area, twinkles), (.centre, shooting)]
+        case .snow:
+            let flake = snowColor.withAlphaComponent(0.9)
+            let falling = cells(Sprites.dot, [flake]) { c in
+                c.birthRate = 16
+                c.lifetime = 3.5
+                c.velocity = 90
+                c.velocityRange = 40
+                c.emissionLongitude = .pi / 2
+                c.emissionRange = .pi / 8
+                c.yAcceleration = 30
+                c.xAcceleration = -25
+                c.scale = 0.3
+                c.scaleRange = 0.18
+            }
+            // A gust from the side.
+            let gust = cells(Sprites.dot, [flake]) { c in
+                c.birthRate = 9
+                c.lifetime = 3
+                c.velocity = 170
+                c.velocityRange = 60
+                c.emissionLongitude = 0.35
+                c.emissionRange = 0.3
+                c.scale = 0.26
+                c.scaleRange = 0.15
+            }
+            sources = [(.top, falling), (.left, gust)]
+        case .confetti:
+            let colors = [Theme.ui(.right), Theme.ui(.sun), Theme.ui(.mint), Theme.ui(.left), UIColor(red: 0.48, green: 0.38, blue: 1, alpha: 1)]
+            let rain = cells(Sprites.confetti, colors) { c in
+                c.birthRate = 1.2
+                c.lifetime = 3
+                c.velocity = 110
+                c.velocityRange = 40
+                c.emissionLongitude = .pi / 2
+                c.emissionRange = .pi / 6
+                c.yAcceleration = 40
+                c.scale = 0.7
+                c.scaleRange = 0.3
+                c.spin = 5
+                c.spinRange = 6
+            }
+            sources = [(.bottomLeft, cannon(Sprites.confetti, colors, left: true, rate: 3, spin: 6)),
+                       (.bottomRight, cannon(Sprites.confetti, colors, left: false, rate: 3, spin: 6)), (.top, rain)]
+        case .pixels:
+            let fountain = cells(Sprites.pixel, Palette.neon) { c in
+                c.birthRate = 5
+                c.lifetime = 1.6
+                c.velocity = 400
+                c.velocityRange = 110
+                c.emissionLongitude = -.pi / 2
+                c.emissionRange = 0.7
+                c.yAcceleration = 440
+                c.scale = 0.8
+                c.scaleRange = 0.3
+            }
+            let rain = cells(Sprites.pixel, Palette.neon) { c in
+                c.birthRate = 1.5
+                c.lifetime = 2.5
+                c.velocity = 140
+                c.emissionLongitude = .pi / 2
+                c.emissionRange = 0.1
+                c.scale = 0.6
+            }
+            sources = [(.bottom, fountain), (.top, rain)]
+        case .static:
+            let bars = cells(Sprites.bar, Palette.glitch) { c in
+                c.birthRate = 14
+                c.lifetime = 0.12
+                c.lifetimeRange = 0.08
+                c.scale = 1
+                c.scaleRange = 0.7
+                c.alphaRange = 0.5
+            }
+            sources = [(.area, bars)]
+        case .warp:
+            // Stars rush out from the middle and grow as they pass.
+            let stars = cells(Sprites.dot, Palette.space.map { $0.withAlphaComponent(0.4) }) { c in
+                c.birthRate = 14
+                c.lifetime = 1.4
+                c.velocity = 150
+                c.velocityRange = 90
+                c.emissionRange = .pi * 2
+                c.scale = 0.06
+                c.scaleSpeed = 0.5
+                c.alphaSpeed = 0.6
+            }
+            sources = [(.centre, stars)]
+        case .petals:
+            func drift(_ left: Bool) -> [CAEmitterCell] {
+                cells(Sprites.petal, Palette.zen) { c in
+                    c.birthRate = 1.6
+                    c.lifetime = 6
+                    c.velocity = 75
+                    c.velocityRange = 30
+                    c.emissionLongitude = left ? 0.15 : .pi - 0.15
+                    c.emissionRange = 0.45
+                    c.yAcceleration = -4
+                    c.scale = 0.55
+                    c.scaleRange = 0.2
+                    c.spin = 1.2
+                    c.spinRange = 2
+                }
+            }
+            sources = [(.left, drift(true)), (.right, drift(false))]
+        case .hearts:
+            let rising = cells(Sprites.heart, Palette.candy) { c in
+                c.birthRate = 2.5
+                c.lifetime = 3
+                c.velocity = 120
+                c.velocityRange = 60
+                c.emissionLongitude = -.pi / 2
+                c.emissionRange = 0.5
+                c.scale = 0.45
+                c.scaleRange = 0.2
+                c.scaleSpeed = 0.1
+                c.spin = 0.8
+                c.spinRange = 1.6
+            }
+            sources = [(.bottom, rising), (.bottomLeft, cannon(Sprites.heart, Palette.candy, left: true, rate: 1.5, spin: 2)),
+                       (.bottomRight, cannon(Sprites.heart, Palette.candy, left: false, rate: 1.5, spin: 2))]
+        }
+        let start = CACurrentMediaTime()
+        for (place, cells) in sources {
+            let emitter = CAEmitterLayer()
+            emitter.renderMode = .unordered
+            emitter.emitterCells = cells
+            emitter.beginTime = start
+            layer.insertSublayer(emitter, at: 0)
+            falls.append((emitter, place))
+        }
         fallKind = kind
-        layer.insertSublayer(emitter, at: 0)
         layoutFall()
     }
 
     private func layoutFall() {
-        guard let fall else { return }
-        let bounds = layer.bounds
-        fall.frame = bounds
-        if fallKind == .stars {
-            fall.emitterPosition = CGPoint(x: bounds.midX, y: bounds.midY)
-            fall.emitterSize = bounds.size
-        } else {
-            fall.emitterPosition = CGPoint(x: bounds.midX, y: -6)
-            fall.emitterSize = CGSize(width: bounds.width, height: 1)
+        let b = layer.bounds
+        for (emitter, place) in falls {
+            emitter.frame = b
+            let (position, size): (CGPoint, CGSize) = switch place {
+            case .top: (CGPoint(x: b.midX, y: -6), CGSize(width: b.width, height: 1))
+            case .bottom: (CGPoint(x: b.midX, y: b.maxY + 6), CGSize(width: b.width, height: 1))
+            case .left: (CGPoint(x: -6, y: b.midY), CGSize(width: 1, height: b.height))
+            case .right: (CGPoint(x: b.maxX + 6, y: b.midY), CGSize(width: 1, height: b.height))
+            case .centre: (CGPoint(x: b.midX, y: b.midY), .zero)
+            case .area: (CGPoint(x: b.midX, y: b.midY), b.size)
+            case .bottomLeft: (CGPoint(x: 0, y: b.maxY + 4), .zero)
+            case .bottomRight: (CGPoint(x: b.maxX, y: b.maxY + 4), .zero)
+            }
+            emitter.emitterShape = size == .zero ? .point : .rectangle
+            emitter.emitterPosition = position
+            emitter.emitterSize = size
         }
     }
 
     private func stopFall() {
-        guard let fall else { return }
-        fall.birthRate = 0
-        self.fall = nil
+        guard !falls.isEmpty else { return }
+        let gone = falls.map(\.emitter)
+        gone.forEach { $0.birthRate = 0 }
+        falls = []
         fallKind = nil
+        nextGlitch = 0
         Task { @MainActor in
             try? await Task.sleep(for: .seconds(6))
-            fall.removeFromSuperlayer()
+            gone.forEach { $0.removeFromSuperlayer() }
         }
     }
 
     private func removeFall() {
-        fall?.removeFromSuperlayer()
-        fall = nil
+        falls.forEach { $0.emitter.removeFromSuperlayer() }
+        falls = []
         fallKind = nil
     }
 

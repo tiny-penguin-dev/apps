@@ -46,6 +46,11 @@ final class KeyboardViewController: UIInputViewController {
     /// Readings taken, so the overlay walks the memory regions every fifth one.
     private var ticks = 0
     private var memoryLog = MemoryLogPacer()
+    /// The steps of this opening, from load to the keys on screen, for the typing log.
+    private var opening: OpenTiming?
+    /// Whether this keyboard has had its sync (one per keyboard iOS shows).
+    private var synced = false
+    private var uptime: Double { ProcessInfo.processInfo.systemUptime }
 
     deinit {
         if counted { LiveCount.controllers.subtract(1, ordering: .relaxed) }
@@ -60,15 +65,10 @@ final class KeyboardViewController: UIInputViewController {
         // 2026: the split keyboard stopped short of the edges). The system draws the
         // keyboard's backdrop (glass on iOS 26), so nothing here paints a background.
         view.backgroundColor = .clear
+        opening = OpenTiming(now: uptime)
 
-        let fullAccess = hasFullAccess
-        // First, so a crash while loading is caught.
-        KeyboardTelemetry.start(fullAccess: fullAccess)
-        health = KeyboardHealthRecorder(fullAccess: fullAccess)
-        debug = KeyboardDebugRecorder(fullAccess: fullAccess)
-        typingFolder = fullAccess ? KeyboardFiles.shared(KeyboardFiles.typing) : nil
-        // The keys are made when the keyboard is about to show (`makeKeyboard`), not
-        // here: iOS makes keyboards it never shows.
+        // Everything else waits until the keyboard is about to show (`makeKeyboard`):
+        // iOS makes keyboards it never shows.
 
         // Light or dark mode changing while the keyboard is up (Gabriel, 3 Nov 2026: the
         // keys stayed white until the app was reopened).
@@ -86,8 +86,16 @@ final class KeyboardViewController: UIInputViewController {
     private func makeKeyboard() -> KeyboardView {
         if let keyboard { return keyboard }
         let fullAccess = hasFullAccess
+        // First, so a crash while loading is caught.
+        KeyboardTelemetry.start(fullAccess: fullAccess)
+        opening?.step("telemetry", now: uptime)
+        health = KeyboardHealthRecorder(fullAccess: fullAccess)
+        debug = KeyboardDebugRecorder(fullAccess: fullAccess)
+        typingFolder = fullAccess ? KeyboardFiles.shared(KeyboardFiles.typing) : nil
+        opening?.step("recorders", now: uptime)
         // One model for the whole process, whichever keyboard iOS shows (`KeyboardShared`).
         let shared = KeyboardShared.get(fullAccess: fullAccess)
+        opening?.step("model", now: uptime)
         let model = shared.model
         let target = ProxyTarget(controller: self)
         target.underlines = { [weak model] in model?.keyboardSettings.underlinesWord ?? false }
@@ -115,9 +123,7 @@ final class KeyboardViewController: UIInputViewController {
         sampler.root = { [weak keyboard] in keyboard }
         sampler.onSample = { [weak self] sample in self?.took(sample) }
         self.keyboard = keyboard
-
-        // A sync each time iOS shows a new keyboard, as when each one had its own model.
-        shared.sync?.sync()
+        opening?.step("keys", now: uptime)
 
         if Flags.extensionReadout {
             keyboard.usesDefaultNote = false
@@ -149,6 +155,8 @@ final class KeyboardViewController: UIInputViewController {
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
+        // From load to here is iOS's time, and from the last appearance on a reopen.
+        if opening == nil { opening = OpenTiming(now: uptime) } else { opening?.step("wait", now: uptime) }
         let keyboard = makeKeyboard()
         mount(keyboard)
         heightRetries = 0
@@ -210,6 +218,21 @@ final class KeyboardViewController: UIInputViewController {
         super.viewDidAppear(animated)
         isVisible = true
         appearance += 1
+        logOpening()
+        // The Core ML models and the first sync, once the keys have been on screen a
+        // moment, so they don't compete with the opening (`KeyboardShared.settleIn`); a
+        // sync on each new keyboard after that, as when each one had its own model.
+        if !synced {
+            synced = true
+            if KeyboardShared.current?.hasSettledIn == true {
+                KeyboardShared.current?.sync?.sync()
+            } else {
+                Task { @MainActor in
+                    try? await Task.sleep(for: .seconds(1))
+                    KeyboardShared.current?.settleIn()
+                }
+            }
+        }
         openedAt = nil
         keyboard?.heightStory = nil
         // iOS only takes a new height once the keyboard is on screen, and seems to drop
@@ -353,6 +376,11 @@ final class KeyboardViewController: UIInputViewController {
         if isVisible, openedAt == nil, granted > 0 { openedAt = (granted, height) }
     }
 
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        if opening != nil, opening?.steps.last?.name != "layout" { opening?.step("layout", now: uptime) }
+    }
+
     /// A timed re-ask after the keyboard appeared: asks again if iOS still gives a
     /// different height, and on the last one writes down how the opening went.
     private func askAgainIfOff(appearance: Int, last: Bool) {
@@ -452,6 +480,16 @@ final class KeyboardViewController: UIInputViewController {
     }
 
     /// A reading for the typing log now, for its own reason (shown, hidden, a warning).
+    /// Writes how this opening went into the typing log, once the keys are on screen.
+    private func logOpening() {
+        guard var timing = opening else { return }
+        opening = nil
+        if timing.steps.last?.name != "layout" { timing.step("shown", now: uptime) }
+        var notes: [String] = []
+        if KeyboardView.metalLoadMillis > 0 { notes.append("metal \(KeyboardView.metalLoadMillis) off the main thread") }
+        keyboard?.model.logOpen(timing.line(now: uptime, notes: notes))
+    }
+
     private func logMemory(_ why: String) {
         guard let model = keyboard?.model, model.recorder != nil, var sample = sampler.take() else { return }
         sample.regions = MemoryRegions.current().map { MemoryRegions.line($0) }

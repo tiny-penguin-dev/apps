@@ -48,8 +48,6 @@ final class KeyboardShared {
         // Frequently used emoji and skin tones, in the extension's own files (they don't
         // sync, features/emoji).
         model.emojiStore = FileEmojiStore(url: KeyboardFiles.own(KeyboardFiles.emoji))
-        // The next-word models, loaded in the background (features/next-word-model).
-        model.loadNextWordModel = NextWordModels.load
         model.device = TypingSnapshot.Device(app: KeyboardViewController.appVersion,
                                              system: "\(UIDevice.current.systemName) \(UIDevice.current.systemVersion)",
                                              model: KeyboardViewController.hardware)
@@ -73,6 +71,19 @@ final class KeyboardShared {
             ?? KeyboardFiles.own(KeyboardFiles.misses), limit: 200)
         model.onMiss = { word in misses.save([word]) }
         entitlement = Self.makeEntitlement(model: model, fullAccess: fullAccess)
+    }
+
+    private(set) var hasSettledIn = false
+
+    /// The work that can wait until the keys are on screen, a moment after the first
+    /// appearance (Gabriel, 7 Nov 2026: a fast, light first load): the next-word Core ML
+    /// models (features/next-word-model; the word pairs answer until they are in) and
+    /// the first iCloud sync. Once per process.
+    func settleIn() {
+        guard !hasSettledIn else { return }
+        hasSettledIn = true
+        model.loadNextWordModel = NextWordModels.load
+        sync?.sync()
     }
 
     /// Pro from StoreKit, the trial from the earliest start we can see: the app's (in

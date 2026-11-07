@@ -702,6 +702,11 @@ public final class KeyboardModel {
         recorder?.record(TypingEvent(t: now, e: .memory, s: why, mem: sample))
     }
 
+    /// How long the keyboard took to open (`OpenTiming.line`). Logged in every field.
+    public func logOpen(_ line: String) {
+        recorder?.record(TypingEvent(t: now, e: .open, s: line))
+    }
+
     public func markMoment() {
         guard let recorder else { return }
         recorder.record(TypingEvent(t: now, e: .mark))

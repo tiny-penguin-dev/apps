@@ -5,22 +5,55 @@ import QuartzCore
 import UIKit
 
 /// The Metal side of the effects (features/customization "Letters on Metal"): one
-/// device, queue and pair of pipelines, made the first time an effect needs them and
-/// shared by the sky and the letters. The shaders are compiled from source here, so the
-/// package needs no metallib. `nil` when the phone can't run Metal; the effects then
-/// fall back to Core Animation.
+/// device, queue and pair of pipelines, made off the main thread the first time an
+/// effect asks for them (`load`) and shared by the sky and the letters. The shaders are
+/// compiled from source here, so the package needs no metallib; that takes a few hundred
+/// ms, so the keys open drawn by Core Animation and move to Metal once it is there
+/// (Gabriel, 7 Nov 2026: "metal doesn't need to be a loading blocker"). `shared` stays
+/// nil when the phone can't run Metal; the effects then keep to Core Animation.
 @MainActor
-final class MetalKeyboard {
-    static let shared: MetalKeyboard? = MetalKeyboard()
+final class MetalKeyboard: @unchecked Sendable {
+    /// Made by `load`; nil until then, and for good when `unavailable`.
+    private(set) static var shared: MetalKeyboard?
     /// Whether `shared` was made: Metal is in memory from then on.
     private(set) static var loaded = false
+    /// Whether making it was tried and failed.
+    private(set) static var unavailable = false
+    /// How long the shaders took to compile, in ms, for the open timings; 0 until done.
+    private(set) static var loadMillis = 0
+    private static var loading = false
+    private static var waiting: [@MainActor () -> Void] = []
 
     let device: any MTLDevice
     let queue: any MTLCommandQueue
     let sky: any MTLRenderPipelineState
     let letters: any MTLRenderPipelineState
 
-    private init?() {
+    /// Makes `shared` off the main thread and calls `ready` on it once it is there (at
+    /// once when it already is). Nothing is called when the phone can't run Metal.
+    static func load(then ready: @escaping @MainActor () -> Void) {
+        if shared != nil { ready(); return }
+        guard !unavailable else { return }
+        waiting.append(ready)
+        guard !loading else { return }
+        loading = true
+        let started = CACurrentMediaTime()
+        Task.detached(priority: .userInitiated) {
+            let made = MetalKeyboard()
+            await MainActor.run {
+                loadMillis = max(1, Int((CACurrentMediaTime() - started) * 1000))
+                loading = false
+                shared = made
+                loaded = made != nil
+                unavailable = made == nil
+                let callbacks = waiting
+                waiting = []
+                if made != nil { for callback in callbacks { callback() } }
+            }
+        }
+    }
+
+    private nonisolated init?() {
         guard let device = MTLCreateSystemDefaultDevice(), let queue = device.makeCommandQueue() else { return nil }
         do {
             let library = try device.makeLibrary(source: Self.source, options: nil)
@@ -31,10 +64,9 @@ final class MetalKeyboard {
         }
         self.device = device
         self.queue = queue
-        Self.loaded = true
     }
 
-    private static func pipeline(_ device: any MTLDevice, _ library: any MTLLibrary, vertex: String,
+    private nonisolated static func pipeline(_ device: any MTLDevice, _ library: any MTLLibrary, vertex: String,
                                  fragment: String) throws -> any MTLRenderPipelineState {
         let descriptor = MTLRenderPipelineDescriptor()
         descriptor.vertexFunction = library.makeFunction(name: vertex)
@@ -93,7 +125,7 @@ final class MetalKeyboard {
     /// Letters: each letter is a 6×6 grid (216 vertices) bent by the effect, drawn from
     /// a glyph atlas. Uniforms and instances are all float4s so Swift and Metal agree on
     /// the layout.
-    static let source = """
+    nonisolated static let source = """
     #include <metal_stdlib>
     using namespace metal;
 

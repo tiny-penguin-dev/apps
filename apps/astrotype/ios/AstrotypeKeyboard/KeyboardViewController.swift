@@ -569,9 +569,20 @@ final class ProxyTarget: TextTarget {
     }
 
     /// Deletes the selected text, if any, so what is typed next takes its place.
+    ///
+    /// Deleting a selected word also takes the space before it in most fields (iOS's
+    /// smart delete), so typing over "sentence" in "This is a sentence" gave "This is
+    /// ahello" (a typing recording, Gabriel, 7 Nov 2026). The word is being replaced,
+    /// so that space is put back.
     private func deleteSelection() {
         guard !clearedSelection, let selected = proxy.selectedText, !selected.isEmpty else { return }
+        let spaceBefore = proxy.documentContextBeforeInput?.last?.isWhitespace == true
+            && selected.first?.isWhitespace != true
         proxy.deleteBackward()
+        if spaceBefore, let before = proxy.documentContextBeforeInput,
+           let last = before.last, !last.isWhitespace {
+            proxy.insertText(" ")
+        }
         clearedSelection = true
         Task { @MainActor [weak self] in self?.clearedSelection = false }
     }

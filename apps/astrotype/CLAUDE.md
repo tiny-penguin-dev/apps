@@ -58,9 +58,11 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
     overlay every 5 s) also walk the VM regions by tag (`MemoryRegions`: CA, malloc,
     IOSurface, ...), and `LiveCount.keyboardViews` counts KeyboardViews alive. iOS makes a new controller per presentation and can keep old
     ones alive, so the model, sync and Pro check live once per process in
-    `KeyboardShared`; each controller adds its own view and `ProxyTarget` and becomes
-    `showing` on appear, and takes its KeyboardView out of its view on `viewDidDisappear`
-    (iOS keeps old controllers' views in its windows, and each held ~9 MB of keys). `ExtensionChecks`
+    `KeyboardShared`; each controller makes its KeyboardView and `ProxyTarget` the first
+    time it is about to show (`makeKeyboard`, not in `viewDidLoad`: iOS makes keyboards
+    it never shows, and each cost ~9 MB of keys), becomes `showing` on appear, and
+    takes its KeyboardView out of its view on `viewDidDisappear` (iOS keeps old
+    controllers' views in its windows). `ExtensionChecks`
     writes the StoreKit, memory and size readings into the bar's idle note while
     `Flags.extensionReadout` is on.
   - `AstrotypeKit/`: the local package, three targets:

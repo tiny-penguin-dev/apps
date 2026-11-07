@@ -66,15 +66,32 @@ final class KeyboardViewController: UIInputViewController {
         KeyboardTelemetry.start(fullAccess: fullAccess)
         health = KeyboardHealthRecorder(fullAccess: fullAccess)
         debug = KeyboardDebugRecorder(fullAccess: fullAccess)
+        typingFolder = fullAccess ? KeyboardFiles.shared(KeyboardFiles.typing) : nil
+        // The keys are made when the keyboard is about to show (`makeKeyboard`), not
+        // here: iOS makes keyboards it never shows.
+
+        // Light or dark mode changing while the keyboard is up (Gabriel, 3 Nov 2026: the
+        // keys stayed white until the app was reopened).
+        registerForTraitChanges([UITraitUserInterfaceStyle.self]) { (self: Self, _: UITraitCollection) in
+            self.followKeyboardAppearance()
+        }
+    }
+
+
+    /// The keys, made the first time this keyboard is about to show. Not in
+    /// `viewDidLoad`: iOS makes a keyboard for a field it may never show (Gabriel,
+    /// 7 Nov 2026: closed for 15 minutes, "1 keyboard" became "4 keyboards · 5 key
+    /// views" and 38 MB became 78), and every one built its keys with their drawing
+    /// and Metal surfaces, took the shared model's output, and started a sync.
+    private func makeKeyboard() -> KeyboardView {
+        if let keyboard { return keyboard }
+        let fullAccess = hasFullAccess
         // One model for the whole process, whichever keyboard iOS shows (`KeyboardShared`).
         let shared = KeyboardShared.get(fullAccess: fullAccess)
-        shared.showing = self
         let model = shared.model
         let target = ProxyTarget(controller: self)
         target.underlines = { [weak model] in model?.keyboardSettings.underlinesWord ?? false }
-        model.target = target
         self.target = target
-        typingFolder = fullAccess ? KeyboardFiles.shared(KeyboardFiles.typing) : nil
 
         let keyboard = KeyboardView(model: model)
         keyboard.usesSystemBackdrop = true
@@ -98,9 +115,8 @@ final class KeyboardViewController: UIInputViewController {
         sampler.root = { [weak keyboard] in keyboard }
         sampler.onSample = { [weak self] sample in self?.took(sample) }
         self.keyboard = keyboard
-        mount(keyboard)
 
-        // A sync each time iOS makes a keyboard, as when each one had its own model.
+        // A sync each time iOS shows a new keyboard, as when each one had its own model.
         shared.sync?.sync()
 
         if Flags.extensionReadout {
@@ -109,12 +125,7 @@ final class KeyboardViewController: UIInputViewController {
                 keyboard?.bar.note = note
             }
         }
-
-        // Light or dark mode changing while the keyboard is up (Gabriel, 3 Nov 2026: the
-        // keys stayed white until the app was reopened).
-        registerForTraitChanges([UITraitUserInterfaceStyle.self]) { (self: Self, _: UITraitCollection) in
-            self.followKeyboardAppearance()
-        }
+        return keyboard
     }
 
     /// Puts the keys in the controller's view.
@@ -138,32 +149,34 @@ final class KeyboardViewController: UIInputViewController {
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        if let keyboard { mount(keyboard) }
+        let keyboard = makeKeyboard()
+        mount(keyboard)
         heightRetries = 0
         // The process's one model types into whichever keyboard is showing.
         KeyboardShared.current?.showing = self
-        keyboard?.model.target = target
-        keyboard?.attachToModel()
+        keyboard.model.target = target
+        keyboard.attachToModel()
         // Our globe key only where iOS draws none (Home button phones); elsewhere the
         // emoji key takes its place, as on Apple's keyboard (features/emoji).
-        keyboard?.showsGlobe = needsInputModeSwitchKey
+        keyboard.showsGlobe = needsInputModeSwitchKey
         applyHeight(fresh: true)
         health?.appeared()
         debug?.appeared()
         sampler.start()
         askedAppearance = nil
         followKeyboardAppearance()
-        if let model = keyboard?.model, let store = model.store, let saved = store.load(), let changed = store.lastChanged() {
+        let model = keyboard.model
+        if let store = model.store, let saved = store.load(), let changed = store.lastChanged() {
             // Settings → Debug may have changed them since the keyboard last showed.
             model.adopt(saved, changed: changed)
         }
-        keyboard?.model.field = field
+        model.field = field
         // Each appearance starts with a snapshot (a new recorder writes its own first).
-        let recording = keyboard?.model.recorder != nil
+        let recording = model.recorder != nil
         updateRecorder()
-        if recording { keyboard?.model.snapshot() }
+        if recording { model.snapshot() }
         logMemory("show")
-        keyboard?.model.contextChanged()
+        model.contextChanged()
     }
 
     /// Starts or stops the typing recorder with the setting (Full Access only).

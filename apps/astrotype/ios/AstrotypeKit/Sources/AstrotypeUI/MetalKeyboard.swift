@@ -96,20 +96,24 @@ final class MetalKeyboard: @unchecked Sendable {
         return layer
     }
 
-    /// Clear the layer's next drawable, let `draw` encode into it, and show it.
-    func draw(on layer: CAMetalLayer, _ draw: (any MTLRenderCommandEncoder) -> Void) {
+    /// Clear the layer's next drawable, let `draw` encode into it, and show it. False when
+    /// nothing was drawn: the layer has no drawable yet (it isn't on screen, or its size
+    /// is still zero), so the caller should try again on a later frame.
+    @discardableResult
+    func draw(on layer: CAMetalLayer, _ draw: (any MTLRenderCommandEncoder) -> Void) -> Bool {
         guard layer.drawableSize.width >= 1, layer.drawableSize.height >= 1, let drawable = layer.nextDrawable(),
-              let buffer = queue.makeCommandBuffer() else { return }
+              let buffer = queue.makeCommandBuffer() else { return false }
         let pass = MTLRenderPassDescriptor()
         pass.colorAttachments[0].texture = drawable.texture
         pass.colorAttachments[0].loadAction = .clear
         pass.colorAttachments[0].clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 0)
         pass.colorAttachments[0].storeAction = .store
-        guard let encoder = buffer.makeRenderCommandEncoder(descriptor: pass) else { return }
+        guard let encoder = buffer.makeRenderCommandEncoder(descriptor: pass) else { return false }
         draw(encoder)
         encoder.endEncoding()
         buffer.present(drawable)
         buffer.commit()
+        return true
     }
 
     static func size(_ layer: CAMetalLayer, bounds: CGRect, scale: CGFloat) {
@@ -749,8 +753,11 @@ final class LetterRenderer {
         hits.values.contains { time - $0.time < duration } || touches.contains { time - $0.time < 1.5 }
     }
 
+    /// Draws the frame; false when the layer had no drawable to draw into (see
+    /// `MetalKeyboard.draw`), so the keys' letters are not on screen yet.
+    @discardableResult
     func render(keys: [(key: Key, letter: Character, frame: CGRect, ink: UIColor)], frames: [(key: Key, frame: CGRect)],
-                time: TimeInterval, level: Int, style: KeyStyle) {
+                time: TimeInterval, level: Int, style: KeyStyle) -> Bool {
         hits = hits.filter { time - $0.value.time < 3 }
         touches.removeAll { time - $0.time >= 1.5 }
         var instances: [Instance] = []
@@ -809,7 +816,7 @@ final class LetterRenderer {
         let keyPipeline = metal.keys
         let atlas = self.atlas
         let keyCount = keyInstances.count
-        metal.draw(on: layer) { encoder in
+        return metal.draw(on: layer) { encoder in
             guard uniforms.info0.x > 0 else { return }
             if let keyBuffer {
                 encoder.setRenderPipelineState(keyPipeline)

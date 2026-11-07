@@ -183,6 +183,9 @@ final class KeyEffects {
     private var skyGoneAt: TimeInterval?
     private var letters: LetterRenderer?
     private var lettersDirty = false
+    /// Frames in a row the Metal letters could not draw (no drawable yet): the link
+    /// keeps trying for a while, since the keys' own labels are hidden meanwhile.
+    private var undrawnFrames = 0
     private var bursts = 0
     private var bursting = false
     private var glowing = false
@@ -448,6 +451,7 @@ final class KeyEffects {
     // MARK: Ticks
 
     private func ensureLink() {
+        undrawnFrames = 0
         guard link == nil else { return }
         let target = LinkTarget { [weak self] in self?.step() }
         let link = CADisplayLink(target: target, selector: #selector(LinkTarget.step))
@@ -472,12 +476,21 @@ final class KeyEffects {
             let moving = letters.isAnimating(time: time) || level >= .aurora
                 || ((letters.mode == .disco || letters.keyMode != .none) && level >= .toboggan)
             if moving || lettersDirty {
-                letters.render(keys: letters.mode != .none ? surface.letterKeys() : [],
-                               frames: letters.keyMode != .none ? surface.keyFrames() : [],
-                               time: time, level: level.rawValue, style: style)
-                lettersDirty = false
+                let drew = letters.render(keys: letters.mode != .none ? surface.letterKeys() : [],
+                                          frames: letters.keyMode != .none ? surface.keyFrames() : [],
+                                          time: time, level: level.rawValue, style: style)
+                // A layer that isn't on screen yet gives no drawable (`viewWillAppear`,
+                // or Metal arriving mid-show): the frame was skipped, so the letters
+                // stay dirty and the link tries again, for up to ~2 s (Gabriel, 7 Nov
+                // 2026: "sometimes the key letters don't show up").
+                if drew {
+                    lettersDirty = false
+                    undrawnFrames = 0
+                } else {
+                    undrawnFrames += 1
+                }
             }
-            busy = busy || moving
+            busy = busy || moving || (lettersDirty && undrawnFrames < 120)
         }
         if let sky {
             sky.render(time: time, kind: settings?.sky ?? .aurora)

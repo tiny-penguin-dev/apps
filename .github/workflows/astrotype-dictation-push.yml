@@ -48,8 +48,8 @@ jobs:
             "input-push-token": 1,
             "attributes-type": "DictationActivityAttributes",
             "attributes": {"started": $SINCE_2001},
-            "content-state": {"listening": false, "note": "Started by push"},
-            "alert": {"title": "Astrotype dictation", "body": "Starting the test session"}
+            "content-state": {"listening": false, "note": "Tap Talk to start the mic"},
+            "alert": {"title": "Astrotype dictation", "body": "Tap Talk to start dictating"}
           }}
           JSON
           STATUS="$(curl --silent --show-error --http2 -o response.txt -w '%{http_code}' \

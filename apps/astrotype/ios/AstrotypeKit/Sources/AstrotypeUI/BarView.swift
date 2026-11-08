@@ -90,15 +90,17 @@ public final class BarView: UIView {
         let colors = keyColors
         return colors.functionKey.uiColor.withAlphaComponent(CGFloat(colors.functionKey.alpha * colors.keyOpacity))
     }
-    /// The letters' colour: the chosen word, on its pill.
-    private var pillInk: UIColor { keyColors.letters.uiColor }
+    /// Bar text is never fully solid and never a gray of its own: a pure colour at 80%
+    /// where it stands out, 60% otherwise (Gabriel, 8 Nov 2026).
+    /// The chosen word, on its pill: the letters' colour at 80%.
+    private var pillInk: UIColor { keyColors.letters.uiColor.withAlphaComponent(0.8) }
     /// Text with no key behind it sits on the system backdrop, so it follows the look,
-    /// not the theme's letters: pure white in dark, pure black in light (Gabriel,
-    /// 8 Nov 2026). Readings, typed text.
-    private var backdropInk: UIColor { keyStyle.backgroundIsDark ? .white : .black }
-    /// `backdropInk` see-through, never a gray of its own: the other guesses, notes,
-    /// the pencil, ✕ and the globe.
-    public var dimInk: UIColor { backdropInk.withAlphaComponent(0.6) }
+    /// not the theme's letters: white in dark, black in light.
+    private var backdrop: UIColor { keyStyle.backgroundIsDark ? .white : .black }
+    /// Readings and typed text: `backdrop` at 80%.
+    private var backdropInk: UIColor { backdrop.withAlphaComponent(0.8) }
+    /// The other guesses, notes, the pencil, ✕ and the globe: `backdrop` at 60%.
+    public var dimInk: UIColor { backdrop.withAlphaComponent(0.6) }
 
     public override func traitCollectionDidChange(_ previous: UITraitCollection?) {
         super.traitCollectionDidChange(previous)

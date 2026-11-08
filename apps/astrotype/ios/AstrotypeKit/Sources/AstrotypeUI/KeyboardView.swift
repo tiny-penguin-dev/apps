@@ -16,7 +16,7 @@ import UIKit
 /// person can turn off (`KeyboardSettings.showsBar`).
 ///
 ///     let keyboard = KeyboardView(model: model)
-///     keyboard.onSystemKey = { key in if key == .globe { advanceToNextInputMode() } }
+///     keyboard.onGlobeTouch = { view, event in handleInputModeList(from: view, with: event) }
 public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFeedback {
     public static let barHeight: CGFloat = 44
     /// The narrowest open column beside the keys that takes the guesses.
@@ -36,8 +36,17 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
     public var usesSystemBackdrop = false {
         didSet { if usesSystemBackdrop != oldValue { applyBackdrop() } }
     }
-    /// Keys the engine leaves to the host: the globe.
+    /// Keys the engine leaves to the host: the globe, as a tap, when `onGlobeTouch` is nil.
     public var onSystemKey: ((Key) -> Void)?
+    /// Every touch on our globe key (the bar's and the bottom row's) with its event, for
+    /// the extension to hand to iOS's `handleInputModeList(from:with:)`: a tap goes to
+    /// the next keyboard and a hold shows the list, as on Apple's keyboard. Not
+    /// `advanceToNextInputMode()`: on iOS 27.2 that crashed the app being typed in, every
+    /// time, inside Apple's keyboard code (Gabriel, 8 Nov 2026, Notes:
+    /// `-[UIKeyboardLayoutStar activationIndicatorView]` index 43 beyond 42).
+    public var onGlobeTouch: ((UIView, UIEvent) -> Void)? {
+        didSet { surface.onGlobeTouch = onGlobeTouch }
+    }
     /// Whether the keyboard has our globe key: the extension sets it from
     /// `needsInputModeSwitchKey` (true only where iOS draws no globe of its own). It
     /// sits at the bar's leading end when the bar is on top, else on the bottom row
@@ -95,9 +104,16 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         config.baseForegroundColor = Theme.ui(.muted)
         let button = UIButton(configuration: config)
         button.accessibilityLabel = "Next keyboard"
-        button.addAction(UIAction { [weak self] _ in self?.onSystemKey?(.globe) }, for: .touchUpInside)
+        button.addAction(UIAction { [weak self] _ in
+            if self?.onGlobeTouch == nil { self?.onSystemKey?(.globe) }
+        }, for: .touchUpInside)
+        button.addTarget(self, action: #selector(globeTouched(_:with:)), for: .allTouchEvents)
         return button
     }()
+
+    @objc private func globeTouched(_ sender: UIView, with event: UIEvent) {
+        onGlobeTouch?(sender, event)
+    }
     private let keyHaptic = UIImpactFeedbackGenerator(style: .soft)
     private let commitHaptic = UIImpactFeedbackGenerator(style: .light)
 

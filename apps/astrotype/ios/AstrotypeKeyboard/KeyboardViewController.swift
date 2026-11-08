@@ -121,8 +121,11 @@ final class KeyboardViewController: UIInputViewController {
         // Haptics do nothing in an extension without Full Access (Phase 1), so the
         // generators are not even prepared then.
         keyboard.hapticsAvailable = fullAccess
-        keyboard.onSystemKey = { [weak self] key in
-            if key == .globe { self?.advanceToNextInputMode() }
+        // iOS's own globe handling: a tap goes to the next keyboard, a hold shows the
+        // list. `advanceToNextInputMode()` crashed the app being typed in on iOS 27.2,
+        // every time (`KeyboardView.onGlobeTouch`).
+        keyboard.onGlobeTouch = { [weak self] view, event in
+            self?.handleInputModeList(from: view, with: event)
         }
         // The guesses bar going on or off, or the split, changes the height to ask for.
         keyboard.onHeightChange = { [weak self] _ in self?.view.setNeedsLayout() }

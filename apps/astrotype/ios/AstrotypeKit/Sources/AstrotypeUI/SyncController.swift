@@ -10,12 +10,20 @@ import Synchronization
 ///
 ///     let sync = SyncController(model: model, cloud: CloudKitSync())
 ///     sync.onResult = { result in ... }     // for the status the app reads
-///     sync.sync()                           // when the keyboard comes up
+///     sync.sync()                           // the first time the keyboard comes up
+///     sync.syncOnShow()                     // each time after: at most every few minutes
 @MainActor
 public final class SyncController {
     public var onResult: ((Result<Date, Error>) -> Void)?
     /// How long after a change the push waits, so a burst of changes goes up once.
     public var pushDelay: TimeInterval = 2
+    /// How long after a round came back the keyboard coming up starts another
+    /// (`syncOnShow`): the keyboard comes up many times an hour, and every round is a
+    /// CloudKit fetch and some heap. Changes made here still go up after `pushDelay`; it
+    /// is other devices' changes that wait this long at most.
+    public var showInterval: TimeInterval = 5 * 60
+    /// When the last round came back with iCloud's answer.
+    private var lastRound: Date?
 
     private let model: KeyboardModel
     private let cloud: CloudSync
@@ -42,6 +50,13 @@ public final class SyncController {
             beforeSettings?(settings)
             self?.pushSoon()
         }
+    }
+
+    /// A round for the keyboard coming up: now, unless one came back less than
+    /// `showInterval` ago.
+    public func syncOnShow() {
+        if let lastRound, Date().timeIntervalSince(lastRound) < showInterval { return }
+        sync()
     }
 
     /// Fetch, merge, apply and push now. A round already running makes a note to go
@@ -72,6 +87,7 @@ public final class SyncController {
         round = nil
         switch result {
         case .success(let merged):
+            lastRound = Date()
             model.learnedWords = merged.words
             model.adopt(merged.settings, changed: merged.settingsChanged)
             if let personal = merged.personal { model.adoptPersonal(personal) }

@@ -5,11 +5,14 @@ import UIKit
 
 /// A text view with the Astrotype keyboard as its input view, for the app's own
 /// screens (Try it, Practice): the same `KeyboardView` and `KeyboardModel` as the
-/// extension, on the same `Composer`. One session per screen.
+/// extension, on the same `Composer`, in a `KeyboardFrame` that draws the margin iOS
+/// puts around the extension. One session per screen.
 @MainActor
 final class KeyboardSession: NSObject, UITextViewDelegate {
     let model: KeyboardModel
     let keyboard: AstrotypeUI.KeyboardView
+    /// The text view's input view: the keys with the system's margin around them.
+    let inputFrame: KeyboardFrame
     let target = TextViewTarget()
     /// A word went into the field.
     var onCommit: ((String) -> Void)?
@@ -36,11 +39,11 @@ final class KeyboardSession: NSObject, UITextViewDelegate {
         // Practice measures typing and records each word's touches: no next words.
         model.offersNextWords = false
         keyboard = AstrotypeUI.KeyboardView(model: model)
-        keyboard.autoresizingMask = [.flexibleWidth]
+        inputFrame = KeyboardFrame(keyboard: keyboard, bottom: Self.windowBottom)
         super.init()
         keyboard.onHeightChange = { [weak self] height in
             guard let self else { return }
-            self.keyboard.frame.size.height = height
+            self.inputFrame.frame.size.height = self.inputFrame.height(forKeys: height)
             self.target.textView?.reloadInputViews()
         }
         model.onCommit = { [weak self] word in
@@ -92,11 +95,12 @@ final class KeyboardSession: NSObject, UITextViewDelegate {
     /// it. UIKit sizes an input view from its frame when it comes up, and the frame
     /// started at a phone's height: on a wide screen the taller keys were cut off when
     /// the resize after the first layout came too late (Gabriel, 1 Nov 2026).
-    func fit(width: CGFloat) {
+    func fit(width: CGFloat, bottom: CGFloat = KeyboardSession.windowBottom) {
         guard width > 0 else { return }
-        let height = keyboard.height(forWidth: width)
-        guard keyboard.frame.size.height != height || keyboard.frame.size.width != width else { return }
-        keyboard.frame = CGRect(x: 0, y: 0, width: width, height: height)
+        inputFrame.setBottom(bottom)
+        let height = inputFrame.height(forWidth: width)
+        guard inputFrame.frame.size.height != height || inputFrame.frame.size.width != width else { return }
+        inputFrame.frame = CGRect(x: 0, y: 0, width: width, height: height)
         target.textView?.reloadInputViews()
     }
 
@@ -106,6 +110,14 @@ final class KeyboardSession: NSObject, UITextViewDelegate {
             ?? UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
         guard let scene else { return 390 }
         return scene.keyWindow?.bounds.width ?? scene.screen.bounds.width
+    }
+
+    /// The strip under the keys: the window's home indicator area, where iOS leaves
+    /// room under the extension too (0 on a phone with a home button).
+    static var windowBottom: CGFloat {
+        let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first { $0.activationState == .foregroundActive }
+            ?? UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
+        return scene?.keyWindow?.safeAreaInsets.bottom ?? 0
     }
 
     /// Empties the field and drops any open word.
@@ -156,7 +168,7 @@ struct KeyboardField: UIViewRepresentable {
         textView.spellCheckingType = .no
         textView.autocapitalizationType = .none
         session.fit(width: KeyboardSession.windowWidth)
-        textView.inputView = session.keyboard
+        textView.inputView = session.inputFrame
         textView.delegate = session
         session.target.textView = textView
         Task { @MainActor in textView.becomeFirstResponder() }
@@ -164,6 +176,6 @@ struct KeyboardField: UIViewRepresentable {
     }
 
     func updateUIView(_ uiView: UITextView, context: Context) {
-        if let width = uiView.window?.bounds.width { session.fit(width: width) }
+        if let window = uiView.window { session.fit(width: window.bounds.width, bottom: window.safeAreaInsets.bottom) }
     }
 }

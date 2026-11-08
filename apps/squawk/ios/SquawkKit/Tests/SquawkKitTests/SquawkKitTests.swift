@@ -882,3 +882,16 @@ private func onceDates(_ plan: [PlannedRing]) -> [Date] {
         #expect(agenda.access == .allowed)
     }
 }
+
+@Suite struct HomeNamingTests {
+    @Test func dropsTrailingPunctuation() {
+        #expect(HomePlanner.homeKitSafe("Squawk · Up! ") == "Squawk · Up")
+        #expect(HomePlanner.homeKitSafe("Squawk · Wake up · 6:30") == "Squawk · Wake up · 6:30")
+    }
+
+    @Test func numbersDuplicatesWithoutBrackets() {
+        let taken: Set<String> = ["Squawk · Wake up · 6:30", "Squawk · Wake up · 6:30 2"]
+        #expect(HomePlanner.uniqueName("Squawk · Wake up · 6:30", taken: taken) == "Squawk · Wake up · 6:30 3")
+        #expect(HomePlanner.uniqueName("Squawk · Up!", taken: []) == "Squawk · Up")
+    }
+}

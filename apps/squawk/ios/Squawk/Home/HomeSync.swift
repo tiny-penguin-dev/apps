@@ -252,13 +252,7 @@ final class HomeSync {
     /// HomeKit wants each automation's name to be unique in the home.
     private func uniqueName(_ name: String, in home: HMHome) -> String {
         let taken = Set(home.triggers.map(\.name) + home.actionSets.map(\.name))
-        var candidate = name
-        var n = 2
-        while taken.contains(candidate) {
-            candidate = "\(name) (\(n))"
-            n += 1
-        }
-        return candidate
+        HomePlanner.uniqueName(name, taken: taken)
     }
 
     private func reason(_ error: Error) -> String {

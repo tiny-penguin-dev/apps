@@ -38,10 +38,12 @@ public struct TypingReplay: Sendable {
         public var commits: [String]
     }
 
-    /// The field in memory: written text, and the open word apart as marked text.
+    /// The field in memory: written text, the open word apart as marked text, and what
+    /// is known to be after the cursor (a word written earlier being fixed).
     struct Field {
         var text = ""
         var marked = ""
+        var after = ""
 
         mutating func apply(_ effects: [Composer.Effect]) {
             for effect in effects {
@@ -54,6 +56,16 @@ public struct TypingReplay: Sendable {
                 case .mark(let s): marked = s
                 case .commit(let s): text += s; marked = ""
                 case .clearMark: marked = ""
+                case .moveCursor(let count):
+                    if count > 0 {
+                        let moved = after.prefix(count)
+                        text += moved
+                        after.removeFirst(moved.count)
+                    } else if count < 0 {
+                        let moved = text.suffix(-count)
+                        after = moved + after
+                        text.removeLast(moved.count)
+                    }
                 default: break
                 }
             }
@@ -236,6 +248,18 @@ public struct TypingReplay: Sendable {
                     c.learned = learned
                     out = c.learnedDidChange(time: t)
                 }
+            case .earlier:
+                if let word = event.s {
+                    let offset = min(max(0, event.n ?? 0), word.count)
+                    let spot = EarlierSpot(word: word, offset: offset, selected: event.k == "sel", rest: event.i ?? 0)
+                    // What follows the cursor is not recorded: enough to step over.
+                    field.after = String(word.dropFirst(offset)) + String(repeating: " ", count: spot.rest)
+                    out = c.cursorLanded(at: spot)
+                } else {
+                    field.after = ""
+                    out = c.cursorLanded(at: nil)
+                }
+            case .earlierUndo: out = c.undoEarlierFix()
             case .tick: out = c.tick(time: t)
             case .hide: out = c.keyboardWillHide()
             case .language:
@@ -258,7 +282,7 @@ public struct TypingReplay: Sendable {
 
     static func barWord(_ bar: Composer.Bar, _ index: Int) -> String? {
         switch bar {
-        case .guesses(let words, _), .fix(let words, _), .next(let words, _, _):
+        case .guesses(let words, _), .fix(let words, _), .next(let words, _, _), .earlier(let words, _):
             words.indices.contains(index) ? words[index].lowercased() : nil
         case .idle, .correcting:
             nil

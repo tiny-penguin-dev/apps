@@ -90,6 +90,10 @@ public struct Composer: Sendable {
         /// "Not it?" was tapped (features/missed-words): the word meant, as typed so
         /// far. The keys type here, not into the text, until it is saved or cancelled.
         case correcting(String)
+        /// The person put the cursor in a word written earlier, or selected it
+        /// (features/fix-earlier-word): that word (`chosen`) and its other readings.
+        /// Tapping one swaps it in (`choose(guess:)`); "Not it?" types the word meant.
+        case earlier([String], chosen: Int)
     }
 
     public enum Shift: Sendable, Equatable {
@@ -120,6 +124,9 @@ public struct Composer: Sendable {
         case unlearn(String)
         /// Something to say in the bar for a moment; nothing changed in the field.
         case notice(Notice)
+        /// Move the cursor by this many characters (negative is left), to reach a word
+        /// written earlier and to come back after fixing it (features/fix-earlier-word).
+        case moveCursor(Int)
         /// A word written earlier is final: the person went on without changing it (or
         /// fixed it from the bar first). The host learns from it (`PersonalModel`).
         case settled(SettledWord)
@@ -245,6 +252,15 @@ public struct Composer: Sendable {
     /// The word meant, while "Not it?" is open, and the bar to go back to on cancel.
     private var correction: String?
     private var barBeforeCorrection: Bar = .idle
+    /// The word written earlier that the cursor is in, while the bar shows it.
+    private var earlier: Earlier?
+    /// The last words that went in, newest last, with their pieces and readings, so a
+    /// word fixed later shows what the swipe could have been (features/fix-earlier-word).
+    /// Kept in memory only, and dropped when the keyboard goes away.
+    private var recentWords: [Committed] = []
+    static let recentLimit = 20
+    /// The last earlier word swapped, until anything else happens: Undo puts it back.
+    private var lastEarlierFix: EarlierFix?
 
     public init(dictionary: Lexicon, learned: LearnedWords = LearnedWords(), layout: Layout, settings: Settings = Settings()) {
         self.layout = layout
@@ -319,6 +335,7 @@ public struct Composer: Sendable {
                 last.autospaced.map { time - $0 <= Self.joinWindow } == true && contextBefore.hasSuffix(last.word + last.trailing) ? last : nil
             }
             if committed != nil { effects += settle() }
+            leaveEarlier()
             state.bar = .idle
         }
         open[id] = Open(side: side, start: time, points: [point], times: [time], startKey: letter)
@@ -412,6 +429,7 @@ public struct Composer: Sendable {
 
     public mutating func press(_ key: Key, time: TimeInterval) -> [Effect] {
         if correction != nil { return pressWhileCorrecting(key, time: time) }
+        if key != .shift { leaveEarlier() }
         var effects: [Effect] = [.haptic(.key)]
         let spaced = autoSpaced
         let previousSpace = lastSpace
@@ -502,6 +520,7 @@ public struct Composer: Sendable {
             typeCorrection(character == "’" ? "'" : character)
             return [.haptic(.key)]
         }
+        leaveEarlier()
         var effects: [Effect] = [.haptic(.key)]
         let spaced = wordSpace
         autoSpaced = false
@@ -527,6 +546,7 @@ public struct Composer: Sendable {
     /// as space would write it, then the emoji; no space follows the emoji, so another
     /// can come right after (features/emoji).
     public mutating func insert(emoji: String, time: TimeInterval) -> [Effect] {
+        leaveEarlier()
         var effects: [Effect] = [.haptic(.key)]
         autoSpaced = false
         wordSpace = false
@@ -572,6 +592,9 @@ public struct Composer: Sendable {
         case .next(let words, _, _):
             guard words.indices.contains(index) else { return [] }
             return writeNext(words[index])
+        case .earlier(let words, let chosen):
+            guard words.indices.contains(index), index != chosen else { return [] }
+            return fixEarlier(to: words[index], missed: false)
         case .idle, .correcting:
             return []
         }
@@ -629,6 +652,8 @@ public struct Composer: Sendable {
     /// this extension. An open word is left as it is.
     public mutating func keyboardWillHide() -> [Effect] {
         cancelCorrection()
+        leaveEarlier()
+        recentWords = []
         guard !hasOpenWord, committed != nil else { return [] }
         let effects = settle()
         state.bar = .idle
@@ -677,6 +702,8 @@ public struct Composer: Sendable {
             wordSpace = true
             joinable = nil
             effects = [.commit(word), .insert(" "), .haptic(.commit)]
+        } else if let spot = earlier {
+            effects = fixEarlier(to: Self.cased(meant, as: spot.casing), missed: true)
         } else if var last = committed {
             let word = Self.cased(meant, as: last.casing)
             let original = last.fixedFrom ?? last.word
@@ -761,7 +788,7 @@ public struct Composer: Sendable {
     private mutating func offerNextWords() {
         let fix: (words: [String], chosen: Int)?
         switch state.bar {
-        case .guesses, .correcting: return
+        case .guesses, .correcting, .earlier: return
         case .idle: fix = nil
         case .fix(let words, let chosen): fix = (words, chosen)
         case .next(_, let words, let chosen): fix = words.count > 1 ? (words, chosen) : nil
@@ -820,7 +847,17 @@ public struct Composer: Sendable {
     public mutating func learnedDidChange(time: TimeInterval) -> [Effect] {
         guard correction == nil else { return [] }
         if hasOpenWord { return reguess(time: time) }
-        if case .fix(let words, let chosen) = state.bar {
+        if case .earlier(let words, let chosen) = state.bar, var spot = earlier {
+            // A blocked reading goes; the word in the field stays.
+            let kept = words.enumerated()
+                .filter { $0.offset == chosen || matcher.learned.weight(of: $0.element.lowercased()) >= 0 }
+                .map(\.element)
+            spot.chosen = kept.firstIndex(of: words[chosen]) ?? 0
+            spot.words = kept
+            earlier = spot
+            state.bar = .earlier(kept, chosen: spot.chosen)
+            refreshState()
+        } else if case .fix(let words, let chosen) = state.bar {
             let kept = words.enumerated()
                 .filter { $0.offset == chosen || matcher.learned.weight(of: $0.element.lowercased()) >= 0 }
                 .map(\.element)
@@ -844,6 +881,7 @@ public struct Composer: Sendable {
     @discardableResult
     public mutating func reset() -> [Effect] {
         correction = nil
+        leaveEarlier()
         let effects = settle()
         pieces = []
         open = [:]
@@ -866,6 +904,7 @@ public struct Composer: Sendable {
             return [.haptic(.key)]
         }
         committed = nil
+        leaveEarlier()
         state.bar = .idle
         autospaceDue = nil
         autoSpaced = false
@@ -890,6 +929,7 @@ public struct Composer: Sendable {
     /// it stands, with nothing after it, and the fix bar closes.
     public mutating func cursorWillMove() -> [Effect] {
         cancelCorrection()
+        leaveEarlier()
         autoSpaced = false
         wordSpace = false
         joinable = nil
@@ -905,6 +945,145 @@ public struct Composer: Sendable {
         state.bar = .idle
         refreshState()
         return effects
+    }
+
+    // MARK: Earlier words
+
+    /// The word written earlier that the bar shows (features/fix-earlier-word).
+    private struct Earlier {
+        var spot: EarlierSpot
+        var words: [String]
+        var chosen: Int
+        var casing: Casing
+        /// The word before it, as the matcher reads it.
+        var previous: String?
+        /// Its place in `recentWords`, when it is one of the last words written.
+        var recent: Int?
+    }
+
+    /// The last swap, for Undo: what was there, what went in, and how far the cursor
+    /// came back past it.
+    private struct EarlierFix {
+        var old: String
+        var new: String
+        var rest: Int
+        var recent: Int?
+    }
+
+    /// The person put the cursor in or right after a word written earlier, or selected
+    /// it (`EarlierSpot.find`): the bar shows that word and its other readings. The
+    /// readings are the swipe's when it is one of the last words written, otherwise the
+    /// nearest words to its letters. Nil, or a word open, closes it. The last word is
+    /// final then: the person moved on from it.
+    public mutating func cursorLanded(at spot: EarlierSpot?) -> [Effect] {
+        guard correction == nil, pieces.isEmpty, open.isEmpty else { return [] }
+        lastEarlierFix = nil
+        guard let spot else {
+            if earlier != nil {
+                earlier = nil
+                state.bar = .idle
+                offerNextWords()
+                refreshState()
+            }
+            return []
+        }
+        let effects = settle()
+        autoSpaced = false
+        wordSpace = false
+        joinable = nil
+        autospaceDue = nil
+        let lower = spot.word.lowercased()
+        let before = spot.offset <= contextBefore.count ? String(contextBefore.dropLast(spot.offset)) : ""
+        let previous = WordContext.words(before: before).last
+        let casing: Casing = spot.word.count > 1 && spot.word == spot.word.uppercased() ? .upper
+            : spot.word.first?.isUppercase == true ? .capital : .lower
+        var words: [String] = []
+        var recent: Int?
+        if let index = recentWords.lastIndex(where: { $0.word.lowercased() == lower && $0.guesses.count > 1
+                                                      && ($0.previous == nil || previous == nil || $0.previous == previous) }) {
+            recent = index
+            for guess in recentWords[index].guesses {
+                let word = Self.cased(guess.lowercased(), as: casing)
+                if !words.contains(word) { words.append(word) }
+            }
+        } else {
+            var reader = matcher
+            reader.context = WordContext.words(before: before)
+            reader.nextWords = []
+            let near = reader.nearestWords(to: Lexicon.fold(lower), points: [], limit: settings.guessCount + 2)
+            words = [spot.word]
+            for candidate in near where candidate.word != lower && !matcher.learned.isBlocked(candidate.word) {
+                let word = Self.cased(candidate.word, as: casing)
+                if !words.contains(word) { words.append(word) }
+                if words.count >= max(2, settings.guessCount) { break }
+            }
+        }
+        let chosen = words.firstIndex(of: spot.word) ?? words.firstIndex { $0.lowercased() == lower } ?? {
+            words.insert(spot.word, at: 0)
+            return 0
+        }()
+        earlier = Earlier(spot: spot, words: words, chosen: chosen, casing: casing, previous: previous, recent: recent)
+        state.bar = .earlier(words, chosen: chosen)
+        refreshState()
+        return effects
+    }
+
+    /// Swaps the earlier word for `new` in place, then puts the cursor back where the
+    /// person was typing. Learned like a fix of the last word when it is one of the last
+    /// words written (its swipe is known): `missed` when it was typed with "Not it?".
+    private mutating func fixEarlier(to new: String, missed: Bool) -> [Effect] {
+        guard let spot = earlier else { return [] }
+        let old = spot.spot.word
+        var effects: [Effect] = []
+        if spot.spot.selected {
+            effects.append(.insert(new))
+        } else {
+            let tail = old.count - spot.spot.offset
+            if tail > 0 { effects.append(.moveCursor(tail)) }
+            effects += [.deleteBackward(old.count), .insert(new)]
+        }
+        if spot.spot.rest > 0 { effects.append(.moveCursor(spot.spot.rest)) }
+        effects.append(.haptic(.commit))
+        if let index = spot.recent, recentWords.indices.contains(index) {
+            let entry = recentWords[index]
+            let fixed = Committed(word: new, trailing: "", pieces: entry.pieces, guesses: entry.guesses, casing: spot.casing,
+                                  previous: spot.previous, fixedFrom: old, firstGuess: entry.firstGuess, missed: missed)
+            if let settled = Self.settled(fixed, layout: layout) { effects.append(.settled(settled)) }
+            recentWords[index].word = new
+        }
+        lastEarlierFix = EarlierFix(old: old, new: new, rest: spot.spot.rest, recent: spot.recent)
+        earlier = nil
+        state.bar = .idle
+        refreshState()
+        return effects
+    }
+
+    /// Undo after a swap: the word that was there goes back, the cursor where it is.
+    /// Nothing once anything else happened.
+    public mutating func undoEarlierFix() -> [Effect] {
+        guard let fix = lastEarlierFix else { return [] }
+        lastEarlierFix = nil
+        var effects: [Effect] = []
+        if fix.rest > 0 { effects.append(.moveCursor(-fix.rest)) }
+        effects += [.deleteBackward(fix.new.count), .insert(fix.old)]
+        if fix.rest > 0 { effects.append(.moveCursor(fix.rest)) }
+        if let index = fix.recent, recentWords.indices.contains(index) { recentWords[index].word = fix.old }
+        effects.append(.haptic(.key))
+        return effects
+    }
+
+    /// Whether Undo can still put back the last earlier word swapped.
+    public var canUndoEarlierFix: Bool { lastEarlierFix != nil }
+
+    /// The word written earlier that the bar shows, as it stands in the field.
+    public var earlierWord: String? { earlier?.spot.word }
+
+    /// Anything else happened: the bar stops showing the earlier word, and Undo is gone.
+    private mutating func leaveEarlier() {
+        lastEarlierFix = nil
+        guard earlier != nil else { return }
+        earlier = nil
+        if case .earlier = state.bar { state.bar = .idle }
     }
 
     // MARK: Words
@@ -1075,6 +1254,8 @@ public struct Composer: Sendable {
     private mutating func settle() -> [Effect] {
         guard let last = committed else { return [] }
         committed = nil
+        recentWords.append(last)
+        if recentWords.count > Self.recentLimit { recentWords.removeFirst(recentWords.count - Self.recentLimit) }
         // Learned only now, so a word fixed before the next one began (backspace into
         // it, "helo" to "hello") never is (Gabriel, 7 Nov 2026: fixed typos piled up).
         var effects: [Effect] = last.learned.map { [.learn($0)] } ?? []
@@ -1171,7 +1352,8 @@ public struct Composer: Sendable {
         // "Not it?" for a swiped word only: pecked letters were typed as meant.
         let swiped = { (pieces: [Piece]) in pieces.contains { !$0.isTap } }
         state.canCorrect = correction == nil && open.isEmpty
-            && (hasOpenWord ? swiped(pieces) : committed.map { !$0.missed && swiped($0.pieces) } ?? false)
+            && (hasOpenWord ? swiped(pieces)
+                : earlier != nil || (committed.map { !$0.missed && swiped($0.pieces) } ?? false))
     }
 
     // MARK: Pieces

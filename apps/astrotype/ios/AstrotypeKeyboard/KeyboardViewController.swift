@@ -602,6 +602,10 @@ final class ProxyTarget: TextTarget {
         return !selected.isEmpty
     }
 
+    var textAfterCursor: String? { proxy.documentContextAfterInput }
+
+    var selectedText: String? { clearedSelection ? nil : proxy.selectedText }
+
     var hasSelection: Bool {
         guard !clearedSelection, let selected = proxy.selectedText else { return false }
         return !selected.isEmpty

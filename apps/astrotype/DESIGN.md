@@ -194,6 +194,15 @@ This is the product, so it gets its own section.
     turns the bar into a field: ✕, the word typed so far ("What did you mean?" while
     empty), and a Save pill. Taps type exact letters into it, backspace edits, space or
     return saves; Save replaces the swiped word and squeezes the bar like a commit.
+  - *Earlier word* (features/fix-earlier-word): the person puts the cursor in a word
+    written earlier (or right after it), or selects just that word. The FIX layout for
+    that word, its pill tagged "Fixing", its other readings either side: the swipe's
+    when it is one of the last 20 words written while the keyboard was up, otherwise
+    the nearest words to its letters. A reading tapped swaps it in place and the cursor
+    goes back to where typing was; the bar says "Changed “cage” to “cafe”" with Undo
+    for 4 seconds. The pencil opens Not it? for that word; holding a word opens the
+    word menu. Any key or touch types at the cursor as always and closes it. Not in
+    fields that never learn, nor the app's practice fields.
 - **Pieces:** a touch is a tap if it lifts within 18 pt of where it landed and crossed no
   other key, otherwise a swipe. Taps flash the key in the thumb's color and leave a ring
   that pings out. Swipes draw a 9 pt rounded trail in the thumb's color that fades over a

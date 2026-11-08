@@ -29,6 +29,10 @@ public protocol TextTarget: AnyObject {
     var hasSelection: Bool { get }
     /// What the field reports right now, for the typing recorder (`TypingEvent.fieldState`).
     var fieldState: String? { get }
+    /// The text after the cursor (or after the selection), as far as the field tells.
+    var textAfterCursor: String? { get }
+    /// The selected text, if any.
+    var selectedText: String? { get }
     /// Forget the open word without typing it again.
     func dropOpenWord()
 }
@@ -38,6 +42,8 @@ extension TextTarget {
     public var lostOpenWord: Bool { false }
     public var hasSelection: Bool { false }
     public var fieldState: String? { nil }
+    public var textAfterCursor: String? { nil }
+    public var selectedText: String? { nil }
     public func dropOpenWord() {}
 }
 
@@ -66,6 +72,9 @@ public final class KeyboardModel {
     public var onNotice: ((Composer.Notice) -> Void)?
     /// A word already written was swapped for another from the bar (a fix).
     public var onFix: (() -> Void)?
+    /// A word written earlier was swapped (features/fix-earlier-word): what was there
+    /// and what went in, for the bar to say so with Undo (`undoEarlierFix`).
+    public var onEarlierFixed: ((String, String) -> Void)?
     /// A fix made from the bar, as a word to share, when the person turned "Include
     /// corrections from other apps" on and the field allows it. The host keeps it for
     /// the app (it needs Full Access to reach it).
@@ -536,7 +545,28 @@ public final class KeyboardModel {
     public func choose(guess index: Int) {
         log(TypingEvent(t: now, e: .guess, n: index))
         if case .fix(_, let chosen) = composer.state.bar, chosen != index { onFix?() }
+        let earlier: (old: String, new: String)?
+        if case .earlier(let words, let chosen) = composer.state.bar, words.indices.contains(index), index != chosen {
+            earlier = (words[chosen], words[index])
+        } else {
+            earlier = nil
+        }
         apply(composer.choose(guess: index, time: now))
+        if let earlier, composer.canUndoEarlierFix { earlierFixed(earlier.old, earlier.new, how: "reading") }
+    }
+
+    /// A word written earlier went in place of another: counted, and the bar says so.
+    private func earlierFixed(_ old: String, _ new: String, how: String) {
+        onWordAction?("earlier.fixed", how)
+        onEarlierFixed?(old, new)
+    }
+
+    /// Undo on the bar after a word written earlier was swapped: it goes back.
+    public func undoEarlierFix() {
+        guard composer.canUndoEarlierFix else { return }
+        log(TypingEvent(t: now, e: .earlierUndo))
+        apply(composer.undoEarlierFix())
+        onWordAction?("earlier.undone", nil)
     }
 
     /// Another reading of the last word, picked from the bar's fix row while next words
@@ -555,6 +585,7 @@ public final class KeyboardModel {
         log(TypingEvent(t: now, e: .cursor, n: offset))
         apply(composer.cursorWillMove())
         output?.moveCursor(by: offset)
+        lastOwnEdit = now
         composer.setContext(before: output?.textBeforeCursor)
         onChange?()
     }
@@ -578,7 +609,10 @@ public final class KeyboardModel {
     /// Save in the "Not it?" field: the word meant replaces the swiped one.
     public func saveCorrection() {
         log(TypingEvent(t: now, e: .notItSave))
+        let old = composer.earlierWord
+        let typed: String? = { if case .correcting(let typed) = composer.state.bar { typed } else { nil } }()
         apply(composer.saveCorrection(time: now))
+        if let old, let typed, composer.canUndoEarlierFix { earlierFixed(old, typed, how: "typed") }
     }
 
     /// A swipe left on backspace.
@@ -649,7 +683,7 @@ public final class KeyboardModel {
 
     private func barWord(at index: Int) -> String? {
         switch composer.state.bar {
-        case .guesses(let words, _), .fix(let words, _), .next(let words, _, _):
+        case .guesses(let words, _), .fix(let words, _), .next(let words, _, _), .earlier(let words, _):
             words.indices.contains(index) ? words[index].lowercased() : nil
         case .idle, .correcting:
             nil
@@ -660,10 +694,38 @@ public final class KeyboardModel {
     /// context. `why` goes to the typing recorder.
     public func contextChanged(_ why: String = "change") {
         logFieldState(why)
-        if dropLostWord() { return }
+        if dropLostWord() {
+            lookAtCursor()
+            return
+        }
         logContext(.context)
         composer.setContext(before: output?.textBeforeCursor)
+        lookAtCursor()
         onChange?()
+    }
+
+    /// When the keyboard last changed the field itself: a change the field reports
+    /// right after is its own, not the person moving the cursor.
+    private var lastOwnEdit: TimeInterval = 0
+    /// What was after the cursor when the keyboard last typed, so a fix of a word
+    /// written earlier can put the cursor back there (`EarlierSpot.rest`).
+    private var typedAfter: String?
+
+    /// The person put the cursor in a word written earlier, or selected one
+    /// (features/fix-earlier-word): the bar shows it with its other readings. Only in
+    /// a field that learns, and not in the app's practice fields.
+    private func lookAtCursor() {
+        guard search == nil, learningAllowed, offersNextWords, !composer.hasOpenWord,
+              now - lastOwnEdit > 0.3, let output else { return }
+        let wasShowing: Bool = { if case .earlier = composer.state.bar { true } else { false } }()
+        let spot = EarlierSpot.find(before: output.textBeforeCursor ?? "", after: output.textAfterCursor ?? "",
+                                    selected: output.selectedText, typedAfter: typedAfter)
+        guard spot != nil || wasShowing else { return }
+        log(TypingEvent(t: now, e: .earlier, i: spot?.rest, n: spot?.offset, s: spot?.word, k: spot?.selected == true ? "sel" : nil))
+        apply(composer.cursorLanded(at: spot))
+        if let spot, !wasShowing, case .earlier = composer.state.bar {
+            onWordAction?("earlier.shown", spot.selected ? "select" : "cursor")
+        }
     }
 
     /// The field was replaced or the cursor moved: drop the open word.
@@ -841,7 +903,13 @@ public final class KeyboardModel {
                 onNotice?(notice)
             case .settled(let word):
                 learn(from: word)
+            case .moveCursor(let offset):
+                output?.moveCursor(by: offset)
             }
+        }
+        if effects.contains(where: Self.editsField) {
+            lastOwnEdit = now
+            typedAfter = output?.textAfterCursor
         }
         composer.setContext(before: output?.textBeforeCursor)
         if recording {
@@ -851,6 +919,14 @@ public final class KeyboardModel {
         }
         scheduleAutospace()
         onChange?()
+    }
+
+    /// Whether an effect changes the field's text or moves its cursor.
+    private static func editsField(_ effect: Composer.Effect) -> Bool {
+        switch effect {
+        case .insert, .deleteBackward, .mark, .commit, .clearMark, .moveCursor: true
+        case .haptic, .learn, .unlearn, .notice, .settled: false
+        }
     }
 
     private func scheduleAutospace() {
@@ -940,6 +1016,17 @@ public final class TextViewTarget: TextTarget {
     }
 
     public var hasText: Bool { textView?.hasText ?? false }
+
+    public var textAfterCursor: String? {
+        guard let textView, let selected = textView.selectedTextRange,
+              let range = textView.textRange(from: selected.end, to: textView.endOfDocument) else { return nil }
+        return textView.text(in: range)
+    }
+
+    public var selectedText: String? {
+        guard let textView, let selected = textView.selectedTextRange, !selected.isEmpty else { return nil }
+        return textView.text(in: selected)
+    }
 
     public func insert(_ text: String) { textView?.insertText(text) }
     public func deleteBackward() { textView?.deleteBackward() }

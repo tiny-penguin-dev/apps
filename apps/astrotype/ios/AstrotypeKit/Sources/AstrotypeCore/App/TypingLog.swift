@@ -41,6 +41,11 @@ public struct TypingEvent: Codable, Sendable, Equatable {
         /// A guess held and slid up (`n`) or down (`n`), or Suggest more / Never suggest
         /// from the word menu; Undo of the last of them (`s`, the word).
         case boost, forget, wordUndo = "wu"
+        /// The cursor landed in a word written earlier (features/fix-earlier-word): the
+        /// word (`s`), how many of its letters are before the cursor (`n`), how far past
+        /// it typing was (`i`), and `k` "sel" when it was selected; `s` nil when the
+        /// cursor left it. Undo of a swap of one.
+        case earlier = "ew", earlierUndo = "ewu"
         /// Autospace's timer fired.
         case tick
         /// The text before the cursor (`s`, the end of it) after the app changed it,
@@ -117,7 +122,7 @@ public struct TypingEvent: Codable, Sendable, Equatable {
     public var isInput: Bool {
         switch e {
         case .down, .move, .up, .cancel, .pick, .key, .character, .text, .emoji, .searchOpen, .searchClose, .searchClear,
-             .searchEmoji, .guess, .fix, .cursor, .notIt, .notItCancel, .notItSave, .deleteWord, .boost, .forget, .wordUndo, .tick, .hide:
+             .searchEmoji, .guess, .fix, .cursor, .notIt, .notItCancel, .notItSave, .deleteWord, .boost, .forget, .wordUndo, .earlier, .earlierUndo, .tick, .hide:
             true
         default:
             false
@@ -168,7 +173,7 @@ public struct TypingEvent: Codable, Sendable, Equatable {
     /// An effect on the field as a short string, nil for the ones that change nothing
     /// there (haptics, notices, what was settled): "+ " inserted, "-2" deleted, "~wor"
     /// the open word, "=word" written, "0" open word removed, "L:word" learned,
-    /// "U:word" unlearned.
+    /// "U:word" unlearned, ">3" the cursor moved.
     public static func code(of effect: Composer.Effect) -> String? {
         switch effect {
         case .insert(let text): "+" + text
@@ -178,6 +183,7 @@ public struct TypingEvent: Codable, Sendable, Equatable {
         case .clearMark: "0"
         case .learn(let word): "L:" + word
         case .unlearn(let word): "U:" + word
+        case .moveCursor(let count): ">\(count)"
         case .haptic, .notice, .settled: nil
         }
     }

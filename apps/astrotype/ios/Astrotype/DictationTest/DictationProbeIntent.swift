@@ -11,6 +11,9 @@ import Foundation
 //
 // Round 1 (7 Nov): a keyboard `Button(intent:)` ran in the keyboard and the mic failed;
 // Siri ran it in the app, but the audio session was refused without a Live Activity.
+// Round 2 (8 Nov): with a session running, the keyboard's Talk reached the app and it
+// recorded. Round 3: can something wake the app to start the session without opening
+// it? A push that starts the Live Activity, a notification button, a CloudKit nudge.
 
 /// Starts the dictation test session in the app, or ends it if it's running.
 struct DictationProbeIntent: AudioRecordingIntent, LiveActivityIntent {
@@ -63,6 +66,20 @@ enum DictationProbeLog {
     /// Posted by the keyboard's Talk button; the app's session listens for it.
     static let talkNotification = "com.tinypenguin.astrotype.dictation.talk"
     static var defaults: UserDefaults? { UserDefaults(suiteName: "group.com.tinypenguin.astrotype") }
+    /// The Live Activity's push-to-start token (hex), for the test push Action.
+    static let pushTokenKey = "dictationProbe.pushToken"
+    /// The keyboard's local notification: its category and its "Start" button.
+    static let notificationCategory = "dictationProbe.start"
+    static let startAction = "dictationProbe.startAction"
+    /// The record the keyboard saves to nudge the app through CloudKit (a `KeyboardData`
+    /// record, a type production already has, apart from the real one, "keyboard").
+    static let wakeRecordName = "dictation-wake"
+    static let cloudSubscriptionID = "dictationProbe.wake"
+
+    static var pushToken: String? {
+        get { defaults?.string(forKey: pushTokenKey) }
+        set { defaults?.set(newValue, forKey: pushTokenKey) }
+    }
 
     static var place: String {
         let id = Bundle.main.bundleIdentifier ?? "?"

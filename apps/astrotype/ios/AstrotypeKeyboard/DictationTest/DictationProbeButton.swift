@@ -6,7 +6,8 @@ import UIKit
 // Debug → "Test panel on the keyboard" on, a small panel floats over the top of the keys:
 // "Talk" asks the app's running dictation session to start or stop listening (a Darwin
 // notification), "Intent" runs `DictationProbeIntent` through `Button(intent:)`, and
-// "Here" records in the keyboard itself. The session's state and the last result show
+// "Here" records in the keyboard itself. Round 3: "Notify" and "Cloud" try to wake the
+// app to start a session (DictationWakeSender). The session's state and the last result show
 // under them.
 
 struct DictationProbePanel: View {
@@ -29,6 +30,16 @@ struct DictationProbePanel: View {
                     }
                 } label: {
                     Label("Here", systemImage: "mic")
+                }
+                Button {
+                    Task { await DictationWakeSender.notify() }
+                } label: {
+                    Label("Notify", systemImage: "bell")
+                }
+                Button {
+                    Task { await DictationWakeSender.nudgeCloud() }
+                } label: {
+                    Label("Cloud", systemImage: "icloud")
                 }
             }
             .buttonStyle(.borderedProminent)

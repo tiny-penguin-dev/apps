@@ -11,7 +11,7 @@ public enum Theme {
     /// A colour with a light and a dark value (0xRRGGBB).
     public enum Tone: CaseIterable, Sendable {
         case bg, card, ink, muted, line, accent, accentInk, left, right, sun, sunInk, mint, ice, danger, slate, key, keyDark, keyInk, kb, keyPressed,
-             returnAction
+             returnAction, kbGlass
 
         var values: (light: UInt32, dark: UInt32) {
             switch self {
@@ -44,6 +44,10 @@ public enum Theme {
             // Apple's system blue, for a return key that acts ("go", "search", "send"),
             // as on Apple's keyboard (features/field-types).
             case .returnAction: (0x007AFF, 0x0A84FF)
+            // The glass iOS 26 draws around a keyboard extension, for the app's own
+            // keyboard to sit on (`KeyboardFrame`). Measured from Gabriel's
+            // screenshots in light and dark (8 Nov 2026).
+            case .kbGlass: (0xDFE0E5, 0x212121)
             }
         }
     }

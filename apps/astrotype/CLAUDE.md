@@ -33,7 +33,10 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
     `PracticeWordsView` (one prompt at a time from `PracticeWords`, from Settings → Privacy),
     `DrillView`),
     `Keyboard/KeyboardSession` (a text view whose input view is the shared keyboard,
-    with Try it's replay),
+    with Try it's replay), `Keyboard/KeyboardFrame` (that input view: the keys inside the
+    margin iOS draws around the extension, so practice looks like the real keyboard: on
+    iOS 26 the glass panel with rounded top corners, 5 pt sides and 4 pt top; on every
+    version the home indicator strip under the keys),
     `Telemetry.swift` (Sentry, see `docs/telemetry.md`), `PrivacyInfo.xcprivacy`.
     `Try/`, `Train/` and `Shared/` are v1: the handwriting pad, training recorder and
     the CloudKit sample upload, reachable from Settings behind the flag.

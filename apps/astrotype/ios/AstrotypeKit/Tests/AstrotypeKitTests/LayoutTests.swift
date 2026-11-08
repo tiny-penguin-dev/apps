@@ -223,7 +223,8 @@ import Testing
         #expect(layout.side(of: .letter("y")) == .right)
         for page in [Layout.Page.numbers, .symbols] {
             let split = Layout.qwerty(width: 1000, page: page, split: true)
-            #expect(split.placements.count == Layout.qwerty(width: 1000, page: page).placements.count + 1)
+            // A second space, and "?" on both halves.
+            #expect(split.placements.count == Layout.qwerty(width: 1000, page: page).placements.count + 2)
             for placement in split.placements {
                 #expect(placement.frame.minX >= 0 && placement.frame.maxX <= 1000)
             }
@@ -278,6 +279,37 @@ import Testing
         #expect(layout.openColumns(atLeast: Layout.splitMiddle).count == 1)
         // Only with the split.
         #expect(!Layout.qwerty(width: width, extraLetters: true).extraLetters)
+    }
+
+    @Test(arguments: [744.0, 951.0, 1000.0] as [CGFloat])
+    func splitSymbolsFollowTheLettersRules(width: CGFloat) {
+        let cases: [(Layout.Page, Bool, [(String, String)])] = [
+            (.numbers, false, [("12345", "67890"), ("-/:;(", ")$&@\""), (".,?", "?!'")]),
+            (.numbers, true, [("123456", "567890"), ("-/:;()", "()$&@\""), (".,?!", ",?!'")]),
+            (.symbols, false, [("[]{}#", "%^*+="), ("_\\|~<", ">€£¥•"), (".,?", "?!'")]),
+            (.symbols, true, [("[]{}#%", "#%^*+="), ("_\\|~<>", "<>€£¥•"), (".,?!", ",?!'")]),
+        ]
+        for (page, extraLetters, rows) in cases {
+            let layout = Layout.qwerty(width: width, page: page, split: true, extraLetters: extraLetters)
+            func half(_ row: Int, _ side: Side) -> String {
+                String(layout.placements.filter { $0.row == row && layout.side(at: CGPoint(x: $0.frame.midX, y: 0)) == side }
+                    .sorted { $0.frame.minX < $1.frame.minX }.compactMap(\.key.symbolCharacter))
+            }
+            for (row, expected) in rows.enumerated() {
+                #expect(half(row, .left) == expected.0 && half(row, .right) == expected.1, "\(page) \(extraLetters) row \(row)")
+            }
+            // "?" sits under V, so the 123 page keeps the letters' columns.
+            let letters = Layout.qwerty(width: width, split: true, extraLetters: extraLetters)
+            #expect(layout.frame(of: .symbol("?"), on: .left)!.minX == letters.frame(of: .letter("v"), on: .left)!.minX)
+            #expect(layout.frame(of: .symbol("?"), on: .right)!.minX == letters.frame(of: .letter("v"), on: .right)!.minX)
+            let q = layout.frame(of: .symbol("?"), on: .right)!
+            #expect(layout.key(at: CGPoint(x: q.midX, y: q.midY)) == .symbol("?"))
+            for placement in layout.placements {
+                #expect(placement.frame.minX >= 0 && placement.frame.maxX <= width)
+            }
+            #expect(layout.frame(of: .backspace)!.maxX == width)
+            #expect(layout.openColumns(atLeast: Layout.splitMiddle).count == 1)
+        }
     }
 
     @Test func aWideKeyboardLeavesItsSidesOpen() {

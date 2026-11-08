@@ -179,7 +179,7 @@ struct GeneralAppearanceSettings: View {
                 .padding(.horizontal, 14).padding(.bottom, Theme.Space.m)
             }
             if model.keyboardSettings.splitOnWide && model.entitlement.allows(.splitLayout) {
-                SettingsToggle("Extra letters on split", subtitle: "Y H B on the left, T F C on the right, for swiping across. Off is Apple's split.",
+                SettingsToggle("Extra letters on split", subtitle: "Y H B on the left, T F C on the right, and one more symbol on each half of 123. Off is Apple's split.",
                                isOn: $model.keyboardSettings.splitExtraLetters)
             }
             if !model.entitlement.allows(.splitLayout) {

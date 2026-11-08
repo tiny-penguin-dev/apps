@@ -128,7 +128,8 @@ public struct Layout: Sendable, Equatable {
     /// The halves pulled apart to the screen's edges (wide screens only).
     public let split: Bool
     /// On a split keyboard, each half also has the next key past Apple's: Y H B on the
-    /// left, T F C on the right (an option, Gabriel, 2 Nov 2026).
+    /// left, T F C on the right (an option, Gabriel, 2 Nov 2026), and the same columns
+    /// on the numbers and symbols.
     public let extraLetters: Bool
     /// The bottom row has a globe key before the emoji key, for phones where iOS draws
     /// no globe under the keyboard (`needsInputModeSwitchKey`) and the guesses bar is
@@ -181,7 +182,9 @@ public struct Layout: Sendable, Equatable {
     ///
     /// `split` pulls the two halves apart on a wide screen, each under a thumb, with the
     /// space bar in both and, like Apple's, G and V on both halves. `extraLetters`
-    /// adds one more key past the middle to each half (Y H B left, T F C right).
+    /// adds one more key past the middle to each half (Y H B left, T F C right). The
+    /// numbers and symbols follow the same rules: "?" on both halves, and with the
+    /// extra letters 6 $ ! (or % > !) left and 5 ( , (or # < ,) right.
     /// `scale` makes the keys taller or shorter than Apple's (the person's keyboard
     /// height; the bottom row stays put). `height` makes the keys fill that height,
     /// less `bottomInset` (the room the system granted): they shrink to fit or grow up
@@ -307,16 +310,33 @@ public struct Layout: Sendable, Equatable {
                     letter(0, 4, shift: rightShift); letter(1, 3, shift: rightShift); letter(2, 2, shift: rightShift)
                 }
             case .numbers, .symbols:
+                // The same window on the numbers and symbols (Gabriel, 8 Nov 2026): a key
+                // in the middle is on both halves, as G and V are, and the extra letters
+                // add one more past the middle. The top rows are ten wide, so nothing
+                // sits in the middle there (as Q to P); the five marks sit on the
+                // letters' third-row columns, so "?" is under V and on both halves.
                 let table = page == .numbers ? numberRows : symbolRows
-                let half = 5 * unit + 4 * gap
-                _ = keys(Array(table[0][0..<5]), as: Key.symbol, row: 0, from: 0)
-                _ = keys(Array(table[0][5...]), as: Key.symbol, row: 0, from: width - half)
-                _ = keys(Array(table[1][0..<5]), as: Key.symbol, row: 1, from: 0)
-                _ = keys(Array(table[1][5...]), as: Key.symbol, row: 1, from: width - half)
-                add(page == .numbers ? .symbols : .numbers, row: 2, x: 0, width: wideKey)
-                _ = keys(Array(table[2][0..<3]), as: Key.symbol, row: 2, from: wideKey + gap)
-                x = keys(Array(table[2][3...]), as: Key.symbol, row: 2, from: width - wideKey - 2 * unit - 2 * gap)
-                add(.backspace, row: 2, x: x, width: wideKey)
+                func symbol(_ row: Int, _ column: Int, shift dx: CGFloat) {
+                    add(.symbol(table[row][column]), row: row, x: CGFloat(column) * pitch + dx, width: unit)
+                }
+                func mark(_ i: Int, shift dx: CGFloat) {
+                    add(.symbol(table[2][i]), row: 2, x: (CGFloat(i) + 2.5) * pitch + dx, width: unit)
+                }
+                let edgeKey = 2.5 * pitch - gap
+                // Left half's own keys, then the right's, then the shared ones.
+                for c in 0..<5 { symbol(0, c, shift: 0) }
+                for c in 0..<5 { symbol(1, c, shift: 0) }
+                add(page == .numbers ? .symbols : .numbers, row: 2, x: 0, width: edgeKey)
+                for i in 0..<3 { mark(i, shift: 0) }
+                for c in 5..<10 { symbol(0, c, shift: rightShift) }
+                for c in 5..<10 { symbol(1, c, shift: rightShift) }
+                for i in 3..<5 { mark(i, shift: rightShift) }
+                add(.backspace, row: 2, x: 7.5 * pitch + rightShift, width: edgeKey)
+                mark(2, shift: rightShift)
+                if extra {
+                    symbol(0, 5, shift: 0); symbol(1, 5, shift: 0); mark(3, shift: 0)
+                    symbol(0, 4, shift: rightShift); symbol(1, 4, shift: rightShift); mark(1, shift: rightShift)
+                }
             }
             add(page == .letters ? .numbers : .letters, row: 3, x: 0, width: fnKey)
             var spaceX = fnKey + gap

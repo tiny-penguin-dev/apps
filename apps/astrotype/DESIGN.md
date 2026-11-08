@@ -125,7 +125,9 @@ pairs searchable by most used or newest with a four-bar meter; `features/learned
 and Z to V on the left, Y to P, G to L and V to M on the right (G and V on both halves,
 nothing repeated on the top row; Gabriel, 2 Nov 2026, after trying more overlap). Settings
 "Extra letters on split" adds one more past the middle to each half (Y H B left, T F C
-right) for swiping across. Space on
+right) for swiping across. The numbers and symbols pages follow the same rules: "?"
+sits under V on both halves, and the extra letters add 6 $ ! (% > ! on #+=) to the left
+and 5 ( , (# < ,) to the right (Gabriel, 8 Nov 2026). Space on
 both sides, the guesses in the open middle (Gabriel, 2 Nov 2026). Split, the keys beside space
 (`123`, globe, emoji) are a fifth narrower than on the whole keyboard and return is
 exactly two of them wide, so both halves of space keep their room (Gabriel, 8 Nov 2026).

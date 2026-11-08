@@ -3,6 +3,8 @@
 // PRODUCT_BUNDLE_IDENTIFIER, MARKETING_VERSION and display name.
 
 PRODUCT_NAME = $(TARGET_NAME)
+// Placeholder: every target's "Set build number" phase writes the commit time in
+// Pacific time into the built Info.plist (scripts/ios/build-number.sh).
 CURRENT_PROJECT_VERSION = 1
 
 TARGETED_DEVICE_FAMILY = 1

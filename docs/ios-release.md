@@ -18,7 +18,16 @@ at https://github.com/actions/runner-images/blob/main/images/macos/xcode-27-arm6
   app's folder and scheme, and only runs when that app's files change.
 - Pull requests only build. Pushes to `main` build and upload to TestFlight. You can
   also run an app's workflow by hand from the Actions tab.
-- Build number = the commit time in UTC (`YYYYMMDDHHMM`), so it always goes up.
+- Build number = the commit time in Pacific time (`YYYYMMDDHHMM`), so it always goes up.
+  `scripts/ios/build-number.sh` makes it, for CI and for local Xcode builds alike: every
+  app and extension target has a "Set build number" run script phase that writes it into
+  the built Info.plist, so a commit gets the same number wherever it's built (uncommitted
+  changes share HEAD's number). Give a new extension target the same phase, or it
+  ships as build 1 and App Store Connect rejects it. Builds before 8 Nov 2026 were
+  numbered in UTC.
+- App Store Connect only takes a build number higher than the last one. In the hour
+  clocks go back each November a new number can be lower, so CI skips the upload with a
+  warning (`scripts/ios/asc-check-build-number.py`); the next commit after that hour ships.
   The marketing version lives in the app's xcconfig (`MARKETING_VERSION`).
 - Signing is automatic. The upload step uses an App Store Connect API key with
   cloud-managed signing, so no certificates or profiles live in the repo or in secrets.
@@ -129,7 +138,7 @@ in the group who isn't listed. To add or remove a tester, edit the list and push
 
 After each upload, `scripts/ios/asc-build-notes.py` fills in the build's "What to Test"
 in TestFlight with what changed since the previous build. It finds the previous build in
-App Store Connect, turns its build number (the commit time) back into a point in git
+App Store Connect, turns its build number (the commit time) back into the commit in git
 history, and lists the titles of the commits since then that touched `apps/<name>/`.
 Titles are cleaned up for testers: "Astrotype: fix extra spaces (#58)" becomes "Fix extra
 spaces". So PR titles are what testers read; write them in plain words.

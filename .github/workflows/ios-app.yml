@@ -104,10 +104,11 @@ jobs:
             echo "ready=false" >> "$GITHUB_OUTPUT"
           else
             echo "ready=true" >> "$GITHUB_OUTPUT"
+            echo "SHIP=true" >> "$GITHUB_ENV"
           fi
 
       - uses: actions/checkout@v5
-        if: steps.secrets.outputs.ready == 'true'
+        if: env.SHIP == 'true'
         with:
           # Full history (without file contents) so the What to Test notes can
           # list the commits since the last build.
@@ -115,13 +116,14 @@ jobs:
           filter: blob:none
 
       - name: Write API key and read build settings
-        if: steps.secrets.outputs.ready == 'true'
+        if: env.SHIP == 'true'
         run: |
           KEY_PATH="$RUNNER_TEMP/AuthKey_$ASC_KEY_ID.p8"
           printf '%s\n' "$ASC_PRIVATE_KEY" > "$KEY_PATH"
 
-          # Build number = commit time in UTC, so it always goes up.
-          BUILD_NUMBER="$(TZ=UTC git show -s --format=%cd --date=format-local:'%Y%m%d%H%M' HEAD)"
+          # Build number = commit time in Pacific time, so it always goes up. Local
+          # Xcode builds get the same number from the same script.
+          BUILD_NUMBER="$("$GITHUB_WORKSPACE/scripts/ios/build-number.sh")"
 
           # The scheme can build more than one target (an app and its extensions, like a
           # widget), so read the app target's settings by name. Extensions are listed in
@@ -162,7 +164,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Prepare App Store Connect
-        if: steps.secrets.outputs.ready == 'true'
+        if: env.SHIP == 'true'
         # Registers the bundle ID if needed, turns on the capabilities its
         # entitlements need, and checks the app record exists.
         run: |
@@ -174,12 +176,25 @@ jobs:
             python3 "$GITHUB_WORKSPACE/scripts/ios/asc-prepare-app.py" "$EXT_ID" "${{ inputs.scheme }} ${EXT_ID##*.}" "$EXT_ENTITLEMENTS" extension
           done < "$RUNNER_TEMP/extensions.txt"
 
+      - name: Check build number
+        if: env.SHIP == 'true'
+        # App Store Connect rejects a build number that isn't higher than the last
+        # one. That happens in the hour clocks go back each November (and right after
+        # the switch from UTC numbers), so skip the upload then instead of failing.
+        run: |
+          RESULT="$(python3 "$GITHUB_WORKSPACE/scripts/ios/asc-check-build-number.py" "$BUNDLE_ID" "$BUILD_NUMBER")" \
+            || { echo "::warning::Couldn't check the build number against App Store Connect; uploading anyway."; exit 0; }
+          if [ "$RESULT" != "ok" ]; then
+            echo "::warning::Skipping the TestFlight upload: build $BUILD_NUMBER isn't higher than the newest build (${RESULT#behind }). The next commit after that time will upload."
+            echo "SHIP=false" >> "$GITHUB_ENV"
+          fi
+
       - name: Sync TestFlight testers
-        if: steps.secrets.outputs.ready == 'true' && hashFiles(format('{0}/Config/testflight.json', inputs.app-dir)) != ''
+        if: env.SHIP == 'true' && hashFiles(format('{0}/Config/testflight.json', inputs.app-dir)) != ''
         run: python3 "$GITHUB_WORKSPACE/scripts/ios/asc-sync-testers.py" "$BUNDLE_ID" Config/testflight.json
 
       - name: Prepare Sentry
-        if: steps.secrets.outputs.ready == 'true' && inputs.sentry-project != ''
+        if: env.SHIP == 'true' && inputs.sentry-project != ''
         # Creates the app's Sentry project if it's missing and looks up its DSN.
         # A problem here only warns: the build ships with Sentry off.
         run: |
@@ -191,7 +206,7 @@ jobs:
             || echo "::warning::Couldn't set up Sentry, so this build ships with Sentry off."
 
       - name: Archive
-        if: steps.secrets.outputs.ready == 'true'
+        if: env.SHIP == 'true'
         run: |
           set -o pipefail
           # Export keeps only the entitlements the archived app was signed with,
@@ -218,7 +233,7 @@ jobs:
             "${SIGNING[@]}"
 
       - name: Check entitlements
-        if: steps.secrets.outputs.ready == 'true' && env.ENTITLEMENTS != ''
+        if: env.SHIP == 'true' && env.ENTITLEMENTS != ''
         # Stop before uploading if any entitlement the app asks for is missing.
         run: |
           APP="$(find "$ARCHIVE/Products/Applications" -maxdepth 1 -name '*.app' | head -1)"
@@ -234,7 +249,7 @@ jobs:
           PY
 
       - name: Export and upload
-        if: steps.secrets.outputs.ready == 'true'
+        if: env.SHIP == 'true'
         run: |
           set -o pipefail
           # The archive is unsigned or ad hoc, so it carries no team: the export
@@ -276,7 +291,7 @@ jobs:
           echo "Uploaded ${{ inputs.scheme }} build $BUILD_NUMBER to App Store Connect." >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload debug symbols to Sentry
-        if: steps.secrets.outputs.ready == 'true' && inputs.sentry-project != ''
+        if: env.SHIP == 'true' && inputs.sentry-project != ''
         # So crash reports show file names and line numbers. A failure here only
         # warns: the build is already in TestFlight.
         run: |
@@ -290,7 +305,7 @@ jobs:
             || echo "::warning::Uploading debug symbols to Sentry failed. Crash reports for build $BUILD_NUMBER won't have line numbers."
 
       - name: Set What to Test
-        if: steps.secrets.outputs.ready == 'true'
+        if: env.SHIP == 'true'
         # Lists the app's commits since the previous TestFlight build. Waits for
         # the build to show up in App Store Connect. A failure here only warns.
         run: |

@@ -116,6 +116,10 @@ public final class KeySurfaceView: UIView {
     /// recorder: the phase (b, m, e, x; n for a touch on no key), the touch's ID, where,
     /// when, and the key it started on.
     public var onOtherTouch: ((String, Int?, CGPoint, TimeInterval, Key?) -> Void)?
+    /// Every phase of a touch that starts on the globe key, with its event, in place of
+    /// the tap. The extension hands them to iOS (`handleInputModeList(from:with:)`): a
+    /// tap goes to the next keyboard, a hold shows the list. Nil, the globe is a tap.
+    public var onGlobeTouch: ((UIView, UIEvent) -> Void)?
     public var backspaceSwipeEnabled = true
 
     /// How far left of backspace a swipe has to travel to delete a word.
@@ -450,6 +454,10 @@ public final class KeySurfaceView: UIView {
             var touchState = Active(id: id, key: key, startKey: key, startPoint: point, side: side, isLetter: key.character != nil, points: [point], trail: nil)
             if key == .space { touchState.slide = SpaceSlide(at: point, time: touch.timestamp) }
             flash(key, side: side)
+            if key == .globe, let event, let onGlobeTouch {
+                touchState.gestured = true
+                onGlobeTouch(self, event)
+            }
             switch key {
             case .backspace:
                 touchState.hold = Task { [weak self] in
@@ -495,6 +503,10 @@ public final class KeySurfaceView: UIView {
             guard var touchState = active[oid] else { continue }
             let point = touch.location(in: self)
             if !touchState.isLetter { onOtherTouch?("m", touchState.id, point, touch.timestamp, touchState.startKey) }
+            if touchState.startKey == .globe, let event, let onGlobeTouch {
+                onGlobeTouch(self, event)
+                continue
+            }
             if let callout = touchState.callout {
                 callout.select(at: convert(point, to: callout))
                 continue
@@ -570,6 +582,11 @@ public final class KeySurfaceView: UIView {
             if !touchState.isLetter {
                 onOtherTouch?("e", touchState.id, touch.location(in: self), touch.timestamp, touchState.startKey)
             }
+            if touchState.startKey == .globe, let event, let onGlobeTouch {
+                if let key = touchState.key { unflash(key) }
+                onGlobeTouch(self, event)
+                continue
+            }
             if let callout = touchState.callout {
                 callout.removeFromSuperview()
                 if let key = touchState.key { unflash(key) }
@@ -612,6 +629,7 @@ public final class KeySurfaceView: UIView {
             }
             touchState.callout?.removeFromSuperview()
             if let key = touchState.key { unflash(key) }
+            if touchState.startKey == .globe, let event { onGlobeTouch?(self, event) }
             touchState.trail.map { fx.cancelTrail($0) }
             if touchState.isLetter {
                 delegate?.keySurface(self, touchCancelled: touchState.id, time: touch.timestamp)

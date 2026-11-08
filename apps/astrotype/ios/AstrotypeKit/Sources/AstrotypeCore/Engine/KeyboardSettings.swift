@@ -84,6 +84,8 @@ public struct KeyboardSettings: Codable, Sendable, Equatable {
     /// Also use the phone's own text replacements (Settings → General → Keyboard →
     /// Text Replacement), which the keyboard reads from iOS. On by default.
     public var usesPhoneReplacements = true
+    /// What `{name}`, `{email}`, `{phone}` and `{address}` write in a replacement.
+    public var personalDetails = PersonalDetails()
 
     /// The chosen theme's id: a built-in one (`KeyboardTheme.builtIn`) or one of
     /// `customThemes` (features/customization). Classic by default.
@@ -167,6 +169,7 @@ public struct KeyboardSettings: Codable, Sendable, Equatable {
         recordsTyping = try c.decodeIfPresent(Bool.self, forKey: .recordsTyping) ?? false
         textReplacements = (try? c.decodeIfPresent([TextReplacement].self, forKey: .textReplacements)) ?? []
         usesPhoneReplacements = try c.decodeIfPresent(Bool.self, forKey: .usesPhoneReplacements) ?? true
+        personalDetails = (try? c.decodeIfPresent(PersonalDetails.self, forKey: .personalDetails)) ?? PersonalDetails()
         themeID = try c.decodeIfPresent(String.self, forKey: .themeID) ?? KeyboardTheme.classic.id
         customThemes = (try? c.decodeIfPresent([KeyboardTheme].self, forKey: .customThemes)) ?? []
         effects = (try? c.decodeIfPresent(EffectsSettings.self, forKey: .effects)) ?? .calm
@@ -226,6 +229,7 @@ public struct KeyboardSettings: Codable, Sendable, Equatable {
         out.nextWords = nextWords
         out.mixesLanguages = mixesLanguages
         out.replacements = TextReplacements(own: textReplacements)
+        out.details = personalDetails
         return out
     }
 }

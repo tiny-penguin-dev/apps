@@ -39,6 +39,9 @@ public enum KeyboardFiles {
     /// The typing recording, the last half hour (`TypingLogFiles`): written by the
     /// keyboard while "Keep recording" is on, read by the app to send; App Group only.
     public static let typing = "Typing"
+    /// The phone's own text replacements as the keyboard last read them, for the app to
+    /// copy into the person's list (`PhoneReplacementsFile`); App Group only.
+    public static let phoneReplacements = "phone-replacements.json"
 
     /// A file in this process's own Application Support folder.
     public static func own(_ name: String, fileManager: FileManager = .default) -> URL {

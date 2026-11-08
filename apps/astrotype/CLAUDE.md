@@ -24,7 +24,7 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
     the keyboard's memory against 40 MB from `KeyboardDebug`, the switch for the
     stats overlay on the keys, and in TestFlight builds the typing recorder: "Keep
     recording", send the last 1/5/30 minutes or from a mark, share as a file, delete
-    what was sent), `LearnedWordsView` (+ to add a word, Select to drop several, a Used once filter), `NeverSuggestView` (blocked words: allow again, + to block one; features/word-control), `TextReplacementsView` (shortcuts and their phrases, the variable chips, the iPhone's own on/off; features/text-replacements), `WordPairsView` ("Word pairs", what Learns from you learned, features/learned-words), `MissedWordsView` ("Words it missed", features/missed-words), `SharingView` ("What
+    what was sent), `LearnedWordsView` (+ to add a word, Select to drop several, a Used once filter), `NeverSuggestView` (blocked words: allow again, + to block one; features/word-control), `TextReplacementsView` (shortcuts and their phrases, the variable chips, Your details, copy the iPhone's own in, the iPhone's own on/off; features/text-replacements), `WordPairsView` ("Word pairs", what Learns from you learned, features/learned-words), `MissedWordsView` ("Words it missed", features/missed-words), `SharingView` ("What
     gets shared": the words waiting to go up, drawn on the keys), `PracticeView`,
     `ProView` (the subscription screen, StoreKit's `SubscriptionStoreView`),
     `TrialOverView` (the sheet, once), `MilestoneView` (the sheet, once each),
@@ -101,7 +101,7 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
       `EmojiStore`, Frequently used and the skin tones in `emoji.json`), `EmojiSearch`
       (`EmojiNames` from `Resources/emoji/names-en.tsv` and `names-es.tsv`, Unicode's CLDR
       names and keywords built by `ml/emoji/build_names.py`, and the search that ranks
-      them), `TextReplacements` (shortcut → phrase, the `{date}` variables, features/text-replacements), `KeyboardSettings` (the in-keyboard settings
+      them), `TextReplacements` (shortcut → phrase, the `{date}`, `{cursor}`, `{?blank}` and other variables, features/text-replacements), `PhoneReplacementsFile` (the iPhone's replacements, written by the keyboard for the app), `KeyboardSettings` (the in-keyboard settings
       and their `SettingsStore`). `Sync/` holds the data layer: `Stores` (`JSONFile`,
       `WordStore` and file, memory and mirrored stores for words, settings and the
       personal model, `InstallID`),
@@ -204,7 +204,10 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
   `customization` (Appearance split into General, Styling and Effects: themes, your own
   theme, tap and swipe effects and flow levels; in design),
   `text-replacements` (a shortcut typed or swiped goes in as a phrase, with `{date}`
-  and other variables; the iPhone's own replacements too; built 8 Nov 2026).
+  and other variables; the iPhone's own replacements too; built 8 Nov 2026. Phase 2:
+  `{cursor}`, `{clipboard}`, `{?blanks}` asked on the bar, date math, your details,
+  random picks, the snippet page (`SnippetsPageView`), suggest as you type, symbol
+  shortcuts, copy the iPhone's list in).
 - `design/`: the mockup (`mockups/astrotype.html`, the keyboard in it works), the
   screen captures the design doc links, the icon's SVGs (`icon/`) and
   `appstore/make-screenshots.mjs`, which renders the store screenshots from the mockup

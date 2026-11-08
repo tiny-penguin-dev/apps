@@ -188,6 +188,30 @@ public final class KeyboardModel {
         }
     }
 
+    /// The replacements the snippet page lists: the person's own, newest first, then the
+    /// phone's in A to Z order, one per shortcut (features/text-replacements).
+    public var snippets: [TextReplacement] {
+        guard composer.settings.replacesText else { return [] }
+        let own = keyboardSettings.textReplacements
+        let taken = Set(own.map(\.shortcut))
+        let phone = (keyboardSettings.usesPhoneReplacements ? phoneReplacements : [])
+            .filter { TextReplacements.shortcut($0.shortcut).map { !taken.contains($0) } ?? false }
+            .sorted { $0.shortcut.localizedCaseInsensitiveCompare($1.shortcut) == .orderedAscending }
+        return own + phone
+    }
+
+    /// Whether the bar offers the snippet page: there are replacements, and they apply here.
+    public var offersSnippets: Bool {
+        composer.settings.replacesText && !composer.settings.replacements.isEmpty && search == nil
+    }
+
+    /// A replacement picked on the snippet page: its phrase goes in at the cursor.
+    public func write(replacement shortcut: String) {
+        log(TypingEvent(t: now, e: .snippet, s: shortcut))
+        autospace?.cancel()
+        apply(composer.write(replacement: shortcut, time: now))
+    }
+
     /// Whether the field being typed in may teach the keyboard: never an address, a
     /// code, a number or a field that asks for no autocorrection (`Field.learns`).
     public var learningAllowed: Bool { field.learns }
@@ -314,6 +338,9 @@ public final class KeyboardModel {
         var learner = PersonalLearner(model: personalStore?.load() ?? personal ?? PersonalModel(), device: installID, now: now)
         let forgot = learner.apply(settings, now: now)
         composer.personal = learner.index
+        // `{clipboard}` in a replacement: read only as the phrase goes in. Without Full
+        // Access iOS gives the keyboard nothing, and it writes nothing.
+        composer.clipboard = { MainActor.assumeIsolated { UIPasteboard.general.string } }
         self.composer = composer
         self.store = store
         self.wordStore = wordStore

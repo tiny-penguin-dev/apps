@@ -26,27 +26,32 @@ import Testing
         #expect(expand("{tomorrow} / {yesterday}") == "Nov 9, 2026 / Nov 7, 2026")
         #expect(expand("at {TIME}").hasPrefix("at 8:51"))
         // Not a variable, or not closed: left as written.
-        #expect(expand("{name} {date") == "{name} {date")
+        #expect(expand("{nope} {date") == "{nope} {date")
         #expect(expand("{ {date}") == "{ Nov 8, 2026")
         #expect(expand("plain") == "plain")
     }
 
-    @Test func shortcutsAreOneWordOfLetters() {
+    @Test func shortcutsAreOneWordWithNoSpaces() {
         #expect(TextReplacements.shortcut(" OMW ") == "omw")
         #expect(TextReplacements.shortcut("añoq") == "añoq")
         #expect(TextReplacements.shortcut("a") == nil)
         #expect(TextReplacements.shortcut("on my") == nil)
-        #expect(TextReplacements.shortcut("@@") == nil)
-        #expect(TextReplacements.shortcut("addr1") == nil)
+        #expect(TextReplacements.shortcut("@@") == "@@")
+        #expect(TextReplacements.shortcut(";Addr") == ";addr")
+        #expect(TextReplacements.shortcut("addr1") == "addr1")
+        #expect(TextReplacements.shortcut("12") == nil)
+        #expect(TextReplacements.isWord("omw") && !TextReplacements.isWord(";addr"))
     }
 
     @Test func ownReplacementsWinOverThePhones() {
         let r = TextReplacements(own: [TextReplacement(shortcut: "omw", phrase: "Mine")],
                                  phone: [TextReplacement(shortcut: "OMW", phrase: "Phone's"),
                                          TextReplacement(shortcut: "brb", phrase: "Be right back"),
-                                         TextReplacement(shortcut: ";;", phrase: "skipped")])
+                                         TextReplacement(shortcut: ";;", phrase: "Semis")])
         #expect(r.phrase(for: "Omw") == "Mine")
         #expect(r.phrase(for: "brb") == "Be right back")
+        #expect(r.phrase(for: ";;") == "Semis")
+        // Only the shortcuts of letters are offered as words.
         #expect(r.shortcuts == ["omw", "brb"])
     }
 
@@ -150,4 +155,220 @@ import Testing
         #expect(old.textReplacements.isEmpty && old.usesPhoneReplacements)
         #expect(settings.composerSettings().replacements.phrase(for: "brb") == "Be right back")
     }
+    // MARK: Phase 2: more variables, the cursor, blanks, symbols, suggesting, the snippet page
+
+    @Test func moreVariablesFillIn() {
+        let details = PersonalDetails(name: "Gabriel", email: "g@example.com", phone: "555 0100", address: "1 Main St")
+        let context = TextReplacements.Context(date: Self.day, locale: Self.locale, timeZone: Self.utc,
+                                               clipboard: { "copied" }, details: details, random: { $0 - 1 },
+                                               filled: ["who": "Ana"])
+        let expand = { (phrase: String) in TextReplacements.expand(phrase, in: context) }
+        #expect(expand("{name} <{email}> {phone}, {address}").text == "Gabriel <g@example.com> 555 0100, 1 Main St")
+        #expect(expand("{date+7} {date-1} {date+0}").text == "Nov 15, 2026 Nov 7, 2026 Nov 8, 2026")
+        // Sunday the 8th: next Friday is the 13th, next Sunday a week on.
+        #expect(expand("{next friday} {Next Sunday}").text == "Nov 13, 2026 Nov 15, 2026")
+        #expect(expand("{pick: thanks | cheers | ty}").text == "ty")
+        #expect(expand("{clipboard}!").text == "copied!")
+        #expect(expand("Hi {?who}, {?what}").text == "Hi Ana, [what]")
+        #expect(expand("Dear {cursor},").text == "Dear ,")
+        #expect(expand("Dear {cursor},").cursorFromEnd == 1)
+        #expect(expand("{next blursday} {date+x}").text == "{next blursday} {date+x}")
+        #expect(TextReplacements.blanks(in: "{?who} {?when} {?who} {?}") == ["who", "when"])
+    }
+
+    @Test func theCursorGoesWhereThePhraseSays() {
+        var composer = Self.composer([("ds", "Dear {cursor},")])
+        var field = TypingReplay.Field()
+        let lifted = Synth.taps(&composer, "ds")
+        #expect(composer.state.replacement == "Dear ,")
+        let effects = composer.press(.space, time: lifted + 0.1)
+        field.apply(effects)
+        // No space after it: the person types at the cursor.
+        #expect(effects.contains(.moveCursor(-1)))
+        #expect(field.text == "Dear " && field.after == ",")
+        #expect(composer.state.bar == .idle)
+    }
+
+    @Test func theClipboardIsReadOnlyWhenThePhraseGoesIn() {
+        var composer = Self.composer([("cb", "Copied: {clipboard}")])
+        let reads = Counter()
+        composer.clipboard = { reads.bump(); return "hello" }
+        let lifted = Synth.taps(&composer, "cb")
+        // The bar shows a stand-in, never the pasteboard.
+        #expect(composer.state.replacement == "Copied: [clipboard]")
+        #expect(reads.count == 0)
+        let effects = composer.press(.space, time: lifted + 0.1)
+        #expect(effects.contains(.commit("Copied: hello")))
+        #expect(reads.count == 1)
+    }
+
+    @Test func aRandomPickIsTheOneTheBarShowed() {
+        var composer = Self.composer([("ty", "{pick:thanks|cheers|ty!}")])
+        composer.random = { $0 > 3 ? 7 : 0 }   // the roll: 7 % 3 = 1
+        let lifted = Synth.taps(&composer, "ty")
+        #expect(composer.state.replacement == "cheers")
+        let effects = composer.press(.space, time: lifted + 0.1)
+        #expect(effects.contains(.commit("cheers")))
+    }
+
+    @Test func yourDetailsComeFromSettings() {
+        var settings = KeyboardSettings()
+        settings.personalDetails = PersonalDetails(name: "Gabriel", email: "g@example.com")
+        settings.save(TextReplacement(shortcut: "sig", phrase: "{name} ({email})"))
+        var composer = Self.composer([])
+        composer.settings = settings.composerSettings(from: composer.settings)
+        let lifted = Synth.taps(&composer, "sig")
+        let effects = composer.press(.space, time: lifted + 0.1)
+        #expect(effects.contains(.commit("Gabriel (g@example.com)")))
+
+        let back = try! JSONDecoder().decode(KeyboardSettings.self, from: JSONEncoder().encode(settings))
+        #expect(back.personalDetails == settings.personalDetails)
+        let old = try! JSONDecoder().decode(KeyboardSettings.self, from: Data("{\"autospace\":true}".utf8))
+        #expect(old.personalDetails.isEmpty)
+    }
+
+    @Test func blanksAreAskedForBeforeThePhraseGoesIn() {
+        var composer = Self.composer([("mtg", "Meeting with {?who} at {?when}.")])
+        var field = TypingReplay.Field()
+        let lifted = Synth.taps(&composer, "mtg")
+        field.apply(composer.press(.space, time: lifted + 0.1))
+        // The shortcut stays as typed while the bar asks.
+        #expect(field.text == "mtg")
+        #expect(composer.state.fillPrompt == "who")
+        #expect(composer.state.bar == .correcting(""))
+        composer.setContext(before: field.text)
+        // Shift gives a capital; space types a space; any text goes in as it is.
+        _ = composer.press(.shift, time: 1)
+        field.apply(composer.press(.letter("a"), time: 1.1))
+        field.apply(composer.press(.text("na Lu"), time: 1.2))
+        #expect(composer.state.bar == .correcting("Ana Lu"))
+        _ = composer.press(.backspace, time: 1.3)
+        _ = composer.press(.text("z"), time: 1.4)
+        field.apply(composer.press(.returnKey, time: 1.5))
+        #expect(composer.state.fillPrompt == "when")
+        #expect(field.text == "mtg")
+        field.apply(composer.press(.text("3pm"), time: 1.6))
+        field.apply(composer.press(.space, time: 1.7))
+        field.apply(composer.press(.text("today"), time: 1.8))
+        field.apply(composer.saveCorrection(time: 1.9))
+        #expect(field.text == "Meeting with Ana Lz at 3pm today. ")
+        #expect(composer.state.fillPrompt == nil)
+        guard case .fix(let words, 0) = composer.state.bar else { Issue.record("\(composer.state.bar)"); return }
+        #expect(words == ["Meeting with Ana Lz at 3pm today.", "mtg"])
+    }
+
+    @Test func cancellingABlankLeavesTheShortcut() {
+        var composer = Self.composer([("mtg", "Meeting with {?who}")])
+        var field = TypingReplay.Field()
+        let lifted = Synth.taps(&composer, "mtg")
+        field.apply(composer.press(.space, time: lifted + 0.1))
+        _ = composer.press(.text("Ana"), time: 1)
+        composer.cancelCorrection(time: 1.1)
+        #expect(field.text == "mtg")
+        #expect(composer.state.fillPrompt == nil)
+        #expect(composer.state.bar != .correcting(""))
+    }
+
+    @Test func aShortcutWithASymbolBeforeItsLetters() {
+        var composer = Self.composer([(";addr", "1 Main St")])
+        var field = TypingReplay.Field()
+        field.apply(composer.press(.symbol(";"), time: 0))
+        composer.setContext(before: field.text)
+        let lifted = Synth.taps(&composer, "addr", at: 0.5)
+        #expect(composer.state.openWord == "addr")
+        #expect(composer.state.replacement == "1 Main St")
+        field.apply(composer.press(.space, time: lifted + 0.1))
+        #expect(field.text == "1 Main St ")
+        composer.setContext(before: field.text)
+        guard case .fix(let words, 0) = composer.state.bar else { Issue.record("\(composer.state.bar)"); return }
+        #expect(words.prefix(2) == ["1 Main St", ";addr"])
+        // Taking it back writes the shortcut as it was.
+        field.apply(composer.choose(guess: 1))
+        #expect(field.text == ";addr ")
+    }
+
+    @Test func aShortcutOfSymbolsGoesInAtSpace() {
+        var composer = Self.composer([("@@", "g@example.com"), ("addr1", "1 Main St")])
+        var field = TypingReplay.Field(text: "mail ")
+        composer.setContext(before: field.text)
+        field.apply(composer.press(.text("@@"), time: 0))
+        composer.setContext(before: field.text)
+        field.apply(composer.press(.space, time: 0.2))
+        #expect(field.text == "mail g@example.com ")
+        composer.setContext(before: field.text)
+        // Letters, then a digit: the word goes in, then the whole of it is replaced.
+        let lifted = Synth.taps(&composer, "addr", at: 1)
+        field.apply(composer.press(.symbol("1"), time: lifted + 0.1))
+        composer.setContext(before: field.text)
+        field.apply(composer.press(.returnKey, time: lifted + 0.2))
+        #expect(field.text == "mail g@example.com 1 Main St\n")
+    }
+
+    @Test func aShortcutBeingTypedShowsOnTheBar() {
+        var composer = Self.composer([("omw", "On my way!"), ("omwl", "On my way, a bit late")])
+        let lifted = Synth.taps(&composer, "om")
+        guard case .guesses(let words, let chosen) = composer.state.bar else { Issue.record("\(composer.state.bar)"); return }
+        #expect(words.contains("omw"))
+        #expect(words[chosen] != "omw")
+        #expect(composer.state.previews["omw"] == "On my way!")
+        let effects = composer.choose(guess: words.firstIndex(of: "omw")!, time: lifted + 0.1)
+        #expect(effects.contains(.commit("On my way!")))
+        // One letter is not enough to offer it.
+        var other = Self.composer([("omw", "On my way!")])
+        _ = Synth.taps(&other, "o")
+        #expect(other.state.previews.isEmpty)
+    }
+
+    @Test func theSnippetPageWritesAPhrase() {
+        var composer = Self.composer([("omw", "on my way!"), ("mtg", "Meeting with {?who}")], autoCapitalize: true)
+        var field = TypingReplay.Field(text: "Hello")
+        composer.setContext(before: field.text)
+        field.apply(composer.write(replacement: "omw", time: 0))
+        #expect(field.text == "Hello on my way! ")
+        composer.setContext(before: field.text)
+
+        // At a sentence start it gets its capital.
+        var fresh = Self.composer([("omw", "on my way!")], autoCapitalize: true)
+        var start = TypingReplay.Field(text: "Hi. ")
+        fresh.setContext(before: start.text)
+        start.apply(fresh.write(replacement: "omw", time: 0))
+        #expect(start.text == "Hi. On my way! ")
+
+        // An open word goes in first.
+        var typing = Self.composer([("omw", "on my way!")])
+        var open = TypingReplay.Field(text: "I'm ")
+        typing.setContext(before: open.text)
+        let lifted = Synth.taps(&typing, "ok")
+        open.apply(typing.write(replacement: "omw", time: lifted + 0.1))
+        #expect(open.text == "I'm ok on my way! ")
+
+        // A phrase with blanks asks first, then goes in at the cursor.
+        field.apply(composer.write(replacement: "mtg", time: 1))
+        #expect(composer.state.fillPrompt == "who")
+        field.apply(composer.press(.text("Ana"), time: 1.1))
+        field.apply(composer.saveCorrection(time: 1.2))
+        #expect(field.text == "Hello on my way! Meeting with Ana ")
+    }
+
+    @Test func thePhonesListCopiesInOncePerShortcut() {
+        let phone = [TextReplacement(shortcut: "omw", phrase: "On my way!"), TextReplacement(shortcut: "BRB", phrase: "Be right back"),
+                     TextReplacement(shortcut: "brb", phrase: "Again"), TextReplacement(shortcut: "x", phrase: "too short")]
+        let own = [TextReplacement(shortcut: "omw", phrase: "Mine")]
+        let copied = PhoneReplacementsFile.toCopy(phone, into: own)
+        #expect(copied.map(\.shortcut) == ["brb"])
+        #expect(copied[0].phrase == "Be right back")
+        #expect(copied[0].id != phone[1].id)
+
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("phone-\(UUID()).json")
+        PhoneReplacementsFile.save(phone, to: url)
+        #expect(PhoneReplacementsFile.load(from: url) == phone)
+        #expect(PhoneReplacementsFile.load(from: nil).isEmpty)
+        try? FileManager.default.removeItem(at: url)
+    }
+}
+
+/// Counts calls from a `@Sendable` closure.
+final class Counter: @unchecked Sendable {
+    private(set) var count = 0
+    func bump() { count += 1 }
 }

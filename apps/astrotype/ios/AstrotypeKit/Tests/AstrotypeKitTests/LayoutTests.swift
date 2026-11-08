@@ -156,13 +156,16 @@ import Testing
         #expect(layout.placements.filter { $0.row == 2 }.count == 7)
     }
 
-    @Test func numbersThirdRowIsApples() {
+    @Test func numbersThirdRowFillsTheRow() {
         let layout = Layout.qwerty(width: 390, page: .numbers)
         let q = Layout.qwerty(width: 390).frame(of: .letter("q"))!
         let p = Layout.qwerty(width: 390).frame(of: .letter("p"))!
-        // The page key and backspace at the row's ends, under 1 and 0.
+        // The page key and backspace at the row's ends, under 1 and 0, as wide as ABC.
         #expect(layout.frame(of: .symbols)!.minX == q.minX)
         #expect(abs(layout.frame(of: .backspace)!.maxX - p.maxX) < 0.001)
+        let abc = layout.frame(of: .letters)!.width
+        #expect(layout.frame(of: .symbols)!.width == abc)
+        #expect(layout.frame(of: .backspace)!.width == abc)
         // The five marks are wider than a letter and keep clear of each other.
         let marks = layout.placements.filter { $0.row == 2 && $0.key.symbolCharacter != nil }.map(\.frame)
         #expect(marks.count == 5)
@@ -170,8 +173,11 @@ import Testing
             #expect(a.width > q.width)
             #expect(b.minX > a.maxX)
         }
-        #expect(marks.first!.minX > layout.frame(of: .symbols)!.maxX)
-        #expect(marks.last!.maxX < layout.frame(of: .backspace)!.minX)
+        // No extra room between them: every key is `keyGap` from the next.
+        let row = layout.placements.filter { $0.row == 2 }.map(\.frame).sorted { $0.minX < $1.minX }
+        for (a, b) in zip(row, row.dropFirst()) {
+            #expect(abs(b.minX - a.maxX - layout.gap) < 0.001)
+        }
         // The middle mark is in the middle, like Apple's "?".
         #expect(abs(marks[2].midX - 195) < 2)
     }
@@ -319,10 +325,18 @@ import Testing
             for (row, expected) in rows.enumerated() {
                 #expect(half(row, .left) == expected.0 && half(row, .right) == expected.1, "\(page) \(extraLetters) row \(row)")
             }
-            // "?" sits under V, so the 123 page keeps the letters' columns.
+            // "?" sits over V on both halves, and the marks are wider than a key.
             let letters = Layout.qwerty(width: width, split: true, extraLetters: extraLetters)
-            #expect(layout.frame(of: .symbol("?"), on: .left)!.minX == letters.frame(of: .letter("v"), on: .left)!.minX)
-            #expect(layout.frame(of: .symbol("?"), on: .right)!.minX == letters.frame(of: .letter("v"), on: .right)!.minX)
+            for side in [Side.left, .right] {
+                let mark = layout.frame(of: .symbol("?"), on: side)!
+                let v = letters.frame(of: .letter("v"), on: side)!
+                #expect(mark.minX <= v.midX && v.midX <= mark.maxX, "\(page) \(extraLetters) \(side)")
+                #expect(mark.width > v.width)
+            }
+            // The page key and backspace are as wide as ABC.
+            let abc = layout.frame(of: .letters)!.width
+            #expect(layout.frame(of: .backspace)!.width == abc)
+            #expect(layout.frame(of: page == .numbers ? .symbols : .numbers)!.width == abc)
             let q = layout.frame(of: .symbol("?"), on: .right)!
             #expect(layout.key(at: CGPoint(x: q.midX, y: q.midY)) == .symbol("?"))
             for placement in layout.placements {

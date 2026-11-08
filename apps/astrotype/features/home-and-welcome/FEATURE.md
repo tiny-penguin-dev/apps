@@ -73,7 +73,7 @@ Status: Draft
 
 Status: Draft
 
-- **Mockups:** `design/mockups/home-and-welcome.html` (tap through it; every button in the phone works)
+- **Mockups:** `design/mockups/home-and-welcome.html` (Artifact: https://claude.ai/artifact/CYaxjuqLHErz1c2uJtQgsm) (tap through it; every button in the phone works)
 - **What changes:**
   - **Home** (`screens/01-before-home.png` → `02-home.png`): header and Your speed stay.
     New Your keyboard card. Drills, Practice words and the week move into one Practice

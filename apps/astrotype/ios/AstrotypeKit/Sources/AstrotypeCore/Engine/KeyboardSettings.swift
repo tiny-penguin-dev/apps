@@ -90,8 +90,6 @@ public struct KeyboardSettings: Codable, Sendable, Equatable {
     public var themeID = KeyboardTheme.classic.id
     /// The themes the person made.
     public var customThemes: [KeyboardTheme] = []
-    /// Follow the phone's light or dark mode, or keep one.
-    public var keyAppearance = KeyAppearance.system
     /// Which effects, when `trails` (the Effects switch) is on. Calm by default.
     public var effects = EffectsSettings.calm
 
@@ -171,7 +169,6 @@ public struct KeyboardSettings: Codable, Sendable, Equatable {
         usesPhoneReplacements = try c.decodeIfPresent(Bool.self, forKey: .usesPhoneReplacements) ?? true
         themeID = try c.decodeIfPresent(String.self, forKey: .themeID) ?? KeyboardTheme.classic.id
         customThemes = (try? c.decodeIfPresent([KeyboardTheme].self, forKey: .customThemes)) ?? []
-        keyAppearance = (try? c.decodeIfPresent(KeyAppearance.self, forKey: .keyAppearance)) ?? .system
         effects = (try? c.decodeIfPresent(EffectsSettings.self, forKey: .effects)) ?? .calm
     }
 

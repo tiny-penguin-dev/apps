@@ -55,7 +55,11 @@ Status: Approved 2026-11-06 (Gabriel: "Go ahead and build it")
   - *General:* everything Appearance has today except trails and flashes: Height,
     Guesses bar, Haptics, Underline the open word, and the wide-screen layout.
   - *Styling:*
-    - **Light or dark:** Like my phone (default), always Light, always Dark.
+    - **Light or dark:** always the phone's mode. (A Like my phone / Light / Dark switch
+      was here; Gabriel removed it on 8 Nov 2026 after it locked the keys dark on a light
+      phone, since the glass behind the keys always follows the phone.) A Light look /
+      Dark look switch under the preview flips only the preview and the cards, never
+      saved, so both looks can be checked.
     - **Themes:** eight ready-made themes, each with a light and a dark look. Classic
       (today's Apple-like keys, free), Iceberg (pale blue, Astrotype's teal), Tuxedo
       (black keys, an orange beak for the thumb colour), Krill (pink and coral),
@@ -142,7 +146,7 @@ Status: Approved 2026-11-06 (Gabriel: "Go ahead and build it")
   bend. It only draws while something moves, then keeps its last frame. If Metal is
   missing or the phone is in Low Power Mode, letters fall back to Pop.
 - **Free and Pro** (Gabriel, 6 Nov 2026):
-  - *Free:* the Classic theme in light and dark, Like my phone / Light / Dark, the Calm
+  - *Free:* the Classic theme in light and dark, the Calm
     effects (ring taps, line trails, thumb-colour flashes), and Effects off. That is the
     keyboard as it is today.
   - *Pro:* the other seven themes, your own themes, every other tap, trail and flash,
@@ -218,7 +222,7 @@ Status: Approved 2026-11-06 (Gabriel: "Go ahead and build it")
     (Haptics, Underline), Wide screens PRO. The small `KeyboardPreview` goes, since the
     Appearance page now shows the real keyboard.
   - *Styling* ([04](design/screens/04-styling.png),
-    [dark](design/screens/05-styling-dark.png)): Light or dark, then the themes as a
+    [dark](design/screens/05-styling-dark.png)): the themes as a
     two-column grid of `ThemeCard`s (three on wide), each drawn in the look you are
     in, PRO on all but Classic. Your themes below with a dashed "New theme" card. The
     real keyboard sits at the bottom of the screen in the chosen theme, so a tap on a
@@ -283,17 +287,18 @@ Status: Approved 2026-11-06 (Gabriel: "Go ahead and build it")
 - **Approach:** Core holds the values and the flow rules, the UI draws them.
   - `AstrotypeCore/Style/`: `KeyboardTheme` (id, name, `KeyColors` for light and
     dark, one `KeyShape`), the eight built-in themes, `KeyAppearance` (system, light,
-    dark), `RGBColor` (hex, contrast); `EffectsSettings` (tap, flash, trail, letters,
+    dark; the app's theme editor previews one look, the keyboard is always system),
+    `RGBColor` (hex, contrast); `EffectsSettings` (tap, flash, trail, letters,
     flow and its levels, presets); `FlowMeter` (the score, combo and level, time passed
     in). All `Codable` inside `KeyboardSettings` (`themeID`, `customThemes`,
-    `keyAppearance`, `effects`), so they sync like the rest; old settings read as
+    `effects`), so they sync like the rest; old settings read as
     Classic and Calm. `trails` stays the Effects on/off switch.
   - `ProFeature` gains `.styles` and `.effects`. `KeyboardSettings.style(allows:)` and
     `effects(allows:)` give what the keyboard draws: Classic and Calm when Pro is off,
     the person's choice kept.
   - `AstrotypeUI`: `KeySurfaceView` and `KeyView` draw from a `KeyboardTheme` (colours,
-    gap, corners, border, shadow, see-through, font, letters); `KeyboardView` sets
-    `overrideUserInterfaceStyle` from `KeyAppearance`; the backdrop stays the system's.
+    gap, corners, border, shadow, see-through, font, letters); the keys follow the
+    phone's mode (or the field's asked keyboard appearance); the backdrop stays the system's.
     `KeyEffectsLayer` draws taps, trails, falling things, and the combo count on the space bar with Core Animation. `MetalKeyboard` (one device and queue, the
     shaders compiled from source at first use) backs `SkyLayer` (behind the keys) and
     `LetterLayer` (the Metal letters).

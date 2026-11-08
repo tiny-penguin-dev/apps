@@ -378,9 +378,7 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         surface.capsLocked = model.state.shift == .locked
         // Themes and effects are Pro, except Classic and Calm (features/customization).
         surface.theme = model.keyboardSettings.style(allows: model.entitlement.allows(.styles))
-        surface.keyAppearance = model.keyboardSettings.keyAppearance
         bar.keyTheme = surface.theme
-        bar.keyAppearance = surface.keyAppearance
         globeKey.configuration?.baseForegroundColor = bar.dimInk
         surface.effects = model.keyboardSettings.activeEffects(allows: model.entitlement.allows(.effects))
         applyBackdrop()

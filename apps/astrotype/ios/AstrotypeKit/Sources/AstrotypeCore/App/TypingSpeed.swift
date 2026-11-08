@@ -16,8 +16,9 @@ public enum SpeedRules {
     public static let minRunsPerDay = 3
     /// The everyday speed is the median of this many recent days with a speed...
     public static let everydayDays = 7
-    /// ...and shows once there are this many.
-    public static let minEverydayDays = 3
+    /// ...and shows once there are this many: from the first day, today included
+    /// (Gabriel, 8 Nov 2026: "why not show it live after the first day?").
+    public static let minEverydayDays = 1
     /// Days looked back over for the everyday speed.
     public static let everydayWindow = 30
     /// The fastest run is picked among runs at least this long.
@@ -299,7 +300,7 @@ public struct SpeedHistory: Codable, Sendable, Equatable {
         return today - then
     }
 
-    /// Days with a speed so far (for "Day 1 of 3").
+    /// Days with a speed so far.
     public var daysWithSpeed: Int { days.filter { $0.speed != nil }.count }
 
     /// The graph's points for `range`, oldest first. Practice is the speed test results.

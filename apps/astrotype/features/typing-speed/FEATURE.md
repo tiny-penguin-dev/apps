@@ -39,7 +39,8 @@ Status: Approved 2026-11-08 (Gabriel: "build it")
     makes it more accurate than an average for this. A day without 3 runs is a gap on
     the graph, never a zero.
   - **Your everyday speed** (the big number) is the median of the last 7 days that have
-    a speed. It shows once there are 3 such days.
+    a speed. It shows from the first day, today included and updating as you type
+    (Gabriel, 8 Nov 2026: "Why wait 3 days? Why not show it live after the first day?").
   - **Fastest run:** the quickest run of at least 20 words in the range.
   - Not counted: passwords and other fields that don't learn, emoji search, and the
     app's own practice fields (those are practice, shown as practice).
@@ -88,7 +89,8 @@ Mockup: [`design/mockups/typing-speed.html`](design/mockups/typing-speed.html).
   chip, a small graph of the last 30 days (everyday as a teal line, practice as coral
   dots), and under it **Practice for speed** with the best practice chip. Tapping the
   card opens Your speed. The rest of Home stays.
-  - First days ([new](design/screens/03-home-new.png)): "Day 1 of 3" and what to expect.
+  - Before the first speed ([new](design/screens/03-home-new.png)): what to expect. (Built
+    without the "Day 1 of 3" chip: the speed shows from the first day, 8 Nov 2026.)
   - No Full Access ([off](design/screens/04-home-off.png)): what turning it on gives,
     with Turn on and Practice for speed.
 - **Your speed** ([week](design/screens/05-week.png), [month](design/screens/06-month.png),

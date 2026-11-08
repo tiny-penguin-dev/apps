@@ -116,9 +116,11 @@ import Testing
         return h
     }
 
-    @Test func everydayNeedsThreeDaysAndTakesTheMedian() {
+    @Test func everydayShowsFromTheFirstDayAndTakesTheMedian() {
         let now = t0.addingTimeInterval(9 * 86_400 + 12 * 3600)
-        #expect(history(days: [8: 40, 9: 50]).everyday(now: now, calendar: utc) == nil)
+        #expect(SpeedHistory().everyday(now: now, calendar: utc) == nil)
+        #expect(history(days: [9: 41]).everyday(now: now, calendar: utc) == 41) // today, live
+        #expect(history(days: [8: 40, 9: 50]).everyday(now: now, calendar: utc) == 45)
         #expect(history(days: [7: 40, 8: 50, 9: 46]).everyday(now: now, calendar: utc) == 46)
         // The last seven days with a speed, not older ones.
         let long = history(days: [0: 10, 1: 10, 2: 10, 3: 50, 4: 50, 5: 50, 6: 50, 7: 50, 8: 50, 9: 50])

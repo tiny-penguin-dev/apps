@@ -84,18 +84,21 @@ public final class BarView: UIView {
     public var keyAppearance: KeyAppearance = .system {
         didSet { if keyAppearance != oldValue { render() } }
     }
-    private var keyColors: KeyColors {
-        KeyStyle(theme: keyTheme, appearance: keyAppearance, traits: traitCollection).colors
-    }
+    private var keyStyle: KeyStyle { KeyStyle(theme: keyTheme, appearance: keyAppearance, traits: traitCollection) }
+    private var keyColors: KeyColors { keyStyle.colors }
     private var pillColor: UIColor {
         let colors = keyColors
         return colors.functionKey.uiColor.withAlphaComponent(CGFloat(colors.functionKey.alpha * colors.keyOpacity))
     }
-    /// The letters' colour, pure: the chosen word, readings, typed text.
+    /// The letters' colour: the chosen word, on its pill.
     private var pillInk: UIColor { keyColors.letters.uiColor }
-    /// The letters' colour see-through, never a gray of its own (Gabriel, 8 Nov 2026):
-    /// the other guesses, notes, the pencil, ✕ and the globe.
-    public var dimInk: UIColor { pillInk.withAlphaComponent(0.6) }
+    /// Text with no key behind it sits on the system backdrop, so it follows the look,
+    /// not the theme's letters: pure white in dark, pure black in light (Gabriel,
+    /// 8 Nov 2026). Readings, typed text.
+    private var backdropInk: UIColor { keyStyle.backgroundIsDark ? .white : .black }
+    /// `backdropInk` see-through, never a gray of its own: the other guesses, notes,
+    /// the pencil, ✕ and the globe.
+    public var dimInk: UIColor { backdropInk.withAlphaComponent(0.6) }
 
     public override func traitCollectionDidChange(_ previous: UITraitCollection?) {
         super.traitCollectionDidChange(previous)
@@ -479,7 +482,7 @@ public final class BarView: UIView {
 
     /// A reading of the last word in the fix row: tapped, it replaces the word.
     private func addReading(_ word: String, index: Int) {
-        let button = GuessButton(configuration: guessConfiguration(word, chosen: false, ink: pillInk))
+        let button = GuessButton(configuration: guessConfiguration(word, chosen: false, ink: backdropInk))
         button.accessibilityLabel = word
         button.accessibilityHint = "Replaces the last word"
         button.addAction(UIAction { [weak self] _ in self?.onChooseFix?(index) }, for: .touchUpInside)
@@ -517,7 +520,7 @@ public final class BarView: UIView {
                 .foregroundColor: dimInk,
             ])
         } else {
-            let text = NSMutableAttributedString(string: typed, attributes: [.font: font, .foregroundColor: pillInk])
+            let text = NSMutableAttributedString(string: typed, attributes: [.font: font, .foregroundColor: backdropInk])
             text.append(NSAttributedString(string: "|", attributes: [.font: font, .foregroundColor: Theme.ui(.accent)]))
             fieldLabel.attributedText = text
         }

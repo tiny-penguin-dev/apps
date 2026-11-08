@@ -6,7 +6,7 @@ replacements (`{name}`, `{email}`, `{phone}`, `{address}`).
 
 ## Product
 
-Status: Draft
+Status: Approved 2026-11-08 (Gabriel: "1. Free 2 yes 3. Both. Build it")
 
 - **The ask** (Gabriel, 8 Nov 2026): know what kind of field we're in (email, username,
   password, card, address…) and offer autofill from the person's profile, like text
@@ -60,7 +60,7 @@ A keyboard only sees what `UITextDocumentProxy` gives it:
   | Phone | phone |
   | Street address, city, state, postal code, country, full address | that part |
   | Company, job title | those, if set |
-  | Username | email (most usernames are emails) |
+  | Username | your username, then your email |
   | Password, new password, card, one-time code | nothing (iOS or the app handles them) |
 
 - **Fields that don't say.** We guess from what we can see:
@@ -69,15 +69,17 @@ A keyboard only sees what `UITextDocumentProxy` gives it:
   3. **Start typing:** in any field, typing the first 2 letters of one of your details
      ("ga" for Gabriel, "gab" for your email) offers it in the bar. This works even in
      the worst forms and in chats, and needs nothing from the app.
-  4. **Chat phrases** (asks first, see question 2): "my email is", "my address is",
-     "call me at" just before the cursor offers that detail.
+  4. **Chat phrases:** "my email is", "my address is", "call me at", "me llamo" and
+     the like, right before the cursor (with the space), offer that detail. Only the
+     few words before the cursor are read, on the phone.
 - **Your details** grows from 4 lines into a small profile: first name, last name,
-  email, phone, street, city, state, postal code, country, and (optional) company and
-  birthday. `{name}` and `{address}` keep writing the full name and full address. A
+  email, phone, username, street, city, state, postal code, country, and (optional)
+  company and job title. `{name}` and `{address}` keep writing the full name and full address. A
   "Fill from contacts" button in the app opens Apple's contact picker so you can pick
   your own card in one tap (no Contacts permission needed).
-- **Where it lives:** Settings → Typing → Autofill (on by default), with the Your
-  details sheet. Text replacements keeps its link to the same sheet.
+- **Where it lives:** Settings → Typing → Autofill: "Offer your details" (on by
+  default) and the Your details sheet. Text replacements keeps its link to the same
+  sheet. Free.
 - **Privacy:** details stay on the phone and sync only through your iCloud settings
   like today. Nothing about fields or details is ever sent, and nothing is learned
   from these fields.
@@ -85,46 +87,63 @@ A keyboard only sees what `UITextDocumentProxy` gives it:
 ### Scope
 
 - *Now:* content-type autofill, the email-keyboard and capitals guesses, start-typing
-  matches, the bigger Your details sheet with Fill from contacts.
-- *Later:* chat phrases (if yes to question 2), more than one address (home, work),
-  the "switch keyboard" button for usernames and cards.
+  matches, chat phrases, the bigger Your details sheet with Fill from contacts.
+- *Later:* more than one address (home, work), a birthday, the "switch keyboard"
+  button for usernames and cards.
 - *Never:* storing passwords or cards, or reading other apps' saved logins.
 
 ### What we measure
 
 Nothing new from the keyboard (`docs/telemetry.md`: it sends crash reports only). In
-the app, an anonymous count of people who filled in Your details, so we can see if the
-feature gets set up.
+the app, `details.saved`: counted once when Your details go from empty to set, so we
+can see if the feature gets set up. Never what was written.
 
-### Open questions for Gabriel
+### Answered (Gabriel, 8 Nov 2026)
 
-1. **Free or Pro?** Recommend free: Apple's keyboard does this, so it's part of being
-   on par with it.
-2. **Chat phrases:** the field-types plan said we'd never read what's in a field to
-   guess its kind. Start-typing only looks at the word you're typing, so it's fine.
-   Chat phrases look a few words back (on the phone only). OK to do that later?
-   Recommend yes, later.
-3. **Username fields:** offer your email (recommended), or let you set a separate
-   username?
+1. Free.
+2. Yes to chat phrases. This changes the field-types plan's "never read what's in a
+   field": only the few words right before the cursor, to offer a detail, never to
+   decide the field's kind, and never sent anywhere.
+3. Username fields offer both: your username and your email.
 
 ## Design
 
-Status: Draft. Mockups come once the product questions are answered.
+Status: Approved 2026-11-08 (Gabriel: "Build it", built straight from the plan with no
+mockup, like text replacements)
 
-- The detail shows in the bar's middle slot as one pill (or name split into full /
-  first / last), with a small person icon so it reads as "yours", not a guess.
-- Tapping it fills the field; the bar then goes back to normal.
-- Your details sheet: grouped fields (Name, Contact, Address, More) with Fill from
-  contacts at the top.
+- **On the bar, nothing typed:** the details take the middle in place of the next
+  words, up to three, each with a person icon in front (`person.crop.circle.fill`, dim
+  ink) and the detail in the readings' ink, so it reads as yours, not a guess. A long
+  detail (an address) is cut short at 220 pt. Tapping one writes it at the cursor
+  with no space after it.
+- **On the bar, typing:** a detail you're typing takes the place of the last guess, on
+  the left, so it is dropped last on a narrow bar. Tapped, it goes in place of what was
+  typed, and the bar offers what was typed back (as after a text replacement);
+  backspace reopens it.
+- **Settings → Typing → Autofill:** a switch, "Offer your details", and a "Your
+  details" row (name and email when set, "Not set yet" otherwise). Footnote: "Also when
+  you start typing one of them, or write "my email is". Passwords and cards switch to
+  Apple's keyboard, where your password app fills them."
+- **Your details sheet:** "Fill from contacts" at the top (Apple's contact picker, no
+  permission), then Name (first, last), Contact (email, phone, username), Address
+  (street, city, state, postal code, country) and More (company, job title).
+- **Accessibility:** each detail on the bar reads as the detail, with the hint "Fills
+  in your detail" or "Finishes it with your detail".
 
 ## Build
 
-Status: Not started
+Status: Built 2026-11-08
 
-- `Field.Content` gains the profile content types; `KeyboardViewController.field`
-  maps the extra `UITextContentType`s.
-- `PersonalDetails` gains the split fields, keeping old saved settings readable and
-  `{name}` / `{address}` writing the joined values.
-- A small `Autofill` in AstrotypeCore: given a `Field` and the open word, which details
-  to offer. Unit tested like `FieldTests`.
-- The bar shows the offer through the same path as text replacement pills.
+- `Autofill` (AstrotypeCore): `Slot` (one detail and how to read it from
+  `PersonalDetails`), `offers(for:details:before:)` for an empty field or a chat
+  phrase, `completion(of:slots:details:)` for a detail being typed. Tested in
+  `AutofillTests`.
+- `Field` gains `asks` and `autofillSlots`; `KeyboardViewController.field` maps the
+  `UITextContentType`s (`autofillSlots` table).
+- `PersonalDetails` is split (first and last name, address parts, username, company,
+  job title); older saved details still read, and `name` and `address` are written
+  too for older keyboards on other devices.
+- `Composer.State.autofill` and `Composer.fill(autofill:time:)`, which writes through
+  the replacement path (`literal`, so no variables). Logged as `af` with the index only.
+- `BarView.autofill` / `onAutofill`; `KeyboardSettings.autofill`; app:
+  `YourDetailsSheet`, Settings → Typing → Autofill.

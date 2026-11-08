@@ -67,6 +67,14 @@ public final class BarView: UIView {
         didSet { if offersSnippets != oldValue { render() } }
     }
     public var onSnippets: (() -> Void)?
+    /// The person's details on offer (`Composer.State.autofill`, features/autofill): in
+    /// place of the next words when nothing is typed, or on the left of the guesses
+    /// while one is being typed. Each has a person icon, so it reads as yours.
+    public var autofill: [Autofill.Offer] = [] {
+        didSet { if autofill != oldValue { render() } }
+    }
+    /// A detail tapped: its index in `autofill`.
+    public var onAutofill: ((Int) -> Void)?
     /// A guess boosted or blocked, and how: "menu" or "slide".
     public var onBoost: ((Int, String) -> Void)?
     public var onForget: ((Int, String) -> Void)?
@@ -100,6 +108,9 @@ public final class BarView: UIView {
     /// The narrowest a word on the bar is, so "I" or "a" is still easy to hit
     /// (Gabriel, 3 Nov 2026); the word sits centred in it.
     static let guessWidth: CGFloat = 64
+    /// The widest a detail on the bar is (features/autofill); a long address is cut short.
+    static let autofillWidth: CGFloat = 220
+    private static let autofillID = "autofill"
 
     /// The keyboard's theme and look: the chosen word's pill takes the colour of shift,
     /// delete and return (with their see-through) and the letters' colour (Gabriel,
@@ -400,7 +411,11 @@ public final class BarView: UIView {
         views.forEach { if $0.isHidden { $0.isHidden = false } }
         func needed() -> CGFloat {
             let shown = views.filter { !$0.isHidden }
-            return shown.reduce(0) { $0 + max($1.intrinsicContentSize.width, $1 is GuessButton ? Self.guessWidth : 0) } + CGFloat(max(0, shown.count - 1)) * stack.spacing
+            return shown.reduce(0) { total, view in
+                var w = max(view.intrinsicContentSize.width, view is GuessButton ? Self.guessWidth : 0)
+                if view.accessibilityIdentifier == Self.autofillID { w = min(w, Self.autofillWidth) }
+                return total + w
+            } + CGFloat(max(0, shown.count - 1)) * stack.spacing
         }
         while needed() > width {
             let shown = views.filter { !$0.isHidden && $0 !== keptView }
@@ -504,13 +519,31 @@ public final class BarView: UIView {
             setNeedsLayout()
             return
         }
+        if !autofill.isEmpty {
+            switch bar {
+            case .idle, .next, .fix:
+                // Nothing typed: the details take the middle, the first one kept.
+                for i in autofill.indices { addAutofill(i) }
+                keptView = stack.arrangedSubviews.first
+                setNeedsLayout()
+                return
+            default: break
+            }
+        }
         switch bar {
         case .idle:
             label.text = note
             label.isHidden = false
             stack.isHidden = true
         case .guesses(let words, let chosen):
-            for i in middleFirst(words.count, chosen: chosen) {
+            // A detail being typed takes the place of the last guess, on the left so it
+            // is dropped last when the bar is narrow.
+            var order = middleFirst(words.count, chosen: chosen)
+            if !autofill.isEmpty {
+                if words.count > 2, let last = order.last(where: { $0 != chosen }) { order.removeAll { $0 == last } }
+                addAutofill(0)
+            }
+            for i in order {
                 add(words[i], index: i, chosen: i == chosen, shown: previews[words[i]] ?? (i == chosen ? replacement : nil))
             }
         case .fix(let words, let chosen):
@@ -541,6 +574,25 @@ public final class BarView: UIView {
             break
         }
         setNeedsLayout()
+    }
+
+    /// One of the person's details: a person icon and the detail, cut short when long.
+    private func addAutofill(_ index: Int) {
+        let offer = autofill[index]
+        var config = guessConfiguration(offer.text, chosen: false, ink: backdropInk)
+        config.image = UIImage(systemName: "person.crop.circle.fill",
+                               withConfiguration: UIImage.SymbolConfiguration(pointSize: 13, weight: .semibold))
+        config.imagePadding = Theme.Space.xs
+        config.imageColorTransformer = UIConfigurationColorTransformer { [weak self] _ in self?.dimInk ?? .gray }
+        let button = GuessButton(configuration: config)
+        let widest = button.widthAnchor.constraint(lessThanOrEqualToConstant: Self.autofillWidth)
+        widest.priority = .required - 1
+        widest.isActive = true
+        button.accessibilityIdentifier = Self.autofillID
+        button.accessibilityLabel = TextReplacements.oneLine(offer.text)
+        button.accessibilityHint = offer.replacing.isEmpty ? "Fills in your detail" : "Finishes it with your detail"
+        button.addAction(UIAction { [weak self] _ in self?.onAutofill?(index) }, for: .touchUpInside)
+        stack.addArrangedSubview(button)
     }
 
     /// The small "Fixing" tag over the pill of a word written earlier: the bar is about

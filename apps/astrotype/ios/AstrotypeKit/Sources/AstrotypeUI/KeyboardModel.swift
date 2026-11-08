@@ -179,6 +179,7 @@ public final class KeyboardModel {
                                                  phone: keyboardSettings.usesPhoneReplacements ? phoneReplacements : [])
         // The app's practice fields measure typing word by word: no replacements there.
         settings.replacesText = settings.replacesText && offersNextWords
+        settings.autofills = settings.autofills && offersNextWords
         composer.settings = settings
     }
 
@@ -215,6 +216,14 @@ public final class KeyboardModel {
         log(TypingEvent(t: now, e: .snippet, s: shortcut))
         autospace?.cancel()
         apply(composer.write(replacement: shortcut, time: now))
+    }
+
+    /// One of the person's details tapped on the bar (features/autofill): it goes in at
+    /// the cursor. The log keeps only its place, never the detail.
+    public func fill(autofill index: Int) {
+        log(TypingEvent(t: now, e: .autofill, n: index))
+        autospace?.cancel()
+        apply(composer.fill(autofill: index, time: now))
     }
 
     /// Whether the field being typed in may teach the keyboard: never an address, a

@@ -154,6 +154,7 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         bar.onCancelCorrection = { [weak self] in self?.model.cancelCorrection() }
         bar.onSaveCorrection = { [weak self] in self?.model.saveCorrection() }
         bar.onSnippets = { [weak self] in self?.showSnippets() }
+        bar.onAutofill = { [weak self] index in self?.model.fill(autofill: index) }
         attachToModel()
         keyHaptic.prepare()
     }
@@ -364,6 +365,7 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         bar.replacement = model.state.replacement
         bar.previews = model.state.previews
         bar.fillPrompt = model.state.fillPrompt
+        bar.autofill = model.state.autofill
         bar.offersSnippets = model.offersSnippets
         if shownField != model.field {
             shownField = model.field

@@ -89,6 +89,9 @@ public struct KeyboardSettings: Codable, Sendable, Equatable {
     public var usesPhoneReplacements = true
     /// What `{name}`, `{email}`, `{phone}` and `{address}` write in a replacement.
     public var personalDetails = PersonalDetails()
+    /// Offer the person's details on the bar when a field asks for them
+    /// (features/autofill). On by default; it shows nothing until details are set.
+    public var autofill = true
 
     /// The chosen theme's id: a built-in one (`KeyboardTheme.builtIn`) or one of
     /// `customThemes` (features/customization). Classic by default.
@@ -174,6 +177,7 @@ public struct KeyboardSettings: Codable, Sendable, Equatable {
         textReplacements = (try? c.decodeIfPresent([TextReplacement].self, forKey: .textReplacements)) ?? []
         usesPhoneReplacements = try c.decodeIfPresent(Bool.self, forKey: .usesPhoneReplacements) ?? true
         personalDetails = (try? c.decodeIfPresent(PersonalDetails.self, forKey: .personalDetails)) ?? PersonalDetails()
+        autofill = try c.decodeIfPresent(Bool.self, forKey: .autofill) ?? true
         themeID = try c.decodeIfPresent(String.self, forKey: .themeID) ?? KeyboardTheme.classic.id
         customThemes = (try? c.decodeIfPresent([KeyboardTheme].self, forKey: .customThemes)) ?? []
         effects = (try? c.decodeIfPresent(EffectsSettings.self, forKey: .effects)) ?? .calm
@@ -234,6 +238,7 @@ public struct KeyboardSettings: Codable, Sendable, Equatable {
         out.mixesLanguages = mixesLanguages
         out.replacements = TextReplacements(own: textReplacements)
         out.details = personalDetails
+        out.autofills = autofill
         return out
     }
 }

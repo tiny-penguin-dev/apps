@@ -2,6 +2,7 @@
 import AppIntents
 import AVFoundation
 import Foundation
+import UIKit
 
 // THROWAWAY SPIKE (Gabriel, 7 Nov 2026), see DictationProbeIntent.swift. The app's side:
 // a dictation session the way Lanata's Talk to Lanata does it. The Live Activity starts
@@ -85,6 +86,40 @@ final class DictationSession {
             return try fail(source, "the Live Activity didn't start (\(error.localizedDescription)).")
         }
 
+        try await startMic(source: source)
+    }
+
+    /// Round 3: something woke the app in the background (a notification button, a
+    /// CloudKit nudge). Try the whole start from there and say where it stops.
+    func wake(source: String) async {
+        let label = "\(source) (app \(Self.appState))"
+        if isRunning {
+            DictationProbeLog.write("\(label): woke the app, session already on.")
+            return
+        }
+        DictationProbeLog.sessionStarted = nil
+        try? await start(source: label)
+    }
+
+    /// Round 3: a push started our Live Activity and iOS woke the app. Take it as the
+    /// session's activity and try the mic.
+    func adopt(_ pushed: Activity<DictationActivityAttributes>) async {
+        let label = "Push-started Live Activity (app \(Self.appState))"
+        if pushed.id == activity?.id { return }
+        if isRunning {
+            DictationProbeLog.write("\(label): session already on.")
+            return
+        }
+        guard AVAudioApplication.shared.recordPermission == .granted else {
+            DictationProbeLog.write("\(label): the app woke, but the microphone isn't allowed yet.")
+            return
+        }
+        activity = pushed
+        DictationProbeLog.write("\(label): the app woke and saw it. Trying the mic…")
+        try? await startMic(source: label)
+    }
+
+    private func startMic(source: String) async throws {
         // 2. The microphone.
         let session = AVAudioSession.sharedInstance()
         do {
@@ -166,6 +201,15 @@ final class DictationSession {
     }
 
     // MARK: - Private
+
+    static var appState: String {
+        switch UIApplication.shared.applicationState {
+        case .active: "in front"
+        case .inactive: "inactive"
+        case .background: "in the background"
+        @unknown default: "unknown"
+        }
+    }
 
     private func fail(_ source: String, _ why: String) throws {
         DictationProbeLog.write("\(source): ran in \(DictationProbeLog.place), but \(why)")

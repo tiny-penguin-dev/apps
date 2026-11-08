@@ -9,6 +9,8 @@ struct AstrotypeApp: App {
     @State private var samples: SampleStore
     @State private var uploader: SampleUploader
     @Environment(\.scenePhase) private var scenePhase
+    /// Throwaway dictation test, round 3 (DictationTest/DictationWake.swift).
+    @UIApplicationDelegateAdaptor(DictationWakeDelegate.self) private var dictationWake
 
     init() {
         Telemetry.start()

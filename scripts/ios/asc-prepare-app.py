@@ -34,6 +34,7 @@ CAPABILITIES = {
     "com.apple.security.application-groups": ("APP_GROUPS", []),
     "com.apple.developer.homekit": ("HOMEKIT", []),
     "com.apple.developer.weatherkit": ("WEATHERKIT", []),
+    "aps-environment": ("PUSH_NOTIFICATIONS", []),
 }
 
 

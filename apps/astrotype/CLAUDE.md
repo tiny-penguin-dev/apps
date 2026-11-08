@@ -74,7 +74,9 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
     draws Live Activities. For now it only has the throwaway dictation test's
     (`DictationLiveActivity`); see `Astrotype/DictationTest/` and
     `AstrotypeKeyboard/DictationTest/` (Settings → Debug → Dictation test). Shared intent
-    and attribute files are copied unchanged into each target that needs them.
+    and attribute files are copied unchanged into each target that needs them. Round 3
+    (`DictationWake.swift`) adds push (`aps-environment`), a `UIApplicationDelegateAdaptor`
+    and the `astrotype-dictation-push.yml` Action; all of it goes when the test does.
   - `AstrotypeKit/`: the local package, three targets:
     - `AstrotypeCore`: Core and Services. `SpaceSlide` (a finger on space: a tap, or a cursor slide after a short hold and a real move), `Layout` (key geometry, with the field's
       `BottomRow`), `Field` (what the app says about the field and what the keyboard

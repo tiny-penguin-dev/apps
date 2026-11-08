@@ -2,6 +2,8 @@ import AstrotypeCore
 import AstrotypeUI
 import AVFoundation
 import SwiftUI
+import UIKit
+import UserNotifications
 
 // THROWAWAY SPIKE (Gabriel, 7 Nov 2026), see DictationProbeIntent.swift. The Debug page's
 // "Dictation test" section: let the app use the microphone, turn on the keyboard's test
@@ -12,6 +14,8 @@ struct DictationTestSection: View {
     @State private var permission = AVAudioApplication.shared.recordPermission
     @State private var last = DictationProbeLog.last
     @State private var started = DictationProbeLog.sessionStarted
+    @State private var pushToken = DictationProbeLog.pushToken
+    @State private var notifications = UNAuthorizationStatus.notDetermined
 
     var body: some View {
         SectionLabel("Dictation test").padding(.top, Theme.Space.m)
@@ -35,6 +39,24 @@ struct DictationTestSection: View {
                 }
                 .buttonStyle(.small)
             }
+            SettingsRow("Notifications", subtitle: notificationText, symbol: "bell", tint: Theme.slate) {
+                if notifications == .notDetermined {
+                    Button("Allow") {
+                        Task {
+                            _ = try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound])
+                            notifications = await UNUserNotificationCenter.current().notificationSettings().authorizationStatus
+                        }
+                    }
+                    .buttonStyle(.small)
+                }
+            }
+            SettingsRow("Push-to-start token", subtitle: pushToken.map { "\($0.prefix(12))…" } ?? "Not yet (open this page again in a moment)",
+                        symbol: "paperplane", tint: Theme.slate) {
+                if let pushToken {
+                    Button("Copy") { UIPasteboard.general.string = pushToken }
+                        .buttonStyle(.small)
+                }
+            }
             SettingsRow("Last result", subtitle: last, symbol: "text.bubble", tint: Theme.slate)
         }
         .onChange(of: keyboardButton) { _, on in
@@ -45,6 +67,8 @@ struct DictationTestSection: View {
                 last = DictationProbeLog.last
                 started = DictationProbeLog.sessionStarted
                 permission = AVAudioApplication.shared.recordPermission
+                pushToken = DictationProbeLog.pushToken
+                notifications = await UNUserNotificationCenter.current().notificationSettings().authorizationStatus
                 try? await Task.sleep(for: .seconds(1))
             }
         }
@@ -54,6 +78,14 @@ struct DictationTestSection: View {
     private var sessionText: String {
         guard let started else { return "Off" }
         return "On since \(started.formatted(date: .omitted, time: .shortened))"
+    }
+
+    private var notificationText: String {
+        switch notifications {
+        case .authorized, .provisional, .ephemeral: "Allowed (only for the keyboard's Notify test)"
+        case .denied: "Denied: turn it on in Settings → Astrotype"
+        default: "Not asked yet (only for the keyboard's Notify test)"
+        }
     }
 
     private var permissionText: String {

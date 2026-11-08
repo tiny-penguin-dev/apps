@@ -287,7 +287,8 @@ public struct Layout: Sendable, Equatable {
             let pitch = unit + gap
             let leftEnd = (extra ? 5.5 : 4.5) * pitch + unit
             let backspaceX = 8.5 * pitch
-            let rightShift = width - max(9 * pitch + unit, backspaceX + wideKey)
+            // The right half ends at P's edge, as return does.
+            let rightShift = width - (9 * pitch + unit)
             let rightStart = (extra ? 3.5 : 4.5) * pitch + rightShift
             switch page {
             case .letters:
@@ -298,12 +299,14 @@ public struct Layout: Sendable, Equatable {
                 // Left half's own keys, then the right's, then the shared ones.
                 for c in 0..<5 { letter(0, c, shift: 0) }
                 for c in 0..<5 { letter(1, c, shift: 0) }
-                add(.shift, row: 2, x: 1.5 * pitch - gap - wideKey, width: wideKey)
+                // Shift and backspace reach each half's outer edge, under Q and P
+                // (Gabriel, 8 Nov 2026).
+                add(.shift, row: 2, x: 0, width: 1.5 * pitch - gap)
                 for c in 0..<4 { letter(2, c, shift: 0) }
                 for c in 5..<10 { letter(0, c, shift: rightShift) }
                 for c in 5..<9 { letter(1, c, shift: rightShift) }
                 for c in 4..<7 { letter(2, c, shift: rightShift) }
-                add(.backspace, row: 2, x: backspaceX + rightShift, width: wideKey)
+                add(.backspace, row: 2, x: backspaceX + rightShift, width: width - backspaceX - rightShift)
                 letter(1, 4, shift: rightShift); letter(2, 3, shift: rightShift)
                 if extra {
                     letter(0, 5, shift: 0); letter(1, 5, shift: 0); letter(2, 4, shift: 0)
@@ -353,11 +356,13 @@ public struct Layout: Sendable, Equatable {
         case .letters:
             _ = keys(rows[0], as: Key.letter, row: 0, from: left)
             _ = keys(rows[1], as: Key.letter, row: 1, from: left + (unit + gap) / 2)
+            // Z to M stay centred as Apple's; shift and backspace take the rest of
+            // the row, out to Q's and P's edges (Gabriel, 8 Nov 2026).
             let row2Width = 2 * wideKey + 7 * unit + 8 * gap
-            x = ((width - row2Width) / 2).rounded()
-            add(.shift, row: 2, x: x, width: wideKey)
-            x = keys(rows[2], as: Key.letter, row: 2, from: x + wideKey + gap)
-            add(.backspace, row: 2, x: x, width: wideKey)
+            let lettersX = ((width - row2Width) / 2).rounded() + wideKey + gap
+            add(.shift, row: 2, x: left, width: lettersX - gap - left)
+            x = keys(rows[2], as: Key.letter, row: 2, from: lettersX)
+            add(.backspace, row: 2, x: x, width: left + rowWidth - x)
         case .numbers, .symbols:
             let table = page == .numbers ? numberRows : symbolRows
             _ = keys(table[0], as: Key.symbol, row: 0, from: left)

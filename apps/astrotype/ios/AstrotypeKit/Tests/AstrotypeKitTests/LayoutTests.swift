@@ -188,6 +188,27 @@ import Testing
         }
     }
 
+    /// Shift (or the page key) and backspace reach the row's outer edges, in line
+    /// with Q and P above them, on every page, whole or split (Gabriel, 8 Nov 2026).
+    @Test(arguments: [320.0, 390.0, 744.0, 1000.0] as [CGFloat])
+    func shiftAndBackspaceReachTheEdges(width: CGFloat) {
+        for page in [Layout.Page.letters, .numbers, .symbols] {
+            for (split, extra) in [(false, false), (true, false), (true, true)] {
+                let layout = Layout.qwerty(width: width, page: page, split: split, extraLetters: extra)
+                func row(_ i: Int) -> [CGRect] {
+                    layout.placements.filter { $0.row == i }.map(\.frame).sorted { $0.minX < $1.minX }
+                }
+                let label = "\(page) split \(split) extra \(extra)"
+                #expect(abs(row(2).first!.minX - row(0).first!.minX) < 0.001, "\(label)")
+                #expect(abs(row(2).last!.maxX - row(0).last!.maxX) < 0.001, "\(label)")
+                #expect(layout.placements.first { $0.row == 2 && $0.frame == row(2).last! }!.key == .backspace, "\(label)")
+                for (a, b) in zip(row(2), row(2).dropFirst()) where a.maxX <= b.minX {
+                    #expect(b.minX - a.maxX >= layout.gap - 0.001, "\(label)")
+                }
+            }
+        }
+    }
+
     @Test func functionKeysAreDrawnDarker() {
         #expect(Key.shift.isFunction)
         #expect(Key.letters.isFunction)

@@ -20,7 +20,9 @@ let package = Package(
         // One folder per language under Resources/ (lexicon.tsv, bigrams.bin), and the
         // emoji list (emoji/emoji.tsv, features/emoji).
         .target(name: "AstrotypeCore", resources: [.copy("Resources/en"), .copy("Resources/es"), .copy("Resources/emoji")]),
-        .target(name: "AstrotypeUI", dependencies: ["AstrotypeCore"]),
+        // Shaders/: the keyboard's Metal shaders, which Xcode compiles into the target's
+        // resource bundle (`MetalKeyboard.library`); `swift build` only copies them.
+        .target(name: "AstrotypeUI", dependencies: ["AstrotypeCore"], resources: [.process("Shaders")]),
         .executableTarget(name: "AstrotypeTools", dependencies: ["AstrotypeCore"]),
         .testTarget(name: "AstrotypeKitTests", dependencies: ["AstrotypeCore"], exclude: ["Fixtures"]),
     ]

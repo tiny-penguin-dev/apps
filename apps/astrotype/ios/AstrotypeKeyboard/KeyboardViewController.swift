@@ -544,7 +544,10 @@ final class KeyboardViewController: UIInputViewController {
         opening = nil
         if timing.steps.last?.name != "layout" { timing.step("shown", now: uptime) }
         var notes: [String] = []
-        if KeyboardView.metalLoadMillis > 0 { notes.append("metal \(KeyboardView.metalLoadMillis) off the main thread") }
+        if KeyboardView.metalLoadMillis > 0 {
+            notes.append("metal \(KeyboardView.metalLoadMillis) off the main thread"
+                         + (KeyboardView.metalCompiledOnPhone ? ", compiled on the phone" : ""))
+        }
         keyboard?.model.logOpen(timing.line(now: uptime, notes: notes))
     }
 

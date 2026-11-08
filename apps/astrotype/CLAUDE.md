@@ -64,8 +64,9 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
     it never shows, and each cost ~9 MB of keys), becomes `showing` on appear, and
     takes its KeyboardView out of its view on `viewDidDisappear` (iOS keeps old
     controllers' views in its windows). The first load stays light: Sentry and the
-    recorders start in `makeKeyboard` too, the Metal shaders compile off the main
-    thread (`MetalKeyboard.load`; the keys draw their own letters until then), and the
+    recorders start in `makeKeyboard` too, the Metal shaders (compiled by Xcode into
+    the package's bundle) load off the main thread (`MetalKeyboard.load`; the keys draw
+    their own letters until then), and the
     Core ML next-word models and the first iCloud sync wait a second after the keys
     are on screen (`KeyboardShared.settleIn`). Each opening's steps go into the typing
     log as an `open` line (`OpenTiming`): "telemetry 12 · model 40 · keys 35 · …". `ExtensionChecks`
@@ -152,7 +153,8 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
       `KeyEffects` (taps, trails, letter effects and flow with Core Animation; the presets Calm, Arcade, Glitch,
       Rainbow, Space, Zen and Sugar Rush are in `EffectsSettings`; Glitch also jolts keys and tears rows, only on
       screen, through `KeySurfaceView.glitchKeys`/`tearRow`), `MetalKeyboard` (the skies behind the keys and the
-      Metal letters, shaders compiled from source at first use), `SettingsPanelView`,
+      Metal letters; the shaders are `Shaders/KeyboardShaders.metal`, compiled by Xcode into the package's
+      resource bundle and loaded at first use), `SettingsPanelView`,
       `EmojiPageView` (the emoji page and its `TonePicker`), `EmojiSearchView` (the search
       field `SearchField` and the results row; while it is open `KeyboardModel` types into a
       `SearchTarget` with `Field.emojiSearch`), `KeyboardModel` (applies the composer's effects to a

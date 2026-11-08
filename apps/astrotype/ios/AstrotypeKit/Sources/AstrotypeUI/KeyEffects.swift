@@ -187,9 +187,18 @@ final class KeyEffects {
     private var skyGoneAt: TimeInterval?
     private var letters: LetterRenderer?
     private var lettersDirty = false
-    /// Frames in a row the Metal letters could not draw (no drawable yet): the link
-    /// keeps trying for a while, since the keys' own labels are hidden meanwhile.
+    /// Frames in a row the Metal letters could not draw (no drawable yet, or a letter
+    /// missing from the atlas): the link keeps trying for ~2 s, then gives up and the
+    /// keys keep their own labels.
     private var undrawnFrames = 0
+    /// Whether the Metal letters are on screen now: a frame drew every letter key. The
+    /// keys hide their own labels only then (`hidesLabels`), so a frame that can't draw
+    /// (no drawable, or letters missing from the atlas) leaves the keys' own letters
+    /// showing instead of blank keys (Gabriel, 8 Nov 2026: "failed to load the key
+    /// letters", again after #167).
+    private(set) var lettersShown = false {
+        didSet { if lettersShown != oldValue { onLettersShown?() } }
+    }
     private var bursts = 0
     private var bursting = false
     private var glowing = false
@@ -254,6 +263,14 @@ final class KeyEffects {
     /// (`MetalKeyboard.load`); until then the keys draw their own.
     var drawsLetters: Bool { !resting && wantsMetalLetters && MetalKeyboard.shared != nil }
 
+    /// Whether the letter keys hide their own labels: the Metal letters draw them and a
+    /// frame of them is on screen (`lettersShown`). Until then the keys keep theirs.
+    var hidesLabels: Bool { drawsLetters && lettersShown }
+
+    /// Called when the Metal letters come on screen or go, so the keys show or hide
+    /// their own labels (`KeySurfaceView.applyLabels`).
+    var onLettersShown: (() -> Void)?
+
     /// Called when Metal is in after an effect asked for it, so the keys' labels can
     /// move to the Metal letters (`KeySurfaceView.applyLetterMode`).
     var onMetalReady: (() -> Void)?
@@ -280,6 +297,9 @@ final class KeyEffects {
         if let letters { host.addSublayer(letters.layer) }
         host.addSublayer(effects)
         host.addSublayer(layer)
+        // New keys (another page or field): the atlas follows them, or letters only on
+        // this page (the 123 page's, say) would draw nothing on the letters.
+        prepareLetters()
         lettersDirty = true
         if letters != nil { ensureLink() }
     }
@@ -315,9 +335,11 @@ final class KeyEffects {
             if !resting, wantsMetalLayer, MetalKeyboard.shared == nil { requestMetal() }
             letters?.layer.removeFromSuperlayer()
             letters = nil
+            lettersShown = false
             return
         }
         if letters == nil {
+            lettersShown = false
             let renderer = LetterRenderer(metal: metal)
             if let effectsLayer, effectsLayer.superlayer === host {
                 host.insertSublayer(renderer.layer, below: effectsLayer)
@@ -330,13 +352,20 @@ final class KeyEffects {
         letters?.keyMode = wantsMetalKeys ? settings?.keys ?? .none : .none
         if drawsLetters {
             letters?.mode = settings?.letters ?? .none
-            letters?.prepare(letters: surface?.lettersOnKeys() ?? [], font: style.letterFont(), scale: scale)
+            prepareLetters()
         } else {
             letters?.mode = .none
             letters?.dropLetters()
+            lettersShown = false
         }
         lettersDirty = true
         ensureLink()
+    }
+
+    /// The atlas holds the letters on the keys now (a no-op when it already does).
+    private func prepareLetters() {
+        guard let letters, letters.mode != .none, drawsLetters else { return }
+        letters.prepare(letters: surface?.lettersOnKeys() ?? [], font: style.letterFont(), scale: scale)
     }
 
     /// A key lit or went out: the Metal letters redraw in its new colour.
@@ -496,10 +525,16 @@ final class KeyEffects {
                 // or Metal arriving mid-show): the frame was skipped, so the letters
                 // stay dirty and the link tries again, for up to ~2 s (Gabriel, 7 Nov
                 // 2026: "sometimes the key letters don't show up").
-                if drew {
+                // A letter missing from the atlas (the keys changed since it was made)
+                // counts as not drawn: the atlas is remade and the frame tried again.
+                // Either way the keys show their own letters until one frame has all.
+                if drew, !letters.missedLetters {
                     lettersDirty = false
                     undrawnFrames = 0
+                    lettersShown = letters.mode != .none
                 } else {
+                    if letters.missedLetters { prepareLetters() }
+                    lettersShown = false
                     undrawnFrames += 1
                 }
             }

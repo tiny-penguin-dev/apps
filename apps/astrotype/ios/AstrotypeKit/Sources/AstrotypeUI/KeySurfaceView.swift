@@ -162,6 +162,7 @@ public final class KeySurfaceView: UIView {
         backgroundColor = Theme.ui(.kb)
         fx.onFlow = { [weak self] state in self?.flowChanged(state) }
         fx.onMetalReady = { [weak self] in self?.applyLetterMode() }
+        fx.onLettersShown = { [weak self] in self?.applyLabels() }
         rebuild()
     }
 
@@ -231,9 +232,15 @@ public final class KeySurfaceView: UIView {
 
     /// The Metal letters draw the letter keys' labels while a Metal letter effect is on.
     private func applyLetterMode() {
-        let elsewhere = fx.drawsLetters
-        keyViews.values.forEach { $0.forEach { $0.lettersElsewhere = elsewhere } }
         fx.lettersChanged()
+        applyLabels()
+    }
+
+    /// The letter keys hide their own labels only while the Metal letters are on screen
+    /// (`KeyEffects.hidesLabels`), never before their first frame.
+    private func applyLabels() {
+        let elsewhere = fx.hidesLabels
+        keyViews.values.forEach { $0.forEach { $0.lettersElsewhere = elsewhere } }
     }
 
     /// The letter keys as the Metal letters draw them: the letter, the key's frame and
@@ -342,7 +349,7 @@ public final class KeySurfaceView: UIView {
         for placement in layout.placements {
             let keyView = KeyView(key: placement.key, spaceLabel: spaceText, style: style)
             keyView.frame = placement.frame.insetBy(dx: style.keyInset, dy: style.keyInset)
-            keyView.lettersElsewhere = fx.drawsLetters
+            keyView.lettersElsewhere = fx.hidesLabels
             keyView.shifted = shifted
             if placement.key == .returnKey {
                 keyView.returnKey = returnKey

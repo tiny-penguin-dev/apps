@@ -290,7 +290,7 @@ public struct KeyboardTheme: Codable, Hashable, Sendable, Identifiable {
     public static let classic: KeyboardTheme = {
         var light = c(0xD1D3D9, 0xFFFFFF, 0xEDEEF0, 0x000000, 0x000000, 0x139FB5, 0xFF6F86, 0x636366)
         light.opacity = 0.8
-        var dark = c(0x1F1F1F, 0xC2C2C2, 0x707070, 0xFFFFFF, 0xFFFFFF, 0x2FC6DC, 0xFF8A9E, 0x8E8E93)
+        var dark = c(0x1F1F1F, 0x989898, 0x5B5B5B, 0xFFFFFF, 0xFFFFFF, 0x2FC6DC, 0xFF8A9E, 0x6F6F6F)
         dark.opacity = 0.3
         return KeyboardTheme(id: "classic", name: "Classic", light: light, dark: dark,
                              shape: KeyShape(gap: 4, corner: 10, border: .none, shadow: .none, font: .classic))

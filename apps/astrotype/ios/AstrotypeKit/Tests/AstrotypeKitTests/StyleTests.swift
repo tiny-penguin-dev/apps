@@ -47,7 +47,7 @@ import Testing
         #expect(classic.isFree)
         #expect(classic.light.key == RGBColor(hex: 0xFFFFFF))
         #expect(classic.dark.background == RGBColor(hex: 0x1F1F1F))
-        #expect(classic.dark.key == RGBColor(hex: 0xC2C2C2))
+        #expect(classic.dark.key == RGBColor(hex: 0x989898))
         #expect(classic.light.opacity == 0.8)
         #expect(classic.dark.opacity == 0.3)
         #expect(classic.shape == KeyShape(gap: 4, corner: 10, shadow: .none))

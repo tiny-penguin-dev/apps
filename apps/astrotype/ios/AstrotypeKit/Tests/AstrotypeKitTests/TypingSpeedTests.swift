@@ -40,7 +40,8 @@ import Testing
     @Test func shortRunsDoNotCount() {
         var meter = SpeedMeter()
         _ = type(&meter, words: 3, from: 0, date: t0)
-        #expect(meter.end() == nil)
+        let ended = meter.end()
+        #expect(ended == nil)
     }
 
     @Test func pauseEndsTheRunAndStartsAnother() {
@@ -52,9 +53,11 @@ import Testing
         // A short pause keeps the run going.
         var other = SpeedMeter()
         let mid = type(&other, words: 5, from: 0, date: t0)
-        #expect(other.touched(at: mid + 4, date: t0) == nil)
+        let kept = other.touched(at: mid + 4, date: t0)
+        #expect(kept == nil)
         _ = type(&other, words: 5, from: mid + 4, date: t0)
-        #expect(other.end()?.words == 10)
+        let joined = other.end()
+        #expect(joined?.words == 10)
     }
 
     @Test func deletesComeOffAndEditsWithoutATouchAreIgnored() {
@@ -63,7 +66,8 @@ import Testing
         #expect(meter.isRunning == false)
         let end = type(&meter, words: 12, from: 1, date: t0)
         meter.edited(characters: -10, at: end)
-        #expect(meter.end()?.characters == 50)
+        let net = meter.end()
+        #expect(net?.characters == 50)
     }
 
     @Test func tooFastIsThrownAway() {
@@ -98,8 +102,10 @@ import Testing
     @Test func runsAreFoldedOnce() {
         var history = SpeedHistory()
         let runs = [run(day: 0, wpm: 40), run(day: 0, hour: 10, wpm: 42), run(day: 0, hour: 11, wpm: 44)]
-        #expect(history.add(runs, calendar: utc))
-        #expect(history.add(runs, calendar: utc) == false)
+        let first = history.add(runs, calendar: utc)
+        let again = history.add(runs, calendar: utc)
+        #expect(first)
+        #expect(again == false)
         #expect(history.days[0].speeds.count == 3)
     }
 

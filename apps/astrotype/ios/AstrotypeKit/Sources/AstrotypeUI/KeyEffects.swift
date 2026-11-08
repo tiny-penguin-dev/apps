@@ -520,7 +520,7 @@ final class KeyEffects {
             if moving || lettersDirty {
                 let drew = letters.render(keys: letters.mode != .none ? surface.letterKeys() : [],
                                           frames: letters.keyMode != .none ? surface.keyFrames() : [],
-                                          time: time, level: level.rawValue, style: style)
+                                          time: time, level: level.rawValue, style: style, power: Float(power))
                 // A layer that isn't on screen yet gives no drawable (`viewWillAppear`,
                 // or Metal arriving mid-show): the frame was skipped, so the letters
                 // stay dirty and the link tries again, for up to ~2 s (Gabriel, 7 Nov
@@ -558,7 +558,8 @@ final class KeyEffects {
     func tap(at point: CGPoint, side: Side) {
         guard let settings, settings.tap != .none else { return }
         let color = style.thumb(side)
-        let grow = 1 + (settings.flow && settings.combo ? 0.15 * CGFloat(level.rawValue) : 0)
+        let power = self.power
+        let grow = 0.7 + 0.75 * power
         if reduceMotion {
             let ring = makeRing(at: point, color: color, radius: 14)
             ring.transform = CATransform3DMakeScale(1.2, 1.2, 1)
@@ -581,14 +582,15 @@ final class KeyEffects {
                 ping(ring, delay: Double(i) * 0.06)
             }
         case .glitch:
-            glitchTap(at: point, grow: grow)
-            if let surface, let key = surface.key(at: point) { surface.glitchKey(key, strength: 5 * grow) }
+            glitchTap(at: point, power: power)
+            if let surface, let key = surface.key(at: point) { surface.glitchKey(key, strength: 1.5 + 4 * power) }
         case .fireworks:
             ping(makeRing(at: point, color: Palette.cycling(at: now), radius: 12 * grow), delay: 0)
             fallthrough
         default:
             let look = particles(for: settings.tap, side: side)
-            burst(at: point, look: look, count: look.count + look.perLevel * level.rawValue, speed: look.speed * grow,
+            let count = Double(look.count + look.perLevel * level.rawValue) * (0.35 + 0.65 * power)
+            burst(at: point, look: look, count: max(3, Int(count.rounded())), speed: look.speed * (0.6 + 0.4 * power),
                   lifetime: look.lifetime, scale: look.scale * grow)
         }
     }
@@ -632,14 +634,17 @@ final class KeyEffects {
 
     /// Glitch: blocks of the touch's area break off in split red and cyan and jump
     /// about in every direction for a moment (Gabriel, 7 Nov 2026: not just lines).
-    private func glitchTap(at point: CGPoint, grow: CGFloat) {
-        let blocks = 6 + level.rawValue
+    /// Fewer, smaller, closer blocks at the start of a run, today's full glitch once flow
+    /// reaches Blizzard.
+    private func glitchTap(at point: CGPoint, power: CGFloat) {
+        let grow = 0.6 + 0.4 * power
+        let blocks = 2 + Int((5 * power).rounded()) + level.rawValue
         for i in 0..<blocks {
             let size = CGSize(width: CGFloat.random(in: 4...16) * grow, height: CGFloat.random(in: 4...14) * grow)
             let centre = CGPoint(x: point.x + CGFloat.random(in: -26...26) * grow, y: point.y + CGFloat.random(in: -22...22) * grow)
             let hops = (0..<5).map { _ in CGPoint(x: centre.x + CGFloat.random(in: -18...18) * grow, y: centre.y + CGFloat.random(in: -14...14) * grow) }
             // A red copy and a cyan copy a few points apart, and sometimes a white one.
-            var copies: [(UIColor, CGFloat)] = [(Palette.glitch[0], -2.5), (Palette.glitch[1], 2.5)]
+            var copies: [(UIColor, CGFloat)] = [(Palette.glitch[0], -2.5 * power), (Palette.glitch[1], 2.5 * power)]
             if i % 3 == 0 { copies.append((.white, 0)) }
             for (color, shift) in copies {
                 let block = CALayer()
@@ -684,6 +689,15 @@ final class KeyEffects {
 
     /// The effects' ring is quicker than the keyboard's old one (Gabriel, 7 Nov 2026).
     private static let quickRing: TimeInterval = 0.4
+
+    /// How strong each touch's effect is now: 0.3 at the start of a run, growing with
+    /// the flow score to 1 (today's full strength) when flow reaches Blizzard, so the
+    /// first keys feel calmer but not plain (Gabriel, 8 Nov 2026). Always 1 without flow.
+    var power: CGFloat {
+        guard let settings, settings.flow else { return 1 }
+        let full = max(1, FlowLevel.blizzard.words * settings.levelScale)
+        return 0.3 + 0.7 * CGFloat(min(max(flow.score / full, 0), 1))
+    }
 
     /// Today's tap ring: it grows from half size and fades.
     private func ping(_ ring: CAShapeLayer, delay: TimeInterval) {

@@ -221,6 +221,11 @@ public struct KeyboardDebug: Codable, Sendable, Equatable {
     /// Whether the keyboard is on screen, as of the last write. Still true after the
     /// process is gone means it was ended while showing.
     public var showing = false
+    /// Whether the app the keyboard is in has gone to the background with it up, as of
+    /// the last write: the process is suspended with it. A new process finding it so
+    /// counts nothing, since iOS ends a suspended keyboard as it likes, or the one
+    /// suspended is still there, in another app.
+    public var suspended = false
     /// How many times the process was found ended while the keyboard was showing, and
     /// when it last was (when the next one started).
     public var endedWhileShowing = 0
@@ -246,6 +251,7 @@ public struct KeyboardDebug: Codable, Sendable, Equatable {
         processPeakMB = try c.decodeIfPresent(Double.self, forKey: .processPeakMB) ?? 0
         memoryWarnings = try c.decodeIfPresent(Int.self, forKey: .memoryWarnings) ?? 0
         showing = try c.decodeIfPresent(Bool.self, forKey: .showing) ?? false
+        suspended = try c.decodeIfPresent(Bool.self, forKey: .suspended) ?? false
         endedWhileShowing = try c.decodeIfPresent(Int.self, forKey: .endedWhileShowing) ?? 0
         lastEndedWhileShowing = try c.decodeIfPresent(Date.self, forKey: .lastEndedWhileShowing)
         crashedWhileShowing = try c.decodeIfPresent(Int.self, forKey: .crashedWhileShowing) ?? 0
@@ -253,11 +259,12 @@ public struct KeyboardDebug: Codable, Sendable, Equatable {
     }
 
     /// The extension's process started. Returns whether the one before it was ended
-    /// while the keyboard was showing (a crash or iOS's memory limit), which is counted.
-    /// `crashed` is whether the last one crashed, nil when unknown.
+    /// while the keyboard was showing (a crash or iOS's memory limit), which is counted;
+    /// not when its app had gone to the background (`suspended`). `crashed` is whether
+    /// the last one crashed, nil when unknown.
     @discardableResult
     public mutating func loaded(at date: Date, crashed: Bool? = nil) -> Bool {
-        let wasShowing = showing
+        let wasShowing = showing && !suspended
         if wasShowing {
             endedWhileShowing += 1
             lastEndedWhileShowing = date
@@ -271,6 +278,7 @@ public struct KeyboardDebug: Codable, Sendable, Equatable {
         shows = 0
         processPeakMB = 0
         showing = false
+        suspended = false
         return wasShowing
     }
 
@@ -279,6 +287,7 @@ public struct KeyboardDebug: Codable, Sendable, Equatable {
         shows += 1
         shownAt = date
         showing = true
+        suspended = false
         memoryWarnings = 0
         peakMB = 0
         lowestHeadroomMB = 0
@@ -310,6 +319,19 @@ public struct KeyboardDebug: Codable, Sendable, Equatable {
     public mutating func hidden(at date: Date, reading: MemoryReading?) {
         if let reading { take(reading, at: date) }
         showing = false
+        suspended = false
+    }
+
+    /// The app went to the background with the keyboard up.
+    public mutating func backgrounded(at date: Date, reading: MemoryReading?) {
+        if let reading { take(reading, at: date) }
+        suspended = true
+    }
+
+    /// The app came back with the keyboard still up.
+    public mutating func foregrounded(at date: Date, reading: MemoryReading?) {
+        if let reading { take(reading, at: date) }
+        suspended = false
     }
 
     private mutating func take(_ reading: MemoryReading, at date: Date) {

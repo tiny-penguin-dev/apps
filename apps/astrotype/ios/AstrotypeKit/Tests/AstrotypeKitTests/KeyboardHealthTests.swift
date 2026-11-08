@@ -57,6 +57,85 @@ import Testing
         #expect(old.crashed == nil)
     }
 
+    @Test func aKeyboardSuspendedInTheBackgroundIsNotEndedByIOS() throws {
+        var health = KeyboardHealth()
+        health.begin(at: t0, footprintMB: 20, headroomMB: 150)
+        var session = health.sessions[0]
+        // The app it is in goes to the background: marked once.
+        #expect(session.suspend() == true)
+        #expect(session.suspend() == false)
+        health.put(session)
+        // The next process (the keyboard in another app, or iOS ended this one in the
+        // background) leaves it be, and the app sends no "ended while showing" for it.
+        #expect(health.restarted(crashed: false) == false)
+        #expect(health.sessions[0].crashed == nil)
+        #expect(!health.sessions[0].endedWhileShowing)
+        let metrics = RecordingMetrics()
+        KeyboardHealth.report(health.sessions, to: metrics)
+        #expect(!metrics.sent.contains { $0.name == "keyboard.ended_while_showing" })
+        #expect(metrics.sent.map(\.name) == ["keyboard.memory_peak", "keyboard.memory_headroom"])
+        // Saved and read back; an older file reads as not suspended.
+        let data = try JSONEncoder().encode(health)
+        #expect(try JSONDecoder().decode(KeyboardHealth.self, from: data) == health)
+        #expect(String(decoding: data, as: UTF8.self).contains("\"suspended\":true"))
+        let old = try JSONDecoder().decode(KeyboardHealth.Session.self, from: Data(
+            #"{"started": 0, "peakMB": 20, "lowestHeadroomMB": 30, "ended": false}"#.utf8))
+        #expect(old.suspended == false)
+        #expect(!String(decoding: try JSONEncoder().encode(old), as: UTF8.self).contains("suspended"))
+
+        // Back in the foreground it goes on, and ends normally.
+        #expect(session.resume() == true)
+        #expect(session.resume() == false)
+        session.sample(footprintMB: 30, headroomMB: 140)
+        health.put(session)
+        #expect(health.sessions[0].suspended == false && health.sessions[0].peakMB == 30)
+        #expect(health.restarted(crashed: false) == true) // open and not suspended: ended by iOS
+        #expect(health.sessions[0].crashed == false)
+
+        // A crash report still says crash, suspended or not.
+        var crashed = KeyboardHealth()
+        crashed.begin(at: t0, footprintMB: 20, headroomMB: 150)
+        crashed.sessions[0].suspend()
+        #expect(crashed.restarted(crashed: true) == true)
+        #expect(crashed.sessions[0].crashed == true)
+        #expect(crashed.sessions[0].endedWhileShowing)
+        let more = RecordingMetrics()
+        KeyboardHealth.report(crashed.sessions, to: more)
+        #expect(more.sent.filter { $0.name == "keyboard.ended_while_showing" }.map { $0.attributes["how"] } == ["crash"])
+        // Ended normally after: nothing to resume.
+        crashed.sessions[0].end(footprintMB: 20, headroomMB: 150)
+        #expect(crashed.sessions[0].resume() == false)
+    }
+
+    @Test func eachKeyboardPutsItsOwnSessionIn() {
+        // The keyboard in each app is its own process, and all write the one file: each
+        // puts in its own session by its start, in step with what the others wrote.
+        var file = KeyboardHealth()
+        var a = KeyboardHealth.Session(started: t0, peakMB: 20, lowestHeadroomMB: 40)
+        file.put(a)
+        var b = KeyboardHealth.Session(started: t0.addingTimeInterval(60), peakMB: 25, lowestHeadroomMB: 35)
+        file.put(b)
+        #expect(a.sample(footprintMB: 30, headroomMB: 30) == true)
+        file.put(a)
+        #expect(file.sessions.map(\.peakMB) == [30, 25])
+        #expect(b.end(footprintMB: 26, headroomMB: 34) == true)
+        #expect(b.end(footprintMB: 40, headroomMB: 10) == false)
+        file.put(b)
+        #expect(file.sessions.map(\.ended) == [false, true])
+        #expect(file.sessions[1].peakMB == 26)
+        // One that started between them goes between them.
+        file.put(KeyboardHealth.Session(started: t0.addingTimeInterval(30), peakMB: 22, lowestHeadroomMB: 38))
+        #expect(file.sessions.map(\.peakMB) == [30, 22, 26])
+        // The limit holds, oldest off first.
+        for i in 0..<40 { file.put(KeyboardHealth.Session(started: t0.addingTimeInterval(Double(100 + i)), peakMB: 1, lowestHeadroomMB: 1)) }
+        #expect(file.sessions.count == KeyboardHealth.limit)
+        #expect(file.sessions.first?.started == t0.addingTimeInterval(110))
+        // A session the file no longer has (dropped off) goes back in only in its place.
+        file.put(a)
+        #expect(file.sessions.count == KeyboardHealth.limit)
+        #expect(file.sessions.first?.started == t0.addingTimeInterval(110))
+    }
+
     @Test func keepsTheLastThirty() {
         var health = KeyboardHealth()
         for i in 0..<40 { health.begin(at: t0.addingTimeInterval(Double(i)), footprintMB: Double(i), headroomMB: 40) }

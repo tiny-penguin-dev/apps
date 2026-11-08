@@ -63,7 +63,13 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
     time it is about to show (`makeKeyboard`, not in `viewDidLoad`: iOS makes keyboards
     it never shows, and each cost ~9 MB of keys), becomes `showing` on appear, and
     takes its KeyboardView out of its view on `viewDidDisappear` (iOS keeps old
-    controllers' views in its windows). The first load stays light: Sentry and the
+    controllers' views in its windows). When the app the keyboard is in goes to the
+    background with it up (`NSExtensionHostDidEnterBackground`), the keys rest, the
+    readings stop, the recording is written out, and the health session is marked
+    suspended, so a process iOS ends there is not counted as "killed"
+    (`hostDidEnterBackground`; `hostWillEnterForeground` undoes it). The keyboard in
+    each app is its own process, and every one writes the health file: each puts in
+    only its own session (`KeyboardHealth.put`). The first load stays light: Sentry and the
     recorders start in `makeKeyboard` too, the Metal shaders (compiled by Xcode into
     the package's bundle) load off the main thread (`MetalKeyboard.load`; the keys draw
     their own letters until then), and the

@@ -52,6 +52,10 @@ final class KeyboardViewController: UIInputViewController {
     /// Whether this keyboard has had its sync (one per keyboard iOS shows).
     private var synced = false
     private var uptime: Double { ProcessInfo.processInfo.systemUptime }
+    /// Whether the app the keyboard is in has gone to the background with the keyboard
+    /// up (`hostDidEnterBackground`); iOS suspends this process with it.
+    private var hostInBackground = false
+    private var hostObservers: [any NSObjectProtocol] = []
     /// The dictation test panel (throwaway spike, DictationTest/).
     private var dictationProbe: UIHostingController<DictationProbePanel>?
 
@@ -61,6 +65,7 @@ final class KeyboardViewController: UIInputViewController {
         // its view in a window: the keys stayed behind, one per keyboard (Gabriel, 7 Nov
         // 2026: "5 key views" with 1 keyboard). Taken out here, they go with it.
         MainActor.assumeIsolated {
+            for observer in hostObservers { NotificationCenter.default.removeObserver(observer) }
             keyboard?.rest()
             keyboard?.removeFromSuperview()
         }
@@ -85,6 +90,50 @@ final class KeyboardViewController: UIInputViewController {
         registerForTraitChanges([UITraitUserInterfaceStyle.self]) { (self: Self, _: UITraitCollection) in
             self.followKeyboardAppearance()
         }
+        // The app the keyboard is in going to the background and coming back; posted on
+        // the main thread, and delivered there either way.
+        let center = NotificationCenter.default
+        hostObservers = [
+            center.addObserver(forName: .NSExtensionHostDidEnterBackground, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.hostDidEnterBackground() }
+            },
+            center.addObserver(forName: .NSExtensionHostWillEnterForeground, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.hostWillEnterForeground() }
+            },
+        ]
+    }
+
+    /// The app the keyboard is in went to the background with the keyboard up (the
+    /// person switched apps or locked the phone): iOS suspends this process with it, and
+    /// may end it there to make room, which is no fault of the keyboard's. So the
+    /// health session and the Debug page's readings are marked suspended rather than
+    /// left open (a process found still showing was counted as ended by iOS, most of
+    /// what "killed" meant); the readings stop; the keys drop their drawing surfaces
+    /// and display link, as off screen (`rest`), so the suspended process holds less
+    /// and draws nothing from the background, which iOS ends a process for; and the
+    /// typing recording is written out, in case the process doesn't come back.
+    private func hostDidEnterBackground() {
+        guard isVisible, !hostInBackground else { return }
+        hostInBackground = true
+        logMemory("background")
+        sampler.stop()
+        keyboard?.rest()
+        health?.suspended()
+        debug?.suspended()
+        keyboard?.model.recorder?.flush()
+    }
+
+    /// The app came back. With the keyboard still up, everything `hostDidEnterBackground`
+    /// stopped starts again; the open word stays open, as the person left it.
+    private func hostWillEnterForeground() {
+        guard hostInBackground else { return }
+        hostInBackground = false
+        guard isVisible else { return }
+        keyboard?.wake()
+        health?.resumed()
+        debug?.resumed()
+        sampler.start()
+        logMemory("foreground")
     }
 
 

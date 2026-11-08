@@ -53,7 +53,8 @@ Status: Draft
   **Delete speed history**.
 - **Full Access:** the keyboard can only hand the numbers to the app with Full Access
   (the same App Group as sync). Without it, Home asks for it, and practice still works.
-- **Pro or free:** open question below.
+- **Free** (Gabriel, 8 Nov 2026): everyday speed, the graph and practice are free for
+  everyone. It's the clearest proof the keyboard and the Pro trial are working.
 
 ### What we measure
 
@@ -66,8 +67,8 @@ With "Share anonymous usage data" on, as for the other metrics:
 
 ### Open questions
 
-1. Pro or free? PRODUCT.md puts "history" in Pro. My suggestion: free, because the
-   everyday speed is the best proof that the keyboard (and the Pro trial) is working.
+None. (Pro or free: free, Gabriel 8 Nov 2026. PRODUCT.md's "history" in Pro now means
+drill history; the build PR updates its table.)
 
 ### Later
 

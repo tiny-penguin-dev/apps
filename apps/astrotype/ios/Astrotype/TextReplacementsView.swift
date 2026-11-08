@@ -223,7 +223,7 @@ private struct ReplacementSheet: View {
 }
 
 /// Chips laid out in rows, wrapping to the width they're given (the variables).
-private struct FlowLayout: Layout {
+private struct FlowLayout: SwiftUI.Layout {
     var spacing: CGFloat
 
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {

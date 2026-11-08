@@ -61,11 +61,11 @@ final class KeyboardViewController: UIInputViewController {
 
     deinit {
         if counted { LiveCount.controllers.subtract(1, ordering: .relaxed) }
-        for observer in hostObservers { NotificationCenter.default.removeObserver(observer) }
         // iOS can free a controller without ever calling `viewDidDisappear`, and keeps
         // its view in a window: the keys stayed behind, one per keyboard (Gabriel, 7 Nov
         // 2026: "5 key views" with 1 keyboard). Taken out here, they go with it.
         MainActor.assumeIsolated {
+            for observer in hostObservers { NotificationCenter.default.removeObserver(observer) }
             keyboard?.rest()
             keyboard?.removeFromSuperview()
         }

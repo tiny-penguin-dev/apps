@@ -348,6 +348,46 @@ import Testing
         #expect(composer.state.isShifted)
     }
 
+    @Test func shiftTurnsOffASentenceStartsCapital() {
+        // Like Apple's keyboard: at a sentence start one tap on shift gives lowercase.
+        var composer = Synth.composer(autoCapitalize: true)
+        #expect(composer.state.isShifted)
+        _ = composer.press(.shift, time: 0)
+        #expect(!composer.state.isShifted)
+        #expect(composer.state.shift == .off)
+        Synth.taps(&composer, "the", at: 1)
+        #expect(composer.state.openWord == "the")
+        _ = composer.press(.space, time: 2)
+        composer.setContext(before: "the end. ")
+        // Spent: the next sentence capitalises again.
+        #expect(composer.state.isShifted)
+
+        // A second tap brings the capital back as one-shot shift.
+        _ = composer.press(.shift, time: 3)
+        _ = composer.press(.shift, time: 4)
+        #expect(composer.state.shift == .on)
+        #expect(composer.state.isShifted)
+        // And a third turns it off again.
+        _ = composer.press(.shift, time: 5)
+        #expect(!composer.state.isShifted)
+    }
+
+    @Test func aSwipeKeepsTheLowercaseShiftAskedFor() {
+        var composer = Synth.composer(autoCapitalize: true)
+        _ = composer.press(.shift, time: 0)
+        _ = Synth.swipe(&composer, "the", at: 1)
+        #expect(composer.state.openWord?.first?.isLowercase == true)
+    }
+
+    @Test func doubleTapAtASentenceStartStillLocksCaps() {
+        var composer = Synth.composer(autoCapitalize: true)
+        _ = composer.press(.shift, time: 0)
+        _ = composer.press(.shift, time: 0.2)
+        #expect(composer.state.shift == .locked)
+        Synth.taps(&composer, "the", at: 1)
+        #expect(composer.state.openWord == "THE")
+    }
+
     @Test func aLetterPressIsATap() {
         var composer = Synth.composer()
         _ = composer.press(.letter("t"), time: 0)

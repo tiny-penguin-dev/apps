@@ -163,6 +163,11 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
     public func attachToModel() {
         model.onChange = { [weak self] in self?.render() }
         model.onHaptic = { [weak self] haptic in self?.play(haptic) }
+        model.onEarlierFixed = { [weak self] old, new in
+            self?.bar.say("Changed \u{201C}\(old)\u{201D} to \u{201C}\(new)\u{201D}") { [weak self] in
+                self?.model.undoEarlierFix()
+            }
+        }
         model.onNotice = { [weak self] notice in
             switch notice {
             case .twoThumbsIsPro: self?.bar.flash("Two thumbs is in Astrotype Pro")

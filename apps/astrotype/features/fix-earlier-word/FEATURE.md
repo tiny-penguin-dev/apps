@@ -6,7 +6,7 @@ to suggest it.
 
 ## Product
 
-Status: Draft
+Status: Approved 2026-11-08 (Gabriel: "Build it", in the project thread)
 
 - **The problem** (Gabriel, 8 Nov 2026): "Sometimes I mistype a word, but I don't
   realize until I've typed a next word." Today only the last word can be fixed
@@ -56,16 +56,13 @@ Status: Draft
   - `earlier.fixed` with `how` = reading / typed: one was replaced.
   - `earlier.undone`: Undo after a swap.
   Shown vs fixed tells us whether it pops up when people don't want it.
-- **Open questions** for Gabriel:
-  1. After a swap, the cursor jumps back to where you were (my pick), or stays right
-     after the fixed word like Gboard?
-  2. Should it also show up when the cursor lands *right after* a word with no space,
-     or only inside the word? (I'd say yes: that's where you land after tapping the
-     end of a word.)
+- **Decided** (8 Nov 2026, built with the recommended picks): after a swap the cursor
+  goes back to where you were typing; it also shows when the cursor is right after a
+  word; the pill keeps the "Fixing" tag.
 
 ## Design
 
-Status: Draft
+Status: Approved 2026-11-08 (Gabriel: "Build it", in the project thread)
 
 - **Mockups:** `design/mockups/fix-earlier-word.html` (Artifact:
   https://claude.ai/artifact/EffF4jcg2YrfSP6Esn24Xw). Screens: the mistake noticed
@@ -94,24 +91,41 @@ Status: Draft
   drop before the pill shrinks, as the FIX bar does today. Wide: unchanged.
 - **Accessibility:** VoiceOver reads the bar as "Fixing cage. Readings: cafe, case".
   The Never suggest / Suggest more custom actions work on each reading.
-- **Open questions** for Gabriel: is the **Fixing** tag useful, or is the pill on a
-  word you're not typing clear enough without it?
+- **Open questions:** none (the Fixing tag stays).
 
 ## Build
 
-Status: Not started (written once Product and Design are approved)
+Status: Approved 2026-11-08 (Gabriel: "Build it", in the project thread)
 
-Notes for later, from reading the code (8 Nov 2026):
-
-- `KeyboardModel.contextChanged` runs on every `selectionDidChange` and
-  `textDidChange`; the keyboard's own edits don't call them in other apps (and the app's
-  field now skips them while it swaps a word, #184). So a call with no open word and the
-  cursor touching a word is the person moving the cursor.
-- The word around the cursor comes from `documentContextBeforeInput` +
-  `documentContextAfterInput` (or `selectedText`). To swap it: `adjustTextPosition` to
-  the word's end, delete it, insert the reading, then move back by what was after it.
-- `Composer.Committed` keeps only the last word today; keep the last 20 (word, pieces,
-  guesses, previous word) per field, matched by the word and the words before it.
-  Otherwise `Matcher.nearestWords(to:points:limit:)` with the context gives readings.
-- Swapping reuses the fix path (`chooseFix` / `saveCorrection`) on that record, so
-  learning and remembered swipes work as for the last word.
+- **Approach:** the core finds the word at the cursor and owns the swap; the keyboard
+  model decides when the person (not the keyboard) moved the cursor; the bar draws the
+  new state with the existing FIX layout.
+- **Core pieces:**
+  - `EarlierSpot.find(before:after:selected:typedAfter:)` (new, AstrotypeCore): the
+    word the cursor is in or right after (or the one selected word), how many letters
+    are before the cursor, and how far past it typing was (`rest`), from the text
+    around the cursor and what was after it when the keyboard last typed.
+  - `Composer`: keeps the last 20 words that went in (`recentWords`, memory only,
+    dropped when the keyboard hides). `cursorLanded(at:)` shows `Bar.earlier(words,
+    chosen:)` (the swipe's readings, or `Matcher.nearestWords` cased like the word,
+    blocked words left out); `choose(guess:)` and `saveCorrection` swap it with the new
+    `Effect.moveCursor` (to the word's end, delete, insert, back to `rest`) and settle
+    it as a fix when its swipe is known; `undoEarlierFix()` puts it back. Any key,
+    touch, emoji, cursor slide or reset closes it.
+  - `KeyboardModel.contextChanged` calls `lookAtCursor()`: only with no open word, in a
+    field that learns, not in practice fields, and not within 0.3 s of the keyboard's
+    own edit. `TextTarget` gains `textAfterCursor` and `selectedText`.
+  - `BarView`: the `.earlier` state (FIX layout plus the "Fixing" tag) and
+    `say(_:undo:)` for the swap's undo note. The typing log records `earlier` and
+    `earlierUndo`, and `TypingReplay` plays them.
+- **Phases:** one PR (this one). Done when, on a phone in Messages: swipe "cafe" so it
+  writes "cage", type "tomorrow", tap into "cage": the bar shows it tagged Fixing with
+  "cafe" beside it; tapping "cafe" fixes it and the cursor is back after "tomorrow";
+  Undo puts "cage" back. Tests: `EarlierWordTests`.
+- **Risks:** some apps report only part of the text after the cursor, so the cursor
+  may come back short of where typing was. The app's own fields don't report cursor
+  moves to the keyboard model, so it only works in other apps for now.
+- **Metrics:** `earlier.shown`, `earlier.fixed`, `earlier.undone` through
+  `onWordAction` (the keyboard's tally), added to PRODUCT.md.
+- **Last step:** folded into DESIGN.md (the bar's "Earlier word" state) and PRODUCT.md
+  (metrics) in this PR.

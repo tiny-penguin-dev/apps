@@ -17,6 +17,9 @@ import UIKit
 /// letters it does not know) on its right; the word itself, a key or a few seconds
 /// close it. Then "Won't suggest “end”" with Undo for a moment. Sliding up or down
 /// while holding still boosts or blocks at once (DESIGN.md "Learning").
+/// With the cursor in a word written earlier (features/fix-earlier-word) the bar is the
+/// FIX layout for that word, its pill tagged "Fixing"; a reading tapped swaps it in, and
+/// the bar says so with Undo (`say(_:undo:)`).
 /// A bar above the keys (`axis` horizontal) or a column beside them (vertical: the
 /// middle of a split keyboard, the side of a wide one); in a column, touches between
 /// the guesses fall through to the keys under it, and there is no `leadingKey`.
@@ -147,7 +150,20 @@ public final class BarView: UIView {
     private var menuShort = false
     /// What the bar says after a boost or a block, with Undo beside it.
     private var undo: String? {
-        didSet { restartTimer() }
+        didSet {
+            if undo == nil { undoAction = nil }
+            restartTimer()
+        }
+    }
+    /// What Undo does when it is not `onUndo` (a swap of a word written earlier).
+    private var undoAction: (() -> Void)?
+
+    /// Says `text` with Undo beside it for a moment; Undo calls `undo`.
+    public func say(_ text: String, undo action: @escaping () -> Void) {
+        menu = nil
+        undo = text
+        undoAction = action
+        render()
     }
     private var menuTask: Task<Void, Never>?
 
@@ -461,6 +477,19 @@ public final class BarView: UIView {
             for i in middleFirst(words.count, chosen: chosen) {
                 add(words[i], index: i, chosen: i == chosen)
             }
+        case .earlier(let words, let chosen):
+            // The word the cursor is in, in the pill tagged "Fixing", its readings
+            // either side (features/fix-earlier-word).
+            for i in middleFirst(words.count, chosen: chosen) {
+                add(words[i], index: i, chosen: i == chosen)
+                guard let button = stack.arrangedSubviews.last else { continue }
+                if i == chosen {
+                    addFixingTag(to: button)
+                    button.accessibilityValue = "Fixing"
+                } else {
+                    button.accessibilityHint = "Replaces \(words[chosen])"
+                }
+            }
         case .next(let words, _, _):
             for (i, word) in words.enumerated() {
                 add(word, index: i, chosen: false)
@@ -471,6 +500,27 @@ public final class BarView: UIView {
             break
         }
         setNeedsLayout()
+    }
+
+    /// The small "Fixing" tag over the pill of a word written earlier: the bar is about
+    /// that word, not one being typed.
+    private func addFixingTag(to button: UIView) {
+        let tag = PaddedLabel()
+        tag.text = "FIXING"
+        tag.font = Theme.uiFont(size: 9, weight: .heavy, scaledWith: .caption2, upTo: 10)
+        tag.textColor = Theme.ui(.accentInk)
+        tag.backgroundColor = Theme.ui(.accent)
+        tag.layer.cornerRadius = 6
+        tag.layer.masksToBounds = true
+        tag.isAccessibilityElement = false
+        tag.isUserInteractionEnabled = false
+        tag.translatesAutoresizingMaskIntoConstraints = false
+        button.clipsToBounds = false
+        button.addSubview(tag)
+        NSLayoutConstraint.activate([
+            tag.centerXAnchor.constraint(equalTo: button.centerXAnchor),
+            tag.centerYAnchor.constraint(equalTo: button.topAnchor, constant: 1),
+        ])
     }
 
     /// The order the words sit in, left to right: the chosen one in the middle of
@@ -648,9 +698,11 @@ public final class BarView: UIView {
         let button = UIButton(configuration: config)
         button.setContentCompressionResistancePriority(.required, for: .horizontal)
         button.addAction(UIAction { [weak self] _ in
-            self?.undo = nil
-            self?.onUndo?()
-            self?.render()
+            guard let self else { return }
+            let action = self.undoAction
+            self.undo = nil
+            if let action { action() } else { self.onUndo?() }
+            self.render()
         }, for: .touchUpInside)
         stack.addArrangedSubview(note)
         stack.addArrangedSubview(button)
@@ -660,6 +712,7 @@ public final class BarView: UIView {
     /// Boost or block a guess, then say so with Undo.
     private func act(_ verdict: Verdict, index: Int, word: String, knows: Bool, how: String) {
         menu = nil
+        undoAction = nil
         let shown = "\u{201C}\(word)\u{201D}"
         switch verdict {
         case .forget:
@@ -757,6 +810,18 @@ private final class GuessButton: UIButton {
     override func point(inside point: CGPoint, with event: UIEvent?) -> Bool {
         let tall = max(0, (BarView.endWidth - bounds.height) / 2)
         return bounds.insetBy(dx: -3, dy: -tall).contains(point)
+    }
+}
+
+/// A label with room around its text, for the "Fixing" tag.
+private final class PaddedLabel: UILabel {
+    var insets = UIEdgeInsets(top: 1, left: 5, bottom: 1, right: 5)
+
+    override func drawText(in rect: CGRect) { super.drawText(in: rect.inset(by: insets)) }
+
+    override var intrinsicContentSize: CGSize {
+        let size = super.intrinsicContentSize
+        return CGSize(width: size.width + insets.left + insets.right, height: size.height + insets.top + insets.bottom)
     }
 }
 #endif

@@ -47,8 +47,27 @@ final class KeyboardViewController: UIInputViewController {
     /// Readings taken, so the overlay walks the memory regions every fifth one.
     private var ticks = 0
     private var memoryLog = MemoryLogPacer()
-    /// The steps of this opening, from load to the keys on screen, for the typing log.
+    /// The steps of this opening, from load (from the process's start, for the first
+    /// keyboard in it) to the keys on screen, for the typing log.
     private var opening: OpenTiming?
+    /// Whether a keyboard has loaded in this process.
+    private static var launched = false
+
+    /// When this process started, on the uptime clock the opening is timed with, from
+    /// the kernel's record of it; nil if it won't say. The first keyboard's opening
+    /// counts from here: its "launch" step is iOS bringing the extension up (dyld, the
+    /// runtime, UIKit, the extension handshake) before `viewDidLoad`, which only what
+    /// the extension links and does at load can shorten.
+    private static let processStart: Double? = {
+        var info = kinfo_proc()
+        var size = MemoryLayout<kinfo_proc>.stride
+        var name: [Int32] = [CTL_KERN, KERN_PROC, KERN_PROC_PID, getpid()]
+        guard sysctl(&name, UInt32(name.count), &info, &size, nil, 0) == 0, size > 0 else { return nil }
+        let started = info.kp_proc.p_un.__p_starttime
+        let ago = Date().timeIntervalSince1970 - (Double(started.tv_sec) + Double(started.tv_usec) / 1_000_000)
+        guard ago >= 0, ago < 60 * 60 else { return nil }
+        return ProcessInfo.processInfo.systemUptime - ago
+    }()
     /// Whether this keyboard has had its sync (one per keyboard iOS shows).
     private var synced = false
     private var uptime: Double { ProcessInfo.processInfo.systemUptime }
@@ -80,7 +99,16 @@ final class KeyboardViewController: UIInputViewController {
         // 2026: the split keyboard stopped short of the edges). The system draws the
         // keyboard's backdrop (glass on iOS 26), so nothing here paints a background.
         view.backgroundColor = .clear
-        opening = OpenTiming(now: uptime)
+        // The first keyboard's opening counts from the process's start, so its `open`
+        // line shows how long iOS took to bring the extension up ("launch").
+        if !Self.launched, let start = Self.processStart {
+            var timing = OpenTiming(now: start)
+            timing.step("launch", now: uptime)
+            opening = timing
+        } else {
+            opening = OpenTiming(now: uptime)
+        }
+        Self.launched = true
 
         // Everything else waits until the keyboard is about to show (`makeKeyboard`):
         // iOS makes keyboards it never shows.
@@ -311,11 +339,12 @@ final class KeyboardViewController: UIInputViewController {
         logOpening()
         // The Core ML models and the first sync, once the keys have been on screen a
         // moment, so they don't compete with the opening (`KeyboardShared.settleIn`); a
-        // sync on each new keyboard after that, as when each one had its own model.
+        // round on each new keyboard after that, at most every few minutes
+        // (`SyncController.syncOnShow`).
         if !synced {
             synced = true
             if KeyboardShared.current?.hasSettledIn == true {
-                KeyboardShared.current?.sync?.sync()
+                KeyboardShared.current?.sync?.syncOnShow()
                 readPhoneReplacements()
             } else {
                 Task { @MainActor [weak self] in
@@ -378,6 +407,7 @@ final class KeyboardViewController: UIInputViewController {
         // The word pairs carry on alone; the models come back with the next language load.
         keyboard?.model.dropNextWordModels()
         NextWordModels.drop()
+        KeyboardView.dropSharedEmoji()
     }
 
     /// The field as the app describes it (features/field-types): its keyboard type,

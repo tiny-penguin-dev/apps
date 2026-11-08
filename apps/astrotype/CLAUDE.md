@@ -74,8 +74,13 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
     the package's bundle) load off the main thread (`MetalKeyboard.load`; the keys draw
     their own letters until then), and the
     Core ML next-word models and the first iCloud sync wait a second after the keys
-    are on screen (`KeyboardShared.settleIn`). Each opening's steps go into the typing
-    log as an `open` line (`OpenTiming`): "telemetry 12 · model 40 · keys 35 · …". `ExtensionChecks`
+    are on screen (`KeyboardShared.settleIn`); each keyboard shown after that starts a
+    round at most every five minutes (`SyncController.syncOnShow`; a change here still
+    goes up after two seconds). Each opening's steps go into the typing
+    log as an `open` line (`OpenTiming`): "launch 180 · telemetry 12 · model 40 · keys 35 · …"
+    (`launch`, for the first keyboard in a process, is from the process's start to
+    `viewDidLoad`). The emoji list and search index are made once per process
+    (`KeyboardView.catalog`/`search`) and dropped on a memory warning. `ExtensionChecks`
     writes the StoreKit, memory and size readings into the bar's idle note while
     `Flags.extensionReadout` is on.
   - `AstrotypeLive/`: the widget extension (`com.tinypenguin.astrotype.live`), which

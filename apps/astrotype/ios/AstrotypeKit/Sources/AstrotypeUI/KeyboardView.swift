@@ -469,8 +469,40 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
     // MARK: Emoji page
 
     private var emojiPage: EmojiPageView?
-    /// Read when the page first opens, then kept: the list is the same all session.
+    /// The shared list (`catalog()`), taken when the page first opens.
     private var emojiCatalog: EmojiCatalog?
+
+    /// The emoji list and the search index, made once per process and shared by every
+    /// keyboard in it (iOS makes one per presentation and keeps old ones around):
+    /// reading the list and building the index takes ~60 ms on a Mac, more on the
+    /// phone, and each keyboard kept its own copy. Dropped on a memory warning
+    /// (`dropSharedEmoji`); they come back when next asked for.
+    private static var sharedCatalog: (version: Double, catalog: EmojiCatalog)?
+    private static var sharedSearch: (languages: [String], search: EmojiSearch)?
+
+    /// The bundled list, up to the emoji version this iOS draws.
+    private static func catalog() -> EmojiCatalog {
+        let os = ProcessInfo.processInfo.operatingSystemVersion
+        let version = EmojiCatalog.version(forOS: os.majorVersion, os.minorVersion)
+        if let shared = sharedCatalog, shared.version == version { return shared.catalog }
+        let catalog = (try? EmojiCatalog.bundled(upTo: version)) ?? EmojiCatalog(sections: [])
+        sharedCatalog = (version, catalog)
+        return catalog
+    }
+
+    /// The search index for `languages`, in their order: the names load only if used.
+    private static func search(languages: [String]) -> EmojiSearch {
+        if let shared = sharedSearch, shared.languages == languages { return shared.search }
+        let search = EmojiSearch(catalog: catalog(), names: languages.compactMap(EmojiNames.bundled))
+        sharedSearch = (languages, search)
+        return search
+    }
+
+    /// Lets go of the shared emoji list and search index (a memory warning).
+    public static func dropSharedEmoji() {
+        sharedCatalog = nil
+        sharedSearch = nil
+    }
 
     /// Whether the emoji page is showing.
     public var showsEmoji: Bool { emojiPage != nil }
@@ -479,12 +511,9 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
     public func showEmoji() {
         guard emojiPage == nil else { return }
         hideSnippets()
-        if emojiCatalog == nil {
-            let os = ProcessInfo.processInfo.operatingSystemVersion
-            emojiCatalog = (try? EmojiCatalog.bundled(upTo: EmojiCatalog.version(forOS: os.majorVersion, os.minorVersion)))
-                ?? EmojiCatalog(sections: [])
-        }
-        let page = EmojiPageView(catalog: emojiCatalog!)
+        let catalog = emojiCatalog ?? Self.catalog()
+        emojiCatalog = catalog
+        let page = EmojiPageView(catalog: catalog)
         page.tone = { [weak self] base in self?.model.emojiHistory.tone(for: base) ?? base }
         page.frequent = model.emojiHistory.frequent(now: Date())
         page.onEmoji = { [weak self] form, base in self?.model.type(emoji: form, base: base) }
@@ -552,8 +581,6 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
     // MARK: Emoji search
 
     private var searchView: EmojiSearchView?
-    /// Built when search first opens, for the languages then: names load only if used.
-    private var emojiSearch: (languages: [String], search: EmojiSearch)?
 
     /// Whether emoji search is open.
     public var showsEmojiSearch: Bool { searchView != nil }
@@ -605,12 +632,8 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
             view.show(query: query, results: frequent.map { (form: $0, base: emojiCatalog?.emoji(for: $0)?.text ?? $0) })
             return
         }
-        let languages = model.activeLanguages
-        if emojiSearch?.languages != languages, let catalog = emojiCatalog {
-            emojiSearch = (languages, EmojiSearch(catalog: catalog, names: languages.compactMap(EmojiNames.bundled)))
-        }
         let history = model.emojiHistory
-        let found = emojiSearch?.search.results(for: query, history: history) ?? []
+        let found = Self.search(languages: model.activeLanguages).results(for: query, history: history)
         view.show(query: query, results: found.map { (form: $0.hasTones ? history.tone(for: $0.text) : $0.text, base: $0.text) })
     }
 

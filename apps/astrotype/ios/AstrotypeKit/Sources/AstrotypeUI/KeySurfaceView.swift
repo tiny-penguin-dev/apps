@@ -52,6 +52,7 @@ public final class KeySurfaceView: UIView {
     /// Draw letters as capitals.
     public var shifted = false {
         didSet {
+            guard shifted != oldValue else { return }
             keyViews.values.forEach { $0.forEach { $0.shifted = shifted } }
             refreshAccessibilityLabels()
         }

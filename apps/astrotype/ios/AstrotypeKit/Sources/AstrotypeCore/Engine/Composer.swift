@@ -1708,10 +1708,19 @@ public struct Composer: Sendable {
         if let last = before.last, Accents.openers.contains(last) {
             return startsSentence(String(before.dropLast()))
         }
-        let trimmed = before.trimmingCharacters(in: .whitespaces)
         guard let last = before.last else { return true }
         guard last.isWhitespace || last.isNewline else { return false }
-        return trimmed.isEmpty || trimmed.hasSuffix(".") || trimmed.hasSuffix("?") || trimmed.hasSuffix("!") || last.isNewline
+        if last.isNewline { return true }
+        // Read back from the end to the last mark, instead of trimming the whole text:
+        // this runs on every keystroke, and a long paragraph before the cursor made it
+        // cost as much as the guesses.
+        guard let mark = before.last(where: { !Self.isSpace($0) }) else { return true }
+        return mark == "." || mark == "?" || mark == "!"
+    }
+
+    /// A space or a tab (`CharacterSet.whitespaces`): not a line break.
+    static func isSpace(_ c: Character) -> Bool {
+        c.unicodeScalars.allSatisfy { CharacterSet.whitespaces.contains($0) }
     }
 
     private mutating func refreshState() {

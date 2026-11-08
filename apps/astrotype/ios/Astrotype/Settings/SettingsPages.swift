@@ -140,7 +140,7 @@ private struct LanguagesSettings: View {
 }
 
 /// Appearance → General (features/customization): the keyboard's height, the guesses
-/// bar, haptics, the underline, and the layout on wide screens. Trails and flashes moved
+/// bar, haptics, and the layout on wide screens. Trails and flashes moved
 /// to Effects.
 struct GeneralAppearanceSettings: View {
     @Bindable var model: AppModel
@@ -161,8 +161,6 @@ struct GeneralAppearanceSettings: View {
         SettingsGroup {
             SettingsToggle("Haptics", subtitle: "A soft tap on each key. In other apps this needs Full Access.",
                            symbol: "iphone.radiowaves.left.and.right", tint: Theme.slate, isOn: $model.keyboardSettings.haptics)
-            SettingsToggle("Underline the open word", subtitle: "In other apps. Off keeps spaces right in every app.",
-                           symbol: "underline", tint: Theme.slate, isOn: $model.keyboardSettings.underlinesWord)
         }
 
         SectionLabel("Wide screens", pro: true).padding(.top, Theme.Space.m)

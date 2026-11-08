@@ -39,7 +39,6 @@ import Testing
         #expect(read.backspaceSwipe)
         #expect(!read.splitOnWide)
         #expect(read.showsBar)
-        #expect(!read.underlinesWord)
         #expect(!read.splitExtraLetters)
         #expect(read.haptics)
     }

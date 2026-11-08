@@ -91,7 +91,7 @@ code (`AstrotypeKit/Theme`, `docs/building.md` rule 1). Screens only use these.
   `WeekDots`.
 - `Art` (the generic graphics, see Graphics), `Confetti`.
 - The keyboard: `KeyboardView`, `Key` (letter, wide, function, space, return), `Bar`
-  (idle, open word, fix), `Trails`, `TextPreview` (the open word underlined).
+  (idle, open word, fix), `Trails`, `TextPreview` (the open word).
 
 ## Screens
 
@@ -105,10 +105,10 @@ code (`AstrotypeKit/Theme`, `docs/building.md` rule 1). Screens only use these.
 | 6 | Speed test | A sentence to type with the typed part turning mint, a timer, the keyboard. | [06](design/screens/06-speed.png) |
 | 7 | Speed test result | A bolt in a sun, the words per minute, fixes, versus Apple's, confetti on a new best. | [07](design/screens/07-result.png) |
 | 8 | Drill | One habit per drill. Word cards, the keys of the next word outlined in the thumb's color. | [08](design/screens/08-drill.png) |
-| 9 | Settings | Status tiles (keyboard, sync, Pro), then a page per area: Typing (two thumbs, autospace, real words, split words, gestures), Appearance (height with a live preview, guesses bar, trails, haptics, underline, wide-screen layout), Languages (a switch per language, features/languages), Your words, Privacy and sharing, About. On wide screens the main page is a sidebar. From `features/settings` (3 Nov 2026). | [main](features/settings/design/screens/01-settings.png), [typing](features/settings/design/screens/02-typing.png), [appearance](features/settings/design/screens/03-appearance.png), [wide](features/settings/design/screens/08-settings-wide.png) |
+| 9 | Settings | Status tiles (keyboard, sync, Pro), then a page per area: Typing (two thumbs, autospace, real words, split words, gestures), Appearance (height with a live preview, guesses bar, trails, haptics, wide-screen layout), Languages (a switch per language, features/languages), Your words, Privacy and sharing, About. On wide screens the main page is a sidebar. From `features/settings` (3 Nov 2026). | [main](features/settings/design/screens/01-settings.png), [typing](features/settings/design/screens/02-typing.png), [appearance](features/settings/design/screens/03-appearance.png), [wide](features/settings/design/screens/08-settings-wide.png) |
 | 10 | Astrotype Pro | A gold star tile with the two trails, four perks, yearly and monthly, "Start 14 days free". | [10](design/screens/10-pro.png) |
 | 11 | Trial over | The keyboard faded, with z's. What is resting, what still works, the person's own best speed as the reason to keep Pro. | [11](design/screens/11-trial-over.png) |
-| 12 | Typing in Messages | The keyboard in another app. The bar after a commit (the three-part bar is in features/guesses-bar), the open word underlined in the field. | [12](design/screens/12-messages.png), [dark](design/screens/12-messages-dark.png), [small](design/screens/12-messages-small.png), [wide](design/screens/12-messages-wide.png) |
+| 12 | Typing in Messages | The keyboard in another app. The bar after a commit (the three-part bar is in features/guesses-bar), the open word in the field. | [12](design/screens/12-messages.png), [dark](design/screens/12-messages-dark.png), [small](design/screens/12-messages-small.png), [wide](design/screens/12-messages-wide.png) |
 | 13 | Free keyboard | After the trial: taps and one-finger swipes. A second thumb shows "Two thumbs is in Astrotype Pro" in the bar instead of typing. | [13](design/screens/13-free.png) |
 
 Not drawn yet (simple, same style): the numbers and symbols pages, the in-keyboard
@@ -200,10 +200,11 @@ This is the product, so it gets its own section.
   second after lift. Which thumb: left half of the keyboard is teal, right half coral.
   (The real engine will tell thumbs apart by touch identity and position, not only by
   side.)
-- **The open word** shows in the text field (underlined in teal in the app's own fields;
-  in other apps as plain text replaced as the guesses change, because marked text
-  through the keyboard's proxy put spaces before words, 2 Nov 2026; Settings
-  "Underline the word you're typing" brings the underline back), so
+- **The open word** shows in the text field as plain text, replaced as the guesses
+  change, in other apps and the app's own fields alike. It is never underlined (marked
+  text): through the keyboard's proxy that put spaces before words (2 Nov 2026), and
+  while a word was underlined iOS hid the person's taps and selections from the
+  keyboard. Gabriel had the underline removed on 8 Nov 2026, so
   the person sees what space will write without looking at the bar.
 - **Commit:** space, punctuation, or autospace after 0.9 s with no finger down (the
   delay is a setting, 0.1 to 1.5 s), for swiped and pecked words alike (Gabriel, 2 Nov

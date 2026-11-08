@@ -135,6 +135,7 @@ final class KeyboardSession: NSObject, UITextViewDelegate {
     }
 
     func textViewDidChange(_ textView: UITextView) {
+        guard !target.isSwappingWord else { return }
         model.contextChanged()
     }
 }

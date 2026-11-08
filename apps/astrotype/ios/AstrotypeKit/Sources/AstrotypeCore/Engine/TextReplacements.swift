@@ -20,30 +20,124 @@ public struct TextReplacement: Codable, Sendable, Equatable, Hashable, Identifia
     }
 }
 
-/// What `{name}`, `{email}`, `{phone}` and `{address}` write: the person's own
-/// details, from Settings → Text replacements → Your details.
+/// The person's own details, from Settings → Typing → Autofill → Your details: what
+/// `{name}`, `{email}`, `{phone}` and `{address}` write in a replacement
+/// (features/text-replacements), and what the bar offers when a field asks for them
+/// (features/autofill). `name` and `address` are put together from their parts.
 public struct PersonalDetails: Codable, Sendable, Equatable, Hashable {
-    public var name = ""
+    public var firstName = ""
+    public var lastName = ""
     public var email = ""
     public var phone = ""
-    public var address = ""
+    /// For username fields; the email is offered there too.
+    public var username = ""
+    /// The street and number, one line or more.
+    public var street = ""
+    public var city = ""
+    public var state = ""
+    public var postalCode = ""
+    public var country = ""
+    public var company = ""
+    public var jobTitle = ""
 
-    public init(name: String = "", email: String = "", phone: String = "", address: String = "") {
-        self.name = name
+    public init(firstName: String = "", lastName: String = "", email: String = "", phone: String = "",
+                username: String = "", street: String = "", city: String = "", state: String = "",
+                postalCode: String = "", country: String = "", company: String = "", jobTitle: String = "") {
+        self.firstName = firstName
+        self.lastName = lastName
         self.email = email
         self.phone = phone
-        self.address = address
+        self.username = username
+        self.street = street
+        self.city = city
+        self.state = state
+        self.postalCode = postalCode
+        self.country = country
+        self.company = company
+        self.jobTitle = jobTitle
     }
 
-    public var isEmpty: Bool { name.isEmpty && email.isEmpty && phone.isEmpty && address.isEmpty }
+    /// The four details text replacements started with: the name is split at its first
+    /// space, and the address is kept whole as the street.
+    public init(name: String, email: String = "", phone: String = "", address: String = "") {
+        self.init(email: email, phone: phone, street: address)
+        (firstName, lastName) = Self.split(name)
+    }
 
-    /// Older saved settings may miss any of them.
+    /// The full name: first and last.
+    public var name: String { Self.joined([firstName, lastName], by: " ") }
+
+    /// City and state on one line ("Springfield, IL").
+    public var cityAndState: String { Self.joined([city, state], by: ", ") }
+
+    /// The whole address on one line: "1 Main St, Springfield, IL 62701, USA".
+    public var address: String {
+        let street = self.street.split(whereSeparator: \.isNewline).map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }.joined(separator: ", ")
+        let region = Self.joined([state, postalCode], by: " ")
+        return Self.joined([street, city, region, country], by: ", ")
+    }
+
+    public var isEmpty: Bool {
+        [firstName, lastName, email, phone, username, street, city, state, postalCode, country, company, jobTitle]
+            .allSatisfy { $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+    }
+
+    private static func joined(_ parts: [String], by separator: String) -> String {
+        parts.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }.joined(separator: separator)
+    }
+
+    private static func split(_ name: String) -> (String, String) {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let space = trimmed.firstIndex(where: \.isWhitespace) else { return (trimmed, "") }
+        return (String(trimmed[..<space]), trimmed[space...].trimmingCharacters(in: .whitespaces))
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case firstName, lastName, email, phone, username, street, city, state, postalCode, country, company, jobTitle
+        /// Written for older versions of the keyboard on the person's other devices, and
+        /// read from settings saved before the details were split.
+        case name, address
+    }
+
+    /// Older saved settings may miss any of them, and kept the name and the address whole.
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        name = try c.decodeIfPresent(String.self, forKey: .name) ?? ""
-        email = try c.decodeIfPresent(String.self, forKey: .email) ?? ""
-        phone = try c.decodeIfPresent(String.self, forKey: .phone) ?? ""
-        address = try c.decodeIfPresent(String.self, forKey: .address) ?? ""
+        func read(_ key: CodingKeys) -> String { (try? c.decodeIfPresent(String.self, forKey: key)) ?? "" }
+        email = read(.email)
+        phone = read(.phone)
+        username = read(.username)
+        city = read(.city)
+        state = read(.state)
+        postalCode = read(.postalCode)
+        country = read(.country)
+        company = read(.company)
+        jobTitle = read(.jobTitle)
+        if c.contains(.firstName) || c.contains(.lastName) {
+            firstName = read(.firstName)
+            lastName = read(.lastName)
+        } else {
+            (firstName, lastName) = Self.split(read(.name))
+        }
+        street = c.contains(.street) ? read(.street) : read(.address)
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(firstName, forKey: .firstName)
+        try c.encode(lastName, forKey: .lastName)
+        try c.encode(email, forKey: .email)
+        try c.encode(phone, forKey: .phone)
+        try c.encode(username, forKey: .username)
+        try c.encode(street, forKey: .street)
+        try c.encode(city, forKey: .city)
+        try c.encode(state, forKey: .state)
+        try c.encode(postalCode, forKey: .postalCode)
+        try c.encode(country, forKey: .country)
+        try c.encode(company, forKey: .company)
+        try c.encode(jobTitle, forKey: .jobTitle)
+        try c.encode(name, forKey: .name)
+        try c.encode(address, forKey: .address)
     }
 }
 

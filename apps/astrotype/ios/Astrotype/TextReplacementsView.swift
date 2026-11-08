@@ -154,7 +154,7 @@ struct TextReplacementsView: View {
             ReplacementSheet(model: model, original: item)
         }
         .sheet(isPresented: $editingDetails) {
-            DetailsSheet(model: model)
+            YourDetailsSheet(model: model)
         }
         .onAppear(perform: readPhone)
         .onChange(of: model.keyboardSettings.textReplacements) { readPhone() }
@@ -164,52 +164,6 @@ struct TextReplacementsView: View {
         fromPhone = PhoneReplacementsFile.toCopy(
             PhoneReplacementsFile.load(from: KeyboardFiles.shared(KeyboardFiles.phoneReplacements)),
             into: model.keyboardSettings.textReplacements)
-    }
-}
-
-/// Your details, for `{name}`, `{email}`, `{phone}` and `{address}`: kept with the
-/// keyboard's settings, on every device.
-private struct DetailsSheet: View {
-    var model: AppModel
-    @Environment(\.dismiss) private var dismiss
-    @State private var details = PersonalDetails()
-
-    var body: some View {
-        NavigationStack {
-            Form {
-                Section {
-                    TextField("Name", text: $details.name)
-                        .textContentType(.name)
-                    TextField("Email", text: $details.email)
-                        .textContentType(.emailAddress).keyboardType(.emailAddress)
-                        .textInputAutocapitalization(.never).autocorrectionDisabled()
-                    TextField("Phone", text: $details.phone)
-                        .textContentType(.telephoneNumber).keyboardType(.phonePad)
-                    TextField("Address", text: $details.address, axis: .vertical)
-                        .textContentType(.fullStreetAddress)
-                        .lineLimit(2...5)
-                } footer: {
-                    Text("A replacement with {name}, {email}, {phone} or {address} writes these. They stay on your devices, with your keyboard settings.")
-                        .font(.sw(.small)).foregroundStyle(Theme.muted)
-                }
-                .listRowBackground(Theme.card)
-            }
-            .font(.sw(.body))
-            .scrollContentBackground(.hidden)
-            .background(Theme.bg.ignoresSafeArea())
-            .navigationTitle("Your details")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
-                        model.saveDetails(details)
-                        dismiss()
-                    }
-                }
-            }
-        }
-        .onAppear { details = model.keyboardSettings.personalDetails }
     }
 }
 

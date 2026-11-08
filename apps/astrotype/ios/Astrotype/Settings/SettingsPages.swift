@@ -53,6 +53,12 @@ struct SettingsPageView: View {
 private struct TypingSettings: View {
     @Bindable var model: AppModel
     @Binding var path: [HomeView.Route]
+    @State private var editingDetails = false
+
+    private var detailsSummary: String {
+        let details = model.keyboardSettings.personalDetails
+        return details.isEmpty ? "Not set yet" : [details.name, details.email].filter { !$0.isEmpty }.joined(separator: " · ")
+    }
 
     var body: some View {
         SectionLabel("Words")
@@ -84,6 +90,17 @@ private struct TypingSettings: View {
                            low: "Never", high: "Whenever it's sure", valueText: percent(model.keyboardSettings.splitStrictness))
         }
         GroupFootnote("Real words: how sure the keyboard must be before it swaps letters you tapped for a word. Split words: how sure before it puts a space into letters that read as two words, like textseparately, or takes out a space autospace put inside a word, like some thing.")
+
+        SectionLabel("Autofill").padding(.top, Theme.Space.m)
+        SettingsGroup {
+            SettingsToggle("Offer your details", subtitle: "Your name, email or address above the keys when a field asks",
+                           symbol: "person.crop.circle", tint: Theme.mint, isOn: $model.keyboardSettings.autofill)
+            SettingsLink("Your details", subtitle: detailsSummary, symbol: "person.text.rectangle", tint: Theme.left) {
+                editingDetails = true
+            }
+        }
+        GroupFootnote("Also when you start typing one of them, or write \"my email is\". Passwords and cards switch to Apple's keyboard, where your password app fills them.")
+            .sheet(isPresented: $editingDetails) { YourDetailsSheet(model: model) }
 
         SectionLabel("Gestures").padding(.top, Theme.Space.m)
         SettingsGroup {

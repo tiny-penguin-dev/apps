@@ -64,7 +64,8 @@ Status: Approved 2026-11-03 (Gabriel: "Build it")
     long-press), and suggesting the person's own email address in the bar (would need
     contacts or a setting, so it needs its own product decision).
   - *Never:* reading what's already in the field to guess its kind, or anything that
-    sends field details anywhere.
+    sends field details anywhere. (Autofill reads the few words before the cursor to
+    offer a detail after "my email is", never to pick the kind: features/autofill.)
 - **What we measure:** nothing new. The field kind is never sent (`docs/telemetry.md`:
   the keyboard sends crash reports only). Fewer `guess.fixed` in other apps is a side
   effect we can see but not split by field.

@@ -705,7 +705,10 @@ final class AppModel {
     /// Your details on Text replacements, for `{name}` and the others.
     func saveDetails(_ details: PersonalDetails) {
         guard details != keyboardSettings.personalDetails else { return }
+        let wasEmpty = keyboardSettings.personalDetails.isEmpty
         keyboardSettings.personalDetails = details
+        // Whether people set up autofill (features/autofill); never what they wrote.
+        if wasEmpty, !details.isEmpty { environment.metrics.count("details.saved") }
         sync()
     }
 

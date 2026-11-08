@@ -77,13 +77,18 @@ public struct Field: Sendable, Equatable, Codable {
     /// Taps go in exactly as tapped (no guess replaces them): addresses, numbers,
     /// codes and fields without corrections.
     public let exactTaps: Bool
+    /// The person's details the bar offers while the field is empty (features/autofill),
+    /// best first: what the field asks for, or what it likely wants when it doesn't say
+    /// (an email keyboard, or capitals on every word: a name or an address). Optional
+    /// so older typing logs still read.
+    private let autofill: [Autofill.Slot]?
 
     /// A plain text field: everything as it always was.
     public static let text = Field()
 
     public init(keyboard: KeyboardType = .default, content: Content = .other, returnKey: ReturnKey = .return,
                 capitals: Capitals = .sentences, corrects: Bool = true, returnNeedsText: Bool = false,
-                secure: Bool = false, learns: Bool = true) {
+                secure: Bool = false, learns: Bool = true, asks: Autofill.Slot? = nil) {
         let kind: Kind = switch (keyboard, content) {
         case (.email, _), (_, .email), (_, .username): .email
         case (.url, _), (_, .url): .url
@@ -101,7 +106,25 @@ public struct Field: Sendable, Equatable, Codable {
         self.returnNeedsText = returnNeedsText
         self.exactTaps = !corrects || code || [.email, .url, .numbers].contains(kind)
         self.learns = !exactTaps && learns
+        let slots: [Autofill.Slot] = if content == .password || secure {
+            []
+        } else if let asks {
+            // Most usernames are emails: both, the username first (Gabriel, 8 Nov 2026).
+            asks == .username ? [.username, .email] : [asks]
+        } else if content == .username {
+            [.username, .email]
+        } else if kind == .email {
+            [.email]
+        } else if kind == .text, keyboard == .default, content == .other, capitals == .words {
+            [.name, .address]
+        } else {
+            []
+        }
+        autofill = slots.isEmpty ? nil : slots
     }
+
+    /// The details the bar offers while the field is empty (features/autofill).
+    public var autofillSlots: [Autofill.Slot] { autofill ?? [] }
 
     /// The emoji search field (features/emoji-search): words are guessed as anywhere,
     /// but nothing typed there is learned, capitalised or offered next words, and
@@ -149,6 +172,7 @@ public struct Field: Sendable, Equatable, Codable {
         out.exactTaps = exactTaps
         out.spacesWords = spacesWords
         out.replacesText = replacesText
+        out.autofill = autofillSlots
         return out
     }
 }

@@ -68,6 +68,10 @@ public struct Composer: Sendable {
         public var replacesText = true
         /// What `{name}`, `{email}`, `{phone}` and `{address}` write.
         public var details = PersonalDetails()
+        /// The bar offers the person's details (features/autofill): the person's switch.
+        public var autofills = true
+        /// The details the field wants while it is empty, best first (`Field.autofillSlots`).
+        public var autofill: [Autofill.Slot] = []
         public init() {}
     }
 
@@ -161,6 +165,10 @@ public struct Composer: Sendable {
         /// A replacement is asking for its `{?blanks}` (features/text-replacements): the
         /// one being typed, by name. The bar shows `.correcting` with what is typed so far.
         public var fillPrompt: String?
+        /// The person's details the bar offers (features/autofill): for an empty field
+        /// that asks for them, after "my email is ", or the one being typed. Tapped with
+        /// `fill(autofill:)`.
+        public var autofill: [Autofill.Offer] = []
     }
 
     /// The last word written, kept so backspace can reopen it and the bar can fix it.
@@ -210,6 +218,10 @@ public struct Composer: Sendable {
             matcher.splitStrictness = settings.splitStrictness
             if settings.mixesLanguages != oldValue.mixesLanguages { relock(force: true) }
             matcher.shortcuts = Self.shortcuts(settings)
+            if settings.autofills != oldValue.autofills || settings.autofill != oldValue.autofill
+                || settings.details != oldValue.details || settings.replacesText != oldValue.replacesText {
+                refreshAutofill()
+            }
         }
     }
     /// The date and time variables in replacements fill in with (`TextReplacements.expand`).
@@ -1338,14 +1350,16 @@ public struct Composer: Sendable {
     /// Writes `phrase` in place of `original` (what is before the cursor, with the open
     /// word `open` still marked when there is one), then `trailing`. A phrase with
     /// blanks asks for them first (`State.fillPrompt`), with the shortcut left as typed.
+    /// `literal` writes `phrase` as it is, with no variables (a detail from autofill).
     private mutating func putReplacement(_ phrase: String, original: String, open word: String?, trailing: String,
-                                         capital: Bool, others: [String] = [], gap: String = "") -> [Effect] {
+                                         capital: Bool, others: [String] = [], gap: String = "",
+                                         literal: Bool = false) -> [Effect] {
         let typed = pieces
         pieces = []
         candidates = []
         autospaceDue = nil
         committed = nil
-        let blanks = TextReplacements.blanks(in: phrase)
+        let blanks = literal ? [] : TextReplacements.blanks(in: phrase)
         if let first = blanks.first {
             filling = Filling(phrase: phrase, blanks: blanks, original: original, trailing: trailing, capital: capital, gap: gap)
             correction = ""
@@ -1357,7 +1371,7 @@ public struct Composer: Sendable {
             return (word.map { [.commit($0)] } ?? []) + [.haptic(.commit)]
         }
         let prefix = String(original.dropLast(word?.count ?? 0))
-        let text = expansion(of: phrase, capital: capital)
+        let text = literal ? TextReplacements.Expansion(text: phrase, cursorFromEnd: nil) : expansion(of: phrase, capital: capital)
         var effects: [Effect]
         if word != nil, prefix.isEmpty {
             effects = [.commit(gap + text.text)]
@@ -1450,6 +1464,63 @@ public struct Composer: Sendable {
             && settings.capitals == .sentences
         return effects + putReplacement(phrase, original: "", open: nil, trailing: settings.spacesWords ? " " : "",
                                         capital: capital, gap: gap)
+    }
+
+    // MARK: Autofill
+
+    /// The details the bar offers now (features/autofill): none while a word is being
+    /// fixed or a blank asked for.
+    private mutating func refreshAutofill() {
+        state.autofill = autofillOffers()
+    }
+
+    private func autofillOffers() -> [Autofill.Offer] {
+        guard settings.autofills, !settings.details.isEmpty, correction == nil, filling == nil else { return [] }
+        switch state.bar {
+        case .guesses(let words, let chosen):
+            // Typing: where replacements apply, or the field asks for a detail.
+            guard settings.replacesText || !settings.autofill.isEmpty, words.indices.contains(chosen) else { return [] }
+            let word = words[chosen]
+            var typed: [String] = []
+            // The whole field so far ("Ada " then "By"), when it is one short line.
+            let field = contextBefore + word
+            if contextBefore.count <= 60, !contextBefore.contains(where: \.isNewline) { typed.append(field) }
+            let token = tokenBefore + word
+            if !typed.contains(token) { typed.append(token) }
+            return Autofill.completion(of: typed, slots: settings.autofill, details: settings.details).map { [$0] } ?? []
+        case .idle, .next, .fix:
+            guard settings.replacesText || !settings.autofill.isEmpty else { return [] }
+            return Autofill.offers(for: settings.autofill, details: settings.details, before: contextBefore)
+        case .correcting, .earlier:
+            return []
+        }
+    }
+
+    /// A detail tapped on the bar (`State.autofill`): it goes in at the cursor, in place
+    /// of what was typed of it, with no space after. The bar then offers what was typed
+    /// back, and backspace reopens it, as after a replacement. Nothing is learned from it.
+    public mutating func fill(autofill index: Int, time: TimeInterval) -> [Effect] {
+        guard state.autofill.indices.contains(index) else { return [] }
+        let offer = state.autofill[index]
+        if !offer.replacing.isEmpty {
+            guard hasOpenWord, let word = state.openWord, offer.replacing.hasSuffix(word),
+                  contextBefore.hasSuffix(String(offer.replacing.dropLast(word.count))) else { return [] }
+            joinable = nil
+            return putReplacement(offer.text, original: offer.replacing, open: word, trailing: "", capital: false,
+                                  literal: true)
+        }
+        if correction != nil { cancelCorrection(time: time) }
+        leaveEarlier()
+        var effects: [Effect] = []
+        if hasOpenWord { effects += commit(trailing: settings.spacesWords ? " " : "", time: time).filter { $0 != .haptic(.commit) } }
+        if filling != nil { return effects }
+        effects += settle()
+        let gap = contextBefore.last.map { $0.isWhitespace || $0.isNewline } ?? true ? "" : " "
+        autoSpaced = false
+        wordSpace = false
+        lastSpace = nil
+        return effects + putReplacement(offer.text, original: "", open: nil, trailing: "", capital: false, gap: gap,
+                                        literal: true)
     }
 
     /// The open word going in after `before`, which autospace wrote with a space after
@@ -1659,6 +1730,7 @@ public struct Composer: Sendable {
             state.replacement = nil
             state.previews = [:]
         }
+        refreshAutofill()
         // "Not it?" for a swiped word only: pecked letters were typed as meant.
         let swiped = { (pieces: [Piece]) in pieces.contains { !$0.isTap } }
         state.canCorrect = correction == nil && open.isEmpty

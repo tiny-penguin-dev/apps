@@ -375,8 +375,20 @@ final class KeyboardViewController: UIInputViewController {
         return Field(keyboard: keyboard, content: content, returnKey: returnKey, capitals: capitals,
                      corrects: proxy.autocorrectionType != .no,
                      returnNeedsText: proxy.enablesReturnKeyAutomatically ?? false,
-                     secure: proxy.isSecureTextEntry ?? false)
+                     secure: proxy.isSecureTextEntry ?? false,
+                     asks: type.flatMap { Self.autofillSlots[$0] })
     }
+
+    /// The details a field's content type asks for (features/autofill). Safari and web
+    /// views turn a form's `autocomplete` into these too. Cards, passwords and codes are
+    /// never filled.
+    private static let autofillSlots: [UITextContentType: Autofill.Slot] = [
+        .name: .name, .givenName: .givenName, .familyName: .familyName, .nickname: .givenName,
+        .emailAddress: .email, .telephoneNumber: .phone, .username: .username,
+        .fullStreetAddress: .street, .streetAddressLine1: .street, .addressCity: .city, .addressState: .state,
+        .addressCityAndState: .cityAndState, .postalCode: .postalCode, .countryName: .country, .location: .address,
+        .organizationName: .company, .jobTitle: .jobTitle,
+    ]
 
     /// Light or dark as the app asked for its keyboard, like Apple's keyboard does, and
     /// otherwise the phone's mode, live.

@@ -389,7 +389,6 @@ final class KeyboardViewController: UIInputViewController {
         .addressCityAndState: .cityAndState, .postalCode: .postalCode, .countryName: .country, .location: .address,
         .organizationName: .company, .jobTitle: .jobTitle,
     ]
-    }
 
     /// Light or dark as the app asked for its keyboard, like Apple's keyboard does, and
     /// otherwise the phone's mode, live.

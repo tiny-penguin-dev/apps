@@ -22,13 +22,13 @@ struct AppearanceSettings: View {
     var body: some View {
         let settings = model.keyboardSettings
         let theme = settings.style(allows: model.entitlement.allows(.styles))
-        StylePreview(theme: theme, appearance: settings.keyAppearance,
+        StylePreview(theme: theme, appearance: .system,
                      effects: settings.activeEffects(allows: model.entitlement.allows(.effects)))
         GroupFootnote("Try it: type on the keyboard above.")
         SettingsGroup {
             SettingsLink("General", subtitle: "Height \(Int((settings.heightScale * 100).rounded()))%, guesses bar, haptics, split",
                          symbol: "slider.horizontal.3", tint: Theme.slate) { path.append(.appearance(.general)) }
-            SettingsLink("Styling", subtitle: "\(theme.name) · \(appearanceName(settings.keyAppearance))",
+            SettingsLink("Styling", subtitle: theme.name,
                          symbol: "paintpalette", tint: Theme.left) { path.append(.appearance(.styling)) }
             SettingsLink("Effects", subtitle: effectsSummary, symbol: "sparkles", tint: Theme.sun) {
                 path.append(.appearance(.effects))
@@ -96,21 +96,15 @@ struct AppearancePageView: View {
     }
 }
 
-private func appearanceName(_ appearance: KeyAppearance) -> String {
-    switch appearance {
-    case .system: "Follows the phone"
-    case .light: "Always light"
-    case .dark: "Always dark"
-    }
-}
-
 private extension RGBColor {
     var color: Color { Color(uiColor: uiColor) }
 }
 
 // MARK: Styling
 
-/// Light or dark, the themes, and the person's own.
+/// The themes and the person's own. The keys always follow the phone's light or dark
+/// mode (Gabriel, 8 Nov 2026: a Light/Dark switch here locked the keys dark on a light
+/// phone).
 private struct StylingSettings: View {
     @Bindable var model: AppModel
     @Binding var path: [HomeView.Route]
@@ -122,17 +116,8 @@ private struct StylingSettings: View {
         let settings = model.keyboardSettings
         let pro = model.entitlement.allows(.styles)
         let shown = settings.style(allows: pro)
-        StylePreview(theme: shown, appearance: settings.keyAppearance,
+        StylePreview(theme: shown, appearance: .system,
                      effects: settings.activeEffects(allows: model.entitlement.allows(.effects)))
-
-        SectionLabel("Light or dark").padding(.top, Theme.Space.m)
-        Picker("Light or dark", selection: $model.keyboardSettings.keyAppearance) {
-            Text("System").tag(KeyAppearance.system)
-            Text("Light").tag(KeyAppearance.light)
-            Text("Dark").tag(KeyAppearance.dark)
-        }
-        .pickerStyle(.segmented)
-        GroupFootnote("Every theme has a light look and a dark one. System follows the phone.")
 
         SectionLabel("Themes").padding(.top, Theme.Space.m)
         LazyVGrid(columns: columns, spacing: Theme.Space.s) {
@@ -168,13 +153,7 @@ private struct StylingSettings: View {
         }
     }
 
-    private var isDark: Bool {
-        switch model.keyboardSettings.keyAppearance {
-        case .system: scheme == .dark
-        case .light: false
-        case .dark: true
-        }
-    }
+    private var isDark: Bool { scheme == .dark }
 
     private func card(_ theme: KeyboardTheme, selected: Bool, locked: Bool) -> some View {
         Button {
@@ -472,7 +451,7 @@ private struct EffectsPage: View {
     var body: some View {
         let settings = model.keyboardSettings
         let effects = settings.effects
-        StylePreview(theme: settings.style(allows: model.entitlement.allows(.styles)), appearance: settings.keyAppearance,
+        StylePreview(theme: settings.style(allows: model.entitlement.allows(.styles)), appearance: .system,
                      effects: settings.activeEffects(allows: pro), burst: burst)
         SettingsGroup {
             SettingsToggle("Effects", subtitle: "Taps, trails and flashes that show which thumb did what. Off saves battery.",

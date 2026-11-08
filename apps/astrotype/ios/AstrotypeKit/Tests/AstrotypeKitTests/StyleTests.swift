@@ -122,17 +122,24 @@ import Testing
     @Test func themesAndEffectsSync() throws {
         var settings = KeyboardSettings()
         settings.addTheme(from: KeyboardTheme.named("arcade")!)
-        settings.keyAppearance = .dark
         settings.effects = .preset(.arcade)
         let read = try JSONDecoder().decode(KeyboardSettings.self, from: JSONEncoder().encode(settings))
         #expect(read == settings)
+    }
+
+    @Test func savedLightOrDarkChoiceIsIgnored() throws {
+        // The Light/Dark switch is gone (8 Nov 2026): a phone that saved "dark" still reads.
+        let saved = Data(#"{"themeID":"arcade","keyAppearance":"dark"}"#.utf8)
+        let read = try JSONDecoder().decode(KeyboardSettings.self, from: saved)
+        #expect(read.themeID == "arcade")
+        let written = try String(decoding: JSONEncoder().encode(read), as: UTF8.self)
+        #expect(!written.contains("keyAppearance"))
     }
 
     @Test func olderSettingsAreClassicAndCalm() throws {
         let older = Data(#"{"version":1,"trails":false}"#.utf8)
         let read = try JSONDecoder().decode(KeyboardSettings.self, from: older)
         #expect(read.themeID == "classic")
-        #expect(read.keyAppearance == .system)
         #expect(read.effects == .calm)
         #expect(read.activeEffects(allows: true) == nil)
         // A newer effect this build doesn't know falls back, keeping the rest.

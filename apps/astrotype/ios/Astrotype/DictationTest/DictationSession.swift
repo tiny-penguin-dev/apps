@@ -214,6 +214,11 @@ final class DictationSession {
             if DictationPause.pauseMic {
                 pauseMic()
                 paused = DictationPause.keepAwake ? " Mic off, app kept awake with silence." : " Mic off, nothing keeping the app awake."
+                if DictationPause.hideActivity {
+                    // Round 6: no Live Activity while paused.
+                    paused += " Live Activity hidden."
+                    Task { await endActivity() }
+                }
             }
             DictationProbeLog.write("\(source): stopped listening. \(heard)\(paused)")
             update(listening: false, note: "Heard: \(heard)")
@@ -221,13 +226,27 @@ final class DictationSession {
             if engine == nil {
                 // Round 5: the mic was paused. Can it come back without a new tap?
                 let since = pausedAt.map { String(format: " after %.0f s paused", Date().timeIntervalSince($0)) } ?? ""
+                var shown = ""
+                if activity == nil {
+                    // Round 6: bring the Live Activity back from the background, before the mic.
+                    do {
+                        activity = try Activity.request(
+                            attributes: DictationActivityAttributes(started: .now),
+                            content: content(listening: true, note: "Listening…"),
+                            pushType: nil
+                        )
+                        shown = " Live Activity back."
+                    } catch {
+                        shown = " Live Activity REFUSED (\(error.localizedDescription))."
+                    }
+                }
                 if let code = resumeMic() {
-                    DictationProbeLog.write("\(source) (app \(Self.appState)): mic restart REFUSED\(since) (\(code)).")
+                    DictationProbeLog.write("\(source) (app \(Self.appState)): mic restart REFUSED\(since) (\(code)).\(shown)")
                     update(listening: false, note: "Mic restart refused")
                     return
                 }
                 meter.begin()
-                DictationProbeLog.write("\(source) (app \(Self.appState)): mic restarted\(since), listening… (tap Talk again to stop)")
+                DictationProbeLog.write("\(source) (app \(Self.appState)): mic restarted\(since).\(shown) Listening… (tap Talk again to stop)")
                 update(listening: true, note: "Listening…")
                 return
             }
@@ -425,9 +444,12 @@ final class DictationSession {
 enum DictationPause {
     static let pauseKey = "dictationProbe.pauseMic"
     static let awakeKey = "dictationProbe.keepAwake"
+    static let hideKey = "dictationProbe.hideActivity"
 
     /// After Done, close the mic instead of keeping it open.
     static var pauseMic: Bool { DictationProbeLog.defaults?.bool(forKey: pauseKey) ?? false }
     /// While paused, play silence so iOS keeps the app running.
     static var keepAwake: Bool { DictationProbeLog.defaults?.bool(forKey: awakeKey) ?? false }
+    /// While paused, end the Live Activity; Talk tries to bring it back (round 6).
+    static var hideActivity: Bool { DictationProbeLog.defaults?.bool(forKey: hideKey) ?? false }
 }

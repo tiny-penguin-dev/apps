@@ -21,6 +21,8 @@ enum DictationRunner {
 
     /// The keyboard's Talk button: asks the app's session to start or stop listening.
     static func postTalk() {
+        // If the app is suspended it never hears this, and this line stays.
+        DictationProbeLog.write("Keyboard Talk: sent to the app, no answer yet (is the app awake?)")
         CFNotificationCenterPostNotification(
             CFNotificationCenterGetDarwinNotifyCenter(),
             CFNotificationName(DictationProbeLog.talkNotification as CFString),

@@ -43,11 +43,16 @@ final class DictationSession {
 
     private var activity: Activity<DictationActivityAttributes>?
     private var engine: AVAudioEngine?
+    /// Round 5: plays silence to keep the app awake while the mic is paused.
+    private var silence: AVAudioEngine?
+    /// A session is on (Live Activity up, audio session active), whether or not the
+    /// mic is open right now.
+    private var running = false
     private let meter = Meter()
     private var observing = false
     private var timeout: Task<Void, Never>?
 
-    var isRunning: Bool { engine != nil }
+    var isRunning: Bool { running }
 
     private init() {}
 
@@ -175,6 +180,7 @@ final class DictationSession {
             return try fail(source, "Mic: engine failed (\((error as NSError).code)) even with the Live Activity.")
         }
         self.engine = engine
+        running = true
         meter.sampleRate = format.sampleRate
         observeKeyboard()
         DictationProbeLog.sessionStarted = .now
@@ -182,7 +188,7 @@ final class DictationSession {
 
         timeout?.cancel()
         timeout = Task { [weak self] in
-            try? await Task.sleep(for: .seconds(600))
+            try? await Task.sleep(for: .seconds(3600))
             guard !Task.isCancelled else { return }
             await self?.stop(source: "10-minute limit")
         }
@@ -204,13 +210,98 @@ final class DictationSession {
         }
         if meter.isOn {
             let heard = meter.finish()
-            DictationProbeLog.write("\(source): stopped listening. \(heard)")
+            var paused = ""
+            if DictationPause.pauseMic {
+                pauseMic()
+                paused = DictationPause.keepAwake ? " Mic off, app kept awake with silence." : " Mic off, nothing keeping the app awake."
+            }
+            DictationProbeLog.write("\(source): stopped listening. \(heard)\(paused)")
             update(listening: false, note: "Heard: \(heard)")
         } else {
+            if engine == nil {
+                // Round 5: the mic was paused. Can it come back without a new tap?
+                let since = pausedAt.map { String(format: " after %.0f s paused", Date().timeIntervalSince($0)) } ?? ""
+                if let code = resumeMic() {
+                    DictationProbeLog.write("\(source) (app \(Self.appState)): mic restart REFUSED\(since) (\(code)).")
+                    update(listening: false, note: "Mic restart refused")
+                    return
+                }
+                meter.begin()
+                DictationProbeLog.write("\(source) (app \(Self.appState)): mic restarted\(since), listening… (tap Talk again to stop)")
+                update(listening: true, note: "Listening…")
+                return
+            }
             meter.begin()
             DictationProbeLog.write("\(source): listening… (tap Talk again to stop)")
             update(listening: true, note: "Listening…")
         }
+    }
+
+    private var pausedAt: Date?
+
+    /// Round 5: closes the mic (the orange dot goes away) but keeps the audio session
+    /// active, and if asked plays silence so iOS keeps the app running.
+    private func pauseMic() {
+        guard let engine else { return }
+        engine.inputNode.removeTap(onBus: 0)
+        engine.stop()
+        self.engine = nil
+        pausedAt = .now
+        if DictationPause.keepAwake, silence == nil {
+            silence = Self.silentEngine()
+        }
+    }
+
+    /// Opens the mic again; nil when it worked, otherwise the error code.
+    private func resumeMic() -> Int? {
+        let session = AVAudioSession.sharedInstance()
+        do {
+            try session.setActive(true)
+        } catch {
+            return (error as NSError).code
+        }
+        let engine = AVAudioEngine()
+        let input = engine.inputNode
+        let format = input.outputFormat(forBus: 0)
+        guard format.sampleRate > 0 else { return 0 }
+        Self.installTap(on: input, format: format, meter: meter)
+        do {
+            try engine.start()
+        } catch {
+            input.removeTap(onBus: 0)
+            return (error as NSError).code
+        }
+        self.engine = engine
+        pausedAt = nil
+        silence?.stop()
+        silence = nil
+        return nil
+    }
+
+    /// An output-only engine looping a silent buffer.
+    private static func silentEngine() -> AVAudioEngine? {
+        let engine = AVAudioEngine()
+        let player = AVAudioPlayerNode()
+        engine.attach(player)
+        let format = engine.outputNode.inputFormat(forBus: 0)
+        guard format.sampleRate > 0, format.channelCount > 0,
+              let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(format.sampleRate))
+        else { return nil }
+        buffer.frameLength = buffer.frameCapacity
+        if let channels = buffer.floatChannelData {
+            for c in 0..<Int(format.channelCount) {
+                channels[c].update(repeating: 0, count: Int(buffer.frameLength))
+            }
+        }
+        engine.connect(player, to: engine.mainMixerNode, format: format)
+        do {
+            try engine.start()
+        } catch {
+            return nil
+        }
+        player.scheduleBuffer(buffer, at: nil, options: .loops)
+        player.play()
+        return engine
     }
 
     func stop(source: String) async {
@@ -220,9 +311,15 @@ final class DictationSession {
         if let engine {
             engine.inputNode.removeTap(onBus: 0)
             engine.stop()
+        }
+        silence?.stop()
+        silence = nil
+        if running {
             try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
         }
         engine = nil
+        running = false
+        pausedAt = nil
         await endActivity()
         DictationProbeLog.sessionStarted = nil
         DictationProbeLog.write("\(source): session OFF.\(heard)")
@@ -322,4 +419,15 @@ final class DictationSession {
             }
         }
     }
+}
+
+/// Round 5 settings (Debug → Dictation test), in the App Group.
+enum DictationPause {
+    static let pauseKey = "dictationProbe.pauseMic"
+    static let awakeKey = "dictationProbe.keepAwake"
+
+    /// After Done, close the mic instead of keeping it open.
+    static var pauseMic: Bool { DictationProbeLog.defaults?.bool(forKey: pauseKey) ?? false }
+    /// While paused, play silence so iOS keeps the app running.
+    static var keepAwake: Bool { DictationProbeLog.defaults?.bool(forKey: awakeKey) ?? false }
 }

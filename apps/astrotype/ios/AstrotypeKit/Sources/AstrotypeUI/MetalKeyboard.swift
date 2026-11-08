@@ -644,7 +644,7 @@ final class SkyRenderer {
 
 /// The letter keys' labels, drawn with Metal so the letter effects (all but Pop) can
 /// bend them, and the key effects under them (`EffectsSettings.Keys`). One layer for
-/// both, so a second full-size drawable isn't needed. The keys hide their own labels while this draws (`KeyView.lettersElsewhere`).
+/// both, so a second full-size drawable isn't needed. The keys hide their own labels once a frame of letters is on screen (`KeyEffects.hidesLabels`, `KeyView.lettersElsewhere`).
 @MainActor
 final class LetterRenderer {
     let layer: CAMetalLayer
@@ -753,6 +753,10 @@ final class LetterRenderer {
         hits.values.contains { time - $0.time < duration } || touches.contains { time - $0.time < 1.5 }
     }
 
+    /// Whether the last frame left out a letter key, its letter not in the atlas (the
+    /// keys changed since `prepare`).
+    private(set) var missedLetters = false
+
     /// Draws the frame; false when the layer had no drawable to draw into (see
     /// `MetalKeyboard.draw`), so the keys' letters are not on screen yet.
     @discardableResult
@@ -761,10 +765,15 @@ final class LetterRenderer {
         hits = hits.filter { time - $0.value.time < 3 }
         touches.removeAll { time - $0.time >= 1.5 }
         var instances: [Instance] = []
+        missedLetters = false
+        if mode != .none, style.shape.showsLetters, atlas == nil, !keys.isEmpty { missedLetters = true }
         if mode != .none, atlas != nil, style.shape.showsLetters {
             instances.reserveCapacity(keys.count)
             for key in keys {
-                guard let uv = glyphs[key.letter] else { continue }
+                guard let uv = glyphs[key.letter] else {
+                    missedLetters = true
+                    continue
+                }
                 let rect = SIMD4<Float>(Float(key.frame.midX - cell.width / 2), Float(key.frame.midY - cell.height / 2),
                                         Float(cell.width), Float(cell.height))
                 let hit = hits[key.key]

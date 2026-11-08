@@ -222,7 +222,8 @@ public struct TypingLayout: Codable, Sendable, Equatable {
 public struct TypingSnapshot: Codable, Sendable, Equatable {
     /// The phone and the build, as the keyboard extension reads them.
     public struct Device: Codable, Sendable, Equatable {
-        /// "1.0 (202611060412)": the build number is the commit's time on `main`.
+        /// "1.0 (202611060412)": the build number is the commit's time in Pacific time
+        /// (UTC before 8 Nov 2026), from `scripts/ios/build-number.sh`.
         public var app: String
         public var system: String
         /// "iPhone17,1".

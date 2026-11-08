@@ -119,6 +119,7 @@
 				5A0000000000000000000031 /* Frameworks */,
 				5A0000000000000000000032 /* Resources */,
 				5A0000000000000000000118 /* Embed Foundation Extensions */,
+				5A00000000000000000B0001 /* Set build number */,
 			);
 			buildRules = (
 			);
@@ -145,6 +146,7 @@
 				5A0000000000000000000110 /* Sources */,
 				5A0000000000000000000111 /* Frameworks */,
 				5A0000000000000000000112 /* Resources */,
+				5A00000000000000000B0002 /* Set build number */,
 			);
 			buildRules = (
 			);
@@ -221,6 +223,51 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		5A00000000000000000B0001 /* Set build number */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"$(TARGET_BUILD_DIR)/$(INFOPLIST_PATH)",
+			);
+			name = "Set build number";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"$SRCROOT/../../../scripts/ios/set-build-number.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
+		5A00000000000000000B0002 /* Set build number */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"$(TARGET_BUILD_DIR)/$(INFOPLIST_PATH)",
+			);
+			name = "Set build number";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"$SRCROOT/../../../scripts/ios/set-build-number.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		5A0000000000000000000030 /* Sources */ = {

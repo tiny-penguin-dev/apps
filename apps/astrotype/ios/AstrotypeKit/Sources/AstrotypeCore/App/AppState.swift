@@ -65,7 +65,8 @@ public struct AppState: Codable, Sendable, Equatable {
     @discardableResult
     public mutating func record(_ result: SpeedResult) -> Bool {
         speedTests.append(result)
-        if speedTests.count > 30 { speedTests.removeFirst(speedTests.count - 30) }
+        // 200 so practice shows on the typing speed graph for months (features/typing-speed).
+        if speedTests.count > 200 { speedTests.removeFirst(speedTests.count - 200) }
         switch result.keyboard {
         case .apple:
             appleWordsPerMinute = result.wordsPerMinute

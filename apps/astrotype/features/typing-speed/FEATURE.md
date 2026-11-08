@@ -32,8 +32,8 @@ Status: Approved 2026-11-08 (Gabriel: "build it")
   - **A run counts only with at least 10 words.** "ok", "on my way" and other quick
     replies don't count, so they can't drag the number down or push it up.
   - **Outliers:** a run over 200 words per minute is thrown away (that is a paste or a
-    glitch, not typing). Text replacements count as the shortcut you typed, not the
-    phrase they wrote.
+    glitch, not typing). A text replacement's phrase counts as written (built 8 Nov
+    2026; a long phrase in a short run is caught by the 200 wpm rule).
   - **A day's speed is the median of that day's runs**, and it needs at least 3 runs.
     The median is the middle run, so one very fast or very slow run can't swing it, which
     makes it more accurate than an average for this. A day without 3 runs is a gap on
@@ -118,20 +118,22 @@ Mockup: [`design/mockups/typing-speed.html`](design/mockups/typing-speed.html).
 
 Status: Approved 2026-11-08 (Gabriel: "build it")
 
-- **Core** (`AstrotypeCore`, `App/TypingSpeed.swift`, pure, tests on Linux):
-  - `SpeedRun` (started, seconds, characters, words) and `SpeedMeter`: touches and
-    committed text in, with times passed in; finished runs out (5-second pause, field
-    change, hide). The 10-word and 200 wpm rules live here.
-  - `SpeedHistory`: runs folded into days (median, run count, words, fastest run),
-    `everyday(now:)`, ranges for week, month and year (weeks for a year). A year of days.
-- **Keyboard:** `KeyboardModel` feeds the meter from what it already knows (touch
-  times, what went into the field, `Field.learns`); finished runs go to a small
-  `SpeedRunStore` in the App Group (Full Access only, the last 14 days of runs). Off
-  when "Measure my speed" is off.
-- **App:** `AppModel` folds new runs into `SpeedHistory` (a file in the app's own
-  container) on launch and foreground; `speedTest` results join it as practice.
-  `HomeView`'s speed card, `SpeedHistoryView` with Swift Charts, the Privacy rows,
-  the renamed practice and its result line.
-- **Metrics:** `speed.everyday`, `speed.opened` in `LiveMetrics`; PRODUCT.md's table.
-- One PR for Core + keyboard (numbers start collecting in TestFlight), one for the app
-  screens.
+Built 8 Nov 2026 in one PR:
+
+- **Core** (`AstrotypeCore/App/TypingSpeed.swift`, tests in `TypingSpeedTests`):
+  `SpeedRules` (every number above), `SpeedRun`, `SpeedMeter` (touches and text
+  changes in, runs out; pure, times passed in), `SpeedRuns` / `SpeedRunStore` (the App
+  Group file, two weeks), `SpeedHistory` / `SpeedHistoryStore` (days, `everyday`,
+  `weekChange`, `points` and `summary` per `SpeedRange`, `toReport` for the metric).
+  `KeyboardSettings.measuresSpeed` (on by default). Speed tests kept: 200 (was 30).
+- **Keyboard:** `KeyboardModel.onSpeedRun`; the model feeds its `SpeedMeter` from
+  touches and keys, the characters its effects add or take off the field (the open
+  word's mark counted by its change in length), and settled words. Only while the
+  field learns, emoji search is closed and the setting is on; a field change or the
+  keyboard hiding ends the run. `KeyboardShared` sets `onSpeedRun` with Full Access,
+  writing to `KeyboardFiles.speedRuns`.
+- **App:** `AppModel.refreshSpeed()` (launch, foreground, opening Your speed) folds the
+  runs into `KeyboardFiles.speedHistory` and sends `speed.everyday` per finished day.
+  `Speed/SpeedViews.swift`: `SpeedCard` (Home), `SpeedHistoryView` (Route `.speed`),
+  `SpeedChart` (Swift Charts, gaps as breaks in the line). Privacy and sharing: Measure my
+  speed, Delete speed history. The speed test result compares with the everyday speed.

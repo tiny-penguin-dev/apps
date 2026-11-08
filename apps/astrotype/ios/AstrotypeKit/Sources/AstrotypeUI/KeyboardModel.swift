@@ -87,6 +87,10 @@ public final class KeyboardModel {
     /// host to count how often the first guess was right (`GuessTally`). Only counts
     /// leave the host.
     public var onSettled: ((SettledWord) -> Void)?
+    /// A timed stretch of typing ended and counts toward the everyday speed
+    /// (features/typing-speed): times and counts only. The extension sets it with Full
+    /// Access; nil measures nothing (the app's practice fields).
+    public var onSpeedRun: ((SpeedRun) -> Void)?
     /// What the keyboard learned from the person changed here (a word settled, a
     /// forget), for the host's sync. Saving is the model's own job.
     public var onPersonalChange: ((PersonalModel) -> Void)?
@@ -140,6 +144,7 @@ public final class KeyboardModel {
         didSet {
             guard hostField != oldValue else { return }
             recordFieldChange(from: oldValue)
+            endSpeedRun()
             guard search == nil else { return }
             applyComposerSettings()
             composer.setContext(before: output?.textBeforeCursor)
@@ -375,6 +380,7 @@ public final class KeyboardModel {
         log(TypingEvent(t: now, e: .hide))
         defer { recorder?.flush() }
         for case .settled(let word) in composer.keyboardWillHide() { learn(from: word) }
+        endSpeedRun()
         onChange?()
         savePersonalNow()
     }
@@ -397,6 +403,7 @@ public final class KeyboardModel {
 
     private func learn(from word: SettledWord) {
         if learningAllowed { onSettled?(word) }
+        if measuringSpeed { speed.wordWentIn() }
         let share = keyboardSettings.shareCorrections && onCorrection != nil
         if learningAllowed, share || (word.missed && onMiss != nil),
            let correction = SharedWord.correction(word, layout: composer.layout, now: Date()) {
@@ -449,6 +456,7 @@ public final class KeyboardModel {
         dropLostWord()
         onTouch?(.began, id, point, time)
         down.insert(id)
+        speedTouched()
         log(TypingEvent(t: time, e: .down, i: id, x: point.x, y: point.y))
         apply(composer.touchDown(id: id, at: point, time: time))
     }
@@ -484,12 +492,14 @@ public final class KeyboardModel {
     public func press(_ key: Key) {
         if key == .backspace { logFieldState() }
         dropLostWord()
+        speedTouched()
         log(TypingEvent(t: now, e: .key, s: TypingEvent.code(of: key)))
         apply(composer.press(key, time: now))
     }
 
     public func press(character: Character) {
         dropLostWord()
+        speedTouched()
         log(TypingEvent(t: now, e: .character, s: String(character)))
         apply(composer.press(character: character, time: now))
     }
@@ -497,6 +507,7 @@ public final class KeyboardModel {
     /// A key that types a string (".com").
     public func press(text: String) {
         dropLostWord()
+        speedTouched()
         log(TypingEvent(t: now, e: .text, s: text))
         apply(composer.press(text: text, time: now))
     }
@@ -775,6 +786,7 @@ public final class KeyboardModel {
         logContext(.reset)
         autospace?.cancel()
         output?.dropOpenWord()
+        markLength = 0
         for case .settled(let word) in composer.reset() { learn(from: word) }
         composer.setContext(before: output?.textBeforeCursor)
         onChange?()
@@ -911,21 +923,30 @@ public final class KeyboardModel {
     private var now: TimeInterval { ProcessInfo.processInfo.systemUptime }
 
     private func apply(_ effects: [Composer.Effect]) {
+        var typed = 0
         for effect in effects {
             switch effect {
             case .insert(let text):
                 output?.insert(text)
+                typed += text.count
             case .deleteBackward(let count):
                 for _ in 0..<count { output?.deleteBackward() }
+                typed -= count
             case .mark(let text):
                 output?.mark(text)
+                typed += text.count - markLength
+                markLength = text.count
             case .commit(let text):
                 output?.mark(text)
                 output?.unmark()
+                typed += text.count - markLength
+                markLength = 0
                 onCommit?(text)
             case .clearMark:
                 output?.mark("")
                 output?.unmark()
+                typed -= markLength
+                markLength = 0
             case .haptic(let haptic):
                 onHaptic?(haptic)
             case .learn(let word):
@@ -949,6 +970,7 @@ public final class KeyboardModel {
                 output?.moveCursor(by: offset)
             }
         }
+        if measuringSpeed { speed.edited(characters: typed, at: now) }
         if effects.contains(where: Self.editsField) {
             lastOwnEdit = now
             typedAfter = output?.textAfterCursor
@@ -961,6 +983,26 @@ public final class KeyboardModel {
         }
         scheduleAutospace()
         onChange?()
+    }
+
+    // MARK: Typing speed
+
+    private var speed = SpeedMeter()
+    /// How long the open word shown in the field is, to count what a new mark adds.
+    private var markLength = 0
+    /// Timing runs: someone takes them, the setting is on, the field learns (no
+    /// passwords or codes) and emoji search is closed.
+    private var measuringSpeed: Bool {
+        onSpeedRun != nil && keyboardSettings.measuresSpeed && hostField.learns && search == nil
+    }
+
+    private func speedTouched() {
+        guard measuringSpeed else { return }
+        if let run = speed.touched(at: now, date: Date()) { onSpeedRun?(run) }
+    }
+
+    private func endSpeedRun() {
+        if let run = speed.end() { onSpeedRun?(run) }
     }
 
     /// Whether an effect changes the field's text or moves its cursor.

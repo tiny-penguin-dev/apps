@@ -231,9 +231,9 @@ import Testing
         #expect(!apple)
         #expect(state.appleWordsPerMinute == 50)
         #expect(state.bestWordsPerMinute == 31)
-        for i in 0..<40 { _ = state.record(result(i)) }
-        #expect(state.speedTests.count == 30)
-        #expect(state.bestWordsPerMinute == 39)
+        for i in 0..<240 { _ = state.record(result(i)) }
+        #expect(state.speedTests.count == 200)
+        #expect(state.bestWordsPerMinute == 239)
     }
 
     @Test func newFieldsRoundTripAndDefault() throws {

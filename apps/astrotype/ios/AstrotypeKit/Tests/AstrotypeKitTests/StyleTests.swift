@@ -41,7 +41,10 @@ import Testing
         #expect(classic.isFree)
         #expect(classic.light.key == RGBColor(hex: 0xFFFFFF))
         #expect(classic.dark.background == RGBColor(hex: 0x1F1F1F))
-        #expect(classic.shape == KeyShape())
+        #expect(classic.dark.key == RGBColor(hex: 0xC2C2C2))
+        #expect(classic.light.opacity == 0.8)
+        #expect(classic.dark.opacity == 0.3)
+        #expect(classic.shape == KeyShape(gap: 4, corner: 10, shadow: .none))
         #expect(!KeyboardTheme.named("iceberg")!.isFree)
     }
 
@@ -75,7 +78,7 @@ import Testing
         let old = try JSONDecoder().decode(KeyboardTheme.self, from: JSONSerialization.data(withJSONObject: json))
         #expect(old.light.opacity == 0.6)
         #expect(old.dark.opacity == 0.6)
-        #expect(KeyboardTheme.classic.light.opacity == 1)
+        #expect(KeyboardTheme.classic.light.opacity == 0.8)
     }
 
     @Test func themesArePro() {

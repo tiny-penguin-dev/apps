@@ -66,6 +66,8 @@ public struct Composer: Sendable {
         /// Whether replacements apply in this field: not in a password, a code or a
         /// number, nor where corrections are off (`Field.replacesText`).
         public var replacesText = true
+        /// What `{name}`, `{email}`, `{phone}` and `{address}` write.
+        public var details = PersonalDetails()
         public init() {}
     }
 
@@ -152,6 +154,13 @@ public struct Composer: Sendable {
         /// shortcut: the phrase, variables filled in (features/text-replacements). The
         /// bar shows it in the chosen word's place.
         public var replacement: String?
+        /// The same for every guess on the bar that is a shortcut, by the guess as shown:
+        /// the bar shows each one's phrase. A shortcut being typed shows as a guess too
+        /// (`TextReplacements.completion`).
+        public var previews: [String: String] = [:]
+        /// A replacement is asking for its `{?blanks}` (features/text-replacements): the
+        /// one being typed, by name. The bar shows `.correcting` with what is typed so far.
+        public var fillPrompt: String?
     }
 
     /// The last word written, kept so backspace can reopen it and the bar can fix it.
@@ -209,6 +218,19 @@ public struct Composer: Sendable {
     /// The language and time zone the variables are written in.
     public var replacementLocale = Locale.current
     public var replacementTimeZone = TimeZone.current
+    /// What was copied, for `{clipboard}`: read only when a phrase going in asks for it.
+    /// The host gives it the pasteboard (Full Access).
+    public var clipboard: @Sendable () -> String? = { nil }
+    /// A number below the one given, for `{pick:…}`; tests make it fixed.
+    public var random: @Sendable (Int) -> Int = { Int.random(in: 0..<max(1, $0)) } {
+        didSet { pickRoll = random(Self.rollRange) }
+    }
+    /// The roll `{pick:…}` uses, kept until a phrase goes in, so the bar shows the pick
+    /// that space would write.
+    private var pickRoll = Int.random(in: 0..<Composer.rollRange)
+    private static let rollRange = 720_720
+    /// A replacement asking for its blanks, while it does.
+    private var filling: Filling?
     public var layout: Layout {
         didSet { matcher.layout = layout }
     }
@@ -473,6 +495,8 @@ public struct Composer: Sendable {
                 effects += commit(trailing: " ", time: time)
                 wordSpace = settings.spacesWords
                 lastSpace = time
+            } else if let replaced = replaceToken(trailing: " ") {
+                effects += replaced
             } else if settings.spacesWords, let previousSpace, time - previousSpace < Self.doubleSpaceWindow {
                 // A double tap: the space after the word becomes a period and a space.
                 effects += [.deleteBackward(1), .insert(". ")]
@@ -490,6 +514,8 @@ public struct Composer: Sendable {
         case .returnKey:
             if hasOpenWord {
                 effects += commit(trailing: "\n", time: time)
+            } else if let replaced = replaceToken(trailing: "\n") {
+                effects += replaced
             } else {
                 // No space left at the end of the line by autospace.
                 if spaced { effects.append(.deleteBackward(1)) }
@@ -537,6 +563,10 @@ public struct Composer: Sendable {
     /// `press(character:)`, the open word going in first with the text right after it.
     public mutating func press(text: String, time: TimeInterval) -> [Effect] {
         if correction != nil {
+            if filling != nil {
+                typeCorrection(text)
+                return [.haptic(.key)]
+            }
             // Only what can be part of a word: "don't", "e-mail".
             guard text.count == 1, let character = text.first, character == "'" || character == "-" || character == "’" else { return [] }
             typeCorrection(character == "’" ? "'" : character)
@@ -687,6 +717,12 @@ public struct Composer: Sendable {
     public mutating func cancelCorrection(time: TimeInterval = 0) {
         guard correction != nil else { return }
         correction = nil
+        // A replacement asking for blanks: the shortcut stays in the field as typed.
+        if filling != nil {
+            filling = nil
+            state.fillPrompt = nil
+            barBeforeCorrection = .idle
+        }
         open = [:]
         state.bar = barBeforeCorrection
         if hasOpenWord { autospaceDue = settings.autospaceDelay.map { time + $0 } }
@@ -698,6 +734,7 @@ public struct Composer: Sendable {
     /// as a miss, for the host to keep and share (`SettledWord.missed`). Empty cancels.
     public mutating func saveCorrection(time: TimeInterval) -> [Effect] {
         guard let typed = correction else { return [] }
+        if filling != nil { return saveFill(typed, time: time) }
         let meant = typed.lowercased()
         guard !meant.isEmpty else {
             cancelCorrection(time: time)
@@ -749,10 +786,25 @@ public struct Composer: Sendable {
 
     /// A letter typed into the "Not it?" field.
     private mutating func typeCorrection(_ letter: Character) {
+        if filling != nil { return typeCorrection(String(letter)) }
         guard var typed = correction, typed.count < 40 else { return }
         typed.append(Character(letter.lowercased()))
         correction = typed
         state.bar = .correcting(typed)
+    }
+
+    /// Text typed into a blank: kept as typed, a capital where shift says.
+    private mutating func typeCorrection(_ text: String) {
+        guard var typed = correction, typed.count + text.count <= Self.blankLimit else { return }
+        if shift != .off, text.count == 1 {
+            typed += text.uppercased()
+            if shift == .on { shift = .off }
+        } else {
+            typed += text
+        }
+        correction = typed
+        state.bar = .correcting(typed)
+        refreshState()
     }
 
     /// The keys while the "Not it?" field is open: backspace edits it, space and
@@ -766,6 +818,16 @@ public struct Composer: Sendable {
             typed.removeLast()
             correction = typed
             state.bar = .correcting(typed)
+        case .space where filling != nil:
+            typeCorrection(" ")
+        case .shift where filling != nil:
+            if let last = lastShiftPress, time - last < 0.35 {
+                shift = shift == .locked ? .off : .locked
+            } else {
+                shift = shift == .off ? .on : .off
+            }
+            lastShiftPress = time
+            refreshState()
         case .space, .returnKey:
             return saveCorrection(time: time)
         case .text(let text):
@@ -797,6 +859,7 @@ public struct Composer: Sendable {
         if let before, !before.hasSuffix(" ") {
             autoSpaced = false
             wordSpace = false
+            lastSpace = nil
         }
         matcher.context = WordContext.words(before: contextBefore)
         relock()
@@ -903,6 +966,8 @@ public struct Composer: Sendable {
     @discardableResult
     public mutating func reset() -> [Effect] {
         correction = nil
+        filling = nil
+        state.fillPrompt = nil
         leaveEarlier()
         let effects = settle()
         pieces = []
@@ -1138,7 +1203,22 @@ public struct Composer: Sendable {
             words.removeAll { $0 == typed }
             words = Array(([typed] + words).prefix(max(1, settings.guessCount)))
         }
+        // A shortcut being typed shows on the bar, its phrase in place (features/text-
+        // replacements: suggest as you type); it takes the last guess's place.
+        if let first = words.first, let shortcut = completion(of: first), !words.contains(shortcut) {
+            if words.count < max(1, settings.guessCount) { words.append(shortcut) } else if words.count > 1 { words[words.count - 1] = shortcut }
+        }
         return words
+    }
+
+    /// The shortcut that the open word (with what is typed before it) begins, as the
+    /// open word would be to finish it, cased like it.
+    private func completion(of word: String) -> String? {
+        guard settings.replacesText, !settings.replacements.isEmpty else { return nil }
+        let prefix = tokenBefore
+        guard let shortcut = settings.replacements.completion(of: prefix + word) else { return nil }
+        let rest = String(shortcut.dropFirst(prefix.count))
+        return rest.isEmpty ? nil : cased(rest)
     }
 
     /// The open word's letters exactly as tapped, when taps are typed exactly and
@@ -1161,7 +1241,7 @@ public struct Composer: Sendable {
         let word = words[chosen]
         let before = joinable
         joinable = nil
-        if let phrase = replacement(for: word) { return replace(word, with: phrase, guesses: words, chosen: chosen, trailing: trailing) }
+        if let found = shortcut(for: word) { return replace(word, with: found, guesses: words, chosen: chosen, trailing: trailing) }
         if !byHand, let before, let joined = join(word, to: before, trailing: trailing) { return joined }
         let learn = wordToLearn(word)
         committed = Committed(word: word, trailing: trailing, pieces: pieces, guesses: words, casing: casing,
@@ -1175,34 +1255,201 @@ public struct Composer: Sendable {
         return effects
     }
 
-    /// The shortcuts the matcher offers as words: none where replacements are off.
+    /// The shortcuts the matcher offers as words: none where replacements are off. A
+    /// shortcut with symbols in it (";addr", "addr1") offers its letters, so they type
+    /// as written.
     private static func shortcuts(_ settings: Settings) -> Set<String> {
-        settings.replacesText ? settings.replacements.shortcuts : []
+        guard settings.replacesText else { return [] }
+        var words = settings.replacements.shortcuts
+        for key in settings.replacements.phrases.keys where !TextReplacements.isWord(key) {
+            for letters in key.split(whereSeparator: { !$0.isLetter }) where letters.count >= 2 { words.insert(String(letters)) }
+        }
+        return words
     }
 
-    /// The phrase `word` goes in as, variables filled in, when it is a shortcut: a
-    /// capital on the word (a sentence start, shift) capitalises the phrase too.
+    // MARK: Text replacements
+
+    /// A replacement asking for its blanks before it goes in (`{?name}`).
+    private struct Filling: Sendable {
+        var phrase: String
+        var blanks: [String]
+        var values: [String: String] = [:]
+        /// What is in the field before the cursor that the phrase takes the place of:
+        /// the shortcut as typed. Empty from the snippet page.
+        var original: String
+        var trailing: String
+        var capital: Bool
+        var gap: String
+    }
+
+    /// The longest a blank's answer can be.
+    static let blankLimit = 200
+
+    /// The characters right before the open word that are no space ("；" of ";addr").
+    private var tokenBefore: String {
+        String(contextBefore.reversed().prefix { !$0.isWhitespace && !$0.isNewline }.reversed())
+    }
+
+    /// The shortcut the open word `word` finishes, with what was typed before it
+    /// (";" then "addr"), when there is one: its phrase, and the text it replaces.
+    private func shortcut(for word: String) -> (phrase: String, prefix: String)? {
+        guard settings.replacesText, !settings.replacements.isEmpty else { return nil }
+        let prefix = tokenBefore
+        if !prefix.isEmpty, let phrase = settings.replacements.phrase(for: prefix + word) { return (phrase, prefix) }
+        return settings.replacements.phrase(for: word).map { ($0, "") }
+    }
+
+    /// What the variables fill in from right now.
+    private func replacementContext(filled: [String: String] = [:], preview: Bool) -> TextReplacements.Context {
+        let roll = pickRoll
+        var copied = clipboard
+        if preview { copied = { "[clipboard]" } }
+        return TextReplacements.Context(
+            date: wallClock(), locale: replacementLocale, timeZone: replacementTimeZone,
+            // The bar never reads the pasteboard; only writing the phrase does.
+            clipboard: copied,
+            details: settings.details, random: { roll % max(1, $0) }, filled: filled)
+    }
+
+    /// `phrase` filled in: a capital on the shortcut (a sentence start, shift)
+    /// capitalises the phrase too.
+    private func expansion(of phrase: String, capital: Bool, filled: [String: String] = [:],
+                           preview: Bool = false) -> TextReplacements.Expansion {
+        var out = TextReplacements.expand(phrase, in: replacementContext(filled: filled, preview: preview))
+        if capital, let first = out.text.first, first.isLowercase { out.text = first.uppercased() + out.text.dropFirst() }
+        return out
+    }
+
+    /// What the bar shows for `word` as the open word: its phrase filled in, if it's a shortcut.
     private func replacement(for word: String) -> String? {
-        guard settings.replacesText, let phrase = settings.replacements.phrase(for: word) else { return nil }
-        let text = TextReplacements.expand(phrase, at: wallClock(), locale: replacementLocale, timeZone: replacementTimeZone)
-        guard let first = text.first, word.first?.isUppercase == true, first.isLowercase else { return text }
-        return first.uppercased() + text.dropFirst()
+        guard let found = shortcut(for: word) else { return nil }
+        return expansion(of: found.phrase, capital: word.first?.isUppercase == true, preview: true).text
     }
 
     /// The open word is a shortcut: its phrase goes in, and the bar offers the shortcut
     /// as typed behind it, to take the replacement back. Backspace reopens the shortcut.
-    private mutating func replace(_ word: String, with phrase: String, guesses words: [String], chosen: Int,
-                                  trailing: String) -> [Effect] {
-        let others = words.enumerated().filter { $0.offset != chosen && $0.element != phrase }.map(\.element)
-        let fix = Array(([phrase, word] + others).prefix(max(2, settings.guessCount)))
-        committed = Committed(word: phrase, trailing: trailing, pieces: pieces, guesses: fix, casing: casing,
-                              previous: matcher.context.last, firstGuess: words.first, learned: nil, replaced: word)
+    private mutating func replace(_ word: String, with found: (phrase: String, prefix: String), guesses words: [String],
+                                  chosen: Int, trailing: String) -> [Effect] {
+        let others = words.enumerated().filter { $0.offset != chosen }.map(\.element)
+        return putReplacement(found.phrase, original: found.prefix + word, open: word, trailing: trailing,
+                              capital: word.first?.isUppercase == true, others: others)
+    }
+
+    /// Writes `phrase` in place of `original` (what is before the cursor, with the open
+    /// word `open` still marked when there is one), then `trailing`. A phrase with
+    /// blanks asks for them first (`State.fillPrompt`), with the shortcut left as typed.
+    private mutating func putReplacement(_ phrase: String, original: String, open word: String?, trailing: String,
+                                         capital: Bool, others: [String] = [], gap: String = "") -> [Effect] {
+        let typed = pieces
         pieces = []
         candidates = []
         autospaceDue = nil
-        state.bar = .fix(fix, chosen: 0)
+        committed = nil
+        let blanks = TextReplacements.blanks(in: phrase)
+        if let first = blanks.first {
+            filling = Filling(phrase: phrase, blanks: blanks, original: original, trailing: trailing, capital: capital, gap: gap)
+            correction = ""
+            barBeforeCorrection = .idle
+            open = [:]
+            state.bar = .correcting("")
+            state.fillPrompt = first
+            refreshState()
+            return (word.map { [.commit($0)] } ?? []) + [.haptic(.commit)]
+        }
+        let prefix = String(original.dropLast(word?.count ?? 0))
+        let text = expansion(of: phrase, capital: capital)
+        var effects: [Effect]
+        if word != nil, prefix.isEmpty {
+            effects = [.commit(gap + text.text)]
+        } else {
+            effects = (word != nil ? [.clearMark] : []) + (prefix.isEmpty ? [] : [.deleteBackward(prefix.count)])
+                + [.insert(gap + text.text)]
+        }
+        return effects + finishReplacement(text, original: original, typed: word != nil && prefix.isEmpty ? typed : [],
+                                           trailing: trailing, others: others)
+    }
+
+    /// After the phrase is in: the trailing text, the cursor to `{cursor}`, and the bar
+    /// offering the shortcut back.
+    private mutating func finishReplacement(_ text: TextReplacements.Expansion, original: String, typed: [Piece],
+                                            trailing: String, others: [String]) -> [Effect] {
+        pickRoll = random(Self.rollRange)
+        var effects: [Effect] = []
+        if let back = text.cursorFromEnd {
+            // The cursor goes back into the phrase: a space after it would be in the way.
+            let after = trailing.allSatisfy { $0.isWhitespace || $0.isNewline } ? "" : trailing
+            if !after.isEmpty { effects.append(.insert(after)) }
+            if back + after.count > 0 { effects.append(.moveCursor(-(back + after.count))) }
+            committed = nil
+            state.bar = .idle
+        } else {
+            if !trailing.isEmpty { effects.append(.insert(trailing)) }
+            let fix = original.isEmpty || original == text.text ? [text.text]
+                : Array(([text.text, original] + others.filter { $0 != text.text && $0 != original })
+                    .prefix(max(2, settings.guessCount)))
+            committed = Committed(word: text.text, trailing: trailing, pieces: typed, guesses: fix, casing: casing,
+                                  previous: matcher.context.last, firstGuess: fix.count > 1 ? fix[1] : nil, learned: nil,
+                                  picked: typed.isEmpty, replaced: original.isEmpty ? text.text : original)
+            state.bar = fix.count > 1 ? .fix(fix, chosen: 0) : .idle
+        }
         refreshState()
-        return [.commit(phrase)] + (trailing.isEmpty ? [] : [.insert(trailing)]) + [.haptic(.commit)]
+        return effects + [.haptic(.commit)]
+    }
+
+    /// A blank's answer saved: the next blank, or the phrase goes in.
+    private mutating func saveFill(_ typed: String, time: TimeInterval) -> [Effect] {
+        guard var fill = filling else { return [] }
+        let blank = fill.blanks[fill.values.count]
+        fill.values[blank] = typed
+        open = [:]
+        if fill.values.count < fill.blanks.count {
+            filling = fill
+            correction = ""
+            state.bar = .correcting("")
+            state.fillPrompt = fill.blanks[fill.values.count]
+            refreshState()
+            return [.haptic(.key)]
+        }
+        filling = nil
+        correction = nil
+        state.fillPrompt = nil
+        let text = expansion(of: fill.phrase, capital: fill.capital, filled: fill.values)
+        let effects: [Effect] = (fill.original.isEmpty ? [] : [.deleteBackward(fill.original.count)]) + [.insert(fill.gap + text.text)]
+        return effects + finishReplacement(text, original: fill.original, typed: [], trailing: fill.trailing, others: [])
+    }
+
+    /// No open word, and space or return pressed after a shortcut with symbols in it
+    /// ("@@", "addr1"), which the keys don't type as a word: its phrase takes its place.
+    private mutating func replaceToken(trailing: String) -> [Effect]? {
+        guard settings.replacesText, !settings.replacements.isEmpty else { return nil }
+        let token = tokenBefore
+        guard !token.isEmpty, !TextReplacements.isWord(token.lowercased()),
+              let phrase = settings.replacements.phrase(for: token) else { return nil }
+        return settle() + putReplacement(phrase, original: token, open: nil, trailing: trailing,
+                                         capital: token.first?.isUppercase == true)
+    }
+
+    /// The person picked a replacement on the snippet page: an open word goes in first,
+    /// then the phrase, a space before it when the text needs one and after it as a
+    /// word would have.
+    public mutating func write(replacement shortcut: String, time: TimeInterval) -> [Effect] {
+        guard let phrase = settings.replacements.phrase(for: shortcut) else { return [] }
+        if correction != nil { cancelCorrection(time: time) }
+        leaveEarlier()
+        var effects: [Effect] = []
+        // After the open word goes in the field ends in its space; the context comes later.
+        let wrote = hasOpenWord
+        if wrote { effects += commit(trailing: " ", time: time).filter { $0 != .haptic(.commit) } }
+        if filling != nil { return effects }
+        effects += settle()
+        let gap = wrote || (contextBefore.last.map { $0.isWhitespace || $0.isNewline } ?? true) ? "" : " "
+        autoSpaced = false
+        wordSpace = false
+        lastSpace = nil
+        let capital = wrote ? false : Self.startsSentence(contextBefore + gap) && settings.autoCapitalize
+            && settings.capitals == .sentences
+        return effects + putReplacement(phrase, original: "", open: nil, trailing: settings.spacesWords ? " " : "",
+                                        capital: capital, gap: gap)
     }
 
     /// The open word going in after `before`, which autospace wrote with a space after
@@ -1401,10 +1648,16 @@ public struct Composer: Sendable {
         state.isShifted = effectiveShift != .off
         if case .guesses(let words, let chosen) = state.bar, words.indices.contains(chosen) {
             state.openWord = words[chosen]
-            state.replacement = replacement(for: words[chosen])
+            var previews: [String: String] = [:]
+            for word in words where previews[word] == nil {
+                if let phrase = replacement(for: word) { previews[word] = phrase }
+            }
+            state.previews = previews
+            state.replacement = previews[words[chosen]]
         } else {
             state.openWord = nil
             state.replacement = nil
+            state.previews = [:]
         }
         // "Not it?" for a swiped word only: pecked letters were typed as meant.
         let swiped = { (pieces: [Piece]) in pieces.contains { !$0.isTap } }

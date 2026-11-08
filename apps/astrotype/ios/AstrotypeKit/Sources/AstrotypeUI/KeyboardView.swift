@@ -153,6 +153,7 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         bar.onNotIt = { [weak self] in self?.model.beginCorrection() }
         bar.onCancelCorrection = { [weak self] in self?.model.cancelCorrection() }
         bar.onSaveCorrection = { [weak self] in self?.model.saveCorrection() }
+        bar.onSnippets = { [weak self] in self?.showSnippets() }
         attachToModel()
         keyHaptic.prepare()
     }
@@ -284,6 +285,11 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
             emojiPage.frame = CGRect(x: 0, y: top, width: width, height: surface.frame.maxY - top)
             bar.isHidden = true
             surface.isHidden = true
+        } else if let snippetsPage {
+            let top = place == .top ? bar.frame.minY : surface.frame.minY
+            snippetsPage.frame = CGRect(x: 0, y: top, width: width, height: surface.frame.maxY - top)
+            bar.isHidden = true
+            surface.isHidden = true
         } else {
             surface.isHidden = false
         }
@@ -294,12 +300,12 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
             let size = stats.sizeThatFits(CGSize(width: width - 8, height: .greatestFiniteMagnitude))
             let w = min(ceil(size.width) + 4, width - 8), h = ceil(size.height)
             stats.frame = CGRect(x: ((width - w) / 2).rounded(), y: bounds.height - h - 1, width: w, height: h)
-            stats.isHidden = emojiPage != nil || panel != nil
+            stats.isHidden = emojiPage != nil || snippetsPage != nil || panel != nil
             bringSubviewToFront(stats)
         }
         // The recording dot sits in the bottom-left corner of the page key ("123" or
         // "ABC"), out of the way of the letters (Gabriel, 7 Nov 2026).
-        recordingDot.isHidden = model.recorder == nil || emojiPage != nil || panel != nil
+        recordingDot.isHidden = model.recorder == nil || emojiPage != nil || snippetsPage != nil || panel != nil
         if !recordingDot.isHidden {
             let corner = surface.pageKeyFrame.map { convert($0, from: surface) }
                 ?? CGRect(x: surface.frame.minX, y: surface.frame.maxY - 8, width: 8, height: 8)
@@ -356,6 +362,9 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         let wasCorrecting = { if case .correcting = self.bar.bar { true } else { false } }()
         bar.canCorrect = model.state.canCorrect
         bar.replacement = model.state.replacement
+        bar.previews = model.state.previews
+        bar.fillPrompt = model.state.fillPrompt
+        bar.offersSnippets = model.offersSnippets
         if shownField != model.field {
             shownField = model.field
             page = model.field.startPage
@@ -386,7 +395,7 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         applyBackdrop()
         surface.spaceSlideEnabled = model.keyboardSettings.spaceSlide
         surface.backspaceSwipeEnabled = model.keyboardSettings.backspaceSwipe
-        if recordingDot.isHidden != (model.recorder == nil || emojiPage != nil || panel != nil) { setNeedsLayout() }
+        if recordingDot.isHidden != (model.recorder == nil || emojiPage != nil || snippetsPage != nil || panel != nil) { setNeedsLayout() }
         panel?.isRecording = model.recorder != nil
         if stats.isRunning != model.keyboardSettings.showsStats {
             stats.isRunning = model.keyboardSettings.showsStats
@@ -429,6 +438,7 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
     /// Show the in-keyboard settings over the keys.
     public func showSettings() {
         guard panel == nil else { return }
+        hideSnippets()
         let panel = SettingsPanelView(settings: model.keyboardSettings)
         panel.allowsSplit = model.entitlement.allows(.splitLayout)
         panel.showsSplit = model.layout.isWide
@@ -466,6 +476,7 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
     /// Show the emoji page in place of the bar and the keys.
     public func showEmoji() {
         guard emojiPage == nil else { return }
+        hideSnippets()
         if emojiCatalog == nil {
             let os = ProcessInfo.processInfo.operatingSystemVersion
             emojiCatalog = (try? EmojiCatalog.bundled(upTo: EmojiCatalog.version(forOS: os.majorVersion, os.minorVersion)))
@@ -494,6 +505,43 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         emojiPage.removeFromSuperview()
         self.emojiPage = nil
         page = .letters
+        setNeedsLayout()
+        layoutIfNeeded()
+        UIAccessibility.post(notification: .screenChanged, argument: surface)
+    }
+
+    // MARK: Snippet page
+
+    private var snippetsPage: SnippetsPageView?
+
+    /// Whether the snippet page is showing.
+    public var showsSnippets: Bool { snippetsPage != nil }
+
+    /// The text replacements in place of the bar and the keys (features/text-replacements):
+    /// one tapped goes in, and the letters come back.
+    public func showSnippets() {
+        guard snippetsPage == nil else { return }
+        hideEmoji()
+        let page = SnippetsPageView(items: model.snippets)
+        page.onPick = { [weak self] shortcut in
+            self?.model.write(replacement: shortcut)
+            self?.hideSnippets()
+        }
+        page.onDelete = { [weak self] in self?.model.press(.backspace) }
+        page.onABC = { [weak self] in self?.hideSnippets() }
+        addSubview(page)
+        snippetsPage = page
+        hideSettings()
+        setNeedsLayout()
+        layoutIfNeeded()
+        UIAccessibility.post(notification: .screenChanged, argument: page)
+    }
+
+    /// Back to the letters.
+    public func hideSnippets() {
+        guard let snippetsPage else { return }
+        snippetsPage.removeFromSuperview()
+        self.snippetsPage = nil
         setNeedsLayout()
         layoutIfNeeded()
         UIAccessibility.post(notification: .screenChanged, argument: surface)

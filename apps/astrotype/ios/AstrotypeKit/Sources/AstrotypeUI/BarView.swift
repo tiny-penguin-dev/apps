@@ -51,6 +51,22 @@ public final class BarView: UIView {
     public var replacement: String? {
         didSet { if replacement != oldValue { render() } }
     }
+    /// The phrase of every guess that is a shortcut (`Composer.State.previews`): each
+    /// shows its phrase in its place, so a shortcut being typed can be tapped.
+    public var previews: [String: String] = [:] {
+        didSet { if previews != oldValue { render() } }
+    }
+    /// A replacement is asking for a blank (`Composer.State.fillPrompt`): the field asks
+    /// for it by name instead of "What did you mean?", and Save works while it's empty.
+    public var fillPrompt: String? {
+        didSet { if fillPrompt != oldValue { render() } }
+    }
+    /// Whether to offer the snippet page (the person has text replacements), in the
+    /// pencil's place when there is nothing to fix (features/text-replacements).
+    public var offersSnippets = false {
+        didSet { if offersSnippets != oldValue { render() } }
+    }
+    public var onSnippets: (() -> Void)?
     /// A guess boosted or blocked, and how: "menu" or "slide".
     public var onBoost: ((Int, String) -> Void)?
     public var onForget: ((Int, String) -> Void)?
@@ -228,6 +244,7 @@ public final class BarView: UIView {
 
     private let label = UILabel()
     private let pencilButton = UIButton(configuration: .plain())
+    private let snippetButton = UIButton(configuration: .plain())
     private let closeButton = UIButton(configuration: .plain())
     private let saveButton = UIButton(configuration: .plain())
     private let fieldLabel = UILabel()
@@ -259,6 +276,12 @@ public final class BarView: UIView {
         pencilButton.accessibilityLabel = "Not it? Fix the last word"
         pencilButton.addAction(UIAction { [weak self] _ in self?.tappedPencil() }, for: .touchUpInside)
         addSubview(pencilButton)
+
+        snippetButton.configuration = Self.iconConfiguration("text.insert")
+        snippetButton.accessibilityLabel = "Text replacements"
+        snippetButton.accessibilityHint = "Shows your replacements to write one"
+        snippetButton.addAction(UIAction { [weak self] _ in self?.onSnippets?() }, for: .touchUpInside)
+        addSubview(snippetButton)
 
         closeButton.configuration = Self.iconConfiguration("xmark")
         closeButton.addAction(UIAction { [weak self] _ in self?.tappedClose() }, for: .touchUpInside)
@@ -348,6 +371,7 @@ public final class BarView: UIView {
         closeButton.frame = left
         leadingKey?.frame = left
         pencilButton.frame = CGRect(x: inset.maxX - end, y: 0, width: end, height: inset.height)
+        snippetButton.frame = pencilButton.frame
         if menu != nil || undo != nil {
             // The whole bar, the ends included; the word (or the note) dead centre.
             let fit = stack.systemLayoutSizeFitting(CGSize(width: inset.width, height: inset.height),
@@ -409,7 +433,8 @@ public final class BarView: UIView {
         let bottom = CGRect(x: area.midX - end / 2, y: area.maxY - end, width: end, height: end)
         pencilButton.frame = bottom
         closeButton.frame = bottom
-        if !pencilButton.isHidden || !closeButton.isHidden {
+        snippetButton.frame = bottom
+        if !pencilButton.isHidden || !closeButton.isHidden || !snippetButton.isHidden {
             area = area.divided(atDistance: end + Theme.Space.s, from: .maxYEdge).remainder
         }
         // The note and the guesses start at the top of the column (Gabriel, 8 Nov 2026).
@@ -427,6 +452,7 @@ public final class BarView: UIView {
         label.textColor = dim
         pencilButton.configuration?.baseForegroundColor = dim
         closeButton.configuration?.baseForegroundColor = dim
+        snippetButton.configuration?.baseForegroundColor = dim
         stack.arrangedSubviews.forEach { $0.removeFromSuperview() }
         indices = []
         keptView = nil
@@ -438,6 +464,8 @@ public final class BarView: UIView {
         let wordBar = (menu != nil || undo != nil) && notice == nil
         pencilButton.isHidden = !(canCorrect || !readings.isEmpty) || notice != nil || correcting != nil || fixing || wordBar
         closeButton.isHidden = (correcting == nil && !fixing) || wordBar
+        snippetButton.isHidden = !offersSnippets || !pencilButton.isHidden || !closeButton.isHidden
+            || correcting != nil || notice != nil || wordBar
         closeButton.accessibilityLabel = correcting != nil ? "Cancel" : "Back to the next words"
         leadingKey?.isHidden = axis == .vertical ? false : !closeButton.isHidden || wordBar
         saveButton.isHidden = correcting == nil
@@ -483,7 +511,7 @@ public final class BarView: UIView {
             stack.isHidden = true
         case .guesses(let words, let chosen):
             for i in middleFirst(words.count, chosen: chosen) {
-                add(words[i], index: i, chosen: i == chosen, shown: i == chosen ? replacement : nil)
+                add(words[i], index: i, chosen: i == chosen, shown: previews[words[i]] ?? (i == chosen ? replacement : nil))
             }
         case .fix(let words, let chosen):
             // The word just written in the pill, its other readings either side.
@@ -579,8 +607,9 @@ public final class BarView: UIView {
     /// empty, and Save, dimmed until there is a letter.
     private func renderField(_ typed: String) {
         let font = guessFont(chosen: true)
+        let question = fillPrompt.map { "\($0.prefix(1).uppercased() + $0.dropFirst())?" } ?? "What did you mean?"
         if typed.isEmpty {
-            fieldLabel.attributedText = NSAttributedString(string: "What did you mean?", attributes: [
+            fieldLabel.attributedText = NSAttributedString(string: question, attributes: [
                 .font: Theme.uiFont(size: 15, weight: .semibold, scaledWith: .body, upTo: 17),
                 .foregroundColor: dimInk,
             ])
@@ -589,7 +618,7 @@ public final class BarView: UIView {
             text.append(NSAttributedString(string: "|", attributes: [.font: font, .foregroundColor: Theme.ui(.accent)]))
             fieldLabel.attributedText = text
         }
-        fieldLabel.accessibilityLabel = "What did you mean?"
+        fieldLabel.accessibilityLabel = question
         fieldLabel.accessibilityValue = typed
         var save = UIButton.Configuration.filled()
         save.cornerStyle = .capsule
@@ -598,8 +627,10 @@ public final class BarView: UIView {
         save.contentInsets = NSDirectionalEdgeInsets(top: 6, leading: Theme.Space.l, bottom: 6, trailing: Theme.Space.l)
         save.attributedTitle = AttributedString("Save", attributes: AttributeContainer([.font: font]))
         saveButton.configuration = save
-        saveButton.isEnabled = !typed.isEmpty
-        saveButton.alpha = typed.isEmpty ? 0.45 : 1
+        // A blank may be left empty.
+        let ready = !typed.isEmpty || fillPrompt != nil
+        saveButton.isEnabled = ready
+        saveButton.alpha = ready ? 1 : 0.45
     }
 
     /// A word on the bar: the chosen one bold on the theme's pill, the rest plain.

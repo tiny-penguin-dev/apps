@@ -5,13 +5,18 @@ import SwiftUI
 /// Text replacements (features/text-replacements), from Settings → Your words: type a
 /// shortcut as a word and the keyboard writes its phrase, with `{date}` and the other
 /// variables filled in. Newest first; tap one to edit it, swipe or Select to delete,
-/// + to add. The phone's own replacements work too, unless switched off here.
+/// + to add. The phone's own replacements work too, unless switched off here, and can
+/// be copied in to edit (the keyboard writes them for the app with Full Access). Your
+/// details fill `{name}`, `{email}`, `{phone}` and `{address}`.
 struct TextReplacementsView: View {
     @Bindable var model: AppModel
     @State private var editMode: EditMode = .inactive
     @State private var picked: Set<UUID> = []
     @State private var editing: TextReplacement?
     @State private var query = ""
+    @State private var editingDetails = false
+    /// The phone's replacements the keyboard last read, not yet in the list.
+    @State private var fromPhone: [TextReplacement] = []
 
     var body: some View {
         let all = model.keyboardSettings.textReplacements
@@ -40,7 +45,7 @@ struct TextReplacementsView: View {
                     model.deleteReplacements(Set(offsets.map { shown[$0].id }))
                 }
             } header: {
-                Text("Type a shortcut as a word, by tapping or swiping, and the keyboard writes the phrase instead. The bar shows what it will write. Backspace right after takes it back.")
+                Text("Type a shortcut, by tapping or swiping, and the keyboard writes the phrase instead. The bar shows what it will write, and offers a shortcut as you start typing it. Backspace right after takes it back. The text button on the bar lists them all.")
                     .font(.sw(.small)).foregroundStyle(Theme.muted)
                     .textCase(nil)
                     .padding(.bottom, Theme.Space.s)
@@ -52,6 +57,44 @@ struct TextReplacementsView: View {
             }
 
             if !editMode.isEditing, needle.isEmpty {
+                Section {
+                    Button { editingDetails = true } label: {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Your details").font(.sw(.body))
+                                Text(model.keyboardSettings.personalDetails.isEmpty
+                                     ? "Your name, email, phone and address, for {name}, {email}, {phone} and {address}."
+                                     : [model.keyboardSettings.personalDetails.name, model.keyboardSettings.personalDetails.email]
+                                        .filter { !$0.isEmpty }.joined(separator: " · "))
+                                    .font(.sw(.small)).foregroundStyle(Theme.muted)
+                                    .lineLimit(2)
+                            }
+                            Spacer()
+                            Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(Theme.muted)
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .listRowBackground(Theme.card)
+                }
+
+                if !fromPhone.isEmpty {
+                    Section {
+                        Button {
+                            model.copyReplacements(fromPhone)
+                            fromPhone = []
+                        } label: {
+                            Label("Copy \(fromPhone.count) from your iPhone", systemImage: "square.and.arrow.down")
+                                .font(.sw(.body)).fontWeight(.semibold)
+                        }
+                        .tint(Theme.accent)
+                        .listRowBackground(Theme.card)
+                    } footer: {
+                        Text("Your iPhone's own text replacements, copied into this list so you can change them here. Ones with a shortcut you already have stay as yours.")
+                            .font(.sw(.small)).foregroundStyle(Theme.muted)
+                    }
+                }
+
                 Section {
                     Toggle(isOn: $model.keyboardSettings.usesPhoneReplacements) {
                         VStack(alignment: .leading, spacing: 2) {
@@ -110,6 +153,63 @@ struct TextReplacementsView: View {
         .sheet(item: $editing) { item in
             ReplacementSheet(model: model, original: item)
         }
+        .sheet(isPresented: $editingDetails) {
+            DetailsSheet(model: model)
+        }
+        .onAppear(perform: readPhone)
+        .onChange(of: model.keyboardSettings.textReplacements) { readPhone() }
+    }
+
+    private func readPhone() {
+        fromPhone = PhoneReplacementsFile.toCopy(
+            PhoneReplacementsFile.load(from: KeyboardFiles.shared(KeyboardFiles.phoneReplacements)),
+            into: model.keyboardSettings.textReplacements)
+    }
+}
+
+/// Your details, for `{name}`, `{email}`, `{phone}` and `{address}`: kept with the
+/// keyboard's settings, on every device.
+private struct DetailsSheet: View {
+    var model: AppModel
+    @Environment(\.dismiss) private var dismiss
+    @State private var details = PersonalDetails()
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    TextField("Name", text: $details.name)
+                        .textContentType(.name)
+                    TextField("Email", text: $details.email)
+                        .textContentType(.emailAddress).keyboardType(.emailAddress)
+                        .textInputAutocapitalization(.never).autocorrectionDisabled()
+                    TextField("Phone", text: $details.phone)
+                        .textContentType(.telephoneNumber).keyboardType(.phonePad)
+                    TextField("Address", text: $details.address, axis: .vertical)
+                        .textContentType(.fullStreetAddress)
+                        .lineLimit(2...5)
+                } footer: {
+                    Text("A replacement with {name}, {email}, {phone} or {address} writes these. They stay on your devices, with your keyboard settings.")
+                        .font(.sw(.small)).foregroundStyle(Theme.muted)
+                }
+                .listRowBackground(Theme.card)
+            }
+            .font(.sw(.body))
+            .scrollContentBackground(.hidden)
+            .background(Theme.bg.ignoresSafeArea())
+            .navigationTitle("Your details")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        model.saveDetails(details)
+                        dismiss()
+                    }
+                }
+            }
+        }
+        .onAppear { details = model.keyboardSettings.personalDetails }
     }
 }
 
@@ -143,10 +243,11 @@ private struct ReplacementSheet: View {
                         .onSubmit { focus = .phrase }
                         .padding(.horizontal, Theme.Space.m).padding(.vertical, 10)
                         .background(RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous).fill(Theme.card))
-                    Text(!typed ? "One word of letters. Type or swipe it on the keyboard."
-                         : key == nil ? "One word, 2 to 24 letters, no spaces or numbers."
+                    Text(!typed ? "One word, like omw, or with symbols, like ;addr or @@."
+                         : key == nil ? "2 to 24 characters, no spaces, and not only numbers."
                          : taken != nil ? "Replaces the one you already have for “\(key!)”."
-                         : "Type or swipe “\(key!)” on the keyboard.")
+                         : TextReplacements.isWord(key!) ? "Type or swipe “\(key!)” on the keyboard."
+                         : "Type “\(key!)” on the keyboard, then space.")
                         .font(.sw(.small))
                         .foregroundStyle(typed && key == nil ? Theme.danger : Theme.muted)
                         .padding(.horizontal, Theme.Space.xs)
@@ -173,13 +274,22 @@ private struct ReplacementSheet: View {
                             .accessibilityLabel("Add \(variable.title.lowercased())")
                         }
                     }
-                    Text("These fill in as the phrase goes in, like {date} for today's date.")
-                        .font(.sw(.small)).foregroundStyle(Theme.muted)
-                        .padding(.horizontal, Theme.Space.xs)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("These fill in as the phrase goes in:")
+                        ForEach(TextReplacements.variables) { variable in
+                            HStack(alignment: .firstTextBaseline, spacing: Theme.Space.s) {
+                                Text(variable.token).fontWeight(.bold)
+                                Text(variable.title)
+                            }
+                        }
+                        Text("{?name} asks on the bar before the phrase goes in; use any name, as many as you like. {pick:…} takes words split by |.")
+                    }
+                    .font(.sw(.small)).foregroundStyle(Theme.muted)
+                    .padding(.horizontal, Theme.Space.xs)
 
                     if !phrase.isEmpty, phrase.contains("{") {
                         label("Right now it writes").padding(.top, Theme.Space.s)
-                        Text(TextReplacements.expand(phrase, at: Date()))
+                        Text(preview)
                             .font(.sw(.body))
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.horizontal, Theme.Space.m).padding(.vertical, 10)
@@ -206,6 +316,17 @@ private struct ReplacementSheet: View {
             phrase = original.phrase
             focus = original.shortcut.isEmpty ? .shortcut : .phrase
         }
+    }
+
+    /// What the phrase writes now, the cursor shown where `{cursor}` puts it.
+    private var preview: String {
+        let context = TextReplacements.Context(clipboard: { "[clipboard]" }, details: model.keyboardSettings.personalDetails,
+                                               random: { _ in 0 })
+        let out = TextReplacements.expand(phrase, in: context)
+        guard let back = out.cursorFromEnd else { return out.text }
+        var text = out.text
+        text.insert("|", at: text.index(text.endIndex, offsetBy: -back))
+        return text
     }
 
     private func label(_ text: String) -> some View {

@@ -215,6 +215,8 @@ public struct TypingReplay: Sendable {
                 out = c.press(text: event.s ?? "", time: t)
             case .emoji:
                 out = c.insert(emoji: event.s ?? "", time: t)
+            case .snippet:
+                out = c.write(replacement: event.s ?? "", time: t)
             case .searchOpen:
                 out = c.cursorWillMove()
                 out += c.reset()

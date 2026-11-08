@@ -28,6 +28,8 @@ public struct TypingEvent: Codable, Sendable, Equatable {
         case key = "k", character = "ch", text = "tx"
         /// An emoji from the emoji page (`s`).
         case emoji
+        /// A text replacement picked on the snippet page (`s`, its shortcut).
+        case snippet = "snip"
         /// Emoji search opened, closed, cleared; an emoji from its results.
         case searchOpen = "so", searchClose = "sc", searchClear = "sx", searchEmoji = "se"
         /// A guess tapped on the bar (`n`), another reading of the last word (`n`).
@@ -121,7 +123,7 @@ public struct TypingEvent: Codable, Sendable, Equatable {
     /// what the keyboard noted about itself.
     public var isInput: Bool {
         switch e {
-        case .down, .move, .up, .cancel, .pick, .key, .character, .text, .emoji, .searchOpen, .searchClose, .searchClear,
+        case .down, .move, .up, .cancel, .pick, .key, .character, .text, .emoji, .snippet, .searchOpen, .searchClose, .searchClear,
              .searchEmoji, .guess, .fix, .cursor, .notIt, .notItCancel, .notItSave, .deleteWord, .boost, .forget, .wordUndo, .earlier, .earlierUndo, .tick, .hide:
             true
         default:

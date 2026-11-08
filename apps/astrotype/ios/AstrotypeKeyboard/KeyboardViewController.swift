@@ -232,9 +232,11 @@ final class KeyboardViewController: UIInputViewController {
     /// Replacement), which iOS gives a keyboard with the person's contacts' names: the
     /// entries whose shortcut differs from what they write (features/text-replacements).
     /// Read each time a new keyboard shows, after the opening, so a change there arrives.
+    /// With Full Access they are also written for the app, which offers to copy them
+    /// into the person's own list, even with "Use your iPhone's too" off.
     private func readPhoneReplacements() {
-        guard KeyboardShared.current?.model.keyboardSettings.usesPhoneReplacements == true else { return }
         let id = Self.phoneReplacementID
+        let shared = hasFullAccess ? KeyboardFiles.shared(KeyboardFiles.phoneReplacements) : nil
         // iOS may answer off the main thread: the closure is @Sendable and hops back.
         requestSupplementaryLexicon { @Sendable lexicon in
             let items = lexicon.entries.compactMap { entry -> TextReplacement? in
@@ -242,6 +244,7 @@ final class KeyboardViewController: UIInputViewController {
                       shortcut != entry.documentText.lowercased(), !entry.documentText.isEmpty else { return nil }
                 return TextReplacement(id: id, shortcut: shortcut, phrase: entry.documentText)
             }
+            PhoneReplacementsFile.save(items, to: shared)
             Task { @MainActor in
                 KeyboardShared.current?.model.phoneReplacements = items
             }

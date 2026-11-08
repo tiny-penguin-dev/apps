@@ -368,7 +368,7 @@ extension EmojiPageView {
 }
 
 /// `ABC` and delete on the emoji page's strip: function keys, like the keyboard's.
-private final class EmojiStripKey: UIButton {
+final class EmojiStripKey: UIButton {
     init(title: String? = nil, symbol: String? = nil) {
         super.init(frame: .zero)
         backgroundColor = Theme.ui(.keyDark)

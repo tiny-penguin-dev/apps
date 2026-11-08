@@ -646,6 +646,21 @@ final class AppModel {
         return true
     }
 
+    /// The iPhone's own replacements copied into the person's list, after their own,
+    /// so they can be edited here (`PhoneReplacementsFile.toCopy` makes them).
+    func copyReplacements(_ items: [TextReplacement]) {
+        guard !items.isEmpty else { return }
+        keyboardSettings.textReplacements += PhoneReplacementsFile.toCopy(items, into: keyboardSettings.textReplacements)
+        sync()
+    }
+
+    /// Your details on Text replacements, for `{name}` and the others.
+    func saveDetails(_ details: PersonalDetails) {
+        guard details != keyboardSettings.personalDetails else { return }
+        keyboardSettings.personalDetails = details
+        sync()
+    }
+
     /// Deleted from Text replacements, by a swipe or several with Select.
     func deleteReplacements(_ ids: Set<UUID>) {
         guard !ids.isEmpty else { return }

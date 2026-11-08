@@ -63,6 +63,8 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
     public static var metalLoaded: Bool { MetalKeyboard.loaded }
     /// How long the Metal shaders took to compile, ms; 0 until they have.
     public static var metalLoadMillis: Int { MetalKeyboard.loadMillis }
+    /// Whether the Metal shaders had to be compiled on the phone (`MetalKeyboard.compiledOnPhone`).
+    public static var metalCompiledOnPhone: Bool { MetalKeyboard.compiledOnPhone }
 
     public private(set) var page: Layout.Page = .letters {
         didSet {

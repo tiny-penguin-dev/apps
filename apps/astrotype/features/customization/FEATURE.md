@@ -300,7 +300,7 @@ Status: Approved 2026-11-06 (Gabriel: "Go ahead and build it")
     gap, corners, border, shadow, see-through, font, letters); the keys follow the
     phone's mode (or the field's asked keyboard appearance); the backdrop stays the system's.
     `KeyEffectsLayer` draws taps, trails, falling things, and the combo count on the space bar with Core Animation. `MetalKeyboard` (one device and queue, the
-    shaders compiled from source at first use) backs `SkyLayer` (behind the keys) and
+    shaders in `Shaders/KeyboardShaders.metal`, compiled by Xcode and loaded at first use) backs `SkyLayer` (behind the keys) and
     `LetterLayer` (the Metal letters).
   - The app: Appearance becomes a page with a live `StylePreview` (a real
     `KeySurfaceView` that types into nothing and feeds its own flow) and links to

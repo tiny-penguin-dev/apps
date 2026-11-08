@@ -22,6 +22,12 @@ import Testing
         #expect(RGBColor.white.contrast(with: .white) == 1)
         #expect(RGBColor(hex: 0xEEEEEE).isHardToRead(on: .white))
         #expect(!RGBColor.black.isHardToRead(on: .white))
+        var glassy = KeyColors(background: .black, key: .white, functionKey: .white, letters: .white,
+                               border: .white, left: .white, right: .white, accent: .white, opacity: 0.3)
+        #expect(glassy.visibleKey == RGBColor(hex: 0x4D4D4D))
+        #expect(!glassy.lettersHardToRead)
+        glassy.opacity = 1
+        #expect(glassy.lettersHardToRead)
     }
 
     // MARK: Themes

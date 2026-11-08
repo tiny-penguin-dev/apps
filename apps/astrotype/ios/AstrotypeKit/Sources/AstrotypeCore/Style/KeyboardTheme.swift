@@ -137,8 +137,16 @@ public struct KeyColors: Codable, Hashable, Sendable {
         case background, key, functionKey, letters, border, left, right, accent
     }
 
-    /// Letters too close in colour to the keys to read.
-    public var lettersHardToRead: Bool { letters.isHardToRead(on: key) }
+    /// The key as it looks: see-through keys show the background behind them.
+    public var visibleKey: RGBColor {
+        let a = keyOpacity
+        func mix(_ k: Double, _ b: Double) -> UInt32 { UInt32((k * a + b * (1 - a)) * 255 + 0.5) }
+        return RGBColor(hex: mix(key.red, background.red) << 16 | mix(key.green, background.green) << 8
+                        | mix(key.blue, background.blue))
+    }
+
+    /// Letters too close in colour to the keys, as they look, to read.
+    public var lettersHardToRead: Bool { letters.isHardToRead(on: visibleKey) }
 
     enum CodingKeys: String, CodingKey {
         case background, key, functionKey, letters, border, left, right, accent, opacity

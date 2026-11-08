@@ -59,7 +59,7 @@ public enum Autofill {
     /// while it is still empty, or the one a chat just asked for ("my address is ").
     public static func offers(for slots: [Slot], details: PersonalDetails, before: String) -> [Offer] {
         guard !details.isEmpty else { return [] }
-        let empty = before.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        let empty = before.allSatisfy { $0.unicodeScalars.allSatisfy { CharacterSet.whitespacesAndNewlines.contains($0) } }
         let wanted = empty ? slots : (asked(before: before) ?? [])
         var out: [Offer] = []
         for slot in wanted {
@@ -96,7 +96,10 @@ public enum Autofill {
     /// these and a space ("My email is ", "mi correo es ").
     static func asked(before: String) -> [Slot]? {
         guard let last = before.last, last == " " else { return nil }
-        let text = before.lowercased().trimmingCharacters(in: .whitespaces)
+        // Only the end can hold a phrase, so only the end is lowercased: this runs on
+        // every keystroke, and the whole text before the cursor can be long.
+        let end = before.lastIndex(where: { !Composer.isSpace($0) }).map { before.index(after: $0) } ?? before.startIndex
+        let text = before[..<end].suffix(longestPhrase + 1).lowercased()
         for (slots, phrases) in phrases {
             for phrase in phrases where text.hasSuffix(phrase) {
                 let start = text.dropLast(phrase.count)
@@ -107,6 +110,9 @@ public enum Autofill {
         }
         return nil
     }
+
+    /// The longest phrase, in characters: how much of the end is read.
+    static let longestPhrase = phrases.flatMap(\.1).map(\.count).max() ?? 0
 
     /// What people write right before giving a detail, in each bundled language.
     static let phrases: [([Slot], [String])] = [

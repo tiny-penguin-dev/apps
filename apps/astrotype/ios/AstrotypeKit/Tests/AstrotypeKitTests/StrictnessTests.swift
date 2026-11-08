@@ -100,7 +100,9 @@ import Testing
         for word in ["bting", "qwertyuiop", "abcdefghij", "thrre", "becuase"] {
             _ = matcher.nearestWords(to: word, points: [], limit: 3)
         }
-        #expect(Date().timeIntervalSince(start) < 1)
+        // A walk that forgot its budget takes many seconds; a debug build on a busy CI
+        // runner, every suite going at once, took 1.06 s for these five (8 Nov 2026).
+        #expect(Date().timeIntervalSince(start) < 3)
         #expect(matcher.nearestWords(to: "becuase", points: [], limit: 1).first?.word == "because")
     }
 

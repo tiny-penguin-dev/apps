@@ -5,6 +5,27 @@ import Testing
 @Suite struct ComposerTests {
     typealias Effect = Composer.Effect
 
+    @Test func aSentenceStartIsReadFromTheEnd() {
+        // The same answer as trimming the whole text, for every kind of ending.
+        func trimmed(_ before: String) -> Bool {
+            if let last = before.last, Accents.openers.contains(last) { return trimmed(String(before.dropLast())) }
+            let text = before.trimmingCharacters(in: .whitespaces)
+            guard let last = before.last else { return true }
+            guard last.isWhitespace || last.isNewline else { return false }
+            return text.isEmpty || text.hasSuffix(".") || text.hasSuffix("?") || text.hasSuffix("!") || last.isNewline
+        }
+        let paragraph = String(repeating: "We talked about the plan for a while and it went well. ", count: 40)
+        let ends = ["", " ", "   ", "\t", "\n", "\n ", " \n", "\u{00A0}", "word", "word ", "word.", "word. ", "word.  \t",
+                    "word? ", "word! ", "word, ", "word; ", "word.\n", "word.\n ", "word \n ", "...", "... ", "¿", "¡ ", "Hola. ¿",
+                    "Dime, ¿", "😀 ", "e\u{301} ", ". ", "? ", "!", "!\n"]
+        for start in ["", "Hi.", "Hi. ", "Hi\n", paragraph] {
+            for end in ends {
+                let before = start + end
+                #expect(Composer.startsSentence(before) == trimmed(before), "\(before.suffix(20).debugDescription)")
+            }
+        }
+    }
+
     @Test func tapsOpenAWordAndSpaceCommitsIt() {
         var composer = Synth.composer()
         let lifted = Synth.taps(&composer, "the")

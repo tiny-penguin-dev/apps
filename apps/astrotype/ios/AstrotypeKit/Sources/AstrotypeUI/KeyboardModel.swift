@@ -473,7 +473,12 @@ public final class KeyboardModel {
     public func touchMoved(id: Int, to point: CGPoint, time: TimeInterval) {
         onTouch?(.moved, id, point, time)
         log(TypingEvent(t: time, e: .move, i: id, x: point.x, y: point.y))
-        apply(composer.touchMoved(id: id, to: point, time: time))
+        // A move only lengthens the swipe's path, so there is nothing to write or
+        // redraw: `apply` would read the field and render the whole keyboard for each
+        // of the hundred-odd moves in a swipe (measured at 80 µs of engine work each
+        // before the view's share, 8 Nov 2026).
+        let effects = composer.touchMoved(id: id, to: point, time: time)
+        if !effects.isEmpty { apply(effects) }
     }
 
     public func touchEnded(id: Int, at point: CGPoint, time: TimeInterval) {

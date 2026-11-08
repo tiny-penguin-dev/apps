@@ -75,6 +75,37 @@ import Testing
         #expect(Autofill.offers(for: [], details: Self.details, before: "enemy name is ").isEmpty)
     }
 
+    @Test func aLongTextBeforeTheQuestionStillOffers() {
+        // Only the end is read (it runs on every keystroke); the answer is the same.
+        let paragraph = String(repeating: "We talked about the plan for a while and it went well. ", count: 60)
+        #expect(Autofill.offers(for: [], details: Self.details, before: paragraph + "My email is ").map(\.slot) == [.email])
+        #expect(Autofill.offers(for: [], details: Self.details, before: paragraph + "my email is    ").map(\.slot) == [.email])
+        #expect(Autofill.offers(for: [], details: Self.details, before: paragraph + "My email is \n ").isEmpty)
+        #expect(Autofill.offers(for: [], details: Self.details, before: paragraph + "enemy name is ").isEmpty)
+        #expect(Autofill.offers(for: [.phone], details: Self.details, before: "  \n ").map(\.slot) == [.phone])
+        // Against the plain reading of the whole text.
+        func plain(_ before: String) -> [Autofill.Slot]? {
+            guard before.last == " " else { return nil }
+            let text = before.lowercased().trimmingCharacters(in: .whitespaces)
+            for (slots, phrases) in Autofill.phrases {
+                for phrase in phrases where text.hasSuffix(phrase) {
+                    if let previous = text.dropLast(phrase.count).last, previous.isLetter { continue }
+                    return slots
+                }
+            }
+            return nil
+        }
+        let ends = ["", " ", "  ", "\n", "\n ", "x ", "My email is ", " my email is ", "MY EMAIL IS  ", "\tmy email is ",
+                    "enemy name is ", "Mi correo electrónico es ", "mi correo electrónico es", "call me at ", "call me at\n",
+                    "i live at ", "my username is ", "me llamo ", "name is ", "İ my name is "]
+        for start in ["", "Hi. ", paragraph, "¿"] {
+            for end in ends {
+                let before = start + end
+                #expect(Autofill.asked(before: before) == plain(before), "\(before.suffix(30))")
+            }
+        }
+    }
+
     @Test func theStartOfADetailOffersAllOfIt() {
         let email = Autofill.completion(of: ["ada@"], slots: [], details: Self.details)
         #expect(email == Autofill.Offer(slot: .email, text: "ada@example.com", replacing: "ada@"))

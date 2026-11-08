@@ -37,7 +37,9 @@ struct DictationProbeIntent: AudioRecordingIntent, LiveActivityIntent {
 }
 
 /// Starts or stops listening in a running session (the Live Activity's Talk button).
-struct DictationTalkIntent: LiveActivityIntent {
+/// Round 4: also an AudioRecordingIntent, so when a push started the Live Activity and
+/// the woken app wasn't allowed the mic, tapping Talk on it can start the mic.
+struct DictationTalkIntent: AudioRecordingIntent, LiveActivityIntent {
     static let title: LocalizedStringResource = "Talk (dictation test)"
     static let description = IntentDescription("Astrotype test: starts or stops listening in the running dictation session.")
 

@@ -19,7 +19,7 @@ enum DictationRunner {
     }
 
     @MainActor static func talk(source: String) async {
-        DictationSession.shared.toggleListening(source: source)
+        await DictationSession.shared.talkFromActivity(source: source)
     }
 
     @MainActor static func stop(source: String) async {
@@ -116,17 +116,45 @@ final class DictationSession {
         }
         activity = pushed
         DictationProbeLog.write("\(label): the app woke and saw it. Trying the mic…")
-        try? await startMic(source: label)
+        do {
+            try await startMic(source: label, endActivityOnFailure: false)
+        } catch {
+            update(listening: false, note: "Tap Talk to start the mic")
+        }
     }
 
-    private func startMic(source: String) async throws {
+    /// Round 4: the Live Activity's Talk. In a running session it starts or stops
+    /// listening; with no session (a push started the Live Activity, the mic was
+    /// refused) it's the user's tap that should let the mic start.
+    func talkFromActivity(source: String) async {
+        if isRunning {
+            toggleListening(source: source)
+            return
+        }
+        if activity == nil {
+            activity = Activity<DictationActivityAttributes>.activities.first
+        }
+        let label = "\(source), no session yet (app \(Self.appState))"
+        do {
+            if activity == nil {
+                try await start(source: label)
+            } else {
+                try await startMic(source: label, endActivityOnFailure: false)
+            }
+            toggleListening(source: label)
+        } catch {
+            update(listening: false, note: "Mic refused again")
+        }
+    }
+
+    private func startMic(source: String, endActivityOnFailure: Bool = true) async throws {
         // 2. The microphone.
         let session = AVAudioSession.sharedInstance()
         do {
             try session.setCategory(.playAndRecord, mode: .default, options: [.mixWithOthers, .defaultToSpeaker])
             try session.setActive(true)
         } catch {
-            await endActivity()
+            if endActivityOnFailure { await endActivity() }
             return try fail(source, "Mic: session failed (\((error as NSError).code)) even with the Live Activity.")
         }
         let engine = AVAudioEngine()
@@ -134,7 +162,7 @@ final class DictationSession {
         let format = input.outputFormat(forBus: 0)
         guard format.sampleRate > 0 else {
             try? session.setActive(false, options: .notifyOthersOnDeactivation)
-            await endActivity()
+            if endActivityOnFailure { await endActivity() }
             return try fail(source, "Mic: no input (sample rate 0).")
         }
         Self.installTap(on: input, format: format, meter: meter)
@@ -143,7 +171,7 @@ final class DictationSession {
         } catch {
             input.removeTap(onBus: 0)
             try? session.setActive(false, options: .notifyOthersOnDeactivation)
-            await endActivity()
+            if endActivityOnFailure { await endActivity() }
             return try fail(source, "Mic: engine failed (\((error as NSError).code)) even with the Live Activity.")
         }
         self.engine = engine

@@ -98,6 +98,10 @@ Status: Approved 2026-11-06 (Gabriel: "Go ahead and build it")
       a key; at the top each key's edge facing the black hole burns), Ripple (rings run
       through the keys) and Candy gloss (a shine, pink glow, sparkles). It shares the
       Metal letters' layer, so it costs no second drawable.
+    - **Build-up per touch** (Gabriel, 8 Nov 2026): with flow on, each touch's effect
+      starts muted (about a third: fewer, smaller, slower particles, a gentler glitch,
+      letters and keys bend less) and grows with the flow score to full strength at
+      Blizzard. A pause or delete that drains flow calms them again.
     - **Edges:** the keyboard doesn't reach the screen's edges, so skies fade out before
       theirs and particles start a little in from the sides.
     - **Taps:** None, Ring (today), Ripple, Sparks, Stars, Snow, Pixels, Fireworks,

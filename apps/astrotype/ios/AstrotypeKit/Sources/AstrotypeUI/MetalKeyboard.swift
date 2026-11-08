@@ -303,6 +303,7 @@ final class MetalKeyboard: @unchecked Sendable {
         float4 touches[4]; // x, y, age
         float4 left;
         float4 right;
+        float4 info2;      // power: how strong a hit is, 0.3 at the start of a run to 1
     };
 
     struct LetterInstance {
@@ -344,6 +345,10 @@ final class MetalKeyboard: @unchecked Sendable {
 
         // With flow, the letters bob a little, more at each level.
         if (level >= 2.0) { local.y += sin(time * 3.0 + seed * 6.283) * 0.5 * (level - 1.0); }
+        // Where the letter rests: the effect is blended toward this by the run's power,
+        // so the first words bend the letters less (Gabriel, 8 Nov 2026).
+        float2 rest = local;
+        float power = clamp(u.info2.x, 0.0, 1.0);
 
         if (mode == 1) {
             // Jelly: squash, wobble and settle.
@@ -419,6 +424,8 @@ final class MetalKeyboard: @unchecked Sendable {
             fx = e;
         }
 
+        local = mix(rest, local, power);
+        fx *= power;
         float2 pos = centre + local;
         LetterOut o;
         o.position = float4(pos.x / u.info0.x * 2.0 - 1.0, 1.0 - pos.y / u.info0.y * 2.0, 0.0, 1.0);
@@ -516,7 +523,8 @@ final class MetalKeyboard: @unchecked Sendable {
         int mode = int(u.info1.z + 0.5);
         float age = in.info.x;
         float seed = in.info.y;
-        float hit = age < 3.0 ? 1.0 : 0.0;
+        // A hit's strength grows with the run, so the first keys are calmer.
+        float hit = age < 3.0 ? clamp(u.info2.x, 0.0, 1.0) : 0.0;
         float3 col = float3(0.0);
         if (mode == 1) {
             // Neon: the hit key's outline flares; with flow, lights chase round every key.
@@ -659,6 +667,7 @@ final class LetterRenderer {
         var touches: (SIMD4<Float>, SIMD4<Float>, SIMD4<Float>, SIMD4<Float>)
         var left: SIMD4<Float>
         var right: SIMD4<Float>
+        var info2: SIMD4<Float>
     }
 
     private struct Instance {
@@ -761,7 +770,7 @@ final class LetterRenderer {
     /// `MetalKeyboard.draw`), so the keys' letters are not on screen yet.
     @discardableResult
     func render(keys: [(key: Key, letter: Character, frame: CGRect, ink: UIColor)], frames: [(key: Key, frame: CGRect)],
-                time: TimeInterval, level: Int, style: KeyStyle) -> Bool {
+                time: TimeInterval, level: Int, style: KeyStyle, power: Float = 1) -> Bool {
         hits = hits.filter { time - $0.value.time < 3 }
         touches.removeAll { time - $0.time >= 1.5 }
         var instances: [Instance] = []
@@ -818,7 +827,8 @@ final class LetterRenderer {
             info0: SIMD4(Float(layer.bounds.width), Float(layer.bounds.height), Float((time - start).truncatingRemainder(dividingBy: 3600)), Float(level)),
             info1: SIMD4(modeValue, Float(touchList.count), keyModeValue, Float(style.shape.corner)),
             touches: (touch(0), touch(1), touch(2), touch(3)),
-            left: Self.rgba(style.thumb(.left)), right: Self.rgba(style.thumb(.right)))
+            left: Self.rgba(style.thumb(.left)), right: Self.rgba(style.thumb(.right)),
+            info2: SIMD4(power, 0, 0, 0))
         let buffer = instances.isEmpty ? nil : Self.instanceBuffer(instances, device: metal.device, ring: &buffers, next: &next)
         let keyBuffer = keyInstances.isEmpty ? nil : Self.instanceBuffer(keyInstances, device: metal.device, ring: &keyBuffers, next: &keyNext)
         let pipeline = metal.letters

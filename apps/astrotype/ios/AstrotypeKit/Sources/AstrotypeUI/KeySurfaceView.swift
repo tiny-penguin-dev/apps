@@ -1048,7 +1048,7 @@ final class KeyView: UIView {
         let letters = style.colors.letters.uiColor
         guard enabled else { return isAction ? UIColor.white.withAlphaComponent(0.5) : letters.withAlphaComponent(0.4) }
         if isAction { return .white }
-        if key == .space { return style.isClassic ? Theme.ui(.muted) : letters.withAlphaComponent(0.6) }
+        if key == .space { return letters.withAlphaComponent(0.6) }
         return style.isClassic ? Theme.ui(.keyInk) : letters
     }
     private var iconColor: UIColor {

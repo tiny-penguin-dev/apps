@@ -22,6 +22,12 @@ import Testing
         #expect(RGBColor.white.contrast(with: .white) == 1)
         #expect(RGBColor(hex: 0xEEEEEE).isHardToRead(on: .white))
         #expect(!RGBColor.black.isHardToRead(on: .white))
+        var glassy = KeyColors(background: .black, key: .white, functionKey: .white, letters: .white,
+                               border: .white, left: .white, right: .white, accent: .white, opacity: 0.3)
+        #expect(glassy.visibleKey == RGBColor(hex: 0x4D4D4D))
+        #expect(!glassy.lettersHardToRead)
+        glassy.opacity = 1
+        #expect(glassy.lettersHardToRead)
     }
 
     // MARK: Themes
@@ -41,7 +47,10 @@ import Testing
         #expect(classic.isFree)
         #expect(classic.light.key == RGBColor(hex: 0xFFFFFF))
         #expect(classic.dark.background == RGBColor(hex: 0x1F1F1F))
-        #expect(classic.shape == KeyShape())
+        #expect(classic.dark.key == RGBColor(hex: 0x989898))
+        #expect(classic.light.opacity == 0.8)
+        #expect(classic.dark.opacity == 0.3)
+        #expect(classic.shape == KeyShape(gap: 4, corner: 10, shadow: .none))
         #expect(!KeyboardTheme.named("iceberg")!.isFree)
     }
 
@@ -75,7 +84,7 @@ import Testing
         let old = try JSONDecoder().decode(KeyboardTheme.self, from: JSONSerialization.data(withJSONObject: json))
         #expect(old.light.opacity == 0.6)
         #expect(old.dark.opacity == 0.6)
-        #expect(KeyboardTheme.classic.light.opacity == 1)
+        #expect(KeyboardTheme.classic.light.opacity == 0.8)
     }
 
     @Test func themesArePro() {

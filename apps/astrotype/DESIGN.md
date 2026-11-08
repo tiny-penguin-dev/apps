@@ -143,10 +143,11 @@ This is the product, so it gets its own section.
 - **Layout:** Apple's QWERTY proportions, so muscle memory carries over. Rows of 10, 9
   and 7 letters, shift and backspace on the third row, `123`, emoji, space and return on
   the fourth, as on Apple's (iOS draws its globe under the keyboard). Where iOS draws
-  none (a Home button phone, the iPhone Duo), our globe sits at the left end of the
-  guesses bar, so space keeps its room; on a split keyboard it sits faded at the bottom
-  of the middle column, like iOS's own; with the bar off or in a column at the side it
-  goes back before the emoji key (`features/space-bar`, 3 Nov 2026; split, 8 Nov 2026). Space reads "Astrotype" when idle, like Apple's reads the language.
+  none (a Home button phone, the iPhone Duo), "Switch keyboard" is in the menu behind
+  the Astrotype button at the left end of the guesses bar (or at the bottom of a split
+  keyboard's middle column), so space keeps its room; with the bar off or in a column
+  at the side of a whole keyboard, our globe goes back before the emoji key
+  (`features/space-bar`, 3 Nov 2026; split, 8 Nov 2026; menu, 8 Nov 2026). Space reads "Astrotype" when idle, like Apple's reads the language.
 - **Size:** every key sits where Apple's does, so muscle memory carries over: the top
   of our top row is the top of Apple's, and the bottom of our bottom row is the bottom
   of Apple's (measured on iOS 26: rows spanning 213 pt on a phone with 7 pt under them,
@@ -164,22 +165,22 @@ This is the product, so it gets its own section.
   get the whole height. Otherwise (a phone) they are a bar above the keys, which
   Settings ("Guesses bar") can turn off to give the keys its room.
 - **The bar** (or column) has three parts that never move (features/guesses-bar, where
-  the before and after screenshots are): a 44 pt key at the left end (the globe, where
-  our keyboard draws one, features/space-bar; ✕ while fixing), the words in the middle,
+  the before and after screenshots are): a 44 pt key at the left end (the Astrotype
+  button, the app icon's mark in the bar's grey, which opens the settings panel with
+  "Switch keyboard" and "Open Astrotype" at its top, Gabriel, 8 Nov 2026; ✕ while fixing), the words in the middle,
   packed together and centred on the keyboard, and a 44 pt pencil ("Not it?") at the
   right end. The middle holds one kind of thing at a time. When three words don't fit
   whole, the outer ones drop (never the chosen one) rather than cut a word. In a column
   the words stack from the top and the pencil sits under them; on a split keyboard the
-  globe sits faded at the bottom of the column, centred, else it goes back next to 123
-  (Gabriel, 8 Nov 2026).
+  Astrotype button sits faded at the bottom of the column, centred (Gabriel, 8 Nov 2026).
   The middle's states:
   - *Idle:* a short note ("Both thumbs, one word") or, with nothing to say, empty.
   - *Open word:* up to three guesses, the chosen one in a pill in the centre with
     the others either side. The pill takes the theme's shift/delete/return colour and
     see-through with the letters' colour at 80%. Everything else on the bar has no key behind it, so
     it follows the look instead of the theme: white (dark) or black (light), at 80% for
-    readings and typed text and 60% for other words, notes and the bar's icons (globe,
-    pencil, ✕). Bar text is never fully solid and never a separate gray. That one is what space writes. Tapping any guess writes it.
+    readings and typed text and 60% for other words, notes and the bar's icons (the
+    Astrotype button, pencil, ✕). Bar text is never fully solid and never a separate gray. That one is what space writes. Tapping any guess writes it.
   - *Fix:* right after a commit, when there are no next words (or "Guess the next word"
     is off): the word just written in the pill, its other readings either side. Tap one
     and it replaces the word just written. Any new tap or swipe clears it.
@@ -264,8 +265,9 @@ This is the product, so it gets its own section.
   accents in a row above the key (á on a, ñ on n, ¿ on ?, when Spanish is on); slide
   along and lift to type one (features/languages, 3 Nov 2026). Like Apple's, a finger
   that slides off `123` brings up the numbers page under it, types the number or symbol
-  it lifts on and goes back to the letters; holding `123` still opens the settings
-  (Gabriel, 3 Nov 2026).
+  it lifts on and goes back to the letters. The settings open from the Astrotype button
+  in the bar; holding `123` opens them only where that button has no place (the bar
+  off, or a column at the side of a whole keyboard) (Gabriel, 3 and 8 Nov 2026).
 
 ## Flows
 

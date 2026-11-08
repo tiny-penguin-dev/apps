@@ -72,6 +72,10 @@ struct HomeView: View {
                 case .settingsPage(let page): SettingsPageView(page: page, model: model, path: $path)
                 }
             }
+            // The keyboard's "Open Astrotype" (astrotype://settings) lands on Settings.
+            .onOpenURL { url in
+                if url.scheme == "astrotype", url.host == "settings" { path = [.settings] }
+            }
             .sheet(isPresented: trialOverShowing) {
                 TrialOverView(model: model) { path.append(.pro) }
             }

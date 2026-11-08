@@ -45,9 +45,9 @@ public enum Theme {
             // as on Apple's keyboard (features/field-types).
             case .returnAction: (0x007AFF, 0x0A84FF)
             // The glass iOS 26 draws around a keyboard extension, for the app's own
-            // keyboard to sit on (`KeyboardFrame`). Light measured from Gabriel's
-            // screenshot (8 Nov 2026); dark not measured yet, so `kb`'s.
-            case .kbGlass: (0xDFE0E5, 0x1F1F1F)
+            // keyboard to sit on (`KeyboardFrame`). Measured from Gabriel's
+            // screenshots in light and dark (8 Nov 2026).
+            case .kbGlass: (0xDFE0E5, 0x212121)
             }
         }
     }

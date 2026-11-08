@@ -144,16 +144,13 @@ enum ContactPicker {
         top.present(picker, animated: true)
     }
 
-    private final class Delegate: NSObject, CNContactPickerDelegate {
-        let done: @MainActor (CNContact?) -> Void
-        init(done: @escaping @MainActor (CNContact?) -> Void) { self.done = done }
+    /// The picker calls its delegate on the main thread.
+    @MainActor
+    private final class Delegate: NSObject, @preconcurrency CNContactPickerDelegate {
+        let done: (CNContact?) -> Void
+        init(done: @escaping (CNContact?) -> Void) { self.done = done }
 
-        // The picker calls its delegate on the main thread.
-        func contactPicker(_ picker: CNContactPickerViewController, didSelect contact: CNContact) {
-            MainActor.assumeIsolated { done(contact) }
-        }
-        func contactPickerDidCancel(_ picker: CNContactPickerViewController) {
-            MainActor.assumeIsolated { done(nil) }
-        }
+        func contactPicker(_ picker: CNContactPickerViewController, didSelect contact: CNContact) { done(contact) }
+        func contactPickerDidCancel(_ picker: CNContactPickerViewController) { done(nil) }
     }
 }

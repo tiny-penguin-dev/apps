@@ -144,8 +144,9 @@ This is the product, so it gets its own section.
   and 7 letters, shift and backspace on the third row, `123`, emoji, space and return on
   the fourth, as on Apple's (iOS draws its globe under the keyboard). Where iOS draws
   none (a Home button phone, the iPhone Duo), our globe sits at the left end of the
-  guesses bar, so space keeps its room; with the bar off or in a column it goes back
-  before the emoji key (`features/space-bar`, 3 Nov 2026). Space reads "Astrotype" when idle, like Apple's reads the language.
+  guesses bar, so space keeps its room; on a split keyboard it sits faded at the bottom
+  of the middle column, like iOS's own; with the bar off or in a column at the side it
+  goes back before the emoji key (`features/space-bar`, 3 Nov 2026; split, 8 Nov 2026). Space reads "Astrotype" when idle, like Apple's reads the language.
 - **Size:** every key sits where Apple's does, so muscle memory carries over: the top
   of our top row is the top of Apple's, and the bottom of our bottom row is the bottom
   of Apple's (measured on iOS 26: rows spanning 213 pt on a phone with 7 pt under them,
@@ -168,7 +169,9 @@ This is the product, so it gets its own section.
   packed together and centred on the keyboard, and a 44 pt pencil ("Not it?") at the
   right end. The middle holds one kind of thing at a time. When three words don't fit
   whole, the outer ones drop (never the chosen one) rather than cut a word. In a column
-  the words stack and the pencil sits under them; the globe goes back next to 123.
+  the words stack from the top and the pencil sits under them; on a split keyboard the
+  globe sits faded at the bottom of the column, centred, else it goes back next to 123
+  (Gabriel, 8 Nov 2026).
   The middle's states:
   - *Idle:* a short note ("Both thumbs, one word") or, with nothing to say, empty.
   - *Open word:* up to three guesses, the chosen one in a pill in the centre with

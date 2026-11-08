@@ -18,8 +18,9 @@ import UIKit
 /// close it. Then "Won't suggest “end”" with Undo for a moment. Sliding up or down
 /// while holding still boosts or blocks at once (DESIGN.md "Learning").
 /// A bar above the keys (`axis` horizontal) or a column beside them (vertical: the
-/// middle of a split keyboard, the side of a wide one); in a column, touches between
-/// the guesses fall through to the keys under it, and there is no `leadingKey`.
+/// middle of a split keyboard, the side of a wide one); in a column, the guesses start
+/// at the top, touches between them fall through to the keys under it, and
+/// `leadingKey` sits faded at the bottom, centred (Gabriel, 8 Nov 2026).
 ///
 ///     bar.bar = model.state.bar
 ///     bar.onChoose = { index in model.choose(guess: index) }
@@ -57,7 +58,8 @@ public final class BarView: UIView {
     static let menuTimeout: TimeInterval = 4
 
     /// A key for the bar's left end, 44 pt wide: the globe, set by the keyboard when it
-    /// draws one (features/space-bar). Hidden while the left end shows ✕, and in a column.
+    /// draws one (features/space-bar). Hidden while the left end shows ✕. In a column
+    /// it sits at the bottom, centred, under the pencil.
     public var leadingKey: UIView? {
         didSet {
             guard leadingKey !== oldValue else { return }
@@ -365,12 +367,17 @@ public final class BarView: UIView {
     /// A column: the words stacked and centred, the pencil (or ✕ in the fix row) under them.
     private func layoutColumn() {
         var area = bounds.insetBy(dx: Theme.Space.xs, dy: Theme.Space.s)
+        let end = Self.endWidth
+        if let leadingKey, !leadingKey.isHidden {
+            // The globe at the bottom, centred, where iOS draws its own under a keyboard.
+            leadingKey.frame = CGRect(x: area.midX - end / 2, y: area.maxY - end, width: end, height: end)
+            area = area.divided(atDistance: end + Theme.Space.xs, from: .maxYEdge).remainder
+        }
         if case .correcting = bar {
-            // The word, then Save, then ✕, stacked in the middle of the column.
+            // The word, then Save, then ✕, stacked from the top of the column.
             let line = fieldLabel.sizeThatFits(area.size).height
             let save = saveButton.sizeThatFits(area.size)
-            let total = line + Theme.Space.s + save.height + Theme.Space.s + 40
-            var y = area.midY - total / 2
+            var y = area.minY
             fieldLabel.frame = CGRect(x: area.minX, y: y, width: area.width, height: line)
             y += line + Theme.Space.s
             saveButton.frame = CGRect(x: area.midX - save.width / 2, y: y, width: save.width, height: save.height)
@@ -378,19 +385,20 @@ public final class BarView: UIView {
             closeButton.frame = CGRect(x: area.midX - 20, y: y, width: 40, height: 40)
             return
         }
-        let end = Self.endWidth
         let bottom = CGRect(x: area.midX - end / 2, y: area.maxY - end, width: end, height: end)
         pencilButton.frame = bottom
         closeButton.frame = bottom
         if !pencilButton.isHidden || !closeButton.isHidden {
             area = area.divided(atDistance: end + Theme.Space.s, from: .maxYEdge).remainder
         }
-        label.frame = area
+        // The note and the guesses start at the top of the column (Gabriel, 8 Nov 2026).
+        let note = min(area.height, ceil(label.sizeThatFits(area.size).height))
+        label.frame = CGRect(x: area.minX, y: area.minY, width: area.width, height: note)
         stack.arrangedSubviews.forEach { if $0.isHidden { $0.isHidden = false } }
         let fit = stack.systemLayoutSizeFitting(CGSize(width: area.width, height: UIView.layoutFittingCompressedSize.height),
                                                 withHorizontalFittingPriority: .required, verticalFittingPriority: .fittingSizeLevel)
         let height = min(area.height, fit.height)
-        stack.frame = CGRect(x: area.minX, y: area.midY - height / 2, width: area.width, height: height)
+        stack.frame = CGRect(x: area.minX, y: area.minY, width: area.width, height: height)
     }
 
     private func render() {
@@ -410,7 +418,7 @@ public final class BarView: UIView {
         pencilButton.isHidden = !(canCorrect || !readings.isEmpty) || notice != nil || correcting != nil || fixing || wordBar
         closeButton.isHidden = (correcting == nil && !fixing) || wordBar
         closeButton.accessibilityLabel = correcting != nil ? "Cancel" : "Back to the next words"
-        leadingKey?.isHidden = axis == .vertical || !closeButton.isHidden || wordBar
+        leadingKey?.isHidden = axis == .vertical ? false : !closeButton.isHidden || wordBar
         saveButton.isHidden = correcting == nil
         fieldLabel.isHidden = correcting == nil
         if let correcting, notice == nil {

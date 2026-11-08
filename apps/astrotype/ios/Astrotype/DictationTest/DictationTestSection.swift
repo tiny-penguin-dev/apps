@@ -15,6 +15,8 @@ struct DictationTestSection: View {
     @State private var last = DictationProbeLog.last
     @State private var started = DictationProbeLog.sessionStarted
     @State private var pushToken = DictationProbeLog.pushToken
+    @State private var pauseMic = DictationPause.pauseMic
+    @State private var keepAwake = DictationPause.keepAwake
     @State private var notifications = UNAuthorizationStatus.notDetermined
 
     var body: some View {
@@ -57,10 +59,20 @@ struct DictationTestSection: View {
                         .buttonStyle(.small)
                 }
             }
+            SettingsToggle("Pause mic between dictations", subtitle: "Mic off after Done; Talk turns it back on (round 5)",
+                           symbol: "mic.slash", tint: Theme.slate, isOn: $pauseMic)
+            SettingsToggle("Keep app awake while paused", subtitle: "Plays silence so iOS doesn't suspend the app",
+                           symbol: "moon.zzz", tint: Theme.slate, isOn: $keepAwake)
             SettingsRow("Last result", subtitle: last, symbol: "text.bubble", tint: Theme.slate)
         }
         .onChange(of: keyboardButton) { _, on in
             DictationProbeLog.defaults?.set(on, forKey: DictationProbeLog.enabledKey)
+        }
+        .onChange(of: pauseMic) { _, on in
+            DictationProbeLog.defaults?.set(on, forKey: DictationPause.pauseKey)
+        }
+        .onChange(of: keepAwake) { _, on in
+            DictationProbeLog.defaults?.set(on, forKey: DictationPause.awakeKey)
         }
         .task {
             while !Task.isCancelled {

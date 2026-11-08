@@ -96,6 +96,34 @@ import Testing
         #expect(debug.crashedWhileShowing == 1)
     }
 
+    @Test func aKeyboardSuspendedInTheBackgroundCountsNothing() throws {
+        var debug = KeyboardDebug()
+        debug.loaded(at: t0)
+        debug.shown(at: t0, reading: reading(30))
+        // The app it is in goes to the background with it up.
+        debug.backgrounded(at: t0.addingTimeInterval(5), reading: reading(28))
+        #expect(debug.showing && debug.suspended)
+        #expect(debug.last == reading(28))
+        // The next process finds it so: iOS may have ended it there, or it is still
+        // there, suspended, in another app. Neither counts.
+        var next = debug
+        #expect(next.loaded(at: t0.addingTimeInterval(60)) == false)
+        #expect(next.endedWhileShowing == 0 && !next.showing && !next.suspended)
+        // Back in the foreground, a process ended while showing counts again.
+        debug.foregrounded(at: t0.addingTimeInterval(10), reading: reading(29))
+        #expect(debug.showing && !debug.suspended)
+        #expect(debug.loaded(at: t0.addingTimeInterval(20)) == true)
+        #expect(debug.endedWhileShowing == 1)
+        // Hidden in the background: closed, not suspended.
+        debug.shown(at: t0.addingTimeInterval(30), reading: reading(30))
+        debug.backgrounded(at: t0.addingTimeInterval(31), reading: nil)
+        debug.hidden(at: t0.addingTimeInterval(32), reading: nil)
+        #expect(!debug.showing && !debug.suspended)
+        // Older files read as not suspended.
+        let old = try JSONDecoder().decode(KeyboardDebug.self, from: Data(#"{"showing": true}"#.utf8))
+        #expect(old.showing && !old.suspended)
+    }
+
     @Test func savesAndReadsOlderFiles() throws {
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString).appendingPathComponent("keyboard-debug.json")

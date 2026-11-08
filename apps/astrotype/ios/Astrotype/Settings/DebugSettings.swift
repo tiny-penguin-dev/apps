@@ -20,8 +20,9 @@ struct DebugSettings: View {
                     Meter(leading: "\(MemoryReading.mb(last.footprintMB)) MB",
                           trailing: "\(Int(MemoryReading.budgetMB)) MB", fraction: last.budgetFraction)
                     if let updated = debug.updated {
-                        Text(debug.showing ? "Keyboard is up · read \(updated, style: .relative) ago"
-                                           : "Keyboard closed · last read \(updated, style: .relative) ago")
+                        Text(!debug.showing ? "Keyboard closed · last read \(updated, style: .relative) ago"
+                             : debug.suspended ? "Keyboard is up in an app in the background · read \(updated, style: .relative) ago"
+                             : "Keyboard is up · read \(updated, style: .relative) ago")
                             .font(.sw(.small)).foregroundStyle(Theme.muted)
                     }
                 }
@@ -68,7 +69,8 @@ struct DebugSettings: View {
                 ForEach(model.keyboardSessions.prefix(10), id: \.started) { session in
                     SettingsValue(session.started.formatted(date: .abbreviated, time: .shortened),
                                   subtitle: sessionSubtitle(session),
-                                  value: mb(session.peakMB), valueColor: session.ended ? color(session.peakMB) : Theme.danger)
+                                  value: mb(session.peakMB),
+                                  valueColor: session.endedWhileShowing ? Theme.danger : color(session.peakMB))
                 }
             }
             GroupFootnote("Each time the keyboard was shown, with its peak. Kept while Share anonymous usage data is on.")
@@ -201,8 +203,10 @@ struct DebugSettings: View {
     private func sessionSubtitle(_ session: KeyboardHealth.Session) -> String {
         var parts = ["\(MemoryReading.mb(session.lowestHeadroomMB)) MB left at the least"]
         if !session.parts.isEmpty { parts.append(KeyboardHealth.label(session.parts).replacingOccurrences(of: "_", with: " ")) }
-        if !session.ended {
+        if session.endedWhileShowing {
             parts.insert(session.crashed == true ? "Crashed" : session.crashed == false ? "Ended by iOS" : "Ended while showing", at: 0)
+        } else if !session.ended, session.suspended {
+            parts.insert("Went to the background", at: 0)
         }
         return parts.joined(separator: " · ")
     }

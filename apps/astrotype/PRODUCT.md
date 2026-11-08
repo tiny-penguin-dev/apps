@@ -287,7 +287,7 @@ and `guess.*` rows below).
 | `keyboard.memory_peak` (MB, per time the keyboard is shown; `parts`: what was open, like `keys`, `emoji`, `emoji+settings`, `metal`) | Memory regressions before they hit the extension's limit (budget: 40 MB), and which part of the keyboard caused them |
 | `miss.saved` (count) | Words typed with "Not it?" because a swipe missed them (features/missed-words). Falling over time means the matcher is getting better |
 | `keyboard.memory_headroom` (MB, the least left; `parts`) | How close the keyboard gets to iOS ending it |
-| `keyboard.ended_while_showing` (`parts`; `how`: `crash`, `killed`, `unknown`) | Keyboards ended while on screen: crashes, and the memory kills no crash report sees (`killed`: no crash report, so most likely memory) |
+| `keyboard.ended_while_showing` (`parts`; `how`: `crash`, `killed`, `unknown`) | Keyboards ended while on screen: crashes, and the memory kills no crash report sees (`killed`: no crash report, so most likely memory). A keyboard whose app went to the background with it up and was ended there is not counted: iOS ends suspended keyboards as it likes |
 | `guess.words`, `guess.first` (counts, `kind`: `swipe` / `tap`) | How many words went in, and how many as the keyboard's first guess (goal: 9 in 10, §9). Counted per time the keyboard is shown, never which words, and not in fields that don't learn (like passwords) |
 | `guess.first_share` (gauge: percent, `kind`) | The same share for one time the keyboard was shown, sent when it had at least 10 words, to read at a glance |
 | `nextword.picked` (count) | Words written by tapping a next-word guess, per time the keyboard is shown, beside `guess.words` (features/next-word) |

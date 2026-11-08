@@ -146,7 +146,7 @@ free trial that starts on first launch.
 | Suggestion bar, corrections, next-word guesses, autospace | Snippets and hold-space shortcuts |
 | Space-bar cursor, backspace word delete, shift, numbers, symbols | Custom gestures and edge swipes |
 | Learned words, synced over iCloud | Themes and trails |
-| Speed test | Drills, history and the sharing card |
+| Speed test, and your everyday speed with its graph (features/typing-speed) | Drills, drill history and the sharing card |
 | Default layout and height | Split, one-handed and custom layouts |
 | | Two languages at once, guessed from both with no switching (features/languages, 3 Nov 2026) |
 
@@ -272,6 +272,8 @@ and `guess.*` rows below).
 | `setup.full_access` (`on` / `skipped`) | How many accept the sync ask |
 | `onboarding.finished` (duration) | How long first setup takes (goal: under two minutes) |
 | `speedtest.finished` (gauge: words per minute) | Whether people get faster over time |
+| `speed.everyday` (gauge: words per minute, once per finished day with a speed) | Whether people really type faster with Astrotype, outside practice (features/typing-speed) |
+| `speed.opened` (count) | Whether people look at their speed graph |
 | `drill.finished` (`drill`) | Which habits people practise |
 | `trial.started`, `pro.subscribed` (`plan`) | Whether the trial converts |
 | `sync.failed` | iCloud sync problems (goal: zero) |

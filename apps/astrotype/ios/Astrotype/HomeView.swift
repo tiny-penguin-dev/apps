@@ -2,7 +2,7 @@ import AstrotypeCore
 import AstrotypeUI
 import SwiftUI
 
-/// DESIGN.md screen 5: "Both flippers, go." The speed test and the Pro row on the
+/// DESIGN.md screen 5: "Both flippers, go." Your speed (features/typing-speed) and the Pro row on the
 /// left, drills, the week and Settings on the right; one column on a phone, two on the
 /// wide size. A sun-yellow banner leads back to setup while the keyboard is off. The
 /// Trial over sheet comes up here once, on the first launch after the trial ends.
@@ -15,6 +15,10 @@ struct HomeView: View {
         /// A page under Settings → Appearance (features/customization).
         case appearance(AppearancePage)
         case speedTest(PracticeKeyboard, UInt64?)
+        /// Your speed (features/typing-speed).
+        case speed
+        /// A page of Settings opened from elsewhere (Your speed → Privacy and sharing).
+        case settingsPage(SettingsPage)
         case drill(Drill.ID)
     }
 
@@ -64,6 +68,8 @@ struct HomeView: View {
                 case .appearance(let page): AppearancePageView(page: page, model: model, path: $path)
                 case .speedTest(let keyboard, let seed): SpeedTestView(model: model, keyboard: keyboard, seed: seed, path: $path)
                 case .drill(let id): DrillView(model: model, drill: Drill.named(id), path: $path)
+                case .speed: SpeedHistoryView(model: model, path: $path)
+                case .settingsPage(let page): SettingsPageView(page: page, model: model, path: $path)
                 }
             }
             .sheet(isPresented: trialOverShowing) {
@@ -103,35 +109,12 @@ struct HomeView: View {
 
     private var leftColumn: some View {
         VStack(alignment: .leading, spacing: Theme.Space.m) {
-            Card {
-                VStack(alignment: .leading, spacing: Theme.Space.m) {
-                    HStack {
-                        Text("Speed test").font(.sw(.heading))
-                        Spacer()
-                        if let best = model.bestWordsPerMinute {
-                            Chip("Best \(best) wpm").accessibilityLabel("Best \(best) words per minute")
-                        }
-                    }
-                    if let best = model.bestWordsPerMinute {
-                        let apple = model.appleWordsPerMinute
-                        Meter(leading: apple.map { "Apple \($0)" } ?? "Apple ?", trailing: "You \(best)",
-                              fraction: apple.map { Double(best) / Double(max(best, $0, 1)) } ?? 1)
-                        if apple == nil {
-                            Text("Type the same test on Apple's keyboard once to see how you compare.")
-                                .font(.sw(.small)).foregroundStyle(Theme.muted)
-                        }
-                    } else {
-                        Text("Three sentences, two thumbs. See your words per minute next to Apple's keyboard.")
-                            .font(.sw(.small)).foregroundStyle(Theme.muted)
-                    }
-                    HStack(spacing: Theme.Space.m) {
-                        Button("Take the test") { path.append(.speedTest(.astrotype, nil)) }
-                            .buttonStyle(.small)
-                        Button("Practice") { path.append(.practice) }
-                            .buttonStyle(.ghost)
-                    }
-                }
-            }
+            // Your speed leads Home (features/typing-speed): the everyday speed, and
+            // practice that measures you against it.
+            SpeedCard(model: model, open: { path.append(.speed) },
+                      practice: { path.append(.speedTest(.astrotype, nil)) },
+                      drills: { path.append(.practice) },
+                      turnOn: { path.append(.turnOn) })
             proRow
         }
     }

@@ -45,6 +45,10 @@ struct AppEnvironment {
     /// The keyboard's typing recording in the App Group (Settings → Debug → "Keep
     /// recording"), what sends a stretch of it, and how it is squeezed first; nil in tests.
     var typingLog: TypingLogFiles?
+    /// Timed stretches of typing the keyboard leaves in the App Group, and the app's own
+    /// days of them (features/typing-speed); nil in tests.
+    var speedRuns: SpeedRunStore?
+    var speedHistory: SpeedHistoryStore?
     var typingUploader: TypingLogUploader?
     var compress: @Sendable (Data) -> Data?
     /// Whether this is a TestFlight or Xcode build: only those offer the recorder.
@@ -78,6 +82,8 @@ struct AppEnvironment {
             sharedUploader: CloudKitPracticeUploader(),
             missedWords: SharedWordStore(folder: dataFile(KeyboardFiles.misses), limit: 200),
             typingLog: KeyboardFiles.shared(KeyboardFiles.typing).map { TypingLogFiles(folder: $0) },
+            speedRuns: KeyboardFiles.shared(KeyboardFiles.speedRuns).map { SpeedRunStore(url: $0) },
+            speedHistory: SpeedHistoryStore(url: KeyboardFiles.own(KeyboardFiles.speedHistory)),
             typingUploader: CloudKitPracticeUploader(),
             // Raw DEFLATE, which ml/download_samples.py opens with zlib.
             compress: { data in try? (data as NSData).compressed(using: .zlib) as Data },
@@ -138,6 +144,8 @@ struct AppEnvironment {
         sharedUploader: SharedWordUploader? = nil,
         missedWords: SharedWordStore? = nil,
         typingLog: TypingLogFiles? = nil,
+        speedRuns: SpeedRunStore? = nil,
+        speedHistory: SpeedHistoryStore? = nil,
         typingUploader: TypingLogUploader? = nil,
         compress: @escaping @Sendable (Data) -> Data? = { $0 },
         isTestBuild: @escaping @Sendable () async -> Bool = { true },
@@ -155,7 +163,8 @@ struct AppEnvironment {
                        proStore: proStore,
                        trialStore: trialStore, practiceStore: practiceStore,
                        sharedWords: sharedWords, sharedUploader: sharedUploader,
-                       missedWords: missedWords, typingLog: typingLog, typingUploader: typingUploader,
+                       missedWords: missedWords, typingLog: typingLog,
+                       speedRuns: speedRuns, speedHistory: speedHistory, typingUploader: typingUploader,
                        compress: compress, isTestBuild: isTestBuild, device: device, metrics: metrics, now: now,
                        appVersion: appVersion, backup: backup, openSettings: openSettings)
     }

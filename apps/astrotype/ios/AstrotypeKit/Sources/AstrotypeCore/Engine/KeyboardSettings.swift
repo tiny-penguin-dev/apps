@@ -74,6 +74,9 @@ public struct KeyboardSettings: Codable, Sendable, Equatable {
     /// A tiny readout of the keyboard's memory in a corner of the keys, for watching it
     /// on a phone (Settings → Debug, Gabriel 3 Nov 2026). Off by default.
     public var showsStats = false
+    /// Time typing in every app for the everyday speed (features/typing-speed): counts
+    /// and times only, on the phone. On by default (Settings → Privacy and sharing).
+    public var measuresSpeed = true
     /// Keep the last half hour of typing on the phone, to send from Settings → Debug
     /// when something goes wrong (`TypingRecorder`, Gabriel 6 Nov 2026). Off by default,
     /// only offered in TestFlight builds, and needs Full Access.
@@ -166,6 +169,7 @@ public struct KeyboardSettings: Codable, Sendable, Equatable {
         languages = try c.decodeIfPresent([String].self, forKey: .languages)
         mixesLanguages = try c.decodeIfPresent(Bool.self, forKey: .mixesLanguages) ?? false
         showsStats = try c.decodeIfPresent(Bool.self, forKey: .showsStats) ?? false
+        measuresSpeed = try c.decodeIfPresent(Bool.self, forKey: .measuresSpeed) ?? true
         recordsTyping = try c.decodeIfPresent(Bool.self, forKey: .recordsTyping) ?? false
         textReplacements = (try? c.decodeIfPresent([TextReplacement].self, forKey: .textReplacements)) ?? []
         usesPhoneReplacements = try c.decodeIfPresent(Bool.self, forKey: .usesPhoneReplacements) ?? true

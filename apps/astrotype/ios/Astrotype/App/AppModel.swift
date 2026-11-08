@@ -78,9 +78,11 @@ final class AppModel {
         self.keyboardSettings = environment.settingsStore.load() ?? KeyboardSettings()
         self.learnedWords = environment.wordStore.load() ?? LearnedWords()
         self.personal = environment.personalStore.load() ?? PersonalModel()
+        self.speedHistory = environment.speedHistory?.load() ?? SpeedHistory()
         environment.appStateStore.save(state)
         shareTrial()
         refreshKeyboardStatus()
+        refreshSpeed()
     }
 
     var now: Date { environment.now() }
@@ -426,6 +428,52 @@ final class AppModel {
     func isDrillDone(_ id: Drill.ID) -> Bool {
         guard let date = state.drillsDone[id.rawValue] else { return false }
         return AppState.dayKey(date) == AppState.dayKey(now)
+    }
+
+    // MARK: Typing speed (features/typing-speed)
+
+    /// The days of everyday typing speed, as last folded in.
+    private(set) var speedHistory: SpeedHistory
+
+    /// Folds in the runs the keyboard timed since last time and sends each finished
+    /// day's speed (`speed.everyday`, with sharing on). On launch and each foreground.
+    func refreshSpeed() {
+        guard let runs = environment.speedRuns?.load().runs else { return }
+        var history = speedHistory
+        history.add(runs)
+        for speed in history.toReport(now: now).compactMap(\.speed) {
+            environment.metrics.gauge("speed.everyday", value: speed.rounded(), [:])
+        }
+        history.reported(now: now)
+        guard history != speedHistory else { return }
+        speedHistory = history
+        environment.speedHistory?.save(history)
+    }
+
+    /// The everyday speed: the median of the last days with a speed, nil until there are three.
+    var everydaySpeed: Int? { speedHistory.everyday(now: now) }
+    /// How it moved over the last week.
+    var speedWeekChange: Int? { speedHistory.weekChange(now: now) }
+    /// Days with a speed so far, for "Day 1 of 3".
+    var speedDays: Int { speedHistory.daysWithSpeed }
+    func speedPoints(_ range: SpeedRange) -> [SpeedPoint] {
+        speedHistory.points(range, now: now, practice: state.speedTests)
+    }
+
+    func speedSummary(_ range: SpeedRange) -> SpeedSummary {
+        speedHistory.summary(range, now: now, practice: state.speedTests)
+    }
+
+    /// Your speed was opened (`speed.opened`).
+    func speedOpened() {
+        environment.metrics.count("speed.opened")
+    }
+
+    /// Settings → Privacy → Delete speed history: the days, and the runs waiting.
+    func deleteSpeedHistory() {
+        environment.speedRuns?.clear()
+        speedHistory = SpeedHistory(foldedThrough: now)
+        environment.speedHistory?.save(speedHistory)
     }
 
     // MARK: Milestones

@@ -251,11 +251,28 @@ private struct PrivacySettings: View {
     @Bindable var model: AppModel
     @Binding var path: [HomeView.Route]
     @State private var shareUsage = Telemetry.isEnabled
+    @State private var confirmingDelete = false
 
     var body: some View {
         Text("Nothing you type in other apps is ever sent. These are the few things you can choose to share.")
             .font(.sw(.body)).foregroundStyle(Theme.muted)
             .padding(.horizontal, Theme.Space.xs)
+
+        SectionLabel("Typing speed").padding(.top, Theme.Space.m)
+        SettingsGroup {
+            SettingsToggle("Measure my speed", subtitle: "Everywhere you type with Astrotype. Counts and times only, kept on this iPhone.",
+                           symbol: "speedometer", tint: Theme.left, isOn: $model.keyboardSettings.measuresSpeed)
+            Button { confirmingDelete = true } label: {
+                SettingsRow("Delete speed history", symbol: "trash", tint: Theme.danger, titleColor: Theme.danger)
+            }
+            .buttonStyle(.plain)
+        }
+        .confirmationDialog("Delete your speed history?", isPresented: $confirmingDelete, titleVisibility: .visible) {
+            Button("Delete speed history", role: .destructive) { model.deleteSpeedHistory() }
+        } message: {
+            Text("Your everyday speed starts again from today. Practice results stay.")
+        }
+        GroupFootnote("Needs Full Access, so the keyboard can hand the numbers to the app. Never what you type, or in which app.")
 
         SectionLabel("Crash reports").padding(.top, Theme.Space.m)
         SettingsGroup {

@@ -19,8 +19,9 @@ import Foundation
 ///     composer.state.openWord                       // "something"
 ///     composer.state.bar                            // .idle | .guesses | .fix | .next | .correcting
 ///
-/// The open word is shown as marked text (underlined in the field) until it commits,
-/// so the host turns `.mark` into `setMarkedText` and `.commit` into `unmarkText`.
+/// The open word is shown in the field as ordinary text, replaced by each new reading
+/// (`.mark`) until it commits (`.commit`). It is never marked (underlined) text: that hid
+/// the person's taps and selections from the keyboard (removed 8 Nov 2026).
 public struct Composer: Sendable {
     public struct Settings: Sendable, Equatable {
         /// Commit the open word after this long with no finger down. Nil turns autospace off.
@@ -103,11 +104,11 @@ public struct Composer: Sendable {
     public enum Effect: Sendable, Equatable {
         case insert(String)
         case deleteBackward(Int)
-        /// Show this as the open word: marked text, underlined, replaced by the next `.mark`.
+        /// Show this as the open word, replaced by the next `.mark`.
         case mark(String)
-        /// Turn the marked text into this, as ordinary text.
+        /// The open word goes in as this.
         case commit(String)
-        /// Remove the marked text.
+        /// Take the open word out.
         case clearMark
         case haptic(Haptic)
         /// A word pecked out letter by letter that the keyboard did not know went in and

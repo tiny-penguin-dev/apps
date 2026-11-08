@@ -9,9 +9,9 @@ protocol TextTarget: AnyObject {
     var documentContextBeforeInput: String? { get }
     func insertText(_ text: String)
     func deleteBackward()
-    /// Shows tentative text (underlined) at the cursor, replacing the last.
+    /// Shows tentative text at the cursor as ordinary text, replacing the last.
     func setMarkedText(_ text: String)
-    /// Keeps the tentative text as real text.
+    /// Keeps the tentative text as it is.
     func unmarkText()
 }
 

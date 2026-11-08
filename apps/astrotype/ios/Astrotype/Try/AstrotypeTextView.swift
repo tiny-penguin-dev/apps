@@ -71,11 +71,20 @@ final class TextBox: TextTarget {
     func insertText(_ text: String) { textView?.insertText(text) }
     func deleteBackward() { textView?.deleteBackward() }
 
+    /// The tentative text, as it stands right before the cursor. Ordinary text, never
+    /// marked (underlined) text, like the keyboard (8 Nov 2026).
+    private var tentative = ""
+
     func setMarkedText(_ text: String) {
-        textView?.setMarkedText(text, selectedRange: NSRange(location: (text as NSString).length, length: 0))
+        guard let textView, text != tentative else { return }
+        if !tentative.isEmpty, (documentContextBeforeInput ?? "").hasSuffix(tentative) {
+            for _ in 0..<tentative.count { textView.deleteBackward() }
+        }
+        if !text.isEmpty { textView.insertText(text) }
+        tentative = text
     }
 
-    func unmarkText() { textView?.unmarkText() }
+    func unmarkText() { tentative = "" }
 
     func focus() { textView?.becomeFirstResponder() }
     func unfocus() { textView?.resignFirstResponder() }

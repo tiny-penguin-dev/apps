@@ -11,9 +11,11 @@ public protocol TextTarget: AnyObject {
     var textBeforeCursor: String? { get }
     func insert(_ text: String)
     func deleteBackward()
-    /// Show `text` as marked (underlined) text, replacing any marked text.
+    /// Show `text` as the open word, right before the cursor, in place of the last
+    /// open word. It is ordinary text: never marked (underlined) text, which hid the
+    /// person's taps and selections from the keyboard (removed 8 Nov 2026).
     func mark(_ text: String)
-    /// Turn the marked text into ordinary text.
+    /// The open word went in: keep it as it is and stop replacing it.
     func unmark()
     /// Move the cursor by `offset` characters (negative is left).
     func moveCursor(by offset: Int)
@@ -22,10 +24,6 @@ public protocol TextTarget: AnyObject {
     /// Whether the open word is no longer where it was typed: the person selected text,
     /// or the keyboard moved to another field. It is dropped then, not edited.
     var lostOpenWord: Bool { get }
-    /// Whether the field changed while the open word sat underlined and the keyboard
-    /// did nothing: the person touched the field (selected text, moved the cursor).
-    /// Checked when the host says the field changed.
-    var fieldChangedUnderOpenWord: Bool { get }
     /// Whether the person has text selected in the field: a key is then for the
     /// selection, never for the word before it.
     var hasSelection: Bool { get }
@@ -38,7 +36,6 @@ public protocol TextTarget: AnyObject {
 extension TextTarget {
     public var hasText: Bool { !(textBeforeCursor ?? "").isEmpty }
     public var lostOpenWord: Bool { false }
-    public var fieldChangedUnderOpenWord: Bool { false }
     public var hasSelection: Bool { false }
     public var fieldState: String? { nil }
     public func dropOpenWord() {}
@@ -664,10 +661,6 @@ public final class KeyboardModel {
     public func contextChanged(_ why: String = "change") {
         logFieldState(why)
         if dropLostWord() { return }
-        if output?.fieldChangedUnderOpenWord == true {
-            reset()
-            return
-        }
         logContext(.context)
         composer.setContext(before: output?.textBeforeCursor)
         onChange?()
@@ -927,18 +920,45 @@ public final class TextViewTarget: TextTarget {
         self.textView = textView
     }
 
+    /// The open word, as it stands in the field right before the cursor.
+    private var open = ""
+    /// True while the open word is being swapped for a new reading, so the field's
+    /// change callbacks in between (the old word half deleted) can be ignored, as the
+    /// extension never hears about its own edits.
+    public private(set) var isSwappingWord = false
+
+    /// The text before the cursor without the open word.
     public var textBeforeCursor: String? {
+        guard let before = beforeCursor else { return nil }
+        return !open.isEmpty && before.hasSuffix(open) ? String(before.dropLast(open.count)) : before
+    }
+
+    private var beforeCursor: String? {
         guard let textView, let selected = textView.selectedTextRange,
               let range = textView.textRange(from: textView.beginningOfDocument, to: selected.start) else { return nil }
         return textView.text(in: range)
     }
 
+    public var hasText: Bool { textView?.hasText ?? false }
+
     public func insert(_ text: String) { textView?.insertText(text) }
     public func deleteBackward() { textView?.deleteBackward() }
+
+    /// The open word as ordinary text, like in other apps: the old reading is taken out
+    /// and the new one typed, unless the cursor moved away from it.
     public func mark(_ text: String) {
-        textView?.setMarkedText(text, selectedRange: NSRange(location: text.utf16.count, length: 0))
+        guard let textView, text != open else { return }
+        isSwappingWord = true
+        defer { isSwappingWord = false }
+        if !open.isEmpty, (beforeCursor ?? "").hasSuffix(open) {
+            for _ in 0..<open.count { textView.deleteBackward() }
+        }
+        if !text.isEmpty { textView.insertText(text) }
+        open = text
     }
-    public func unmark() { textView?.unmarkText() }
+    public func unmark() { open = "" }
+    public func dropOpenWord() { open = "" }
+
     public func moveCursor(by offset: Int) {
         guard let textView, let selected = textView.selectedTextRange,
               let position = textView.position(from: selected.start, offset: offset) else { return }

@@ -60,6 +60,12 @@ public struct Composer: Sendable {
         /// them in one sentence. Off (the default), a sentence keeps to the first
         /// language it shows (`Language.lock(for:)`, Gabriel 3 Nov 2026).
         public var mixesLanguages = false
+        /// The text replacements (features/text-replacements): a word that is a
+        /// shortcut goes in as its phrase, variables filled in.
+        public var replacements = TextReplacements()
+        /// Whether replacements apply in this field: not in a password, a code or a
+        /// number, nor where corrections are off (`Field.replacesText`).
+        public var replacesText = true
         public init() {}
     }
 
@@ -135,6 +141,10 @@ public struct Composer: Sendable {
         /// Whether the bar offers "Not it?": a swiped word is open, or just went in and
         /// can still be fixed (features/missed-words).
         public var canCorrect = false
+        /// What space would write for the open word when it is a text replacement's
+        /// shortcut: the phrase, variables filled in (features/text-replacements). The
+        /// bar shows it in the chosen word's place.
+        public var replacement: String?
     }
 
     /// The last word written, kept so backspace can reopen it and the bar can fix it.
@@ -159,6 +169,9 @@ public struct Composer: Sendable {
         var missed = false
         /// When autospace wrote the space after it; nil when anything else did.
         var autospaced: TimeInterval?
+        /// The shortcut typed, when the word in the field is its replacement's phrase:
+        /// nothing is learned from it.
+        var replaced: String?
     }
 
     enum Casing: Sendable, Equatable {
@@ -180,8 +193,15 @@ public struct Composer: Sendable {
             matcher.strictness = settings.strictness
             matcher.splitStrictness = settings.splitStrictness
             if settings.mixesLanguages != oldValue.mixesLanguages { relock(force: true) }
+            matcher.shortcuts = Self.shortcuts(settings)
         }
     }
+    /// The date and time variables in replacements fill in with (`TextReplacements.expand`).
+    /// The one clock the composer reads; tests set a fixed day.
+    public var wallClock: @Sendable () -> Date = { Date() }
+    /// The language and time zone the variables are written in.
+    public var replacementLocale = Locale.current
+    public var replacementTimeZone = TimeZone.current
     public var layout: Layout {
         didSet { matcher.layout = layout }
     }
@@ -248,6 +268,7 @@ public struct Composer: Sendable {
         self.matcher = Matcher(dictionary: dictionary, layout: layout, learned: learned)
         matcher.strictness = settings.strictness
         matcher.splitStrictness = settings.splitStrictness
+        matcher.shortcuts = Self.shortcuts(settings)
         refreshState()
     }
 
@@ -260,6 +281,7 @@ public struct Composer: Sendable {
         self.language = language
         matcher.strictness = settings.strictness
         matcher.splitStrictness = settings.splitStrictness
+        matcher.shortcuts = Self.shortcuts(settings)
         refreshState()
     }
 
@@ -940,6 +962,7 @@ public struct Composer: Sendable {
         let word = words[chosen]
         let before = joinable
         joinable = nil
+        if let phrase = replacement(for: word) { return replace(word, with: phrase, guesses: words, chosen: chosen, trailing: trailing) }
         if !byHand, let before, let joined = join(word, to: before, trailing: trailing) { return joined }
         let learn = wordToLearn(word)
         committed = Committed(word: word, trailing: trailing, pieces: pieces, guesses: words, casing: casing,
@@ -951,6 +974,36 @@ public struct Composer: Sendable {
         refreshState()
         let effects: [Effect] = [.commit(word)] + (trailing.isEmpty ? [] : [.insert(trailing)]) + [.haptic(.commit)]
         return effects
+    }
+
+    /// The shortcuts the matcher offers as words: none where replacements are off.
+    private static func shortcuts(_ settings: Settings) -> Set<String> {
+        settings.replacesText ? settings.replacements.shortcuts : []
+    }
+
+    /// The phrase `word` goes in as, variables filled in, when it is a shortcut: a
+    /// capital on the word (a sentence start, shift) capitalises the phrase too.
+    private func replacement(for word: String) -> String? {
+        guard settings.replacesText, let phrase = settings.replacements.phrase(for: word) else { return nil }
+        let text = TextReplacements.expand(phrase, at: wallClock(), locale: replacementLocale, timeZone: replacementTimeZone)
+        guard let first = text.first, word.first?.isUppercase == true, first.isLowercase else { return text }
+        return first.uppercased() + text.dropFirst()
+    }
+
+    /// The open word is a shortcut: its phrase goes in, and the bar offers the shortcut
+    /// as typed behind it, to take the replacement back. Backspace reopens the shortcut.
+    private mutating func replace(_ word: String, with phrase: String, guesses words: [String], chosen: Int,
+                                  trailing: String) -> [Effect] {
+        let others = words.enumerated().filter { $0.offset != chosen && $0.element != phrase }.map(\.element)
+        let fix = Array(([phrase, word] + others).prefix(max(2, settings.guessCount)))
+        committed = Committed(word: phrase, trailing: trailing, pieces: pieces, guesses: fix, casing: casing,
+                              previous: matcher.context.last, firstGuess: words.first, learned: nil, replaced: word)
+        pieces = []
+        candidates = []
+        autospaceDue = nil
+        state.bar = .fix(fix, chosen: 0)
+        refreshState()
+        return [.commit(phrase)] + (trailing.isEmpty ? [] : [.insert(trailing)]) + [.haptic(.commit)]
     }
 
     /// The open word going in after `before`, which autospace wrote with a space after
@@ -1066,6 +1119,8 @@ public struct Composer: Sendable {
     /// line up with them: one tap per letter, or the start of a lone swipe on the
     /// first letter. A touch more than a key away from its letter is left out.
     static func settled(_ last: Committed, layout: Layout) -> SettledWord? {
+        // A replacement's phrase was never typed: nothing to learn from its touches.
+        guard last.replaced == nil else { return nil }
         let word = last.word.lowercased()
         guard PersonalModel.isLearnable(Lexicon.fold(word)) else { return nil }
         // The keys the letters are on: "ñ" was typed on n.
@@ -1145,8 +1200,10 @@ public struct Composer: Sendable {
         state.isShifted = effectiveShift != .off
         if case .guesses(let words, let chosen) = state.bar, words.indices.contains(chosen) {
             state.openWord = words[chosen]
+            state.replacement = replacement(for: words[chosen])
         } else {
             state.openWord = nil
+            state.replacement = nil
         }
         // "Not it?" for a swiped word only: pecked letters were typed as meant.
         let swiped = { (pieces: [Piece]) in pieces.contains { !$0.isTap } }

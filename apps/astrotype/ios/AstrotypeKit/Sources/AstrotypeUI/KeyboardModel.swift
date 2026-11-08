@@ -161,7 +161,22 @@ public final class KeyboardModel {
     private func applyComposerSettings() {
         var settings = field.composerSettings(keyboardSettings.composerSettings(from: composer.settings))
         settings.nextWords = settings.nextWords && learningAllowed && offersNextWords
+        settings.replacements = TextReplacements(own: keyboardSettings.textReplacements,
+                                                 phone: keyboardSettings.usesPhoneReplacements ? phoneReplacements : [])
+        // The app's practice fields measure typing word by word: no replacements there.
+        settings.replacesText = settings.replacesText && offersNextWords
         composer.settings = settings
+    }
+
+    /// The phone's own text replacements (Settings → General → Keyboard → Text
+    /// Replacement), which the extension reads from iOS (`UILexicon`); used when
+    /// `KeyboardSettings.usesPhoneReplacements` is on (features/text-replacements).
+    public var phoneReplacements: [TextReplacement] = [] {
+        didSet {
+            guard phoneReplacements != oldValue else { return }
+            applyComposerSettings()
+            onChange?()
+        }
     }
 
     /// Whether the field being typed in may teach the keyboard: never an address, a

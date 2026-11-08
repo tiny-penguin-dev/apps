@@ -342,6 +342,7 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
     private func render() {
         let wasCorrecting = { if case .correcting = self.bar.bar { true } else { false } }()
         bar.canCorrect = model.state.canCorrect
+        bar.replacement = model.state.replacement
         if shownField != model.field {
             shownField = model.field
             page = model.field.startPage

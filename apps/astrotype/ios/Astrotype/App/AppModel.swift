@@ -633,6 +633,26 @@ final class AppModel {
     /// How a list entry was deleted, for the metrics.
     enum DeleteGesture: String { case swipe, select }
 
+    // MARK: Text replacements (features/text-replacements)
+
+    /// Added or edited on Text replacements: kept first, on every device. Returns false
+    /// when the shortcut isn't one word of letters or the phrase is empty.
+    @discardableResult
+    func saveReplacement(_ replacement: TextReplacement) -> Bool {
+        var settings = keyboardSettings
+        guard settings.save(replacement) else { return false }
+        keyboardSettings = settings
+        sync()
+        return true
+    }
+
+    /// Deleted from Text replacements, by a swipe or several with Select.
+    func deleteReplacements(_ ids: Set<UUID>) {
+        guard !ids.isEmpty else { return }
+        keyboardSettings.textReplacements.removeAll { ids.contains($0.id) }
+        sync()
+    }
+
     // MARK: Never suggest (features/word-control)
 
     /// Typed in with + on Never suggest: never offered again, on every device, even a

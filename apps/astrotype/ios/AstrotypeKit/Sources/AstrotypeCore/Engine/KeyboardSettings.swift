@@ -78,6 +78,12 @@ public struct KeyboardSettings: Codable, Sendable, Equatable {
     /// when something goes wrong (`TypingRecorder`, Gabriel 6 Nov 2026). Off by default,
     /// only offered in TestFlight builds, and needs Full Access.
     public var recordsTyping = false
+    /// The person's text replacements, newest first (features/text-replacements):
+    /// a shortcut typed as a word goes in as its phrase.
+    public var textReplacements: [TextReplacement] = []
+    /// Also use the phone's own text replacements (Settings → General → Keyboard →
+    /// Text Replacement), which the keyboard reads from iOS. On by default.
+    public var usesPhoneReplacements = true
 
     /// The chosen theme's id: a built-in one (`KeyboardTheme.builtIn`) or one of
     /// `customThemes` (features/customization). Classic by default.
@@ -161,6 +167,8 @@ public struct KeyboardSettings: Codable, Sendable, Equatable {
         mixesLanguages = try c.decodeIfPresent(Bool.self, forKey: .mixesLanguages) ?? false
         showsStats = try c.decodeIfPresent(Bool.self, forKey: .showsStats) ?? false
         recordsTyping = try c.decodeIfPresent(Bool.self, forKey: .recordsTyping) ?? false
+        textReplacements = (try? c.decodeIfPresent([TextReplacement].self, forKey: .textReplacements)) ?? []
+        usesPhoneReplacements = try c.decodeIfPresent(Bool.self, forKey: .usesPhoneReplacements) ?? true
         themeID = try c.decodeIfPresent(String.self, forKey: .themeID) ?? KeyboardTheme.classic.id
         customThemes = (try? c.decodeIfPresent([KeyboardTheme].self, forKey: .customThemes)) ?? []
         keyAppearance = (try? c.decodeIfPresent(KeyAppearance.self, forKey: .keyAppearance)) ?? .system
@@ -194,6 +202,24 @@ public struct KeyboardSettings: Codable, Sendable, Equatable {
         return [first]
     }
 
+    /// Adds a replacement, or changes the one with the same id, keeping it first; one
+    /// with the same shortcut as another goes in its place. Returns false when the
+    /// shortcut or the phrase can't be used (`TextReplacements.shortcut`).
+    @discardableResult
+    public mutating func save(_ replacement: TextReplacement) -> Bool {
+        guard let shortcut = TextReplacements.shortcut(replacement.shortcut), !replacement.phrase.isEmpty else { return false }
+        var item = replacement
+        item.shortcut = shortcut
+        if let i = textReplacements.firstIndex(where: { $0.id == item.id }) {
+            textReplacements[i] = item
+            textReplacements.removeAll { $0.id != item.id && $0.shortcut == shortcut }
+        } else {
+            textReplacements.removeAll { $0.shortcut == shortcut }
+            textReplacements.insert(item, at: 0)
+        }
+        return true
+    }
+
     /// `base` with these settings applied; the rest of the engine's settings stay.
     public func composerSettings(from base: Composer.Settings = Composer.Settings()) -> Composer.Settings {
         var out = base
@@ -202,6 +228,7 @@ public struct KeyboardSettings: Codable, Sendable, Equatable {
         out.splitStrictness = min(max(splitStrictness, 0), 1)
         out.nextWords = nextWords
         out.mixesLanguages = mixesLanguages
+        out.replacements = TextReplacements(own: textReplacements)
         return out
     }
 }

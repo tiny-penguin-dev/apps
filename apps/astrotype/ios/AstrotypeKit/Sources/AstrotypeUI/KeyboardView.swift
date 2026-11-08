@@ -251,7 +251,7 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         }
         let keys = model.layout.height
         let top = max(0, bounds.height - keys - (barOnTop ? Self.barHeight : 0))
-        bar.leadingKey = showsGlobe && place == .top ? globeKey : nil
+        bar.leadingKey = (showsGlobe && place == .top) || globeInColumn(place) ? globeKey : nil
         switch place {
         case .top:
             bar.isHidden = false
@@ -325,8 +325,16 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
     }
 
     /// Whether our globe goes on the bottom row: only when there's no bar on top to
-    /// hold it (the bar is off, or the guesses are a column).
-    private func rowGlobe(_ place: BarPlace) -> Bool { showsGlobe && place != .top }
+    /// hold it and no split middle (the bar is off, or the guesses are a column at the
+    /// side of a wide keyboard).
+    private func rowGlobe(_ place: BarPlace) -> Bool { showsGlobe && place != .top && !globeInColumn(place) }
+
+    /// Whether our globe sits faded at the bottom of the split's middle column instead
+    /// of on the row, like the globe iOS draws under its keyboards (Gabriel, 8 Nov 2026).
+    private func globeInColumn(_ place: BarPlace) -> Bool {
+        guard showsGlobe, case .column = place else { return false }
+        return model.splitOnWide
+    }
 
     /// The split's extra letters, as set.
     private var extraLetters: Bool { model.keyboardSettings.splitExtraLetters

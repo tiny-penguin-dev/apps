@@ -287,7 +287,8 @@ public struct Layout: Sendable, Equatable {
             let pitch = unit + gap
             let leftEnd = (extra ? 5.5 : 4.5) * pitch + unit
             let backspaceX = 8.5 * pitch
-            let rightShift = width - max(9 * pitch + unit, backspaceX + wideKey)
+            // The right half ends at P's edge, as return does.
+            let rightShift = width - (9 * pitch + unit)
             let rightStart = (extra ? 3.5 : 4.5) * pitch + rightShift
             switch page {
             case .letters:
@@ -298,12 +299,14 @@ public struct Layout: Sendable, Equatable {
                 // Left half's own keys, then the right's, then the shared ones.
                 for c in 0..<5 { letter(0, c, shift: 0) }
                 for c in 0..<5 { letter(1, c, shift: 0) }
-                add(.shift, row: 2, x: 1.5 * pitch - gap - wideKey, width: wideKey)
+                // Shift and backspace reach each half's outer edge, under Q and P
+                // (Gabriel, 8 Nov 2026).
+                add(.shift, row: 2, x: 0, width: 1.5 * pitch - gap)
                 for c in 0..<4 { letter(2, c, shift: 0) }
                 for c in 5..<10 { letter(0, c, shift: rightShift) }
                 for c in 5..<9 { letter(1, c, shift: rightShift) }
                 for c in 4..<7 { letter(2, c, shift: rightShift) }
-                add(.backspace, row: 2, x: backspaceX + rightShift, width: wideKey)
+                add(.backspace, row: 2, x: backspaceX + rightShift, width: width - backspaceX - rightShift)
                 letter(1, 4, shift: rightShift); letter(2, 3, shift: rightShift)
                 if extra {
                     letter(0, 5, shift: 0); letter(1, 5, shift: 0); letter(2, 4, shift: 0)
@@ -313,29 +316,44 @@ public struct Layout: Sendable, Equatable {
                 // The same window on the numbers and symbols (Gabriel, 8 Nov 2026): a key
                 // in the middle is on both halves, as G and V are, and the extra letters
                 // add one more past the middle. The top rows are ten wide, so nothing
-                // sits in the middle there (as Q to P); the five marks sit on the
-                // letters' third-row columns, so "?" is under V and on both halves.
+                // sits in the middle there (as Q to P). On the third row the page key and
+                // backspace are as wide as ABC and the marks share the rest of each half
+                // evenly, so "?" is still on both halves, over V (Gabriel, 8 Nov 2026).
                 let table = page == .numbers ? numberRows : symbolRows
                 func symbol(_ row: Int, _ column: Int, shift dx: CGFloat) {
                     add(.symbol(table[row][column]), row: row, x: CGFloat(column) * pitch + dx, width: unit)
                 }
-                func mark(_ i: Int, shift dx: CGFloat) {
-                    add(.symbol(table[2][i]), row: 2, x: (CGFloat(i) + 2.5) * pitch + dx, width: unit)
+                // Each half's marks, between its edge key and its inner end (where the
+                // letters' third row ends or starts).
+                let leftMarks = extra ? 0..<4 : 0..<3
+                let rightMarks = extra ? 1..<5 : 2..<5
+                let leftRoomEnd = (CGFloat(leftMarks.upperBound - 1) + 2.5) * pitch + unit
+                let rightRoomStart = (CGFloat(rightMarks.lowerBound) + 2.5) * pitch + rightShift
+                func markFrames(_ marks: Range<Int>, from x0: CGFloat, to x1: CGFloat) -> [Int: (x: CGFloat, w: CGFloat)] {
+                    let n = CGFloat(marks.count)
+                    let w = (x1 - x0 - (n - 1) * gap) / n
+                    var out: [Int: (x: CGFloat, w: CGFloat)] = [:]
+                    for (k, i) in marks.enumerated() { out[i] = (x0 + CGFloat(k) * (w + gap), w) }
+                    return out
                 }
-                let edgeKey = 2.5 * pitch - gap
+                let leftHalf = markFrames(leftMarks, from: fnKey + gap, to: leftRoomEnd)
+                let rightHalf = markFrames(rightMarks, from: rightRoomStart, to: width - fnKey - gap)
+                func mark(_ i: Int, on half: [Int: (x: CGFloat, w: CGFloat)]) {
+                    add(.symbol(table[2][i]), row: 2, x: half[i]!.x, width: half[i]!.w)
+                }
                 // Left half's own keys, then the right's, then the shared ones.
                 for c in 0..<5 { symbol(0, c, shift: 0) }
                 for c in 0..<5 { symbol(1, c, shift: 0) }
-                add(page == .numbers ? .symbols : .numbers, row: 2, x: 0, width: edgeKey)
-                for i in 0..<3 { mark(i, shift: 0) }
+                add(page == .numbers ? .symbols : .numbers, row: 2, x: 0, width: fnKey)
+                for i in 0..<3 { mark(i, on: leftHalf) }
                 for c in 5..<10 { symbol(0, c, shift: rightShift) }
                 for c in 5..<10 { symbol(1, c, shift: rightShift) }
-                for i in 3..<5 { mark(i, shift: rightShift) }
-                add(.backspace, row: 2, x: 7.5 * pitch + rightShift, width: edgeKey)
-                mark(2, shift: rightShift)
+                for i in 3..<5 { mark(i, on: rightHalf) }
+                add(.backspace, row: 2, x: width - fnKey, width: fnKey)
+                mark(2, on: rightHalf)
                 if extra {
-                    symbol(0, 5, shift: 0); symbol(1, 5, shift: 0); mark(3, shift: 0)
-                    symbol(0, 4, shift: rightShift); symbol(1, 4, shift: rightShift); mark(1, shift: rightShift)
+                    symbol(0, 5, shift: 0); symbol(1, 5, shift: 0); mark(3, on: leftHalf)
+                    symbol(0, 4, shift: rightShift); symbol(1, 4, shift: rightShift); mark(1, on: rightHalf)
                 }
             }
             add(page == .letters ? .numbers : .letters, row: 3, x: 0, width: fnKey)
@@ -353,27 +371,26 @@ public struct Layout: Sendable, Equatable {
         case .letters:
             _ = keys(rows[0], as: Key.letter, row: 0, from: left)
             _ = keys(rows[1], as: Key.letter, row: 1, from: left + (unit + gap) / 2)
+            // Z to M stay centred as Apple's; shift and backspace take the rest of
+            // the row, out to Q's and P's edges (Gabriel, 8 Nov 2026).
             let row2Width = 2 * wideKey + 7 * unit + 8 * gap
-            x = ((width - row2Width) / 2).rounded()
-            add(.shift, row: 2, x: x, width: wideKey)
-            x = keys(rows[2], as: Key.letter, row: 2, from: x + wideKey + gap)
-            add(.backspace, row: 2, x: x, width: wideKey)
+            let lettersX = ((width - row2Width) / 2).rounded() + wideKey + gap
+            add(.shift, row: 2, x: left, width: lettersX - gap - left)
+            x = keys(rows[2], as: Key.letter, row: 2, from: lettersX)
+            add(.backspace, row: 2, x: x, width: left + rowWidth - x)
         case .numbers, .symbols:
             let table = page == .numbers ? numberRows : symbolRows
             _ = keys(table[0], as: Key.symbol, row: 0, from: left)
             _ = keys(table[1], as: Key.symbol, row: 1, from: left)
-            // Apple's third row (measured on iOS 26, Gabriel, 3 Nov 2026): the page key
-            // and backspace at the row's ends, 11.85% of its width each, and the five
-            // marks wide between them, 14.18% apart from 21.56% in, so each sits where
-            // Apple's does; ours grow into Apple's gaps up to `keyGap`.
-            let edgeKey = (0.1185 * rowWidth).rounded()
-            let pitch = 0.1418 * rowWidth
-            add(page == .numbers ? .symbols : .numbers, row: 2, x: left, width: edgeKey)
+            // The page key and backspace at the row's ends, as wide as ABC below, and
+            // the five marks share the rest evenly, `keyGap` apart (Gabriel, 8 Nov 2026).
+            add(page == .numbers ? .symbols : .numbers, row: 2, x: left, width: fnKey)
+            let markX = left + fnKey + gap
+            let markWidth = (rowWidth - 2 * fnKey - 6 * gap) / 5
             for (i, c) in table[2].enumerated() {
-                let center = left + rowWidth * 0.2156 + CGFloat(i) * pitch
-                add(.symbol(c), row: 2, x: center - (pitch - gap) / 2, width: pitch - gap)
+                add(.symbol(c), row: 2, x: markX + CGFloat(i) * (markWidth + gap), width: markWidth)
             }
-            add(.backspace, row: 2, x: left + rowWidth - edgeKey, width: edgeKey)
+            add(.backspace, row: 2, x: left + rowWidth - fnKey, width: fnKey)
         }
 
         x = left

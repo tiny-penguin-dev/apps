@@ -441,7 +441,7 @@ final class AppModel {
         guard let runs = environment.speedRuns?.load().runs else { return }
         var history = speedHistory
         history.add(runs)
-        for day in history.toReport(now: now), let speed = day.speed {
+        for speed in history.toReport(now: now).compactMap(\.speed) {
             environment.metrics.gauge("speed.everyday", value: speed.rounded(), [:])
         }
         history.reported(now: now)

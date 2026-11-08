@@ -57,7 +57,9 @@ Status: Approved 2026-11-06 (Gabriel: "Go ahead and build it")
   - *Styling:*
     - **Light or dark:** always the phone's mode. (A Like my phone / Light / Dark switch
       was here; Gabriel removed it on 8 Nov 2026 after it locked the keys dark on a light
-      phone, since the glass behind the keys always follows the phone.)
+      phone, since the glass behind the keys always follows the phone.) A Light look /
+      Dark look switch under the preview flips only the preview and the cards, never
+      saved, so both looks can be checked.
     - **Themes:** eight ready-made themes, each with a light and a dark look. Classic
       (today's Apple-like keys, free), Iceberg (pale blue, Astrotype's teal), Tuxedo
       (black keys, an orange beak for the thumb colour), Krill (pink and coral),

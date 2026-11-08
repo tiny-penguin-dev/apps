@@ -102,13 +102,16 @@ private extension RGBColor {
 
 // MARK: Styling
 
-/// The themes and the person's own. The keys always follow the phone's light or dark
-/// mode (Gabriel, 8 Nov 2026: a Light/Dark switch here locked the keys dark on a light
-/// phone).
+/// The themes and the person's own. The keyboard always follows the phone's light or
+/// dark mode (Gabriel, 8 Nov 2026: a saved Light/Dark switch here locked the keys dark on
+/// a light phone). The switch here only flips the preview and the cards, to see both
+/// looks; it is never saved and starts from the phone's mode each time.
 private struct StylingSettings: View {
     @Bindable var model: AppModel
     @Binding var path: [HomeView.Route]
     @Environment(\.colorScheme) private var scheme
+    /// The look being previewed, nil until the person flips it: the phone's.
+    @State private var previewDark: Bool?
 
     private let columns = [GridItem(.adaptive(minimum: 140), spacing: Theme.Space.s)]
 
@@ -116,8 +119,15 @@ private struct StylingSettings: View {
         let settings = model.keyboardSettings
         let pro = model.entitlement.allows(.styles)
         let shown = settings.style(allows: pro)
-        StylePreview(theme: shown, appearance: .system,
+        StylePreview(theme: shown, appearance: previewDark.map { $0 ? .dark : .light } ?? .system,
                      effects: settings.activeEffects(allows: model.entitlement.allows(.effects)))
+        Picker("Preview", selection: Binding(get: { isDark }, set: { previewDark = $0 })) {
+            Text("Light look").tag(false)
+            Text("Dark look").tag(true)
+        }
+        .pickerStyle(.segmented)
+        .padding(.top, Theme.Space.s)
+        GroupFootnote("Only changes the preview. The keyboard follows your phone's light or dark mode.")
 
         SectionLabel("Themes").padding(.top, Theme.Space.m)
         LazyVGrid(columns: columns, spacing: Theme.Space.s) {
@@ -153,7 +163,7 @@ private struct StylingSettings: View {
         }
     }
 
-    private var isDark: Bool { scheme == .dark }
+    private var isDark: Bool { previewDark ?? (scheme == .dark) }
 
     private func card(_ theme: KeyboardTheme, selected: Bool, locked: Bool) -> some View {
         Button {

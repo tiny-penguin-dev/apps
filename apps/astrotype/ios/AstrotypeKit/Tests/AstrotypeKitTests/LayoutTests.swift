@@ -288,6 +288,24 @@ import Testing
         #expect(Layout.qwerty(width: 390).openColumns(atLeast: 96).isEmpty)
     }
 
+    @Test func splitBottomRowGivesSpaceMoreRoom() {
+        for globe in [false, true] {
+            let full = Layout.qwerty(width: 1000, globe: globe)
+            let split = Layout.qwerty(width: 1000, split: true, globe: globe)
+            let fullFn = full.frame(of: .numbers)!.width
+            let fn = split.frame(of: .numbers)!.width
+            // A fifth narrower than on a whole keyboard, every key beside space alike.
+            #expect(abs(fn - 0.8 * fullFn) <= 1)
+            #expect(split.frame(of: .emoji)!.width == fn)
+            if globe { #expect(split.frame(of: .globe)!.width == fn) }
+            // Return is exactly two of them, gap included.
+            #expect(split.frame(of: .returnKey)!.width == 2 * fn + split.gap)
+            #expect(split.frame(of: .returnKey)!.maxX == 1000)
+            // The whole keyboard keeps Apple's widths.
+            #expect(full.frame(of: .returnKey)!.width == (2.66 * full.frame(of: .letter("q"))!.width).rounded())
+        }
+    }
+
     @Test func splitIsIgnoredOnAPhone() {
         let layout = Layout.qwerty(width: 390, split: true)
         #expect(!layout.split)

@@ -126,7 +126,9 @@ and Z to V on the left, Y to P, G to L and V to M on the right (G and V on both 
 nothing repeated on the top row; Gabriel, 2 Nov 2026, after trying more overlap). Settings
 "Extra letters on split" adds one more past the middle to each half (Y H B left, T F C
 right) for swiping across. Space on
-both sides, the guesses in the open middle (Gabriel, 2 Nov 2026).
+both sides, the guesses in the open middle (Gabriel, 2 Nov 2026). Split, the keys beside space
+(`123`, globe, emoji) are a fifth narrower than on the whole keyboard and return is
+exactly two of them wide, so both halves of space keep their room (Gabriel, 8 Nov 2026).
 
 ## The keyboard
 

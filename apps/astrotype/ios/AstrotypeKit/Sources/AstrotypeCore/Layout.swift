@@ -268,8 +268,11 @@ public struct Layout: Sendable, Equatable {
         let fnKeys: [Key] = bottom == .standard ? (globe ? [.globe, .emoji] : [.emoji]) : [globe ? .globe : .emoji]
 
         let wideKey = (1.45 * unit).rounded()
-        let fnKey = (1.33 * unit).rounded()
-        let returnKey = (2.66 * unit).rounded()
+        // Split, the keys beside space are a fifth narrower and return is exactly two of
+        // them, so each half's space keeps its room and return lines up with them
+        // (Gabriel, 8 Nov 2026). A whole keyboard keeps Apple's widths.
+        let fnKey = ((split ? 0.8 : 1) * 1.33 * unit).rounded()
+        let returnKey = split ? 2 * fnKey + gap : (2.66 * unit).rounded()
         var x: CGFloat
 
         if split {

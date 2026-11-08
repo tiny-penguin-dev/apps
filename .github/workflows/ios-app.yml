@@ -108,6 +108,11 @@ jobs:
 
       - uses: actions/checkout@v5
         if: steps.secrets.outputs.ready == 'true'
+        with:
+          # Full history (without file contents) so the What to Test notes can
+          # list the commits since the last build.
+          fetch-depth: 0
+          filter: blob:none
 
       - name: Write API key and read build settings
         if: steps.secrets.outputs.ready == 'true'
@@ -283,6 +288,15 @@ jobs:
             --org "$SENTRY_ORG" --project "$SENTRY_PROJECT" \
             --include-sources "$ARCHIVE/dSYMs" \
             || echo "::warning::Uploading debug symbols to Sentry failed. Crash reports for build $BUILD_NUMBER won't have line numbers."
+
+      - name: Set What to Test
+        if: steps.secrets.outputs.ready == 'true'
+        # Lists the app's commits since the previous TestFlight build. Waits for
+        # the build to show up in App Store Connect. A failure here only warns.
+        run: |
+          APP_FOLDER="$(echo "${{ inputs.app-dir }}" | cut -d/ -f1-2)"
+          python3 "$GITHUB_WORKSPACE/scripts/ios/asc-build-notes.py" "$BUNDLE_ID" "$BUILD_NUMBER" "$APP_FOLDER" \
+            || echo "::warning::Couldn't set the What to Test notes for build $BUILD_NUMBER."
 
       - name: Remove API key
         if: always()

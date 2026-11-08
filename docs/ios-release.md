@@ -125,6 +125,19 @@ in the group who isn't listed. To add or remove a tester, edit the list and push
   wait on the export compliance question. Change it per app if an app adds its own
   encryption.
 
+## What to Test notes
+
+After each upload, `scripts/ios/asc-build-notes.py` fills in the build's "What to Test"
+in TestFlight with what changed since the previous build. It finds the previous build in
+App Store Connect, turns its build number (the commit time) back into a point in git
+history, and lists the titles of the commits since then that touched `apps/<name>/`.
+Titles are cleaned up for testers: "Astrotype: fix extra spaces (#58)" becomes "Fix extra
+spaces". So PR titles are what testers read; write them in plain words.
+
+It waits up to 20 minutes for the build to show up in App Store Connect. If anything goes
+wrong it only warns: the build is already uploaded. Run it with `--dry-run` to print the
+notes without setting them.
+
 ## App Store listing (screenshots and subscriptions)
 
 Each app keeps parts of its App Store listing in `apps/<name>/store/`, and

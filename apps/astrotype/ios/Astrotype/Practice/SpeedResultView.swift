@@ -74,6 +74,14 @@ struct SpeedResultView: View {
         switch result.keyboard {
         case .astrotype:
             var claims: [String] = []
+            // Against the everyday speed first (features/typing-speed): what people
+            // actually type at.
+            if let everyday = model.everydaySpeed {
+                let gap = result.wordsPerMinute - everyday
+                if gap > 0 { claims.append("\(gap) faster than your everyday \(everyday)") }
+                else if gap < 0 { claims.append("\(-gap) under your everyday \(everyday)") }
+                else { claims.append("right on your everyday speed") }
+            }
             if let apple = model.appleWordsPerMinute {
                 let gap = result.wordsPerMinute - apple
                 if gap > 0 { claims.append("\(gap) faster than Apple's keyboard") }

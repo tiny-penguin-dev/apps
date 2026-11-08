@@ -19,7 +19,8 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
     `App/` (`AppModel`, the only thing views talk to; `AppEnvironment`, the one place
     real services are named; `LiveMetrics` on `Telemetry`), `Onboarding/`
     (`TurnOnView`, `LanguagesSetupView` (only on a phone set to two languages), `SyncView`, `TryItView`, and `SetupPage`, their shared shape),
-    `HelloView`, `HomeView`, `Settings/` (`SettingsView`, the main page with its
+    `HelloView`, `HomeView` (led by `SpeedCard`), `Speed/` (`SpeedViews`: `SpeedCard`, `SpeedHistoryView`,
+    `SpeedChart`; the everyday typing speed, features/typing-speed), `Settings/` (`SettingsView`, the main page with its
     `SettingsPage`s, and `SettingsPages`, one view per page; `StyleSettings`, Appearance's hub and its General, Styling, theme editor and Effects pages with the live `StylePreview` (features/customization); `DebugSettings`, the Debug page:
     the keyboard's memory against 40 MB from `KeyboardDebug`, the switch for the
     stats overlay on the keys, and in TestFlight builds the typing recorder: "Keep
@@ -116,7 +117,8 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
       `ProStore` with `MemoryProStore`, `TrialStore` and `ProCache` as files),
       `StoreKitProStore` (the live `ProStore`), `KeyboardStatus` (is the keyboard on),
       `Metrics` (protocol; the app's live one is `Telemetry`), `TryWord` (the Try it
-      words and their strokes), `Week`, `SpeedTest` (the test as it runs, `SpeedResult`),
+      words and their strokes), `Week`, `SpeedTest` (the test as it runs, `SpeedResult`), `TypingSpeed` (`SpeedMeter`,
+      `SpeedRun`, `SpeedRunStore`, `SpeedHistory`: the everyday speed, features/typing-speed),
       `Drill` (the three drills and their words), `Milestone` and `Streak`,
       `PracticeRecording` (a session's touches, `TouchRecorder`, `PracticeStore`, the
       `PracticeUploader` protocol with its fake; the live one is

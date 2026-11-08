@@ -65,6 +65,12 @@ final class KeyboardShared {
                 let store = SharedWordStore(folder: folder)
                 model.onCorrection = { word in store.save([word]) }
             }
+            // Timed stretches of typing for the app's everyday speed (features/typing-speed):
+            // counts and times only, and only with Full Access, where the app can read them.
+            if let url = KeyboardFiles.shared(KeyboardFiles.speedRuns) {
+                let store = SpeedRunStore(url: url)
+                model.onSpeedRun = { run in store.add(run) }
+            }
         }
         // Misses from "Not it?" are kept for "Words it missed" (features/missed-words):
         // in the App Group where the app can list them, else in our own files.

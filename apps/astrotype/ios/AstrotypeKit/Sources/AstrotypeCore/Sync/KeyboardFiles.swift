@@ -42,6 +42,11 @@ public enum KeyboardFiles {
     /// The phone's own text replacements as the keyboard last read them, for the app to
     /// copy into the person's list (`PhoneReplacementsFile`); App Group only.
     public static let phoneReplacements = "phone-replacements.json"
+    /// Timed stretches of typing for the everyday speed (`SpeedRuns`, features/typing-speed):
+    /// written by the keyboard, read by the app; App Group only.
+    public static let speedRuns = "speed-runs.json"
+    /// The app's days of typing speed (`SpeedHistory`); the app's own file.
+    public static let speedHistory = "speed-history.json"
 
     /// A file in this process's own Application Support folder.
     public static func own(_ name: String, fileManager: FileManager = .default) -> URL {

@@ -38,6 +38,7 @@ struct AstrotypeApp: App {
                 model.sync()
                 model.uploadPractice()
                 model.sendKeyboardHealth()
+                model.refreshSpeed()
                 Task { await model.refreshPro() }
             } else {
                 uploader.upload()

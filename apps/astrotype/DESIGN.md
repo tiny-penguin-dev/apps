@@ -169,8 +169,10 @@ This is the product, so it gets its own section.
   the words stack and the pencil sits under them; the globe goes back next to 123.
   The middle's states:
   - *Idle:* a short note ("Both thumbs, one word") or, with nothing to say, empty.
-  - *Open word:* up to three guesses, the chosen one in a white pill in the centre with
-    the others either side. That one is what space writes. Tapping any guess writes it.
+  - *Open word:* up to three guesses, the chosen one in a pill in the centre with
+    the others either side. The pill takes the theme's shift/delete/return colour and
+    see-through with the letters' colour; other words, notes and the bar's icons
+    (globe, pencil, ✕) are the letters' colour at 60%, never a separate gray. That one is what space writes. Tapping any guess writes it.
   - *Fix:* right after a commit, when there are no next words (or "Guess the next word"
     is off): the word just written in the pill, its other readings either side. Tap one
     and it replaces the word just written. Any new tap or swipe clears it.

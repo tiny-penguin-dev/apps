@@ -45,6 +45,11 @@ public final class BarView: UIView {
     public var canCorrect = false {
         didSet { if canCorrect != oldValue { render() } }
     }
+    /// What space writes when the open word is a text replacement's shortcut
+    /// (`Composer.State.replacement`): shown in the chosen word's pill.
+    public var replacement: String? {
+        didSet { if replacement != oldValue { render() } }
+    }
     /// A guess boosted or blocked, and how: "menu" or "slide".
     public var onBoost: ((Int, String) -> Void)?
     public var onForget: ((Int, String) -> Void)?
@@ -470,7 +475,7 @@ public final class BarView: UIView {
             stack.isHidden = true
         case .guesses(let words, let chosen):
             for i in middleFirst(words.count, chosen: chosen) {
-                add(words[i], index: i, chosen: i == chosen)
+                add(words[i], index: i, chosen: i == chosen, shown: i == chosen ? replacement : nil)
             }
         case .fix(let words, let chosen):
             // The word just written in the pill, its other readings either side.
@@ -596,16 +601,18 @@ public final class BarView: UIView {
         config.background.cornerRadius = 16
         config.titleLineBreakMode = .byTruncatingTail
         config.background.backgroundColor = chosen ? pillColor : .clear
-        config.attributedTitle = AttributedString(word, attributes: AttributeContainer([
+        config.attributedTitle = AttributedString(TextReplacements.oneLine(word), attributes: AttributeContainer([
             .font: guessFont(chosen: chosen),
             .foregroundColor: ink ?? (chosen ? pillInk : dimInk),
         ]))
         return config
     }
 
-    private func add(_ word: String, index: Int, chosen: Bool) {
-        let button = GuessButton(configuration: guessConfiguration(word, chosen: chosen))
-        button.accessibilityLabel = word
+    /// `shown`, when set, is what the word writes (a replacement's phrase), drawn in
+    /// its place.
+    private func add(_ word: String, index: Int, chosen: Bool, shown: String? = nil) {
+        let button = GuessButton(configuration: guessConfiguration(shown ?? word, chosen: chosen))
+        button.accessibilityLabel = shown.map { "\(word), writes \(TextReplacements.oneLine($0))" } ?? word
         if chosen {
             button.accessibilityTraits.insert(.selected)
             keptView = button

@@ -228,6 +228,30 @@ final class KeyboardViewController: UIInputViewController {
         return withUnsafeBytes(of: &info.machine) { raw in String(decoding: raw.prefix { $0 != 0 }, as: UTF8.self) }
     }()
 
+    /// The phone's own text replacements (Settings → General → Keyboard → Text
+    /// Replacement), which iOS gives a keyboard with the person's contacts' names: the
+    /// entries whose shortcut differs from what they write (features/text-replacements).
+    /// Read each time a new keyboard shows, after the opening, so a change there arrives.
+    private func readPhoneReplacements() {
+        guard KeyboardShared.current?.model.keyboardSettings.usesPhoneReplacements == true else { return }
+        let id = Self.phoneReplacementID
+        // iOS may answer off the main thread: the closure is @Sendable and hops back.
+        requestSupplementaryLexicon { @Sendable lexicon in
+            let items = lexicon.entries.compactMap { entry -> TextReplacement? in
+                guard let shortcut = TextReplacements.shortcut(entry.userInput),
+                      shortcut != entry.documentText.lowercased(), !entry.documentText.isEmpty else { return nil }
+                return TextReplacement(id: id, shortcut: shortcut, phrase: entry.documentText)
+            }
+            Task { @MainActor in
+                KeyboardShared.current?.model.phoneReplacements = items
+            }
+        }
+    }
+
+    /// One id for every phone replacement: they are never edited here, and the same
+    /// list read twice compares equal.
+    private static let phoneReplacementID = UUID(uuid: (0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0))
+
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
         isVisible = true
@@ -240,10 +264,12 @@ final class KeyboardViewController: UIInputViewController {
             synced = true
             if KeyboardShared.current?.hasSettledIn == true {
                 KeyboardShared.current?.sync?.sync()
+                readPhoneReplacements()
             } else {
-                Task { @MainActor in
+                Task { @MainActor [weak self] in
                     try? await Task.sleep(for: .seconds(1))
                     KeyboardShared.current?.settleIn()
+                    self?.readPhoneReplacements()
                 }
             }
         }

@@ -112,6 +112,11 @@ public struct Field: Sendable, Equatable, Codable {
     /// for a period): not in an address or a number.
     public var spacesWords: Bool { ![.email, .url, .numbers].contains(kind) && !exactTapsOnlyBecauseCode }
 
+    /// Text replacements apply (features/text-replacements): where the keyboard may
+    /// learn, and in an address too (a shortcut for your email). Not in a password, a
+    /// code, a number or a field with corrections off.
+    public var replacesText: Bool { learns || kind == .email || kind == .url }
+
     /// Autospace runs: where words get spaces, and not in a search, which is often one
     /// word and goes with return.
     public var autospaces: Bool { spacesWords && kind != .webSearch }
@@ -143,6 +148,7 @@ public struct Field: Sendable, Equatable, Codable {
         out.capitals = capitals
         out.exactTaps = exactTaps
         out.spacesWords = spacesWords
+        out.replacesText = replacesText
         return out
     }
 }

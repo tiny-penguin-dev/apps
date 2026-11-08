@@ -201,6 +201,8 @@ private struct WordsSettings: View {
                          value: "\(model.learnedWords.recent.count)") { path.append(.learnedWords) }
             SettingsLink("Never suggest", subtitle: "Words it won't offer", symbol: "nosign", tint: Theme.right,
                          value: "\(model.learnedWords.blocked.count)") { path.append(.neverSuggest) }
+            SettingsLink("Text replacements", subtitle: "Type a shortcut, get a phrase or today's date", symbol: "text.insert",
+                         tint: Theme.sun, value: "\(model.keyboardSettings.textReplacements.count)") { path.append(.textReplacements) }
             SettingsLink("Word pairs", subtitle: "Words you write one after another", symbol: "text.word.spacing", tint: Theme.mint,
                          value: model.personalSummary.pairs.formatted()) { path.append(.wordPairs) }
             SettingsLink("Words it missed", subtitle: missedSubtitle, symbol: "pencil", tint: Theme.mint,

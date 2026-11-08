@@ -46,8 +46,16 @@ public struct Matcher: Sendable {
     /// What the person taught the keyboard: a weight on dictionary words, and words of
     /// their own, which a swipe can land on like any other (`learnedPrior`).
     public var learned: LearnedWords {
-        didSet { learnedLexicon = Self.lexicon(of: learned) }
+        didSet { learnedLexicon = Self.lexicon(of: learned, shortcuts: shortcuts) }
     }
+    /// The text replacements' shortcuts (features/text-replacements), lowercase: searched
+    /// with the person's own words, so a swipe or taps can land on one, ranked like a
+    /// word they write often (`shortcutPrior`).
+    public var shortcuts: Set<String> = [] {
+        didSet { if shortcuts != oldValue { learnedLexicon = Self.lexicon(of: learned, shortcuts: shortcuts) } }
+    }
+    /// The log frequency a shortcut counts as: a fairly common word.
+    public var shortcutPrior: Float = -5
     /// What the keyboard learned from the person's typing (features/smart-matching
     /// Phase B): words they use more than most people and the pairs they write.
     public var personal = PersonalIndex()
@@ -238,8 +246,10 @@ public struct Matcher: Sendable {
         return min(bonus, personalCap)
     }
 
-    static func lexicon(of learned: LearnedWords) -> Lexicon {
-        Lexicon(entries: learned.entries.keys.filter { learned.contains($0) }.map { Lexicon.Entry(word: $0, frequency: 1) })
+    static func lexicon(of learned: LearnedWords, shortcuts: Set<String> = []) -> Lexicon {
+        let own = Set(learned.entries.keys.filter { learned.contains($0) })
+            .union(shortcuts.filter { !learned.isBlocked($0) })
+        return Lexicon(entries: own.sorted().map { Lexicon.Entry(word: $0, frequency: 1) })
     }
 
     /// The guesses, best first. `final` is false while the word is still being typed:
@@ -402,7 +412,9 @@ public struct Matcher: Sendable {
 
     /// The log prior of a word of the person's own, from how often they wrote it.
     func ownPrior(_ word: String) -> Float {
-        learned.logPrior(of: learnedLexicon.spellings(of: word).first?.word ?? word, base: learnedPrior)
+        let written = learnedLexicon.spellings(of: word).first?.word ?? word
+        let prior = learned.logPrior(of: written, base: learnedPrior)
+        return shortcuts.contains(written) ? max(prior, shortcutPrior) : prior
     }
 
     /// Words and scores as guesses, best first (ties alphabetical, so runs repeat).

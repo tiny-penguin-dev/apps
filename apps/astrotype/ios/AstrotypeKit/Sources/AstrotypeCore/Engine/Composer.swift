@@ -207,6 +207,10 @@ public struct Composer: Sendable {
     private var casing: Casing = .lower
     private var shift: Shift = .off
     private var lastShiftPress: TimeInterval?
+    /// Shift was tapped to turn off the capital a sentence start would give (Apple's
+    /// keyboard does the same): the next word starts lowercase. Spent like one-shot shift,
+    /// and gone once anything else is typed or the text before the cursor changes.
+    private var autoShiftDismissed = false
     private var committed: Committed?
     /// The space before the cursor is one the keyboard wrote by itself (autospace or a
     /// guess from the bar), so a space pressed now is not a second one, and punctuation
@@ -310,6 +314,7 @@ public struct Composer: Sendable {
             // A new word: its case is decided now, and one-shot shift is spent.
             casing = effectiveShift == .locked ? .upper : effectiveShift == .on ? .capital : .lower
             if shift == .on { shift = .off }
+            autoShiftDismissed = false
             joinable = committed.flatMap { last in
                 last.autospaced.map { time - $0 <= Self.joinWindow } == true && contextBefore.hasSuffix(last.word + last.trailing) ? last : nil
             }
@@ -414,6 +419,8 @@ public struct Composer: Sendable {
             autoSpaced = false
             wordSpace = false
             lastSpace = nil
+            // A letter press is a tap: `touchDown` reads the dismissal first, then spends it.
+            if key.character == nil { autoShiftDismissed = false }
         }
         switch key {
         case .letter(let c):
@@ -454,8 +461,19 @@ public struct Composer: Sendable {
         case .shift:
             if let last = lastShiftPress, time - last < 0.35 {
                 shift = shift == .locked ? .off : .locked
+                autoShiftDismissed = false
+            } else if shift == .on {
+                // Off again: lowercase, even where a sentence start would capitalise.
+                shift = .off
+                autoShiftDismissed = true
+            } else if shift == .locked {
+                shift = .off
+            } else if effectiveShift != .off {
+                // A sentence start's capital: one tap turns it off for this word.
+                autoShiftDismissed = true
             } else {
-                shift = shift == .off ? .on : .off
+                shift = .on
+                autoShiftDismissed = false
             }
             lastShiftPress = time
         case .symbol(let c):
@@ -580,6 +598,7 @@ public struct Composer: Sendable {
         // A sentence ended right before the cursor ("Hi.") still needs its space.
         let gap = contextBefore.last.map { $0.isWhitespace || $0.isNewline } ?? true ? "" : " "
         if shift == .on { shift = .off }
+        autoShiftDismissed = false
         let learn = wordToLearn(word)
         committed = Committed(word: word, trailing: " ", pieces: [], guesses: [word], casing: casing,
                               previous: matcher.context.last, firstGuess: word, learned: learn, picked: true)
@@ -723,6 +742,7 @@ public struct Composer: Sendable {
     /// changed on its own. Sentence starts capitalise from it, and the matcher reads
     /// the words before the open one from it.
     public mutating func setContext(before: String?) {
+        if (before ?? "") != contextBefore { autoShiftDismissed = false }
         contextBefore = before ?? ""
         // The cursor moved, or the app changed the text: that space is gone from under it.
         if let before, !before.hasSuffix(" ") {
@@ -1115,7 +1135,7 @@ public struct Composer: Sendable {
 
     private var effectiveShift: Shift {
         if shift != .off { return shift }
-        guard settings.autoCapitalize, pieces.isEmpty, open.isEmpty else { return .off }
+        guard settings.autoCapitalize, !autoShiftDismissed, pieces.isEmpty, open.isEmpty else { return .off }
         switch settings.capitals {
         case .none: return .off
         case .all: return .locked

@@ -361,6 +361,7 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         }
         if let searchView { showSearchResults(in: searchView) }
         surface.shifted = model.state.isShifted
+        surface.capsLocked = model.state.shift == .locked
         // Themes and effects are Pro, except Classic and Calm (features/customization).
         surface.theme = model.keyboardSettings.style(allows: model.entitlement.allows(.styles))
         surface.keyAppearance = model.keyboardSettings.keyAppearance

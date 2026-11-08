@@ -57,6 +57,15 @@ public final class KeySurfaceView: UIView {
         }
     }
 
+    /// Caps lock is on: the shift key shows Apple's caps lock glyph (the arrow with a bar).
+    public var capsLocked = false {
+        didSet {
+            guard capsLocked != oldValue else { return }
+            keyViews.values.forEach { $0.forEach { $0.capsLocked = capsLocked } }
+            refreshAccessibilityLabels()
+        }
+    }
+
     /// What the return key says for the field (features/field-types): the arrow, or
     /// the app's word on grey, or on blue for an action.
     public var returnKey: Field.ReturnKey = .return {
@@ -355,6 +364,7 @@ public final class KeySurfaceView: UIView {
             keyView.frame = placement.frame.insetBy(dx: style.keyInset, dy: style.keyInset)
             keyView.lettersElsewhere = fx.hidesLabels
             keyView.shifted = shifted
+            keyView.capsLocked = capsLocked
             if placement.key == .returnKey {
                 keyView.returnKey = returnKey
                 keyView.enabled = returnEnabled
@@ -404,7 +414,7 @@ public final class KeySurfaceView: UIView {
         switch key {
         case .letter(let c): shifted ? "capital \(c)" : String(c)
         case .symbol(let c): String(c)
-        case .shift: shifted ? "Shift, on" : "Shift"
+        case .shift: capsLocked ? "Caps lock, on" : shifted ? "Shift, on" : "Shift"
         case .backspace: "Delete"
         case .numbers: "Numbers"
         case .symbols: "More symbols"
@@ -919,6 +929,9 @@ final class KeyView: UIView {
             if key == .shift { icon.image = symbol }
         }
     }
+    var capsLocked = false {
+        didSet { if key == .shift { icon.image = symbol } }
+    }
     /// For the return key: what it says, and whether it is blue.
     var returnKey: Field.ReturnKey = .return {
         didSet {
@@ -1093,7 +1106,7 @@ final class KeyView: UIView {
     private var symbol: UIImage? {
         let name: String
         switch key {
-        case .shift: name = shifted ? "shift.fill" : "shift"
+        case .shift: name = capsLocked ? "capslock.fill" : shifted ? "shift.fill" : "shift"
         case .backspace: name = "delete.left"
         case .globe: name = "globe"
         case .emoji: name = "face.smiling"

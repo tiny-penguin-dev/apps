@@ -88,6 +88,27 @@ public enum HomePlanner {
         "Squawk · \(alarm.title) · \(time.short)"
     }
 
+    /// HomeKit refuses a name that doesn't end in a letter or number ("Name does not end
+    /// with valid characters", HMErrorDomain 60), like "Squawk · Up!" or "Squawk · Up (2)".
+    public static func homeKitSafe(_ name: String) -> String {
+        var name = name
+        while let last = name.last, !(last.isLetter || last.isNumber) { name.removeLast() }
+        return name
+    }
+
+    /// `name` made valid and not in `taken`: a number after it ("Squawk · Wake up 2"),
+    /// not in brackets, which HomeKit would refuse.
+    public static func uniqueName(_ name: String, taken: Set<String>) -> String {
+        let base = homeKitSafe(name)
+        var candidate = base
+        var n = 2
+        while taken.contains(candidate) {
+            candidate = "\(base) \(n)"
+            n += 1
+        }
+        return candidate
+    }
+
     /// Every automation Squawk makes starts with this, so it can tell its own apart.
     public static let namePrefix = "Squawk · "
 }

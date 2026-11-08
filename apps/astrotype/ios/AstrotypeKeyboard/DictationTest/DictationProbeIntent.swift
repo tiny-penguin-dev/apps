@@ -49,6 +49,19 @@ struct DictationTalkIntent: AudioRecordingIntent, LiveActivityIntent {
     }
 }
 
+/// The Live Activity's Done button. Not an AudioRecordingIntent: iOS kills the app
+/// (ASTROTYPE-6) when an AudioRecordingIntent finishes with the audio session still
+/// active but no Live Activity, which is what "Pause mic" + "Hide Live Activity" does.
+struct DictationDoneIntent: LiveActivityIntent {
+    static let title: LocalizedStringResource = "Done talking (dictation test)"
+    static let description = IntentDescription("Astrotype test: stops listening in the running dictation session.")
+
+    func perform() async throws -> some IntentResult {
+        await DictationRunner.talk(source: "Live Activity Done, in \(DictationProbeLog.place)")
+        return .result()
+    }
+}
+
 /// Ends the session (the Live Activity's Stop button).
 struct StopDictationProbeIntent: LiveActivityIntent {
     static let title: LocalizedStringResource = "Stop dictation test"

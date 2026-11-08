@@ -53,10 +53,17 @@ private struct Buttons: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            Button(intent: DictationTalkIntent()) {
-                Label(listening ? "Done" : "Talk", systemImage: listening ? "stop.fill" : "mic.fill")
+            if listening {
+                Button(intent: DictationDoneIntent()) {
+                    Label("Done", systemImage: "stop.fill")
+                }
+                .tint(.red)
+            } else {
+                Button(intent: DictationTalkIntent()) {
+                    Label("Talk", systemImage: "mic.fill")
+                }
+                .tint(.blue)
             }
-            .tint(listening ? .red : .blue)
             Button(intent: StopDictationProbeIntent()) {
                 Label("End", systemImage: "xmark")
             }

@@ -35,7 +35,8 @@ public struct SpeedResult: Codable, Sendable, Equatable {
 ///
 ///     var test = SpeedTest(sentences: SpeedTest.pick())
 ///     test.start(at: t0)                        // the first touch on the keys
-///     test.commit("the", at: t1)                // .next, .sentence, .finished or .miss
+///     test.commit("the", at: t1)                // .next, .sentence or .finished; a wrong
+///                                               // word moves on too, marked (`isMissed`)
 ///     test.result(date: Date(), keyboard: .astrotype)
 ///
 /// Words per minute is the usual measure: characters typed (letters and the spaces
@@ -74,8 +75,6 @@ public struct SpeedTest: Sendable, Equatable {
         case sentence
         /// The word was right and finished the test.
         case finished
-        /// Not the word asked for: it stays, to be typed again.
-        case miss
     }
 
     /// The sentences, as words.
@@ -86,6 +85,12 @@ public struct SpeedTest: Sendable, Equatable {
     public private(set) var finished: TimeInterval?
     public private(set) var fixes = 0
     public private(set) var misses = 0
+    /// Words typed wrong, by place in the whole test (`typedWords` when they went in):
+    /// marked red and left out of the speed. The test moves on instead of clearing the
+    /// field (Gabriel, 8 Nov 2026).
+    public private(set) var missed: Set<Int> = []
+    /// Whether the last word that went in was wrong.
+    public private(set) var lastMissed = false
     /// The sentences this test was seeded from, for a second run on Apple's keyboard.
     public let seed: UInt64?
 
@@ -127,9 +132,10 @@ public struct SpeedTest: Sendable, Equatable {
     public mutating func commit(_ typed: String, at time: TimeInterval) -> Outcome {
         guard let expected = expectedWord else { return .finished }
         start(at: time)
-        guard Self.normalize(typed) == expected else {
+        lastMissed = Self.normalize(typed) != expected
+        if lastMissed {
             misses += 1
-            return .miss
+            missed.insert(typedWords)
         }
         word += 1
         if word < current.count { return .next }
@@ -138,6 +144,11 @@ public struct SpeedTest: Sendable, Equatable {
         if sentence < sentences.count { return .sentence }
         finished = time
         return .finished
+    }
+
+    /// Whether word `index` of the current sentence was typed wrong.
+    public func isMissed(word index: Int) -> Bool {
+        missed.contains(sentences.prefix(sentence).reduce(0) { $0 + $1.count } + index)
     }
 
     /// A word was corrected from the bar after it was written.
@@ -152,12 +163,15 @@ public struct SpeedTest: Sendable, Equatable {
     }
 
     /// Characters typed so far, letters and the spaces between words: the measure
-    /// words per minute is made from (five characters to a word).
+    /// words per minute is made from (five characters to a word). Wrong words don't count.
     public var charactersTyped: Int {
         var count = 0
+        var index = 0
         for (i, words) in sentences.enumerated() {
             let done = i < sentence ? words : (i == sentence ? Array(words.prefix(word)) : [])
-            count += done.reduce(0) { $0 + $1.count } + max(0, done.count - 1)
+            let right = done.enumerated().filter { !missed.contains(index + $0.offset) }.map(\.element)
+            count += right.reduce(0) { $0 + $1.count } + max(0, done.count - 1)
+            index += words.count
         }
         return count
     }

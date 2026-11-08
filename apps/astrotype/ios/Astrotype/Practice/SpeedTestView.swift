@@ -4,7 +4,7 @@ import SwiftUI
 import UIKit
 
 /// DESIGN.md screen 6: three sentences to type, the typed words turning mint, a timer
-/// that starts on the first touch, a wrong word shaking the field. On the Astrotype
+/// that starts on the first touch, a wrong word turning red while you keep going. On the Astrotype
 /// keyboard, or on Apple's for the comparison on Home (the same three sentences,
 /// through the system keyboard). Ends in the result screen.
 struct SpeedTestView: View {
@@ -62,7 +62,7 @@ struct SpeedTestView: View {
                 .animation(Theme.Motion.quickSpring(reduceMotion: reduceMotion), value: test.typedWords)
             Text(keyboard == .apple
                  ? "Sentence \(test.sentence + 1) of \(test.sentences.count), on Apple's keyboard. Space after each word."
-                 : "Sentence \(test.sentence + 1) of \(test.sentences.count). Space after each word; a wrong word clears to try again.")
+                 : "Sentence \(test.sentence + 1) of \(test.sentences.count). Space after each word; a wrong word turns red and you keep going.")
                 .font(.sw(.small)).foregroundStyle(Theme.muted)
             field
                 .frame(minHeight: 96, maxHeight: 150)
@@ -76,11 +76,17 @@ struct SpeedTestView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
-    /// The current sentence, the typed words in mint.
+    /// The current sentence: the typed words in mint, a wrong one in red and struck
+    /// through, the rest plain.
     private var sentence: Text {
-        let typed = test.typed.joined(separator: " ")
-        let remaining = test.remaining.joined(separator: " ")
-        return Text(typed.isEmpty ? "" : typed + " ").foregroundStyle(Theme.mint).bold() + Text(remaining)
+        var text = Text("")
+        for (i, word) in test.typed.enumerated() {
+            let piece = Text(word + " ").bold()
+            text = text + (test.isMissed(word: i)
+                ? piece.foregroundStyle(Theme.danger).strikethrough(color: Theme.danger)
+                : piece.foregroundStyle(Theme.mint))
+        }
+        return text + Text(test.remaining.joined(separator: " "))
     }
 
     @ViewBuilder
@@ -131,11 +137,9 @@ struct SpeedTestView: View {
         guard result == nil else { return }
         model.recordPractice()
         let outcome = test.commit(word, at: Self.uptime)
+        // A wrong word stays in the field and turns red in the sentence; the test moves on.
+        if test.lastMissed { shake() }
         switch outcome {
-        case .miss:
-            shake()
-            session?.clear()
-            appleText = ""
         case .next:
             break
         case .sentence:

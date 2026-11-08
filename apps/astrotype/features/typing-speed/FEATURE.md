@@ -15,7 +15,7 @@ speed as well. Don't remove the practice though."
 
 ## Product
 
-Status: Draft
+Status: Approved 2026-11-08 (Gabriel: "build it")
 
 - **The problem:** the only speed Astrotype knows is the speed test, three sentences
   typed while trying hard. People want to know if they're actually typing faster day to
@@ -79,7 +79,7 @@ drill history; the build PR updates its table.)
 
 ## Design
 
-Status: Draft
+Status: Approved 2026-11-08 (Gabriel: "build it")
 
 Mockup: [`design/mockups/typing-speed.html`](design/mockups/typing-speed.html).
 
@@ -116,7 +116,7 @@ Mockup: [`design/mockups/typing-speed.html`](design/mockups/typing-speed.html).
 
 ## Build
 
-Status: Draft
+Status: Approved 2026-11-08 (Gabriel: "build it")
 
 - **Core** (`AstrotypeCore`, `App/TypingSpeed.swift`, pure, tests on Linux):
   - `SpeedRun` (started, seconds, characters, words) and `SpeedMeter`: touches and

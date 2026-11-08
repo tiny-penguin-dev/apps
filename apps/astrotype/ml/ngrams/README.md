@@ -35,6 +35,15 @@ swift run -c release astrotype-tools next thank      # you 0.862, god 0.043, ...
 `--lambda` sets the interpolation weight (0.7). Shipped on 2026-11-02 from the
 export of that day: 24,250 words, 300,000 pairs.
 
+## English word list
+
+The first 40,000 English words are wordfreq's commonest (up to 14 letters, from the
+older decoder pipeline). On 2026-11-07 `grow_lexicon.py` added the next most common
+words that the Hunspell en_US dictionary spells, to 78,024 in all ("overwritten",
+"congratulations"), leaving out web slips and run-together words ("hte", "inthe")
+that wordfreq lists past that point. Its docstring has the commands. The word pairs
+above were counted on the 40,000; the new words have none yet.
+
 ## Spanish
 
 The word list comes from `wordfreq`'s Spanish counts, with accents as they are

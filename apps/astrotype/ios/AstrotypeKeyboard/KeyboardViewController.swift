@@ -1,5 +1,6 @@
 import AstrotypeCore
 import AstrotypeUI
+import SwiftUI
 import Synchronization
 import UIKit
 
@@ -51,9 +52,18 @@ final class KeyboardViewController: UIInputViewController {
     /// Whether this keyboard has had its sync (one per keyboard iOS shows).
     private var synced = false
     private var uptime: Double { ProcessInfo.processInfo.systemUptime }
+    /// The dictation test panel (throwaway spike, DictationTest/).
+    private var dictationProbe: UIHostingController<DictationProbePanel>?
 
     deinit {
         if counted { LiveCount.controllers.subtract(1, ordering: .relaxed) }
+        // iOS can free a controller without ever calling `viewDidDisappear`, and keeps
+        // its view in a window: the keys stayed behind, one per keyboard (Gabriel, 7 Nov
+        // 2026: "5 key views" with 1 keyboard). Taken out here, they go with it.
+        MainActor.assumeIsolated {
+            keyboard?.rest()
+            keyboard?.removeFromSuperview()
+        }
     }
 
     override func viewDidLoad() {
@@ -111,8 +121,11 @@ final class KeyboardViewController: UIInputViewController {
         // Haptics do nothing in an extension without Full Access (Phase 1), so the
         // generators are not even prepared then.
         keyboard.hapticsAvailable = fullAccess
-        keyboard.onSystemKey = { [weak self] key in
-            if key == .globe { self?.advanceToNextInputMode() }
+        // iOS's own globe handling: a tap goes to the next keyboard, a hold shows the
+        // list. `advanceToNextInputMode()` crashed the app being typed in on iOS 27.2,
+        // every time (`KeyboardView.onGlobeTouch`).
+        keyboard.onGlobeTouch = { [weak self] view, event in
+            self?.handleInputModeList(from: view, with: event)
         }
         // The guesses bar going on or off, or the split, changes the height to ask for.
         keyboard.onHeightChange = { [weak self] _ in self?.view.setNeedsLayout() }
@@ -159,6 +172,7 @@ final class KeyboardViewController: UIInputViewController {
         if opening == nil { opening = OpenTiming(now: uptime) } else { opening?.step("wait", now: uptime) }
         let keyboard = makeKeyboard()
         mount(keyboard)
+        keyboard.wake()
         heightRetries = 0
         // The process's one model types into whichever keyboard is showing.
         KeyboardShared.current?.showing = self
@@ -185,6 +199,7 @@ final class KeyboardViewController: UIInputViewController {
         if recording { model.snapshot() }
         logMemory("show")
         model.contextChanged()
+        updateDictationProbe(&dictationProbe)
     }
 
     /// Starts or stops the typing recorder with the setting (Full Access only).
@@ -273,6 +288,9 @@ final class KeyboardViewController: UIInputViewController {
         super.viewDidDisappear(animated)
         guard !isVisible else { return }
         keyboard?.removeFromSuperview()
+        // And its drawing surfaces go: one key view stayed alive after its keyboard
+        // went (Gabriel, 7 Nov 2026: "1 keyboard · 2 key views"), holding ~7 MB.
+        keyboard?.rest()
     }
 
     override func didReceiveMemoryWarning() {

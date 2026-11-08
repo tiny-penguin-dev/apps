@@ -40,11 +40,13 @@ final class TrailDrawing {
 }
 
 /// Calls a closure from a display link (a display link needs an Objective-C target).
+/// The closure returns false when its owner is gone, and the link stops: the run loop
+/// keeps a link alive, so it would otherwise tick forever.
 @MainActor
 private final class LinkTarget: NSObject {
-    let tick: @MainActor () -> Void
-    init(_ tick: @escaping @MainActor () -> Void) { self.tick = tick }
-    @objc func step() { tick() }
+    let tick: @MainActor () -> Bool
+    init(_ tick: @escaping @MainActor () -> Bool) { self.tick = tick }
+    @objc func step(_ link: CADisplayLink) { if !tick() { link.invalidate() } }
 }
 
 /// The small images particles are drawn with, made once.
@@ -156,7 +158,9 @@ enum Palette {
 /// touch: it only draws.
 @MainActor
 final class KeyEffects {
-    unowned let surface: KeySurfaceView
+    /// Weak: a burst or a display link tick can outlive the surface by a frame (the
+    /// Style preview closing mid-burst crashed reading it unowned, ASTROTYPE-4).
+    private(set) weak var surface: KeySurfaceView?
     var settings: EffectsSettings? = .calm {
         didSet { if settings != oldValue { settingsChanged() } }
     }
@@ -183,14 +187,48 @@ final class KeyEffects {
     private var skyGoneAt: TimeInterval?
     private var letters: LetterRenderer?
     private var lettersDirty = false
+    /// Frames in a row the Metal letters could not draw (no drawable yet, or a letter
+    /// missing from the atlas): the link keeps trying for ~2 s, then gives up and the
+    /// keys keep their own labels.
+    private var undrawnFrames = 0
+    /// Whether the Metal letters are on screen now: a frame drew every letter key. The
+    /// keys hide their own labels only then (`hidesLabels`), so a frame that can't draw
+    /// (no drawable, or letters missing from the atlas) leaves the keys' own letters
+    /// showing instead of blank keys (Gabriel, 8 Nov 2026: "failed to load the key
+    /// letters", again after #167).
+    private(set) var lettersShown = false {
+        didSet { if lettersShown != oldValue { onLettersShown?() } }
+    }
     private var bursts = 0
     private var bursting = false
     private var glowing = false
+
+    /// Off screen (`KeySurfaceView.rest`): the Metal letters, the sky, the fall and the
+    /// display link are dropped, so a hidden keyboard holds no drawing surfaces
+    /// (Gabriel, 7 Nov 2026: a key view iOS kept after its keyboard went still held
+    /// ~7 MB of IOSurface). They come back with `applyLevel` and `lettersChanged`.
+    var resting = false {
+        didSet {
+            guard resting != oldValue else { return }
+            if resting {
+                stopLink()
+                removeFall()
+                sky?.layer.removeFromSuperlayer()
+                sky = nil
+                skyGoneAt = nil
+            } else {
+                applyLevel()
+            }
+        }
+    }
 
     init(surface: KeySurfaceView) {
         self.surface = surface
         layer.isOpaque = false
     }
+
+    /// The screen scale to draw at.
+    private var scale: CGFloat { surface?.traitCollection.displayScale ?? UITraitCollection.current.displayScale }
 
     private var reduceMotion: Bool { UIAccessibility.isReduceMotionEnabled }
 
@@ -223,7 +261,15 @@ final class KeyEffects {
 
     /// Whether the Metal letters draw the letter keys' labels: wanted, and Metal is in
     /// (`MetalKeyboard.load`); until then the keys draw their own.
-    var drawsLetters: Bool { wantsMetalLetters && MetalKeyboard.shared != nil }
+    var drawsLetters: Bool { !resting && wantsMetalLetters && MetalKeyboard.shared != nil }
+
+    /// Whether the letter keys hide their own labels: the Metal letters draw them and a
+    /// frame of them is on screen (`lettersShown`). Until then the keys keep theirs.
+    var hidesLabels: Bool { drawsLetters && lettersShown }
+
+    /// Called when the Metal letters come on screen or go, so the keys show or hide
+    /// their own labels (`KeySurfaceView.applyLabels`).
+    var onLettersShown: (() -> Void)?
 
     /// Called when Metal is in after an effect asked for it, so the keys' labels can
     /// move to the Metal letters (`KeySurfaceView.applyLetterMode`).
@@ -251,6 +297,9 @@ final class KeyEffects {
         if let letters { host.addSublayer(letters.layer) }
         host.addSublayer(effects)
         host.addSublayer(layer)
+        // New keys (another page or field): the atlas follows them, or letters only on
+        // this page (the 123 page's, say) would draw nothing on the letters.
+        prepareLetters()
         lettersDirty = true
         if letters != nil { ensureLink() }
     }
@@ -258,8 +307,8 @@ final class KeyEffects {
     func layout(_ bounds: CGRect) {
         guard layer.frame != bounds else { return }
         layer.frame = bounds
-        sky?.layout(bounds, scale: surface.traitCollection.displayScale)
-        letters?.layout(bounds, scale: surface.traitCollection.displayScale)
+        sky?.layout(bounds, scale: scale)
+        letters?.layout(bounds, scale: scale)
         layoutFall()
         lettersDirty = true
         if letters != nil { ensureLink() }
@@ -282,32 +331,41 @@ final class KeyEffects {
     /// The letter or key effect, the theme or the keys changed: make, remake or drop the
     /// Metal layer over the keys (letters and key effects share it).
     func lettersChanged() {
-        guard wantsMetalLayer, let metal = MetalKeyboard.shared, let host else {
-            if wantsMetalLayer, MetalKeyboard.shared == nil { requestMetal() }
+        guard !resting, wantsMetalLayer, let metal = MetalKeyboard.shared, let host else {
+            if !resting, wantsMetalLayer, MetalKeyboard.shared == nil { requestMetal() }
             letters?.layer.removeFromSuperlayer()
             letters = nil
+            lettersShown = false
             return
         }
         if letters == nil {
+            lettersShown = false
             let renderer = LetterRenderer(metal: metal)
             if let effectsLayer, effectsLayer.superlayer === host {
                 host.insertSublayer(renderer.layer, below: effectsLayer)
             } else {
                 host.addSublayer(renderer.layer)
             }
-            renderer.layout(layer.bounds, scale: surface.traitCollection.displayScale)
+            renderer.layout(layer.bounds, scale: scale)
             letters = renderer
         }
         letters?.keyMode = wantsMetalKeys ? settings?.keys ?? .none : .none
         if drawsLetters {
             letters?.mode = settings?.letters ?? .none
-            letters?.prepare(letters: surface.lettersOnKeys(), font: style.letterFont(), scale: surface.traitCollection.displayScale)
+            prepareLetters()
         } else {
             letters?.mode = .none
             letters?.dropLetters()
+            lettersShown = false
         }
         lettersDirty = true
         ensureLink()
+    }
+
+    /// The atlas holds the letters on the keys now (a no-op when it already does).
+    private func prepareLetters() {
+        guard let letters, letters.mode != .none, drawsLetters else { return }
+        letters.prepare(letters: surface?.lettersOnKeys() ?? [], font: style.letterFont(), scale: scale)
     }
 
     /// A key lit or went out: the Metal letters redraw in its new colour.
@@ -328,7 +386,7 @@ final class KeyEffects {
         guard isLetter, !drawsLetters else { return }
         if settings.letters == .pop || settings.letters.usesMetal {
             // Pop, or a Metal effect when Metal can't run now.
-            surface.popLetter(key, scale: 1.4 + 0.08 * CGFloat(level.rawValue))
+            surface?.popLetter(key, scale: 1.4 + 0.08 * CGFloat(level.rawValue))
         }
     }
 
@@ -389,13 +447,14 @@ final class KeyEffects {
 
     /// What each level brings, switched on or off as flow climbs or falls.
     private func applyLevel() {
+        guard !resting else { return }
         let settings = self.settings
         let blizzard = settings?.flow == true && settings?.falling == true && level >= .blizzard && !reduceMotion
         if blizzard { startFall() } else { stopFall() }
         if blizzard, nextGlitch == 0 { nextGlitch = now + 0.3 }
         if blizzard != glowing {
             glowing = blizzard
-            surface.setGlow(blizzard ? style.accent.withAlphaComponent(0.8) : nil)
+            surface?.setGlow(blizzard ? style.accent.withAlphaComponent(0.8) : nil)
         }
         let aurora = settings?.flow == true && settings?.skyOn == true && level >= .aurora && !reduceMotion
         if aurora { showSky() } else { hideSky() }
@@ -409,7 +468,7 @@ final class KeyEffects {
         let look = particles(for: settings.tap, side: .left)
         burst(at: centre, look: look, count: 30 + 10 * level.rawValue, speed: 460, lifetime: 0.6, scale: look.scale * 1.3, force: true)
         if settings.tap == .glitch || settings.fall == .static {
-            surface.glitchKeys(count: 6 + 3 * level.rawValue, strength: 10)
+            surface?.glitchKeys(count: 6 + 3 * level.rawValue, strength: 10)
         }
     }
 
@@ -420,17 +479,18 @@ final class KeyEffects {
         let static_ = settings.falling && settings.fall == .static
         let torn = settings.skyOn && settings.sky == .glitch && level >= .aurora
         guard static_ || torn else { return }
-        if static_ { surface.glitchKeys(count: level >= .aurora ? 5 : 3, strength: level >= .aurora ? 9 : 6) }
-        if torn { surface.tearRow(strength: 12) }
+        if static_ { surface?.glitchKeys(count: level >= .aurora ? 5 : 3, strength: level >= .aurora ? 9 : 6) }
+        if torn { surface?.tearRow(strength: 12) }
         nextGlitch = time + Double.random(in: torn ? 0.18...0.6 : 0.3...0.9)
     }
 
     // MARK: Ticks
 
     private func ensureLink() {
+        undrawnFrames = 0
         guard link == nil else { return }
-        let target = LinkTarget { [weak self] in self?.step() }
-        let link = CADisplayLink(target: target, selector: #selector(LinkTarget.step))
+        let target = LinkTarget { [weak self] in self?.step() ?? false }
+        let link = CADisplayLink(target: target, selector: #selector(LinkTarget.step(_:)))
         link.preferredFrameRateRange = CAFrameRateRange(minimum: 30, maximum: 60, preferred: 60)
         link.add(to: .main, forMode: .common)
         self.link = link
@@ -443,7 +503,13 @@ final class KeyEffects {
         linkTarget = nil
     }
 
-    private func step() {
+    /// One frame. False when the surface is gone and the link should stop.
+    private func step() -> Bool {
+        guard let surface else {
+            stopLink()
+            bursting = false
+            return false
+        }
         let time = now
         if flow.score > 0 { updateLevel() }
         glitchTick(time)
@@ -452,12 +518,27 @@ final class KeyEffects {
             let moving = letters.isAnimating(time: time) || level >= .aurora
                 || ((letters.mode == .disco || letters.keyMode != .none) && level >= .toboggan)
             if moving || lettersDirty {
-                letters.render(keys: letters.mode != .none ? surface.letterKeys() : [],
-                               frames: letters.keyMode != .none ? surface.keyFrames() : [],
-                               time: time, level: level.rawValue, style: style)
-                lettersDirty = false
+                let drew = letters.render(keys: letters.mode != .none ? surface.letterKeys() : [],
+                                          frames: letters.keyMode != .none ? surface.keyFrames() : [],
+                                          time: time, level: level.rawValue, style: style)
+                // A layer that isn't on screen yet gives no drawable (`viewWillAppear`,
+                // or Metal arriving mid-show): the frame was skipped, so the letters
+                // stay dirty and the link tries again, for up to ~2 s (Gabriel, 7 Nov
+                // 2026: "sometimes the key letters don't show up").
+                // A letter missing from the atlas (the keys changed since it was made)
+                // counts as not drawn: the atlas is remade and the frame tried again.
+                // Either way the keys show their own letters until one frame has all.
+                if drew, !letters.missedLetters {
+                    lettersDirty = false
+                    undrawnFrames = 0
+                    lettersShown = letters.mode != .none
+                } else {
+                    if letters.missedLetters { prepareLetters() }
+                    lettersShown = false
+                    undrawnFrames += 1
+                }
             }
-            busy = busy || moving
+            busy = busy || moving || (lettersDirty && undrawnFrames < 120)
         }
         if let sky {
             sky.render(time: time, kind: settings?.sky ?? .aurora)
@@ -469,6 +550,7 @@ final class KeyEffects {
             }
         }
         if !busy { stopLink() }
+        return true
     }
 
     // MARK: Taps
@@ -500,7 +582,7 @@ final class KeyEffects {
             }
         case .glitch:
             glitchTap(at: point, grow: grow)
-            if let key = surface.key(at: point) { surface.glitchKey(key, strength: 5 * grow) }
+            if let surface, let key = surface.key(at: point) { surface.glitchKey(key, strength: 5 * grow) }
         case .fireworks:
             ping(makeRing(at: point, color: Palette.cycling(at: now), radius: 12 * grow), delay: 0)
             fallthrough
@@ -1109,7 +1191,7 @@ final class KeyEffects {
                 return
             }
             let renderer = SkyRenderer(metal: metal)
-            renderer.layout(layer.bounds, scale: surface.traitCollection.displayScale)
+            renderer.layout(layer.bounds, scale: scale)
             renderer.layer.opacity = 0
             host.insertSublayer(renderer.layer, at: 0)
             sky = renderer
@@ -1149,9 +1231,9 @@ final class KeyEffects {
         ensureLink()
         Task { @MainActor [weak self] in
             for i in 0..<60 {
-                guard let self, self.bursting else { break }
+                guard let self, self.bursting, let surface = self.surface else { break }
                 let word = Self.burstWords[i % Self.burstWords.count]
-                let points = word.compactMap { self.surface.centre(of: $0) }
+                let points = word.compactMap { surface.centre(of: $0) }
                 guard let first = points.first else { continue }
                 let side: Side = first.x < self.layer.bounds.midX ? .left : .right
                 let steps = max(8, points.count * 4)
@@ -1166,15 +1248,15 @@ final class KeyEffects {
                     let p = CGPoint(x: a.x + (b.x - a.x) * u, y: a.y + (b.y - a.y) * u)
                     drawn.append(p)
                     if let trail { self.moveTrail(trail, points: drawn) }
-                    let key = self.surface.key(at: p)
+                    let key = surface.key(at: p)
                     if key != lit {
-                        if let lit { self.surface.unlight(lit) }
-                        if let key { self.surface.light(key, side: side) }
+                        if let lit { surface.unlight(lit) }
+                        if let key { surface.light(key, side: side) }
                         lit = key
                     }
                     try? await Task.sleep(for: .seconds(duration / Double(steps)))
                 }
-                if let lit { self.surface.unlight(lit) }
+                if let lit { surface.unlight(lit) }
                 if let trail { self.endTrail(trail) }
                 self.word(at: drawn.last ?? first, side: side)
                 try? await Task.sleep(for: .seconds(max(0.06, 0.5 - Double(i) * 0.009)))

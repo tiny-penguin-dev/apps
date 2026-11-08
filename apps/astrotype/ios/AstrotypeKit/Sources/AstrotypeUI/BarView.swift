@@ -75,6 +75,38 @@ public final class BarView: UIView {
     /// (Gabriel, 3 Nov 2026); the word sits centred in it.
     static let guessWidth: CGFloat = 64
 
+    /// The keyboard's theme and look: the chosen word's pill takes the colour of shift,
+    /// delete and return (with their see-through) and the letters' colour (Gabriel,
+    /// 8 Nov 2026).
+    public var keyTheme: KeyboardTheme = .classic {
+        didSet { if keyTheme != oldValue { render() } }
+    }
+    public var keyAppearance: KeyAppearance = .system {
+        didSet { if keyAppearance != oldValue { render() } }
+    }
+    private var keyStyle: KeyStyle { KeyStyle(theme: keyTheme, appearance: keyAppearance, traits: traitCollection) }
+    private var keyColors: KeyColors { keyStyle.colors }
+    private var pillColor: UIColor {
+        let colors = keyColors
+        return colors.functionKey.uiColor.withAlphaComponent(CGFloat(colors.functionKey.alpha * colors.keyOpacity))
+    }
+    /// Bar text is never fully solid and never a gray of its own: a pure colour at 80%
+    /// where it stands out, 60% otherwise (Gabriel, 8 Nov 2026).
+    /// The chosen word, on its pill: the letters' colour at 80%.
+    private var pillInk: UIColor { keyColors.letters.uiColor.withAlphaComponent(0.8) }
+    /// Text with no key behind it sits on the system backdrop, so it follows the look,
+    /// not the theme's letters: white in dark, black in light.
+    private var backdrop: UIColor { keyStyle.backgroundIsDark ? .white : .black }
+    /// Readings and typed text: `backdrop` at 80%.
+    private var backdropInk: UIColor { backdrop.withAlphaComponent(0.8) }
+    /// The other guesses, notes, the pencil, ✕ and the globe: `backdrop` at 60%.
+    public var dimInk: UIColor { backdrop.withAlphaComponent(0.6) }
+
+    public override func traitCollectionDidChange(_ previous: UITraitCollection?) {
+        super.traitCollectionDidChange(previous)
+        if traitCollection.userInterfaceStyle != previous?.userInterfaceStyle { render() }
+    }
+
     /// What the bar says when idle.
     public var note = "Both thumbs, one word" {
         didSet { if case .idle = bar { render() } }
@@ -195,7 +227,6 @@ public final class BarView: UIView {
         // "Accessibility"); the keys do not.
         label.font = Theme.uiFont(size: 13, weight: .bold, scaledWith: .footnote, upTo: 15)
         label.adjustsFontForContentSizeCategory = true
-        label.textColor = Theme.ui(.muted)
         label.textAlignment = .center
         label.adjustsFontSizeToFitWidth = true
         label.minimumScaleFactor = 0.7
@@ -233,11 +264,10 @@ public final class BarView: UIView {
         render()
     }
 
-    /// A bar button at one of the ends: a muted symbol on a 44 pt target.
+    /// A bar button at one of the ends: a dimmed symbol on a 44 pt target.
     private static func iconConfiguration(_ symbol: String) -> UIButton.Configuration {
         var config = UIButton.Configuration.plain()
         config.image = UIImage(systemName: symbol, withConfiguration: UIImage.SymbolConfiguration(pointSize: 17, weight: .semibold))
-        config.baseForegroundColor = Theme.ui(.muted)
         config.contentInsets = .zero
         config.background.cornerRadius = 12
         return config
@@ -364,6 +394,10 @@ public final class BarView: UIView {
     }
 
     private func render() {
+        let dim = dimInk
+        label.textColor = dim
+        pencilButton.configuration?.baseForegroundColor = dim
+        closeButton.configuration?.baseForegroundColor = dim
         stack.arrangedSubviews.forEach { $0.removeFromSuperview() }
         indices = []
         keptView = nil
@@ -450,7 +484,7 @@ public final class BarView: UIView {
 
     /// A reading of the last word in the fix row: tapped, it replaces the word.
     private func addReading(_ word: String, index: Int) {
-        let button = GuessButton(configuration: guessConfiguration(word, chosen: false, ink: .ink))
+        let button = GuessButton(configuration: guessConfiguration(word, chosen: false, ink: backdropInk))
         button.accessibilityLabel = word
         button.accessibilityHint = "Replaces the last word"
         button.addAction(UIAction { [weak self] _ in self?.onChooseFix?(index) }, for: .touchUpInside)
@@ -464,7 +498,7 @@ public final class BarView: UIView {
         config.image = UIImage(systemName: "pencil", withConfiguration: UIImage.SymbolConfiguration(pointSize: 12, weight: .bold))
         config.imagePadding = Theme.Space.xs
         config.contentInsets = NSDirectionalEdgeInsets(top: 6, leading: Theme.Space.s, bottom: 6, trailing: Theme.Space.m)
-        config.baseForegroundColor = Theme.ui(.muted)
+        config.baseForegroundColor = dimInk
         config.background.cornerRadius = 16
         config.background.strokeColor = Theme.ui(.line)
         config.background.strokeWidth = 1.5
@@ -485,10 +519,10 @@ public final class BarView: UIView {
         if typed.isEmpty {
             fieldLabel.attributedText = NSAttributedString(string: "What did you mean?", attributes: [
                 .font: Theme.uiFont(size: 15, weight: .semibold, scaledWith: .body, upTo: 17),
-                .foregroundColor: Theme.ui(.muted),
+                .foregroundColor: dimInk,
             ])
         } else {
-            let text = NSMutableAttributedString(string: typed, attributes: [.font: font, .foregroundColor: Theme.ui(.ink)])
+            let text = NSMutableAttributedString(string: typed, attributes: [.font: font, .foregroundColor: backdropInk])
             text.append(NSAttributedString(string: "|", attributes: [.font: font, .foregroundColor: Theme.ui(.accent)]))
             fieldLabel.attributedText = text
         }
@@ -505,16 +539,16 @@ public final class BarView: UIView {
         saveButton.alpha = typed.isEmpty ? 0.45 : 1
     }
 
-    /// A word on the bar: the chosen one bold on the white pill, the rest plain.
-    private func guessConfiguration(_ word: String, chosen: Bool, ink: Theme.Tone? = nil) -> UIButton.Configuration {
+    /// A word on the bar: the chosen one bold on the theme's pill, the rest plain.
+    private func guessConfiguration(_ word: String, chosen: Bool, ink: UIColor? = nil) -> UIButton.Configuration {
         var config = UIButton.Configuration.plain()
         config.contentInsets = NSDirectionalEdgeInsets(top: 6, leading: Theme.Space.m, bottom: 6, trailing: Theme.Space.m)
         config.background.cornerRadius = 16
         config.titleLineBreakMode = .byTruncatingTail
-        config.background.backgroundColor = chosen ? Theme.ui(.card) : .clear
+        config.background.backgroundColor = chosen ? pillColor : .clear
         config.attributedTitle = AttributedString(word, attributes: AttributeContainer([
             .font: guessFont(chosen: chosen),
-            .foregroundColor: Theme.ui(ink ?? (chosen ? .ink : .muted)),
+            .foregroundColor: ink ?? (chosen ? pillInk : dimInk),
         ]))
         return config
     }
@@ -600,7 +634,7 @@ public final class BarView: UIView {
         let note = UILabel()
         note.text = text
         note.font = Theme.uiFont(size: 14, weight: .bold, scaledWith: .footnote, upTo: 16)
-        note.textColor = Theme.ui(.muted)
+        note.textColor = dimInk
         note.lineBreakMode = .byTruncatingMiddle
         note.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         var config = UIButton.Configuration.filled()
@@ -696,8 +730,8 @@ public final class BarView: UIView {
             background = Theme.ui(.right)
             ink = Theme.ui(.accentInk)
         case nil:
-            background = held ? Theme.ui(.ice) : (chosen ? Theme.ui(.card) : .clear)
-            ink = Theme.ui(chosen ? .ink : .muted)
+            background = held ? Theme.ui(.ice) : (chosen ? pillColor : .clear)
+            ink = held ? Theme.ui(chosen ? .ink : .muted) : (chosen ? pillInk : dimInk)
         }
         config.background.backgroundColor = background
         config.attributedTitle = AttributedString(button.accessibilityLabel ?? "", attributes: AttributeContainer([

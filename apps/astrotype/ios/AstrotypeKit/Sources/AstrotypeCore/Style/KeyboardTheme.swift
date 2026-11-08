@@ -137,8 +137,16 @@ public struct KeyColors: Codable, Hashable, Sendable {
         case background, key, functionKey, letters, border, left, right, accent
     }
 
-    /// Letters too close in colour to the keys to read.
-    public var lettersHardToRead: Bool { letters.isHardToRead(on: key) }
+    /// The key as it looks: see-through keys show the background behind them.
+    public var visibleKey: RGBColor {
+        let a = keyOpacity
+        func mix(_ k: Double, _ b: Double) -> UInt32 { UInt32((k * a + b * (1 - a)) * 255 + 0.5) }
+        return RGBColor(hex: mix(key.red, background.red) << 16 | mix(key.green, background.green) << 8
+                        | mix(key.blue, background.blue))
+    }
+
+    /// Letters too close in colour to the keys, as they look, to read.
+    public var lettersHardToRead: Bool { letters.isHardToRead(on: visibleKey) }
 
     enum CodingKeys: String, CodingKey {
         case background, key, functionKey, letters, border, left, right, accent, opacity
@@ -277,12 +285,16 @@ public struct KeyboardTheme: Codable, Hashable, Sendable, Identifiable {
                   right: RGBColor(hex: right), accent: RGBColor(hex: accent))
     }
 
-    /// Apple's keys (iOS 26) with Astrotype's thumb colours: what the keyboard has
-    /// always looked like. Free. Matches `Theme`'s key tokens.
-    public static let classic = KeyboardTheme(
-        id: "classic", name: "Classic",
-        light: c(0xD1D3D9, 0xFFFFFF, 0xEDEEF0, 0x000000, 0x000000, 0x139FB5, 0xFF6F86, 0x007AFF),
-        dark: c(0x1F1F1F, 0x464646, 0x404040, 0xFFFFFF, 0xFFFFFF, 0x2FC6DC, 0xFF8A9E, 0x0A84FF))
+    /// Apple-like keys with Astrotype's thumb colours, a little see-through. Free.
+    /// Values set by Gabriel (8 Nov 2026), with a gray accent in place of yellow.
+    public static let classic: KeyboardTheme = {
+        var light = c(0xD1D3D9, 0xFFFFFF, 0xEDEEF0, 0x000000, 0x000000, 0x139FB5, 0xFF6F86, 0x636366)
+        light.opacity = 0.8
+        var dark = c(0x1F1F1F, 0x989898, 0x5B5B5B, 0xFFFFFF, 0xFFFFFF, 0x2FC6DC, 0xFF8A9E, 0x6F6F6F)
+        dark.opacity = 0.3
+        return KeyboardTheme(id: "classic", name: "Classic", light: light, dark: dark,
+                             shape: KeyShape(gap: 4, corner: 10, border: .none, shadow: .none, font: .classic))
+    }()
 
     public static let builtIn: [KeyboardTheme] = [
         classic,

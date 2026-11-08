@@ -48,6 +48,30 @@ public struct MemorySample: Codable, Sendable, Equatable {
         return parts.joined(separator: " · ")
     }
 
+    /// The stats overlay's one short line: "23.4 MB · peak 48.1", and the rest only
+    /// when it is out of the usual range, so a quiet keyboard says just those two
+    /// (Gabriel, 7 Nov 2026: the full detail is in the typing log now). Out of range:
+    /// under 20 MB left before iOS ends the keyboard, a heap over 20 MB, more than one
+    /// keyboard, model or dictionary load alive, key views beyond the keyboards, and a
+    /// sync still waiting.
+    public func brief(peakMB: Double) -> String {
+        var parts = ["\(MemoryReading.mb(mb)) MB", "peak \(MemoryReading.mb(max(peakMB, mb)))"]
+        if left > 0, left < Self.lowHeadroomMB { parts.append("\(Int(left.rounded(.down))) left") }
+        if let heap, heap > Self.bigHeapMB { parts.append("heap \(MemoryReading.mb(heap))") }
+        func n(_ count: Int, _ word: String) -> String { "\(count) \(word)\(count == 1 ? "" : "s")" }
+        if counts.keyboards > 1 { parts.append(n(counts.keyboards, "keyboard")) }
+        if counts.views > max(1, counts.keyboards) { parts.append(n(counts.views, "key view")) }
+        if counts.models > 1 { parts.append(n(counts.models, "model")) }
+        if counts.loads > 1 { parts.append(n(counts.loads, "load")) }
+        if counts.waiting > 0 { parts.append("\(counts.waiting) waiting") }
+        return parts.joined(separator: " · ")
+    }
+
+    /// Below this much headroom the brief says how much is left.
+    public static let lowHeadroomMB = 20.0
+    /// Above this the brief shows the heap (ours sits at 13-15 MB with mapped dictionaries).
+    public static let bigHeapMB = 20.0
+
     fileprivate static func round(_ value: Double) -> Double { (value * 10).rounded() / 10 }
 }
 

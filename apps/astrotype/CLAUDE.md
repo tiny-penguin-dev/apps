@@ -70,6 +70,13 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
     log as an `open` line (`OpenTiming`): "telemetry 12 · model 40 · keys 35 · …". `ExtensionChecks`
     writes the StoreKit, memory and size readings into the bar's idle note while
     `Flags.extensionReadout` is on.
+  - `AstrotypeLive/`: the widget extension (`com.tinypenguin.astrotype.live`), which
+    draws Live Activities. For now it only has the throwaway dictation test's
+    (`DictationLiveActivity`); see `Astrotype/DictationTest/` and
+    `AstrotypeKeyboard/DictationTest/` (Settings → Debug → Dictation test). Shared intent
+    and attribute files are copied unchanged into each target that needs them. Round 3
+    (`DictationWake.swift`) adds push (`aps-environment`), a `UIApplicationDelegateAdaptor`
+    and the `astrotype-dictation-push.yml` Action; all of it goes when the test does.
   - `AstrotypeKit/`: the local package, three targets:
     - `AstrotypeCore`: Core and Services. `SpaceSlide` (a finger on space: a tap, or a cursor slide after a short hold and a real move), `Layout` (key geometry, with the field's
       `BottomRow`), `Field` (what the app says about the field and what the keyboard
@@ -81,7 +88,7 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
       time passed in), `Matcher` (pieces to ranked candidates: trie search plus DTW,
       two-thumb orderings and split swipes, both thumbs swiping at once in
       `Matcher+Together` (letters woven by when each key was reached), the words before the open one from
-      `WordContext` and the person's `PersonalIndex`), `NextWords` (the likely next words for
+      `WordContext` and the person's `PersonalIndex`, and the next-word model's say on each word when one is loaded, `Matcher.nextWords`), `NextWords` (the likely next words for
       the bar, from the word pairs and the person's own), `PersonalModel` (what the keyboard
       learns from the person: word and pair counts that fade, thumb offsets per key, one
       shard per install, merged and forgotten across devices; `SettledWord`, which the
@@ -134,8 +141,10 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
     - `AstrotypeUI`: the design system (`Theme` tokens, `Components`, `Art`, `EdgeFade`: a scroll
       view's `fadeEdges`, used by the settings panel and both emoji rows) and the
       keyboard's views: `KeyboardView` (bar plus keys, the pages, the settings panel,
-      the `StatsOverlayView` memory line in the keys' top corner while
-      `KeyboardSettings.showsStats` is on; owns a `KeyboardModel`), `BarView` (left key, centred words, the pencil and its fix row), `KeySurfaceView` (touch stream, flashes,
+      the `StatsOverlayView` one-line memory brief (`MemorySample.brief`: now and
+      peak, more only when out of range) centred below the keys while
+      `KeyboardSettings.showsStats` is on, and the recording dot in the "123" key's
+      corner; owns a `KeyboardModel`), `BarView` (left key, centred words, the pencil and its fix row), `KeySurfaceView` (touch stream, flashes,
       trails, rings, and the gestures: space slide (and a held space typed as soon as another finger lands), backspace swipe and hold, "123"
       hold, the slide from "123" to a number or symbol, and a held letter's accents, `AccentCallout`; keys drawn from a `KeyStyle`),
       `KeyEffects` (taps, trails, letter effects and flow with Core Animation; the presets Calm, Arcade, Glitch,

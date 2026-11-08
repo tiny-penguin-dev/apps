@@ -61,4 +61,4 @@ Status: Approved 2026-11-03 (built with the design, Gabriel: "Merge")
 
 - [x] `BarView.showsGlobe` and `onGlobe`: the button at the leading end.
 - [x] `KeyboardView`: the globe goes in the bar when the bar is on top, else on the row
-  (`rowGlobe(_:)`); the bar's globe calls `onSystemKey(.globe)` like the key did.
+  (`rowGlobe(_:)`); both globes hand their touches to `onGlobeTouch` (iOS's `handleInputModeList`: tap for the next keyboard, hold for the list; `advanceToNextInputMode()` crashed the host app on iOS 27.2).

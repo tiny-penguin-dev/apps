@@ -1,0 +1,64 @@
+# THROWAWAY SPIKE (Gabriel, 8 Nov 2026): sends the push that starts Astrotype's dictation
+# test Live Activity (round 3, apps/astrotype/ios/Astrotype/DictationTest/DictationWake.swift),
+# to see whether iOS then lets the woken app turn on the mic. Copy the token from
+# Astrotype → Settings → Debug → Dictation test → Push-to-start token, then run this.
+#
+# Needs repo secrets APNS_KEY_ID and APNS_PRIVATE_KEY (an Apple Push Notifications key,
+# the .p8 file's text). TestFlight builds use the production push server.
+name: Astrotype dictation push
+
+on:
+  workflow_dispatch:
+    inputs:
+      token:
+        description: Push-to-start token from the Debug page
+        required: true
+
+jobs:
+  push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send the push
+        env:
+          APNS_KEY_ID: ${{ secrets.APNS_KEY_ID }}
+          APNS_PRIVATE_KEY: ${{ secrets.APNS_PRIVATE_KEY }}
+          TOKEN: ${{ inputs.token }}
+          TEAM_ID: YNMFSUHQ46
+          TOPIC: com.tinypenguin.astrotype.push-type.liveactivity
+        run: |
+          set -euo pipefail
+          if [ -z "$APNS_KEY_ID" ] || [ -z "$APNS_PRIVATE_KEY" ]; then
+            echo "::error::Add the APNS_KEY_ID and APNS_PRIVATE_KEY repo secrets first."
+            exit 1
+          fi
+          TOKEN="$(echo "$TOKEN" | tr -cd '0-9a-fA-F')"
+          pip install --quiet pyjwt cryptography
+          JWT="$(python3 -c '
+          import jwt, os, time
+          print(jwt.encode({"iss": os.environ["TEAM_ID"], "iat": int(time.time())},
+                           os.environ["APNS_PRIVATE_KEY"], algorithm="ES256",
+                           headers={"kid": os.environ["APNS_KEY_ID"]}))')"
+          # Dates in a Live Activity's attributes are seconds since 1 Jan 2001.
+          NOW="$(date +%s)"
+          SINCE_2001=$((NOW - 978307200))
+          cat > payload.json <<JSON
+          {"aps": {
+            "timestamp": $NOW,
+            "event": "start",
+            "input-push-token": 1,
+            "attributes-type": "DictationActivityAttributes",
+            "attributes": {"started": $SINCE_2001},
+            "content-state": {"listening": false, "note": "Tap Talk to start the mic"},
+            "alert": {"title": "Astrotype dictation", "body": "Tap Talk to start dictating"}
+          }}
+          JSON
+          STATUS="$(curl --silent --show-error --http2 -o response.txt -w '%{http_code}' \
+            -H "authorization: bearer $JWT" \
+            -H "apns-topic: $TOPIC" \
+            -H "apns-push-type: liveactivity" \
+            -H "apns-priority: 10" \
+            --data @payload.json \
+            "https://api.push.apple.com/3/device/$TOKEN")"
+          echo "Apple answered $STATUS $(cat response.txt)"
+          echo "Sent at $(date -u +%H:%M:%S) UTC. Apple answered $STATUS $(cat response.txt)" >> "$GITHUB_STEP_SUMMARY"
+          [ "$STATUS" = "200" ]

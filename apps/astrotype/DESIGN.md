@@ -125,8 +125,12 @@ pairs searchable by most used or newest with a four-bar meter; `features/learned
 and Z to V on the left, Y to P, G to L and V to M on the right (G and V on both halves,
 nothing repeated on the top row; Gabriel, 2 Nov 2026, after trying more overlap). Settings
 "Extra letters on split" adds one more past the middle to each half (Y H B left, T F C
-right) for swiping across. Space on
-both sides, the guesses in the open middle (Gabriel, 2 Nov 2026).
+right) for swiping across. The numbers and symbols pages follow the same rules: "?"
+sits under V on both halves, and the extra letters add 6 $ ! (% > ! on #+=) to the left
+and 5 ( , (# < ,) to the right (Gabriel, 8 Nov 2026). Space on
+both sides, the guesses in the open middle (Gabriel, 2 Nov 2026). Split, the keys beside space
+(`123`, globe, emoji) are a fifth narrower than on the whole keyboard and return is
+exactly two of them wide, so both halves of space keep their room (Gabriel, 8 Nov 2026).
 
 ## The keyboard
 
@@ -167,8 +171,12 @@ This is the product, so it gets its own section.
   the words stack and the pencil sits under them; the globe goes back next to 123.
   The middle's states:
   - *Idle:* a short note ("Both thumbs, one word") or, with nothing to say, empty.
-  - *Open word:* up to three guesses, the chosen one in a white pill in the centre with
-    the others either side. That one is what space writes. Tapping any guess writes it.
+  - *Open word:* up to three guesses, the chosen one in a pill in the centre with
+    the others either side. The pill takes the theme's shift/delete/return colour and
+    see-through with the letters' colour at 80%. Everything else on the bar has no key behind it, so
+    it follows the look instead of the theme: white (dark) or black (light), at 80% for
+    readings and typed text and 60% for other words, notes and the bar's icons (globe,
+    pencil, ✕). Bar text is never fully solid and never a separate gray. That one is what space writes. Tapping any guess writes it.
   - *Fix:* right after a commit, when there are no next words (or "Guess the next word"
     is off): the word just written in the pill, its other readings either side. Tap one
     and it replaces the word just written. Any new tap or swipe clears it.

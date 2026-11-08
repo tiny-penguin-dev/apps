@@ -140,6 +140,12 @@ the most native Apple stuff… okay if it only runs on newest OSs and newest pho
      languages; under 5 ms per word on Gabriel's phone.
   4. *Swipe readings (if it helps):* use the model to rank swipe readings; ship only if
      the replay accuracy goes up.
+     Done 7 Nov 2026: a word the model knows gets `Matcher.modelWeight` (0.12) times
+     the log ratio of the model's probability (mixed 0.9 with its plain frequency) to
+     its plain frequency, in place of the pairs' bonus. On 600 held-out sentences typed
+     by `SyntheticTyping`, wrong first guesses went from 3.3% to 2.5% (noise 0.2) and
+     17.6% to 16.3% (noise 0.35). Weight 0.09-0.15 all scored about the same; above
+     that it starts overriding clear swipes. Keeping the pairs as well didn't help.
   5. *Tuned to you (later, its own plan):* sentences kept on the phone, tuning in the
      app in a background task while charging, the switch. Done when: the test on the
      person's own held-back sentences beats the general model.

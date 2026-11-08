@@ -36,6 +36,29 @@ import Testing
         #expect(mean < Self.debugBound, "mean \(mean) ms")
     }
 
+    /// The next-word model weighs in on every word the search finds
+    /// (features/next-word-model): a look-up per word, not a network call.
+    @Test func candidatesStayFastWithTheNextWordModel() {
+        final class Flat: NextWordPredicting, @unchecked Sendable {
+            func logProbabilities(_ ids: [Int32]) -> [Float]? { [Float](repeating: log(1 / 12_032), count: 12_032) }
+        }
+        let words = Set(Synth.fixtures.map(\.word))
+        let vocabulary = ["<pad>", "<s>", "<unk>", ","] + words.sorted() + (0..<(12_028 - words.count)).map { "w\($0)" }
+        let model = NextWordModel(code: "en", vocabulary: vocabulary, predictor: Flat())
+        var matcher = Matcher(dictionary: Synth.lexicon, layout: Synth.layout)
+        matcher.nextWords = [model.scores(before: "i think ")!]
+        var pieces: [[Piece]] = []
+        for fixture in Synth.fixtures {
+            var composer = Synth.composer()
+            Synth.swipe(&composer, fixture.swipe)
+            pieces.append(composer.pieces)
+        }
+        _ = matcher.candidates(for: pieces[0])
+        let mean = Self.fastestMean(of: pieces, matcher)
+        print("matcher with the next-word model: \(String(format: "%.2f", mean)) ms per word (debug)")
+        #expect(mean < Self.debugBound, "mean \(mean) ms")
+    }
+
     /// The most milliseconds per word a debug build may take on CI (see above).
     static let debugBound = 40.0
 

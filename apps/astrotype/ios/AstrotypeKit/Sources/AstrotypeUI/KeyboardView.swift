@@ -16,7 +16,7 @@ import UIKit
 /// person can turn off (`KeyboardSettings.showsBar`).
 ///
 ///     let keyboard = KeyboardView(model: model)
-///     keyboard.onSystemKey = { key in if key == .globe { advanceToNextInputMode() } }
+///     keyboard.onGlobeTouch = { view, event in handleInputModeList(from: view, with: event) }
 public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFeedback {
     public static let barHeight: CGFloat = 44
     /// The narrowest open column beside the keys that takes the guesses.
@@ -26,7 +26,7 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
     public let bar = BarView()
     public let surface = KeySurfaceView()
     /// The tiny memory readout in the keys' top corner, while
-    /// `KeyboardSettings.showsStats` is on (Settings → Debug). Never in the bar.
+    /// `KeyboardSettings.showsStats` is on (Settings → Debug): one line below the keys.
     public let stats = StatsOverlayView()
     /// A small red dot in the keys' top left corner while the typing recorder is on
     /// (Settings → Debug → "Keep recording"), so it is never on unnoticed.
@@ -36,8 +36,17 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
     public var usesSystemBackdrop = false {
         didSet { if usesSystemBackdrop != oldValue { applyBackdrop() } }
     }
-    /// Keys the engine leaves to the host: the globe.
+    /// Keys the engine leaves to the host: the globe, as a tap, when `onGlobeTouch` is nil.
     public var onSystemKey: ((Key) -> Void)?
+    /// Every touch on our globe key (the bar's and the bottom row's) with its event, for
+    /// the extension to hand to iOS's `handleInputModeList(from:with:)`: a tap goes to
+    /// the next keyboard and a hold shows the list, as on Apple's keyboard. Not
+    /// `advanceToNextInputMode()`: on iOS 27.2 that crashed the app being typed in, every
+    /// time, inside Apple's keyboard code (Gabriel, 8 Nov 2026, Notes:
+    /// `-[UIKeyboardLayoutStar activationIndicatorView]` index 43 beyond 42).
+    public var onGlobeTouch: ((UIView, UIEvent) -> Void)? {
+        didSet { surface.onGlobeTouch = onGlobeTouch }
+    }
     /// Whether the keyboard has our globe key: the extension sets it from
     /// `needsInputModeSwitchKey` (true only where iOS draws no globe of its own). It
     /// sits at the bar's leading end when the bar is on top, else on the bottom row
@@ -87,7 +96,7 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         didSet { if hapticsAvailable && !oldValue { keyHaptic.prepare() } }
     }
     /// Our globe in the bar's left slot (features/space-bar): SF Symbol `globe` in
-    /// `muted`, like the pencil at the other end, no key background; the bar gives it
+    /// the bar's `dimInk`, like the pencil at the other end, no key background; the bar gives it
     /// its 44 pt slot.
     private lazy var globeKey: UIButton = {
         var config = UIButton.Configuration.plain()
@@ -95,9 +104,16 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         config.baseForegroundColor = Theme.ui(.muted)
         let button = UIButton(configuration: config)
         button.accessibilityLabel = "Next keyboard"
-        button.addAction(UIAction { [weak self] _ in self?.onSystemKey?(.globe) }, for: .touchUpInside)
+        button.addAction(UIAction { [weak self] _ in
+            if self?.onGlobeTouch == nil { self?.onSystemKey?(.globe) }
+        }, for: .touchUpInside)
+        button.addTarget(self, action: #selector(globeTouched(_:with:)), for: .allTouchEvents)
         return button
     }()
+
+    @objc private func globeTouched(_ sender: UIView, with event: UIEvent) {
+        onGlobeTouch?(sender, event)
+    }
     private let keyHaptic = UIImpactFeedbackGenerator(style: .soft)
     private let commitHaptic = UIImpactFeedbackGenerator(style: .light)
 
@@ -160,6 +176,11 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
     deinit {
         LiveCount.keyboardViews.subtract(1, ordering: .relaxed)
     }
+
+    /// Off screen: drops the drawing surfaces the effects hold (`KeySurfaceView.rest`),
+    /// so a hidden keyboard costs little. `wake` before it shows again.
+    public func rest() { surface.rest() }
+    public func wake() { surface.wake() }
 
     public var enableInputClicksWhenVisible: Bool { true }
 
@@ -261,18 +282,23 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         } else {
             surface.isHidden = false
         }
-        // The stats sit over the top right of the keys, under the panel and the emoji
-        // page, and take no touches.
+        // The stats sit centred in the strip below the keys (iOS gives it no touches
+        // anyway), under the panel and the emoji page (Gabriel, 7 Nov 2026: small, one
+        // line, at the very bottom).
         if stats.isRunning {
-            let width = min(surface.frame.width - 8, 360)
-            let height = ceil(stats.sizeThatFits(CGSize(width: width, height: .greatestFiniteMagnitude)).height)
-            stats.frame = CGRect(x: surface.frame.maxX - width - 4, y: surface.frame.minY + 1, width: width, height: height)
+            let size = stats.sizeThatFits(CGSize(width: width - 8, height: .greatestFiniteMagnitude))
+            let w = min(ceil(size.width) + 4, width - 8), h = ceil(size.height)
+            stats.frame = CGRect(x: ((width - w) / 2).rounded(), y: bounds.height - h - 1, width: w, height: h)
             stats.isHidden = emojiPage != nil || panel != nil
             bringSubviewToFront(stats)
         }
+        // The recording dot sits in the bottom-left corner of the page key ("123" or
+        // "ABC"), out of the way of the letters (Gabriel, 7 Nov 2026).
         recordingDot.isHidden = model.recorder == nil || emojiPage != nil || panel != nil
         if !recordingDot.isHidden {
-            recordingDot.frame = CGRect(x: surface.frame.minX + 3, y: surface.frame.minY + 2, width: 6, height: 6)
+            let corner = surface.pageKeyFrame.map { convert($0, from: surface) }
+                ?? CGRect(x: surface.frame.minX, y: surface.frame.maxY - 8, width: 8, height: 8)
+            recordingDot.frame = CGRect(x: corner.minX + 4, y: corner.maxY - 10, width: 6, height: 6)
             bringSubviewToFront(recordingDot)
         }
         if let panel {
@@ -338,6 +364,9 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         // Themes and effects are Pro, except Classic and Calm (features/customization).
         surface.theme = model.keyboardSettings.style(allows: model.entitlement.allows(.styles))
         surface.keyAppearance = model.keyboardSettings.keyAppearance
+        bar.keyTheme = surface.theme
+        bar.keyAppearance = surface.keyAppearance
+        globeKey.configuration?.baseForegroundColor = bar.dimInk
         surface.effects = model.keyboardSettings.activeEffects(allows: model.entitlement.allows(.effects))
         applyBackdrop()
         surface.spaceSlideEnabled = model.keyboardSettings.spaceSlide

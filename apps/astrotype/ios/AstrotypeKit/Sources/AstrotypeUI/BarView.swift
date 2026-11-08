@@ -145,7 +145,7 @@ public final class BarView: UIView {
     }
 
     /// What the bar says when idle.
-    public var note = "Both thumbs, one word" {
+    public var note = "" {
         didSet { if case .idle = bar { render() } }
     }
 

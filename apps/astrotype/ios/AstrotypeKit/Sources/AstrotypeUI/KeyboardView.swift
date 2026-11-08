@@ -384,7 +384,9 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
             }
         }
         if usesDefaultNote {
-            bar.note = model.entitlement.allows(.twoThumbs) ? "Both thumbs, one word" : "One finger at a time"
+            // Nothing to say on the full keyboard (Gabriel, 8 Nov 2026: "Both thumbs, one
+            // word" was unnecessary); the free keyboard still says why one finger.
+            bar.note = model.entitlement.allows(.twoThumbs) ? "" : "One finger at a time"
         }
         if let searchView { showSearchResults(in: searchView) }
         surface.shifted = model.state.isShifted

@@ -454,8 +454,6 @@ final class AppModel {
     var everydaySpeed: Int? { speedHistory.everyday(now: now) }
     /// How it moved over the last week.
     var speedWeekChange: Int? { speedHistory.weekChange(now: now) }
-    /// Days with a speed so far, for "Day 1 of 3".
-    var speedDays: Int { speedHistory.daysWithSpeed }
     func speedPoints(_ range: SpeedRange) -> [SpeedPoint] {
         speedHistory.points(range, now: now, practice: state.speedTests)
     }

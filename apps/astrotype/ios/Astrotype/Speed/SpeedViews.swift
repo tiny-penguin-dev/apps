@@ -166,9 +166,6 @@ struct SpeedCard: View {
             HStack {
                 Text("Your speed").font(.sw(.heading))
                 Spacer()
-                if model.isFullAccessOn, model.keyboardSettings.measuresSpeed {
-                    Chip("Day \(min(model.speedDays + 1, SpeedRules.minEverydayDays)) of \(SpeedRules.minEverydayDays)")
-                }
             }
             if !model.isFullAccessOn {
                 Text("Turn on Full Access and Astrotype measures how fast you type everywhere, not just here. Only counts and times, never what you type.")
@@ -179,7 +176,7 @@ struct SpeedCard: View {
                 Text("Measuring your speed is off in Settings → Privacy and sharing.")
                     .font(.sw(.small)).foregroundStyle(Theme.muted)
             } else {
-                Text("Type as you normally do. After three days with a few longer messages, your everyday speed shows up here.")
+                Text("Type as you normally do. After a few longer messages (10 words or more), your speed shows up here, and it keeps updating through the day.")
                     .font(.sw(.small)).foregroundStyle(Theme.muted)
                     .fixedSize(horizontal: false, vertical: true)
             }

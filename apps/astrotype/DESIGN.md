@@ -317,7 +317,7 @@ outfits.
   wobble.
 - **Art:** the trails on the Hello and Home keyboard draw themselves once; the cloud and
   star tile float gently; the bolt's rays turn slowly.
-- **Speed test:** the typed words turn mint one by one. A wrong word shakes the field.
+- **Speed test:** the typed words turn mint one by one. A wrong word turns red and crossed out, the field shakes once, and the test moves on (nothing you typed is erased).
 - **Success:** confetti in the four colors on a new best and when the keyboard is first
   turned on.
 - **Haptics:** a light tap on every commit, a softer one on each key hit if Full Access

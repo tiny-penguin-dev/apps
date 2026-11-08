@@ -409,6 +409,21 @@ public struct Layout: Sendable, Equatable {
     /// (Gabriel, 3 Nov 2026). Only the touch area moves; both keys look the same.
     public static let spaceReach: CGFloat = 12
 
+    /// How far the first reported position of a touch can be from where it went down
+    /// before the down counts as misplaced. On the iPhone Duo's split keyboard iOS
+    /// reported every backspace tap as landing on M (x 678 of 801), then moved it to
+    /// backspace 8 ms later, so backspace typed an M swipe (Gabriel, 8 Nov 2026). No
+    /// finger travels this far before its first move arrives.
+    public static let misplacedDown: CGFloat = 40
+
+    /// Whether a touch that went down at `down` and was next seen at `next`, with no
+    /// moves between, really landed at `next`: iOS put the down in the wrong place.
+    ///
+    ///     Layout.downWasMisplaced(CGPoint(x: 678, y: 131), next: CGPoint(x: 770, y: 131))  // true
+    public static func downWasMisplaced(_ down: CGPoint, next: CGPoint) -> Bool {
+        hypot(next.x - down.x, next.y - down.y) >= misplacedDown
+    }
+
     /// The key under a point. Forgiving like Apple's keyboard: the gaps between keys,
     /// the edges of a row and the room under the bottom row count for the nearest key,
     /// by distance to its edge, so a wide key gets all of its own room. Return gives

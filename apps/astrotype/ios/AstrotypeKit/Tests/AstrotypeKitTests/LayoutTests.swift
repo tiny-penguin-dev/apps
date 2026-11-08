@@ -3,6 +3,23 @@ import Testing
 @testable import AstrotypeCore
 
 @Suite struct LayoutTests {
+    /// Gabriel's iPhone Duo, split (8 Nov 2026): iOS put every backspace tap's down on
+    /// M at x 678 and its first move on backspace 8 ms later. The keyboard starts such
+    /// a touch again where it really is, so it is a backspace tap, not an M swipe.
+    @Test func misplacedDownIsSpotted() {
+        let layout = Layout.qwerty(width: 801, split: true, extraLetters: true, globe: true, height: 216)
+        let down = CGPoint(x: 678, y: 131)
+        #expect(layout.key(at: down) == .letter("m"))
+        for x in [747.0, 764.0, 770.0, 785.0] as [CGFloat] {
+            let next = CGPoint(x: x, y: 132)
+            #expect(Layout.downWasMisplaced(down, next: next))
+            #expect(layout.key(at: next) == .backspace)
+        }
+        // A real swipe's first move is a few points: still a swipe.
+        #expect(!Layout.downWasMisplaced(down, next: CGPoint(x: 690, y: 128)))
+        #expect(!Layout.downWasMisplaced(down, next: down))
+    }
+
     @Test func phoneHasApplesProportions() {
         let layout = Layout.qwerty(width: 390)
         let q = layout.frame(of: .letter("q"))!

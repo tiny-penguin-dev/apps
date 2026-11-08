@@ -156,6 +156,8 @@ public final class KeySurfaceView: UIView {
         var callout: AccentCallout?
         /// A slide from "123" put the numbers page up for this touch.
         var slidFromNumbers = false
+        /// iOS has reported a move since the down (`restartIfMisplaced`).
+        var moved = false
     }
 
     /// The views per key: space is placed twice on a split keyboard.
@@ -458,67 +460,87 @@ public final class KeySurfaceView: UIView {
     public override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
         typeHeldSpace()
         for touch in touches {
-            let point = touch.location(in: self)
-            guard let key = layout.key(at: point), key != .returnKey || returnEnabled else {
-                onOtherTouch?("n", nil, point, touch.timestamp, layout.key(at: point))
-                continue
-            }
-            let side = layout.side(at: point)
-            let id = nextID
-            nextID += 1
-            if key.character == nil { onOtherTouch?("b", id, point, touch.timestamp, key) }
-            let oid = ObjectIdentifier(touch)
-            var touchState = Active(id: id, key: key, startKey: key, startPoint: point, side: side, isLetter: key.character != nil, points: [point], trail: nil)
-            if key == .space { touchState.slide = SpaceSlide(at: point, time: touch.timestamp) }
-            flash(key, side: side)
-            if key == .globe, let event, let onGlobeTouch {
-                touchState.gestured = true
-                onGlobeTouch(self, event)
-            }
-            switch key {
-            case .backspace:
-                touchState.hold = Task { [weak self] in
-                    try? await Task.sleep(for: .seconds(Self.holdDelay))
-                    while !Task.isCancelled {
-                        guard let self, self.active[oid] != nil else { return }
-                        self.active[oid]?.gestured = true
-                        self.delegate?.keySurface(self, didTap: .backspace, side: side)
-                        try? await Task.sleep(for: .seconds(Self.repeatInterval))
-                    }
-                }
-            case .numbers:
-                touchState.hold = Task { [weak self] in
-                    try? await Task.sleep(for: .seconds(Self.holdDelay))
-                    guard !Task.isCancelled, let self, let state = self.active[oid], !state.gestured else { return }
-                    self.active[oid]?.gestured = true
-                    self.unflash(.numbers)
-                    self.delegate?.keySurfaceDidHoldNumbers(self)
-                }
-            case .letter(let c), .symbol(let c):
-                let options = alternates(c)
-                guard !options.isEmpty, !UIAccessibility.isVoiceOverRunning else { break }
-                touchState.hold = Task { [weak self] in
-                    try? await Task.sleep(for: .seconds(Self.accentDelay))
-                    guard !Task.isCancelled, let self, let state = self.active[oid], !state.gestured,
-                          state.key == key, let last = state.points.last,
-                          hypot(last.x - state.startPoint.x, last.y - state.startPoint.y) < 18 else { return }
-                    self.showCallout(for: key, options: options, touch: oid)
-                }
-            default:
-                break
-            }
-            active[oid] = touchState
-            if key.character != nil {
-                delegate?.keySurface(self, touchBegan: id, at: point, time: touch.timestamp)
-            }
+            begin(touch, at: touch.location(in: self), event: event)
         }
+    }
+
+    /// A finger down on the keys at `point`: what it started on, its hold, and the
+    /// engine told when it is a letter.
+    private func begin(_ touch: UITouch, at point: CGPoint, event: UIEvent?) {
+        guard let key = layout.key(at: point), key != .returnKey || returnEnabled else {
+            onOtherTouch?("n", nil, point, touch.timestamp, layout.key(at: point))
+            return
+        }
+        let side = layout.side(at: point)
+        let id = nextID
+        nextID += 1
+        if key.character == nil { onOtherTouch?("b", id, point, touch.timestamp, key) }
+        let oid = ObjectIdentifier(touch)
+        var touchState = Active(id: id, key: key, startKey: key, startPoint: point, side: side, isLetter: key.character != nil, points: [point], trail: nil)
+        if key == .space { touchState.slide = SpaceSlide(at: point, time: touch.timestamp) }
+        flash(key, side: side)
+        if key == .globe, let event, let onGlobeTouch {
+            touchState.gestured = true
+            onGlobeTouch(self, event)
+        }
+        switch key {
+        case .backspace:
+            touchState.hold = Task { [weak self] in
+                try? await Task.sleep(for: .seconds(Self.holdDelay))
+                while !Task.isCancelled {
+                    guard let self, self.active[oid] != nil else { return }
+                    self.active[oid]?.gestured = true
+                    self.delegate?.keySurface(self, didTap: .backspace, side: side)
+                    try? await Task.sleep(for: .seconds(Self.repeatInterval))
+                }
+            }
+        case .numbers:
+            touchState.hold = Task { [weak self] in
+                try? await Task.sleep(for: .seconds(Self.holdDelay))
+                guard !Task.isCancelled, let self, let state = self.active[oid], !state.gestured else { return }
+                self.active[oid]?.gestured = true
+                self.unflash(.numbers)
+                self.delegate?.keySurfaceDidHoldNumbers(self)
+            }
+        case .letter(let c), .symbol(let c):
+            let options = alternates(c)
+            guard !options.isEmpty, !UIAccessibility.isVoiceOverRunning else { break }
+            touchState.hold = Task { [weak self] in
+                try? await Task.sleep(for: .seconds(Self.accentDelay))
+                guard !Task.isCancelled, let self, let state = self.active[oid], !state.gestured,
+                      state.key == key, let last = state.points.last,
+                      hypot(last.x - state.startPoint.x, last.y - state.startPoint.y) < 18 else { return }
+                self.showCallout(for: key, options: options, touch: oid)
+            }
+        default:
+            break
+        }
+        active[oid] = touchState
+        if key.character != nil {
+            delegate?.keySurface(self, touchBegan: id, at: point, time: touch.timestamp)
+        }
+    }
+
+    /// iOS sometimes puts a touch's down in the wrong place and corrects it with the
+    /// first move (`Layout.downWasMisplaced`): drop the touch and start it again where
+    /// the finger really is, so a tap on backspace doesn't swipe from M. True when it did.
+    private func restartIfMisplaced(_ touch: UITouch, at point: CGPoint, event: UIEvent?) -> Bool {
+        let oid = ObjectIdentifier(touch)
+        guard let state = active[oid], !state.moved, !state.gestured, state.callout == nil,
+              state.startKey != .globe, !state.slidFromNumbers,
+              Layout.downWasMisplaced(state.startPoint, next: point) else { return false }
+        drop(touch, event: event)
+        begin(touch, at: point, event: event)
+        return true
     }
 
     public override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
         for touch in touches {
             let oid = ObjectIdentifier(touch)
-            guard var touchState = active[oid] else { continue }
             let point = touch.location(in: self)
+            if restartIfMisplaced(touch, at: point, event: event) { continue }
+            guard var touchState = active[oid] else { continue }
+            touchState.moved = true
             if !touchState.isLetter { onOtherTouch?("m", touchState.id, point, touch.timestamp, touchState.startKey) }
             if touchState.startKey == .globe, let event, let onGlobeTouch {
                 onGlobeTouch(self, event)
@@ -594,6 +616,7 @@ public final class KeySurfaceView: UIView {
 
     public override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
         for touch in touches {
+            _ = restartIfMisplaced(touch, at: touch.location(in: self), event: event)
             guard let touchState = active.removeValue(forKey: ObjectIdentifier(touch)) else { continue }
             touchState.hold?.cancel()
             if !touchState.isLetter {
@@ -638,22 +661,25 @@ public final class KeySurfaceView: UIView {
     }
 
     public override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
-        for touch in touches {
-            guard let touchState = active.removeValue(forKey: ObjectIdentifier(touch)) else { continue }
-            touchState.hold?.cancel()
-            if !touchState.isLetter {
-                onOtherTouch?("x", touchState.id, touch.location(in: self), touch.timestamp, touchState.startKey)
-            }
-            touchState.callout?.removeFromSuperview()
-            if let key = touchState.key { unflash(key) }
-            if touchState.startKey == .globe, let event { onGlobeTouch?(self, event) }
-            touchState.trail.map { fx.cancelTrail($0) }
-            if touchState.isLetter {
-                delegate?.keySurface(self, touchCancelled: touchState.id, time: touch.timestamp)
-            }
-            if touchState.slidFromNumbers {
-                delegate?.keySurface(self, didEndNumbersSlideOn: nil)
-            }
+        for touch in touches { drop(touch, event: event) }
+    }
+
+    /// The touch ends without doing anything: iOS cancelled it, or it is starting again.
+    private func drop(_ touch: UITouch, event: UIEvent?) {
+        guard let touchState = active.removeValue(forKey: ObjectIdentifier(touch)) else { return }
+        touchState.hold?.cancel()
+        if !touchState.isLetter {
+            onOtherTouch?("x", touchState.id, touch.location(in: self), touch.timestamp, touchState.startKey)
+        }
+        touchState.callout?.removeFromSuperview()
+        if let key = touchState.key { unflash(key) }
+        if touchState.startKey == .globe, let event { onGlobeTouch?(self, event) }
+        touchState.trail.map { fx.cancelTrail($0) }
+        if touchState.isLetter {
+            delegate?.keySurface(self, touchCancelled: touchState.id, time: touch.timestamp)
+        }
+        if touchState.slidFromNumbers {
+            delegate?.keySurface(self, didEndNumbersSlideOn: nil)
         }
     }
 

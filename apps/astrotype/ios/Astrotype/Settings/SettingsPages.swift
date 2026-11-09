@@ -291,6 +291,13 @@ private struct PrivacySettings: View {
         }
         GroupFootnote("Needs Full Access, so the keyboard can hand the numbers to the app. Never what you type, or in which app.")
 
+        SectionLabel("Leaderboards").padding(.top, Theme.Space.m)
+        SettingsGroup {
+            SettingsToggle("Show me on leaderboards", subtitle: "Shares your Game Center name and your weekly speeds.",
+                           symbol: "trophy", tint: Theme.sun, isOn: $model.showOnLeaderboards)
+        }
+        GroupFootnote("Turning it off stops sharing. Your scores leave the boards when they reset each week.")
+
         SectionLabel("Crash reports").padding(.top, Theme.Space.m)
         SettingsGroup {
             SettingsToggle("Share anonymous usage data", subtitle: "Crashes from the app and the keyboard, and counts like how many people turn the keyboard on. Never anything you type.",

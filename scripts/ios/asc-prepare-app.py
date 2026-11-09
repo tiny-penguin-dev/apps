@@ -6,7 +6,7 @@ record uses it. Apple's API can't create app records, so a missing one
 stops the run with the steps to create it by hand.
 
 With an entitlements file, also turns on the matching capabilities for the
-bundle ID (iCloud with CloudKit, NFC tag reading, App Groups, HomeKit, WeatherKit). Neither the API nor signing with
+bundle ID (iCloud with CloudKit, NFC tag reading, App Groups, HomeKit, WeatherKit, Game Center). Neither the API nor signing with
 an API key can create iCloud containers or App Groups, or link them to an app,
 so that's done once by hand (see docs/ios-release.md).
 
@@ -35,6 +35,8 @@ CAPABILITIES = {
     "com.apple.developer.homekit": ("HOMEKIT", []),
     "com.apple.developer.weatherkit": ("WEATHERKIT", []),
     "aps-environment": ("PUSH_NOTIFICATIONS", []),
+    # Apple turns Game Center on for every App ID; this only covers an older one.
+    "com.apple.developer.game-center": ("GAME_CENTER", []),
 }
 
 

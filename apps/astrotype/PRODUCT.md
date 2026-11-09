@@ -274,6 +274,8 @@ and `guess.*` rows below).
 | `speedtest.finished` (gauge: words per minute) | Whether people get faster over time |
 | `speed.everyday` (gauge: words per minute, once per finished day with a speed) | Whether people really type faster with Astrotype, outside practice (features/typing-speed) |
 | `speed.opened` (count) | Whether people look at their speed graph |
+| `leaderboard.joined` (count) | How many people join the leaderboards (features/leaderboards) |
+| `leaderboard.opened` (count, tags `board`, `scope`) | Whether people come back to the boards, and whether Friends gets used |
 | `drill.finished` (`drill`) | Which habits people practise |
 | `trial.started`, `pro.subscribed` (`plan`) | Whether the trial converts |
 | `sync.failed` | iCloud sync problems (goal: zero) |

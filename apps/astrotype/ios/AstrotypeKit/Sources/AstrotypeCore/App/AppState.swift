@@ -37,6 +37,9 @@ public struct AppState: Codable, Sendable, Equatable {
     /// The typing logs sent from Settings → Debug (`TypingLog`), newest last: when, how
     /// long, and the CloudKit records, so they can be deleted from iCloud again.
     public var typingLogsSent: [SentTypingLog] = []
+    /// Joined the leaderboards and still shown on them (Privacy and sharing → Show me on
+    /// leaderboards, features/leaderboards). Off until the person joins.
+    public var leaderboards = false
 
     public init() {}
 
@@ -58,6 +61,7 @@ public struct AppState: Codable, Sendable, Equatable {
         sharePractice = try c.decodeIfPresent(Bool.self, forKey: .sharePractice) ?? false
         keyboardHealthSent = try c.decodeIfPresent(Date.self, forKey: .keyboardHealthSent)
         typingLogsSent = try c.decodeIfPresent([SentTypingLog].self, forKey: .typingLogsSent) ?? []
+        leaderboards = try c.decodeIfPresent(Bool.self, forKey: .leaderboards) ?? false
     }
 
     /// Keeps the last 30 speed tests and the best on the Astrotype keyboard. Returns

@@ -50,6 +50,8 @@ struct AppEnvironment {
     var speedRuns: SpeedRunStore?
     var speedHistory: SpeedHistoryStore?
     var typingUploader: TypingLogUploader?
+    /// The weekly leaderboards on Game Center (features/leaderboards).
+    var leaderboards: LeaderboardService
     var compress: @Sendable (Data) -> Data?
     /// Whether this is a TestFlight or Xcode build: only those offer the recorder.
     var isTestBuild: @Sendable () async -> Bool
@@ -85,6 +87,7 @@ struct AppEnvironment {
             speedRuns: KeyboardFiles.shared(KeyboardFiles.speedRuns).map { SpeedRunStore(url: $0) },
             speedHistory: SpeedHistoryStore(url: KeyboardFiles.own(KeyboardFiles.speedHistory)),
             typingUploader: CloudKitPracticeUploader(),
+            leaderboards: GameCenterLeaderboards(),
             // Raw DEFLATE, which ml/download_samples.py opens with zlib.
             compress: { data in try? (data as NSData).compressed(using: .zlib) as Data },
             isTestBuild: {
@@ -147,6 +150,7 @@ struct AppEnvironment {
         speedRuns: SpeedRunStore? = nil,
         speedHistory: SpeedHistoryStore? = nil,
         typingUploader: TypingLogUploader? = nil,
+        leaderboards: LeaderboardService = MemoryLeaderboardService(),
         compress: @escaping @Sendable (Data) -> Data? = { $0 },
         isTestBuild: @escaping @Sendable () async -> Bool = { true },
         device: PracticeRecording.Device = PracticeRecording.Device(model: "iPhone", system: "iOS 26", app: "0.2.0", writer: "test"),
@@ -165,7 +169,7 @@ struct AppEnvironment {
                        sharedWords: sharedWords, sharedUploader: sharedUploader,
                        missedWords: missedWords, typingLog: typingLog,
                        speedRuns: speedRuns, speedHistory: speedHistory, typingUploader: typingUploader,
-                       compress: compress, isTestBuild: isTestBuild, device: device, metrics: metrics, now: now,
+                       leaderboards: leaderboards, compress: compress, isTestBuild: isTestBuild, device: device, metrics: metrics, now: now,
                        appVersion: appVersion, backup: backup, openSettings: openSettings)
     }
 }

@@ -114,8 +114,28 @@ public final class BarView: UIView {
             for (button, symbol) in [(pencilButton, "pencil"), (closeButton, "xmark")] {
                 button.configuration?.image = Self.iconConfiguration(symbol, small: small).image
             }
+            micButton.small = small
             setNeedsLayout()
         }
+    }
+
+    /// The mic (features/dictation): at the right end when the pencil has nothing to
+    /// fix, and the listening strip while it listens (✕, the wave, and the mic as ✓).
+    public var mic: MicStatus = .hidden {
+        didSet {
+            guard mic != oldValue else { return }
+            if mic.isListening != oldValue.isListening, mic.isListening {
+                UIAccessibility.post(notification: .announcement, argument: "Listening")
+            }
+            render()
+        }
+    }
+    /// The mic touched or let go, or the strip's ✕.
+    public var onMic: ((MicAction) -> Void)?
+    /// How loud it is while listening, 0 to 1, for the wave.
+    public var level: Double {
+        get { wave.level }
+        set { wave.level = newValue }
     }
 
     /// How far a held guess slides before it counts as a boost (up) or a forget (down).
@@ -273,6 +293,10 @@ public final class BarView: UIView {
     private let label = UILabel()
     private let pencilButton = UIButton(configuration: .plain())
     private let closeButton = UIButton(configuration: .plain())
+    private let micButton = MicButton()
+    private let wave = WaveView()
+    /// "Let go to stop", beside the wave while the mic is held.
+    private let heldLabel = UILabel()
     private let saveButton = UIButton(configuration: .plain())
     private let fieldLabel = UILabel()
     private let stack = UIStackView()
@@ -308,6 +332,16 @@ public final class BarView: UIView {
         closeButton.configuration = Self.iconConfiguration("xmark")
         closeButton.addAction(UIAction { [weak self] _ in self?.tappedClose() }, for: .touchUpInside)
         addSubview(closeButton)
+
+        micButton.onAction = { [weak self] action in self?.onMic?(action) }
+        addSubview(micButton)
+        wave.isHidden = true
+        addSubview(wave)
+        heldLabel.text = "Let go to stop"
+        heldLabel.font = Theme.uiFont(size: 15, weight: .bold, scaledWith: .footnote, upTo: 17)
+        heldLabel.adjustsFontForContentSizeCategory = true
+        heldLabel.isHidden = true
+        addSubview(heldLabel)
 
         saveButton.addAction(UIAction { [weak self] _ in self?.onSaveCorrection?() }, for: .touchUpInside)
         saveButton.accessibilityLabel = "Save"
@@ -360,8 +394,16 @@ public final class BarView: UIView {
         }
     }
 
+    /// Listening and not in the "Not it?" field: the bar is the listening strip.
+    private var listening: Bool {
+        if case .correcting = bar { return false }
+        return mic.isListening
+    }
+
     private func tappedClose() {
-        if case .correcting = bar {
+        if listening {
+            onMic?(.cancel)
+        } else if case .correcting = bar {
             onCancelCorrection?()
         } else {
             showsFixes = false
@@ -397,6 +439,19 @@ public final class BarView: UIView {
         closeButton.frame = left
         leadingKey?.frame = left
         pencilButton.frame = CGRect(x: inset.maxX - end, y: 0, width: end, height: inset.height)
+        micButton.frame = pencilButton.frame
+        if listening {
+            // ✕, the wave as wide as the middle allows, and the mic as ✓ (or held).
+            var middle = inset.insetBy(dx: end + Theme.Space.xs, dy: 0)
+            if !heldLabel.isHidden {
+                let fit = heldLabel.sizeThatFits(middle.size)
+                let width = min(fit.width, middle.width / 2)
+                heldLabel.frame = CGRect(x: middle.maxX - width, y: 0, width: width, height: inset.height)
+                middle.size.width -= width + Theme.Space.s
+            }
+            wave.frame = CGRect(x: middle.minX, y: inset.midY - 15, width: middle.width, height: 30)
+            return
+        }
         if menu != nil || undo != nil {
             // The whole bar, the ends included; the word (or the note) dead centre.
             let fit = stack.systemLayoutSizeFitting(CGSize(width: inset.width, height: inset.height),
@@ -467,7 +522,16 @@ public final class BarView: UIView {
         let bottom = CGRect(x: area.midX - end / 2, y: area.maxY - end, width: end, height: end)
         pencilButton.frame = bottom
         closeButton.frame = bottom
-        if !pencilButton.isHidden || !closeButton.isHidden {
+        micButton.frame = bottom
+        if listening {
+            // The wave, then ✕ and ✓ side by side under it.
+            let width = min(end, area.width / 2)
+            closeButton.frame = CGRect(x: area.midX - width, y: area.maxY - end, width: width, height: end)
+            micButton.frame = CGRect(x: area.midX, y: area.maxY - end, width: width, height: end)
+            wave.frame = CGRect(x: area.minX, y: area.minY, width: area.width, height: 30)
+            return
+        }
+        if !pencilButton.isHidden || !closeButton.isHidden || !micButton.isHidden {
             area = area.divided(atDistance: end + Theme.Space.s, from: .maxYEdge).remainder
         }
         // The note and the guesses start at the top of the column (Gabriel, 8 Nov 2026).
@@ -487,7 +551,7 @@ public final class BarView: UIView {
         let area = bounds.insetBy(dx: Theme.Space.xs, dy: 0)
         let end = Self.endWidth
         let bottom = keyRows[3]
-        let ends: [UIView] = [pencilButton, closeButton] + (leadingKey.map { [$0] } ?? [])
+        let ends: [UIView] = [pencilButton, closeButton, micButton] + (leadingKey.map { [$0] } ?? [])
         let buttons = ends.filter { !$0.isHidden }
         let width = min(end, area.width / CGFloat(max(1, buttons.count)))
         var x = area.midX - width * CGFloat(buttons.count) / 2
@@ -496,6 +560,12 @@ public final class BarView: UIView {
             x += width
         }
         let words = keyRows[0].lowerBound...keyRows[2].upperBound
+        if listening {
+            // The wave across the middle row.
+            wave.frame = CGRect(x: area.minX, y: (keyRows[1].lowerBound + keyRows[1].upperBound) / 2 - 15,
+                                width: area.width, height: 30)
+            return
+        }
         label.frame = CGRect(x: area.minX, y: words.lowerBound, width: area.width, height: keyRows[0].upperBound - keyRows[0].lowerBound)
         let views = stack.arrangedSubviews
         views.forEach { if $0.isHidden { $0.isHidden = false } }
@@ -523,6 +593,9 @@ public final class BarView: UIView {
         label.textColor = dim
         pencilButton.configuration?.baseForegroundColor = dim
         closeButton.configuration?.baseForegroundColor = dim
+        micButton.ink = dim
+        micButton.status = mic
+        heldLabel.textColor = dim
         stack.arrangedSubviews.forEach { $0.removeFromSuperview() }
         indices = []
         keptView = nil
@@ -538,6 +611,27 @@ public final class BarView: UIView {
         leadingKey?.isHidden = axis == .vertical ? false : !closeButton.isHidden || wordBar
         saveButton.isHidden = correcting == nil
         fieldLabel.isHidden = correcting == nil
+        // One button at the right end: the pencil when the last word has something to
+        // fix, otherwise the mic (features/dictation).
+        micButton.isHidden = mic == .hidden || !pencilButton.isHidden || !closeButton.isHidden
+            || correcting != nil || wordBar
+        wave.isHidden = true
+        heldLabel.isHidden = true
+        if listening {
+            // The listening strip: ✕, the wave, the mic as ✓. The words go straight into
+            // the field, so the bar doesn't repeat them (Gabriel, 9 Nov 2026).
+            pencilButton.isHidden = true
+            closeButton.isHidden = false
+            closeButton.accessibilityLabel = "Stop and discard"
+            micButton.isHidden = false
+            leadingKey?.isHidden = true
+            wave.isHidden = false
+            heldLabel.isHidden = mic != .listening(held: true)
+            label.isHidden = true
+            stack.isHidden = true
+            setNeedsLayout()
+            return
+        }
         if let correcting, notice == nil {
             renderField(correcting)
             label.isHidden = true

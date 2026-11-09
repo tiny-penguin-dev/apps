@@ -161,6 +161,7 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         bar.onSaveCorrection = { [weak self] in self?.model.saveCorrection() }
         bar.onAutofill = { [weak self] index in self?.model.fill(autofill: index) }
         bar.onShortcut = { [weak self] in self?.model.writeShortcut() }
+        bar.onMic = { [weak self] action in self?.model.mic(action) }
         attachToModel()
         keyHaptic.prepare()
     }
@@ -181,6 +182,8 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
             case .twoThumbsIsPro: self?.bar.flash("Two thumbs is in Astrotype Pro")
             }
         }
+        model.onFlash = { [weak self] text in self?.bar.flash(text, for: 2.4) }
+        model.onLevel = { [weak self] level in self?.bar.level = level }
         render()
     }
 
@@ -382,6 +385,12 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         bar.fillPrompt = model.state.fillPrompt
         bar.autofill = model.state.autofill
         bar.shortcutPhrase = model.state.shortcutPhrase
+        // A light tap when listening starts and stops (features/dictation).
+        if model.mic.isListening != bar.mic.isListening, bar.mic != .hidden || model.mic.isListening,
+           hapticsAvailable, model.keyboardSettings.haptics {
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        }
+        bar.mic = model.mic
         if shownField != model.field {
             shownField = model.field
             page = model.field.startPage

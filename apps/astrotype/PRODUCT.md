@@ -279,6 +279,7 @@ and `guess.*` rows below).
 | `setup.full_access` (`on` / `skipped`) | How many accept the sync ask |
 | `onboarding.finished` (duration) | How long first setup takes (goal: under two minutes) |
 | `setup.step` (`step`) | Where people drop off in the welcome wizard |
+| `setup.restarted` | How often people walk the welcome steps again from Settings → Run setup again |
 | `setup.style` (`theme`, `effects`, `changed`) | Whether people make the keyboard theirs in setup |
 | `home.style_changed` (`part`: theme, effects, theme_preview, effects_preview) | Whether Home's Your keyboard card gets used, and how often free users try a Pro look |
 | `lesson.replayed` | Whether people want the two-thumb lesson again |

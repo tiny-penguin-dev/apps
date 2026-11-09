@@ -77,6 +77,10 @@ struct SettingsView: View {
                      subtitle: model.sharePractice ? "Sending practice sessions" : "Nothing you type is sent",
                      symbol: "lock", tint: Theme.slate)
                 link(.about, "About", subtitle: "Version \(DeviceInfo.appVersion)", symbol: "info.circle", tint: Theme.ice)
+                SettingsLink("Run setup again", subtitle: "Turn it on, languages, your look and the lesson, step by step",
+                             symbol: "arrow.counterclockwise", tint: Theme.mint) {
+                    model.restartSetup()
+                }
             }
 
             SectionLabel("Debug").padding(.top, Theme.Space.m)

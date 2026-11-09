@@ -43,11 +43,7 @@ struct KeyboardDock: View {
                 .padding(.vertical, Theme.Space.xs)
                 // A strip in the keyboard's own colour, the full width of the screen
                 // (Gabriel, 9 Nov 2026), sitting on the keys like part of them.
-                .background {
-                    UnevenRoundedRectangle(topLeadingRadius: Theme.Radius.md, topTrailingRadius: Theme.Radius.md, style: .continuous)
-                        .fill(Color(uiColor: Theme.ui(.kbGlass)))
-                        .ignoresSafeArea(.container, edges: .horizontal)
-                }
+                .background { DockStrip().ignoresSafeArea(.container, edges: .horizontal) }
                 // Off screen while hidden: the field stays in the view so it can take the keys again.
                 .opacity(focused ? 1 : 0)
                 .allowsHitTesting(focused)
@@ -95,5 +91,18 @@ struct KeyboardDock: View {
         .onChange(of: model.demoSettings) { session?.apply(model.demoSettings) }
         .onChange(of: model.proStatus) { session?.apply(entitlement: model.demoEntitlement) }
         .onChange(of: model.isPreviewingLook) { session?.apply(entitlement: model.demoEntitlement) }
+    }
+}
+
+/// The strip behind the try-it field: glass like the keys under it on iOS 26, the
+/// keyboard's own colour before.
+private struct DockStrip: View {
+    var body: some View {
+        let shape = UnevenRoundedRectangle(topLeadingRadius: Theme.Radius.md, topTrailingRadius: Theme.Radius.md, style: .continuous)
+        if #available(iOS 26, *) {
+            Color.clear.glassEffect(.regular.tint(Color(uiColor: Theme.ui(.kbGlass)).opacity(0.55)), in: shape)
+        } else {
+            shape.fill(Color(uiColor: Theme.ui(.kb)))
+        }
     }
 }

@@ -1,6 +1,7 @@
 # Keeps each app's App Store Connect listing in sync with its store/ folder:
 #   apps/<name>/store/screenshots/<language>/   screenshots (asc-upload-screenshots.py)
 #   apps/<name>/store/subscriptions.json        subscriptions (asc-subscriptions.py)
+#   apps/<name>/store/game-center.json          leaderboards (asc-game-center.py)
 # Pull requests print what would change; pushes to main make the changes. Things that
 # already match are skipped. See docs/ios-release.md.
 name: App Store
@@ -13,6 +14,7 @@ on:
       - scripts/ios/asc.py
       - scripts/ios/asc-upload-screenshots.py
       - scripts/ios/asc-subscriptions.py
+      - scripts/ios/asc-game-center.py
       - .github/workflows/app-store.yml
   pull_request:
     paths:
@@ -20,6 +22,7 @@ on:
       - scripts/ios/asc.py
       - scripts/ios/asc-upload-screenshots.py
       - scripts/ios/asc-subscriptions.py
+      - scripts/ios/asc-game-center.py
       - .github/workflows/app-store.yml
   workflow_dispatch:
     inputs:
@@ -79,6 +82,17 @@ jobs:
             # With no subscriptions.json, this prints what App Store Connect has, to start one.
             echo "::group::$app ($bundle_id)"
             python3 scripts/ios/asc-subscriptions.py "$bundle_id" "apps/$app/store/subscriptions.json" $APPLY
+            echo "::endgroup::"
+          done < "$RUNNER_TEMP/apps.txt"
+
+      - name: Game Center
+        if: steps.setup.outputs.ready == 'true'
+        run: |
+          set -euo pipefail
+          while read -r app bundle_id; do
+            [ -f "apps/$app/store/game-center.json" ] || continue
+            echo "::group::$app ($bundle_id)"
+            python3 scripts/ios/asc-game-center.py "$bundle_id" "apps/$app/store/game-center.json" $APPLY
             echo "::endgroup::"
           done < "$RUNNER_TEMP/apps.txt"
 

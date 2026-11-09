@@ -474,6 +474,113 @@ final class AppModel {
         environment.speedHistory?.save(speedHistory)
     }
 
+    // MARK: Leaderboards (features/leaderboards)
+
+    /// Joined, and shown on the boards (Privacy and sharing → Show me on leaderboards).
+    var isOnLeaderboards: Bool { state.leaderboards }
+    /// The Privacy and sharing switch: on joins (Game Center's sign-in if needed), off leaves.
+    var showOnLeaderboards: Bool {
+        get { state.leaderboards }
+        set {
+            if newValue {
+                Task { await joinLeaderboards() }
+            } else {
+                leaveLeaderboards()
+            }
+        }
+    }
+    /// The boards as last loaded, by board and scope.
+    private(set) var leaderboardPages: [String: LeaderboardPage] = [:]
+    /// Why joining didn't work the last time, for the join card.
+    private(set) var leaderboardProblem: LeaderboardSignIn?
+    /// A board couldn't be loaded (offline, or Game Center is down).
+    private(set) var leaderboardFailed = false
+
+    func leaderboardPage(_ board: Leaderboard, _ scope: LeaderboardScope) -> LeaderboardPage? {
+        leaderboardPages["\(board.rawValue)-\(scope.rawValue)"]
+    }
+
+    /// Your rank on the Everyday board, for Home's chip and Your speed.
+    var everydayRank: LeaderboardPage? {
+        guard state.leaderboards, let page = leaderboardPage(.everyday, .everyone), page.me != nil else { return nil }
+        return page
+    }
+
+    /// For each of the last 7 days, whether it has a speed (the "get on the board" dots).
+    var leaderboardDaysCounted: [Bool] { LeaderboardRules.daysCounted(speedHistory, now: now) }
+    /// More days with a speed it takes for the everyday speed to go on the board.
+    var leaderboardDaysToGo: Int { LeaderboardRules.daysToGo(speedHistory, now: now) }
+
+    /// Join: Apple's Game Center sign-in if needed, then post and load the boards.
+    func joinLeaderboards() async {
+        let result = await environment.leaderboards.signIn(interactive: true)
+        guard result == .signedIn else {
+            leaderboardProblem = result
+            return
+        }
+        leaderboardProblem = nil
+        if !state.leaderboards { environment.metrics.count("leaderboard.joined") }
+        state.leaderboards = true
+        await postScores()
+        await loadLeaderboard(.everyday, .everyone)
+    }
+
+    /// Show me on leaderboards turned off: nothing more is posted. Posted scores leave
+    /// the boards when they reset.
+    func leaveLeaderboards() {
+        state.leaderboards = false
+        leaderboardPages = [:]
+    }
+
+    /// On launch and each foreground: signs in quietly, posts this week's scores (Game
+    /// Center keeps the best of the week, so posting again is harmless), and loads your
+    /// everyday rank for Home.
+    func refreshLeaderboards() async {
+        guard state.leaderboards else { return }
+        guard await environment.leaderboards.signIn(interactive: false) == .signedIn else { return }
+        await postScores()
+        await loadLeaderboard(.everyday, .everyone)
+    }
+
+    private func postScores() async {
+        guard state.leaderboards, environment.leaderboards.isSignedIn else { return }
+        if let everyday = LeaderboardRules.everydayScore(speedHistory, now: now) {
+            try? await environment.leaderboards.submit(everyday, to: .everyday)
+        }
+        // A new week starts empty: post the best practice of the last 7 days again.
+        let weekAgo = now.addingTimeInterval(-7 * 86_400)
+        if let best = state.speedTests.filter({ $0.date > weekAgo }).compactMap(LeaderboardRules.practiceScore).max() {
+            try? await environment.leaderboards.submit(best, to: .practice)
+        }
+    }
+
+    /// A Speed practice result goes on the Practice board (when it counts), then the
+    /// board is reloaded for the result's rank.
+    func postPractice(_ result: SpeedResult) async {
+        guard state.leaderboards, let score = LeaderboardRules.practiceScore(result) else { return }
+        if !environment.leaderboards.isSignedIn {
+            guard await environment.leaderboards.signIn(interactive: false) == .signedIn else { return }
+        }
+        try? await environment.leaderboards.submit(score, to: .practice)
+        await loadLeaderboard(.practice, .everyone)
+    }
+
+    func loadLeaderboard(_ board: Leaderboard, _ scope: LeaderboardScope) async {
+        guard state.leaderboards, environment.leaderboards.isSignedIn else { return }
+        do {
+            let page = try await environment.leaderboards.page(board, scope: scope)
+            leaderboardPages["\(board.rawValue)-\(scope.rawValue)"] = page
+            leaderboardFailed = false
+        } catch {
+            leaderboardFailed = true
+        }
+    }
+
+    /// A board was shown (`leaderboard.opened`).
+    func leaderboardOpened(_ board: Leaderboard, _ scope: LeaderboardScope) {
+        environment.metrics.count("leaderboard.opened", ["board": board.rawValue, "scope": scope.rawValue])
+    }
+
     // MARK: Milestones
 
     /// The next milestone sheet to show, if one was reached and not seen yet.

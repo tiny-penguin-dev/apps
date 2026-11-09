@@ -27,6 +27,7 @@ struct AstrotypeApp: App {
                 .environment(uploader)
                 .task {
                     model.startPro()
+                    await model.refreshLeaderboards()
                     // The v1 handwriting model only loads when the pad is on.
                     if Flags.handwritingPad { await recognition.load() }
                 }
@@ -40,6 +41,7 @@ struct AstrotypeApp: App {
                 model.sendKeyboardHealth()
                 model.refreshSpeed()
                 Task { await model.refreshPro() }
+                Task { await model.refreshLeaderboards() }
             } else {
                 uploader.upload()
             }

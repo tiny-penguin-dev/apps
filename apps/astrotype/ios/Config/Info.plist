@@ -25,6 +25,8 @@
 	<key>SentryDSN</key>
 	<string>$(SENTRY_DSN)</string>
 	<!-- Throwaway dictation test (Astrotype/DictationTest): record in the background. -->
+	<key>NSGKFriendListUsageDescription</key>
+	<string>Astrotype shows your Game Center friends who use it on the Friends leaderboard.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Astrotype is testing dictation: it records a few seconds to check the microphone works, and keeps nothing.</string>
 	<!-- Throwaway dictation test: its Live Activity (drawn by AstrotypeLive). -->

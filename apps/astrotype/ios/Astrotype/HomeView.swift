@@ -17,6 +17,8 @@ struct HomeView: View {
         case speedTest(PracticeKeyboard, UInt64?)
         /// Your speed (features/typing-speed).
         case speed
+        /// The weekly leaderboards (features/leaderboards).
+        case leaderboard
         /// A page of Settings opened from elsewhere (Your speed → Privacy and sharing).
         case settingsPage(SettingsPage)
         case drill(Drill.ID)
@@ -69,6 +71,7 @@ struct HomeView: View {
                 case .speedTest(let keyboard, let seed): SpeedTestView(model: model, keyboard: keyboard, seed: seed, path: $path)
                 case .drill(let id): DrillView(model: model, drill: Drill.named(id), path: $path)
                 case .speed: SpeedHistoryView(model: model, path: $path)
+                case .leaderboard: LeaderboardView(model: model, path: $path)
                 case .settingsPage(let page): SettingsPageView(page: page, model: model, path: $path)
                 }
             }

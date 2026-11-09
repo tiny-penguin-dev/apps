@@ -135,4 +135,30 @@ None.
 
 ## Build
 
-Status: Not started
+Status: Approved 2026-11-09 (Gabriel: "Ok build")
+
+Built 9 Nov 2026 in one PR:
+
+- **Core** (`AstrotypeCore/App/Leaderboards.swift`, tests in `LeaderboardTests`):
+  `Leaderboard` (the two boards and their Game Center IDs), `LeaderboardRules` (what gets
+  posted: everyday once the last 7 days have 3 days with a speed, practice on the
+  Astrotype keyboard with at most 2 wrong words, scores 1 to 200), `LeaderboardPage`
+  (`fasterThan`, `around`), the `LeaderboardService` protocol and
+  `MemoryLeaderboardService`. `AppState.leaderboards` (joined, off by default).
+- **App:** `App/GameCenterLeaderboards` (GameKit: quiet sign-in on launch, Apple's sheet
+  only on Join, the top 10 and the 11 around you, friends with the friends-list ask).
+  `AppModel` joins, leaves, posts on launch and foreground (Game Center keeps the best of
+  the week, so posting again is harmless) and after a practice result, and loads the
+  boards. `Speed/LeaderboardView.swift`: `LeaderboardView` (Route `.leaderboard`),
+  `LeaderboardCard` on Your speed, `RankRow`. Home's `SpeedCard` shows the rank chip,
+  the result shows the Practice rank, Privacy and sharing has Show me on leaderboards.
+- **Weekly reset:** both boards start Monday 9 Nov 2026 at 08:00 UTC (midnight in
+  California, morning in Europe) and reset every 7 days. The screen reads the reset from
+  Game Center, so it says the right day wherever you are.
+- **App Store Connect:** `store/game-center.json`, synced by `scripts/ios/asc-game-center.py`
+  in the App Store workflow (turns Game Center on, creates the two boards with their
+  score range and recurrence). The `com.apple.developer.game-center` entitlement and
+  `NSGKFriendListUsageDescription` are in `Config/`.
+- **Not yet:** the invite shares text without a link until Astrotype has an App Store
+  page. Before the first release, add both leaderboards to the version in App Store
+  Connect (Game Center section) so they go live with it.

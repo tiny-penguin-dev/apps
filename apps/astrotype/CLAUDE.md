@@ -20,7 +20,9 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
     real services are named; `LiveMetrics` on `Telemetry`), `Onboarding/`
     (`TurnOnView`, `LanguagesSetupView` (only on a phone set to two languages), `SyncView`, `TryItView`, and `SetupPage`, their shared shape),
     `HelloView`, `HomeView` (led by `SpeedCard`), `Speed/` (`SpeedViews`: `SpeedCard`, `SpeedHistoryView`,
-    `SpeedChart`; the everyday typing speed, features/typing-speed), `Settings/` (`SettingsView`, the main page with its
+    `SpeedChart`; the everyday typing speed, features/typing-speed; `LeaderboardView`: `LeaderboardCard`, `RankRow`,
+    the weekly Game Center boards, features/leaderboards, with `App/GameCenterLeaderboards`, the live
+    `LeaderboardService`), `Settings/` (`SettingsView`, the main page with its
     `SettingsPage`s, and `SettingsPages`, one view per page; `StyleSettings`, Appearance's hub and its General, Styling, theme editor and Effects pages with the live `StylePreview` (features/customization); `DebugSettings`, the Debug page:
     the keyboard's memory against 40 MB from `KeyboardDebug`, the switch for the
     stats overlay on the keys, and in TestFlight builds the typing recorder: "Keep
@@ -133,7 +135,9 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
       `StoreKitProStore` (the live `ProStore`), `KeyboardStatus` (is the keyboard on),
       `Metrics` (protocol; the app's live one is `Telemetry`), `TryWord` (the Try it
       words and their strokes), `Week`, `SpeedTest` (the test as it runs, `SpeedResult`), `TypingSpeed` (`SpeedMeter`,
-      `SpeedRun`, `SpeedRunStore`, `SpeedHistory`: the everyday speed, features/typing-speed),
+      `SpeedRun`, `SpeedRunStore`, `SpeedHistory`: the everyday speed, features/typing-speed), `Leaderboards`
+      (`LeaderboardRules`: what gets posted; `LeaderboardPage`, `LeaderboardService` with its fake,
+      features/leaderboards; the boards themselves are in `store/game-center.json`),
       `Drill` (the three drills and their words), `Milestone` and `Streak`,
       `PracticeRecording` (a session's touches, `TouchRecorder`, `PracticeStore`, the
       `PracticeUploader` protocol with its fake; the live one is

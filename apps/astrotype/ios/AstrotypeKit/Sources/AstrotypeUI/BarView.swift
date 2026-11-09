@@ -23,7 +23,9 @@ import UIKit
 /// A bar above the keys (`axis` horizontal) or a column beside them (vertical: the
 /// middle of a split keyboard, the side of a wide one); in a column, the guesses start
 /// at the top, touches between them fall through to the keys under it, and
-/// `leadingKey` sits faded at the bottom, centred (Gabriel, 8 Nov 2026).
+/// `leadingKey` sits faded at the bottom, centred (Gabriel, 8 Nov 2026). In the split's
+/// middle (`keyRows` set) each guess sits on a letter row and the small buttons side by
+/// side on the bottom row (Gabriel, 9 Nov 2026).
 ///
 ///     bar.bar = model.state.bar
 ///     bar.onChoose = { index in model.choose(guess: index) }
@@ -104,6 +106,21 @@ public final class BarView: UIView {
             oldValue?.removeFromSuperview()
             if let leadingKey { addSubview(leadingKey) }
             render()
+        }
+    }
+
+    /// In the split's middle column: the four key rows, top to bottom, in the bar's
+    /// coordinates. The guesses then sit one per row and the buttons side by side on
+    /// the bottom row, so the column lines up with the keys (Gabriel, 9 Nov 2026).
+    /// Empty elsewhere.
+    public var keyRows: [ClosedRange<CGFloat>] = [] {
+        didSet {
+            guard keyRows != oldValue else { return }
+            let small = !keyRows.isEmpty
+            for (button, symbol) in [(pencilButton, "pencil"), (snippetButton, "text.insert"), (closeButton, "xmark")] {
+                button.configuration?.image = Self.iconConfiguration(symbol, small: small).image
+            }
+            setNeedsLayout()
         }
     }
 
@@ -328,9 +345,13 @@ public final class BarView: UIView {
     }
 
     /// A bar button at one of the ends: a dimmed symbol on a 44 pt target.
-    private static func iconConfiguration(_ symbol: String) -> UIButton.Configuration {
+    private static func iconConfiguration(_ symbol: String, small: Bool = false) -> UIButton.Configuration {
         var config = UIButton.Configuration.plain()
-        config.image = UIImage(systemName: symbol, withConfiguration: UIImage.SymbolConfiguration(pointSize: 17, weight: .semibold))
+        // Smaller and lighter in the split's middle column, next to the menu button
+        // (Gabriel, 9 Nov 2026: the column was busy).
+        config.image = UIImage(systemName: symbol, withConfiguration: small
+            ? UIImage.SymbolConfiguration(pointSize: 15, weight: .regular)
+            : UIImage.SymbolConfiguration(pointSize: 17, weight: .semibold))
         config.contentInsets = .zero
         config.background.cornerRadius = 12
         return config
@@ -432,6 +453,11 @@ public final class BarView: UIView {
 
     /// A column: the words stacked and centred, the pencil (or ✕ in the fix row) under them.
     private func layoutColumn() {
+        stack.spacing = Theme.Space.xs
+        if case .correcting = bar {} else if keyRows.count == 4 {
+            layoutRows()
+            return
+        }
         var area = bounds.insetBy(dx: Theme.Space.xs, dy: Theme.Space.s)
         let end = Self.endWidth
         if let leadingKey, !leadingKey.isHidden {
@@ -466,6 +492,44 @@ public final class BarView: UIView {
                                                 withHorizontalFittingPriority: .required, verticalFittingPriority: .fittingSizeLevel)
         let height = min(area.height, fit.height)
         stack.frame = CGRect(x: area.minX, y: area.minY, width: area.width, height: height)
+    }
+
+    /// The split's middle column lined up with the keys: up to three words, one per
+    /// letter row, and the small buttons (the pencil, ✕ or snippets, then the menu
+    /// button) side by side on the bottom row.
+    private func layoutRows() {
+        let area = bounds.insetBy(dx: Theme.Space.xs, dy: 0)
+        let end = Self.endWidth
+        let bottom = keyRows[3]
+        let ends: [UIView] = [pencilButton, closeButton, snippetButton] + (leadingKey.map { [$0] } ?? [])
+        let buttons = ends.filter { !$0.isHidden }
+        let width = min(end, area.width / CGFloat(max(1, buttons.count)))
+        var x = area.midX - width * CGFloat(buttons.count) / 2
+        for button in buttons {
+            button.frame = CGRect(x: x, y: bottom.lowerBound, width: width, height: bottom.upperBound - bottom.lowerBound)
+            x += width
+        }
+        let words = keyRows[0].lowerBound...keyRows[2].upperBound
+        label.frame = CGRect(x: area.minX, y: words.lowerBound, width: area.width, height: keyRows[0].upperBound - keyRows[0].lowerBound)
+        let views = stack.arrangedSubviews
+        views.forEach { if $0.isHidden { $0.isHidden = false } }
+        if views.count <= 3 {
+            // Each word centred on its row: the words are the same height, so spacing
+            // them one row pitch apart does it.
+            let pitch = keyRows[1].lowerBound - keyRows[0].lowerBound
+            let line = views.map(\.intrinsicContentSize.height).max() ?? 0
+            let mid = (keyRows[0].lowerBound + keyRows[0].upperBound) / 2
+            stack.spacing = max(0, pitch - line)
+            let height = CGFloat(views.count) * line + CGFloat(max(0, views.count - 1)) * stack.spacing
+            stack.frame = CGRect(x: area.minX, y: mid - line / 2, width: area.width, height: height)
+        } else {
+            // More than three (the fix row's readings and "Type it"): stacked over the
+            // three rows as before.
+            let fit = stack.systemLayoutSizeFitting(CGSize(width: area.width, height: UIView.layoutFittingCompressedSize.height),
+                                                    withHorizontalFittingPriority: .required, verticalFittingPriority: .fittingSizeLevel)
+            let room = words.upperBound - words.lowerBound
+            stack.frame = CGRect(x: area.minX, y: words.lowerBound, width: area.width, height: min(room, fit.height))
+        }
     }
 
     private func render() {

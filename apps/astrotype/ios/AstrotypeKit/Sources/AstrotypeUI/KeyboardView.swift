@@ -108,7 +108,8 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
     /// `dimInk`, like the pencil at the other end, no key background; the bar gives it
     /// its 44 pt slot. A tap opens the settings panel, which holds "Switch keyboard"
     /// and "Open Astrotype" (Gabriel, 8 Nov 2026: in place of the globe and of holding
-    /// "123"). In the split's middle column it sits faded at the bottom.
+    /// "123"). In the split's middle column it sits on the bottom row, beside the
+    /// pencil or snippets.
     private lazy var menuKey: UIButton = {
         var config = UIButton.Configuration.plain()
         config.image = AstrotypeMark.image(height: 22)
@@ -273,6 +274,9 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
             bar.isHidden = false
             bar.axis = .vertical
             bar.frame = CGRect(x: column.lowerBound, y: top, width: column.upperBound - column.lowerBound, height: keys)
+            // In the split's middle the column lines up with the key rows; the bar and the
+            // keys share their top, so the rows need no shift.
+            bar.keyRows = model.splitOnWide ? (0..<4).map { model.layout.rowSpan($0) } : []
             // Over the keys' open column; touches between the guesses fall through.
             bringSubviewToFront(bar)
         case .hidden:

@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Astrotype Leaderboards</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;700;800;900&display=swap">
+<style>
+/* One phone on a pale ice stage with a screen picker beside it. Tokens and components are Astrotype's (DESIGN.md "Design system"), copied from the typing-speed mockup. */
+:root{
+  --stage:#E6F0F4; --bg:#F3F8FA; --card:#FFFFFF; --ink:#1E2945; --muted:#67748F; --line:#DCE6EC;
+  --accent:#139FB5; --accent-ink:#FFFFFF; --left:#139FB5; --right:#FF6F86; --sun:#FFC24D; --mint:#2FBF96; --ice:#D9EDF3;
+  --font:ui-rounded,"SF Pro Rounded","Nunito",system-ui,sans-serif;
+  --r-lg:28px; --r-md:18px; --r-sm:12px;
+  --spring:cubic-bezier(.34,1.56,.64,1);
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --stage:#0A1118; --bg:#111A24; --card:#1A2634; --ink:#EEF4F8; --muted:#97A6B8; --line:#2A3B4C;
+  --accent:#2FC6DC; --accent-ink:#06202A; --left:#2FC6DC; --right:#FF8A9E; --sun:#FFCD66; --mint:#45D3AA; --ice:#1D3240; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --stage:#0A1118; --bg:#111A24; --card:#1A2634; --ink:#EEF4F8; --muted:#97A6B8; --line:#2A3B4C;
+  --accent:#2FC6DC; --accent-ink:#06202A; --left:#2FC6DC; --right:#FF8A9E; --sun:#FFCD66; --mint:#45D3AA; --ice:#1D3240; color-scheme:dark}
+html,body{height:100%;margin:0}
+body{background:var(--stage);color:var(--ink);font-family:var(--font);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+*{box-sizing:border-box}
+button{font:inherit;color:inherit}
+.stage{display:flex;gap:32px;justify-content:center;align-items:flex-start;padding-block:24px;flex-wrap:wrap}
+.picker{display:flex;flex-direction:column;gap:6px;max-width:260px;min-width:0}
+.picker h1{font-size:28px;font-weight:900;margin:0}
+.picker p{margin:0 0 10px;color:var(--muted);font-size:13px;line-height:1.45}
+.picker button{font-weight:700;font-size:14px;text-align:left;border:0;background:transparent;color:var(--muted);padding:7px 12px;border-radius:10px;cursor:pointer}
+.picker button[aria-current="true"]{background:var(--card);color:var(--ink)}
+.picker small{color:var(--muted);font-size:11px;letter-spacing:.06em;text-transform:uppercase;font-weight:800;margin-top:10px;padding-left:12px}
+.picker button:focus-visible,.phone :focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.seg-mini{display:flex;gap:4px;margin-top:4px;padding-left:8px;flex-wrap:wrap}
+.seg-mini button{padding:5px 10px;font-size:12px;background:var(--line)}
+.seg-mini button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.why{font-size:13px;color:var(--muted);line-height:1.45;background:var(--card);border-radius:12px;padding:10px 12px;margin-top:10px}
+.phone{width:390px;max-width:100%;height:844px;background:var(--bg);border-radius:48px;position:relative;overflow:hidden;
+  box-shadow:0 0 0 10px var(--ink),0 30px 60px rgba(20,30,60,.25);flex:none}
+.phone.small{width:375px;height:667px;border-radius:36px}
+.phone.wide{width:744px;height:1024px;border-radius:40px}
+@media (max-width:700px){.picker{max-width:100%;flex-direction:row;flex-wrap:wrap;align-items:center}.picker h1,.picker p,.why{width:100%}.picker small{display:none}
+  .phone{box-shadow:none;border-radius:32px}.phone.wide{display:none}}
+.status{position:absolute;top:14px;left:30px;right:30px;display:flex;justify-content:space-between;font-weight:800;font-size:15px;z-index:3}
+.phone.small .status{top:8px}
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;padding:54px 0 0}
+.phone.small .screen{padding-top:34px}
+.screen.anim{animation:in .4s var(--spring)}
+@keyframes in{from{transform:translateX(24px);opacity:0}to{transform:none;opacity:1}}
+.nav{display:flex;align-items:center;padding:0 22px;height:40px;flex:none}
+.back{font-weight:800;color:var(--accent);background:none;border:0;font-size:17px;padding:0;cursor:pointer}
+.scroll{overflow-y:auto;flex:1;padding:0 22px 40px;display:flex;flex-direction:column;gap:12px}
+.phone.small .scroll{padding:0 14px 30px}
+.phone.wide .scroll{padding:0 40px 40px}
+.h1{font-size:30px;font-weight:900;line-height:1.1;margin:4px 0 6px;text-wrap:balance}
+.phone.small .h1{font-size:26px}
+.sub{color:var(--muted);font-size:13px;line-height:1.4;margin:0}
+.sec{font-size:13px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:10px 0 -4px 6px}
+.card{background:var(--card);border-radius:var(--r-md);padding:16px}
+.row{display:flex;align-items:center;gap:12px}
+.spacer{flex:1}
+.chip{display:inline-flex;align-items:center;gap:4px;font-weight:800;font-size:13px;padding:5px 10px;border-radius:999px;background:var(--ice);color:var(--ink);white-space:nowrap}
+.chip.up{background:color-mix(in srgb,var(--mint) 22%,transparent)}
+.chip.sun{background:color-mix(in srgb,var(--sun) 40%,transparent)}
+.btn{font-weight:800;border:0;border-radius:999px;background:var(--accent);color:var(--accent-ink);cursor:pointer;font-size:14px;padding:10px 16px;
+  box-shadow:0 4px 0 color-mix(in srgb,var(--accent) 60%,#000 25%);transition:transform .25s var(--spring)}
+.btn:active{transform:translateY(3px) scale(.98)}
+.btn.ghost{background:transparent;color:var(--muted);box-shadow:none;padding:8px}
+.btn.wide{width:100%;font-size:17px;padding:15px}
+.pro{font-size:10px;font-weight:900;letter-spacing:.08em;background:var(--sun);color:#3A2600;padding:3px 7px;border-radius:6px}
+.big{font-size:64px;font-weight:900;font-variant-numeric:tabular-nums;line-height:1}
+.mid{font-size:44px;font-weight:900;font-variant-numeric:tabular-nums;line-height:1}
+.unit{font-weight:800;color:var(--muted);font-size:15px}
+.seg{display:flex;background:var(--line);border-radius:999px;padding:4px}
+.seg button{flex:1;font-weight:800;font-size:14px;border:0;background:transparent;color:var(--muted);padding:8px 0;border-radius:999px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--card);color:var(--ink)}
+/* SpeedChart */
+.chart{position:relative;width:100%}
+.chart svg{display:block;width:100%;overflow:visible}
+.chart .grid{stroke:var(--line);stroke-width:1}
+.chart .axis{fill:var(--muted);font-size:11px;font-weight:800;font-family:var(--font)}
+.chart .every{fill:none;stroke:var(--left);stroke-width:3.5;stroke-linecap:round;stroke-linejoin:round}
+.chart .everyfill{fill:color-mix(in srgb,var(--left) 14%,transparent)}
+.chart .pdot{fill:var(--right);stroke:var(--card);stroke-width:2}
+.chart .gap{stroke:var(--muted);stroke-width:2;stroke-dasharray:2 5;stroke-linecap:round;fill:none;opacity:.6}
+.chart .sel{stroke:var(--ink);stroke-width:1.5;stroke-dasharray:3 3}
+.chart .hit{fill:transparent;cursor:pointer}
+.chart.draw .every{stroke-dasharray:1400;stroke-dashoffset:1400;animation:draw 1.1s ease-out forwards}
+@keyframes draw{to{stroke-dashoffset:0}}
+.legend{display:flex;gap:14px;font-size:12px;font-weight:800;color:var(--muted);flex-wrap:wrap}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px}
+.tip{background:var(--ink);color:var(--bg);border-radius:12px;padding:8px 10px;font-size:13px;font-weight:700;line-height:1.35}
+.tip b{font-weight:900}
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.phone.wide .tiles{grid-template-columns:repeat(4,1fr)}
+.tile{background:var(--card);border-radius:var(--r-md);padding:12px 14px}
+.tile b{display:block;font-size:24px;font-weight:900;font-variant-numeric:tabular-nums}
+.tile span{color:var(--muted);font-size:12px;font-weight:800}
+.group{background:var(--card);border-radius:var(--r-md);overflow:hidden}
+.group>.r+.r{border-top:1px solid var(--line)}
+.r{display:flex;align-items:center;gap:12px;padding:11px 14px;min-height:52px;width:100%;color:inherit;text-align:left;background:none;border:0}
+button.r{cursor:pointer}
+.r .t{flex:1;min-width:0}
+.r .t b{display:block;font-size:16px;font-weight:800}
+.r .t span{display:block;color:var(--muted);font-size:13px;line-height:1.35;margin-top:1px}
+.r .val{color:var(--muted);font-weight:700;font-size:15px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.r.danger .t b{color:#E0526A}
+.chev{color:var(--muted);font-weight:900;font-size:18px}
+.toggle{width:52px;height:32px;border-radius:999px;background:var(--mint);border:0;position:relative;flex:none;padding:0;cursor:pointer}
+.toggle::after{content:"";position:absolute;top:3px;left:23px;width:26px;height:26px;border-radius:50%;background:#fff;box-shadow:0 2px 4px rgba(0,0,0,.2);transition:left .3s var(--spring)}
+.toggle[aria-pressed="false"]{background:var(--line)}.toggle[aria-pressed="false"]::after{left:3px}
+.week{display:flex;justify-content:space-between}
+.week div{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:12px;font-weight:800;color:var(--muted)}
+.week i{width:34px;height:34px;border-radius:50%;background:var(--line);display:grid;place-items:center;font-style:normal;color:#fff}
+.week i.y{background:var(--mint)}
+.badge{width:28px;height:28px;border-radius:50%;background:var(--ice);display:grid;place-items:center;font-weight:900;flex:none}
+.badge.done{background:var(--mint);color:#fff}
+.cols{display:flex;flex-direction:column;gap:12px}
+.phone.wide .cols{flex-direction:row;align-items:flex-start;gap:24px}
+.phone.wide .cols>.col{flex:1;display:flex;flex-direction:column;gap:12px;min-width:0}
+.col{display:flex;flex-direction:column;gap:12px}
+.note{color:var(--muted);font-size:13px;line-height:1.45;margin:2px 6px 0}
+.note a{color:var(--accent);font-weight:800;text-decoration:none}
+.prompt{font-size:19px;line-height:1.5;font-weight:700}
+.prompt .done{color:var(--mint)}
+.field{min-height:44px;padding:10px 14px;border-radius:22px;border:1px solid var(--line);font-size:17px;background:var(--card)}
+.ring{width:120px;height:120px;margin:0 auto}
+.empty{text-align:center;display:flex;flex-direction:column;gap:10px;align-items:center;padding:28px 10px}
+.empty .ic{width:56px;height:56px;border-radius:18px;background:var(--ice);display:grid;place-items:center}
+.empty .ic svg{width:28px;height:28px;stroke:var(--accent);fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+@media (prefers-reduced-motion:reduce){.screen.anim,.chart.draw .every{animation:none;stroke-dasharray:none}}
+/* New for leaderboards: RankHero (big rank, "of N", percent chip) and RankRow (rank, avatar, name, score; .me = you). */
+.hero{display:flex;flex-direction:column;gap:8px}
+.hero .rank{font-size:56px;font-weight:900;font-variant-numeric:tabular-nums;line-height:1}
+.hero .rank small{font-size:28px;color:var(--muted);font-weight:900;margin-right:2px}
+.list{background:var(--card);border-radius:var(--r-md);overflow:hidden}
+.rr{display:grid;grid-template-columns:52px 32px 1fr auto;align-items:center;gap:10px;padding:9px 14px;min-height:48px}
+.list .rr+.rr{border-top:1px solid var(--line)}
+.rr .n{font-weight:900;font-variant-numeric:tabular-nums;color:var(--muted);font-size:14px;text-align:right}
+.rr .av{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font-weight:900;color:#fff;font-size:14px}
+.rr .nm{font-weight:800;font-size:15px;min-width:0;overflow-wrap:anywhere}
+.rr .sc{font-weight:900;font-variant-numeric:tabular-nums;font-size:16px;white-space:nowrap}
+.rr .sc span{font-weight:700;color:var(--muted);font-size:12px;margin-left:3px}
+.rr.me{background:color-mix(in srgb,var(--accent) 16%,transparent)}
+.rr.me .nm{color:var(--accent)}
+.rr.top .n{color:var(--ink)}
+.medal{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:0}
+.dots7{display:flex;gap:8px}
+.dots7 i{width:28px;height:28px;border-radius:50%;background:var(--line);display:grid;place-items:center;font-style:normal;font-size:11px;font-weight:900;color:var(--muted)}
+.dots7 i.y{background:var(--mint);color:#fff}
+.dots7 i.t{outline:2px dashed var(--accent);outline-offset:2px}
+.lbcols{display:flex;flex-direction:column;gap:12px}
+.phone.wide .lbcols{flex-direction:row;gap:20px;align-items:flex-start}
+.phone.wide .lbcols>div{flex:1;min-width:0;display:flex;flex-direction:column;gap:12px}
+.lbcols>div{display:flex;flex-direction:column;gap:12px}
+.seg.sm button{font-size:13px;padding:6px 0}
+.ellip{text-align:center;color:var(--muted);font-weight:900;letter-spacing:.3em;padding:2px 0}
+.count{animation:pop .6s var(--spring)}
+@keyframes pop{from{transform:scale(.7);opacity:.2}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){.count{animation:none}}
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="picker" role="navigation" aria-label="Screens">
+    <h1>Leaderboards</h1>
+    <p>Your speed against everyone on Astrotype, and your friends. Weekly boards on Game Center, everyone first.</p>
+    <small>Your speed</small>
+    <button data-s="before">Your speed today (before)</button>
+    <button data-s="week">With your rank</button>
+    <button data-s="join">Not joined yet</button>
+    <small>Home</small>
+    <button data-s="home">Home with rank chip</button>
+    <small>Leaderboard</small>
+    <button data-s="everyone">Everyday, everyone</button>
+    <button data-s="practice">Practice, everyone</button>
+    <button data-s="friends">Friends</button>
+    <button data-s="friendsEmpty">Friends, none yet</button>
+    <button data-s="waiting">Not on the board yet</button>
+    <small>Practice</small>
+    <button data-s="result">Practice result</button>
+    <small>Settings</small>
+    <button data-s="privacy">Privacy and sharing</button>
+    <small>Look</small>
+    <div class="seg-mini" id="sizes"><button data-size="">iPhone</button><button data-size="small">Small</button><button data-size="wide">Wide</button></div>
+    <div class="seg-mini" id="themes"><button data-theme="light">Light</button><button data-theme="dark">Dark</button></div>
+    <div class="why" id="why"></div>
+  </div>
+  <div class="phone" id="phone"></div>
+</div>
+<script>
+// Made-up data. Names are example Game Center nicknames.
+const S={screen:"everyone",size:"",theme:"light"};
+const ME="gabe", EVERY=46, PRAC=57, RANK=1204, OF=18400, PRANK=312, POF=6120;
+const pct=r=>Math.floor((1-r/OF)*100);
+const COLORS=["#139FB5","#FF6F86","#FFB020","#2FBF96","#7A6CF0","#E0526A","#4C8DF6","#C46BD8"];
+const NEAR=["Sven","night_owl","Aiko","bram","Odette","flipperfast","milo.m","Rosa","tapdancer","Yusuf","Ines"];
+const NAMES=["thumbwizard","kiwi_types","Mara","quickfox","penguin42","Lena K","swiftsara","Tomás","juno","ravi.types","night_owl","Aiko","bram","Odette","flipperfast","Sven"];
+function av(name,i){return `<span class="av" style="background:${COLORS[i%COLORS.length]}" aria-hidden="true">${name[0].toUpperCase()}</span>`}
+function row(rank,name,score,i,me){
+  const medal=rank<=3?`<i class="medal" style="background:${["#FFC24D","#B8C4CF","#D99A5B"][rank-1]}"></i>`:"";
+  return `<div class="rr ${me?"me":""} ${rank<=10?"top":""}" role="listitem" aria-label="Rank ${rank.toLocaleString()}, ${me?"you":name}, ${score} words per minute"><span class="n">${medal}${rank.toLocaleString()}</span>${av(name,i)}<span class="nm">${me?"You":name}</span><span class="sc">${score}<span>wpm</span></span></div>`;
+}
+const top10=b=>{const s=b==="practice"?[142,138,131,127,124,121,119,117,115,114]:[118,112,109,104,101,99,97,96,94,93];return s.map((v,i)=>row(i+1,NAMES[i],v,i)).join("")};
+const around=b=>{const me=b==="practice"?PRAC:EVERY,r=b==="practice"?PRANK:RANK;let out="";
+  for(let k=-5;k<=5;k++){out+=row(r+k,k===0?ME:NEAR[k+5],k===0?me:me+(k<0?Math.ceil(-k/3):-Math.ceil(k/3)),k+7,k===0)}return out};
+const WHY={
+  before:"Your speed as built on 8 Nov: the number, the graph and the four tiles.",
+  week:"A Leaderboard card joins the bottom of Your speed: your rank this week and how many people you're faster than. Tap it for the boards.",
+  join:"Nothing is shared until you join. Join uses Apple's Game Center sign-in if you're not signed in yet.",
+  home:"Once you've joined, Home's Your speed card shows your rank. That's the only change on Home.",
+  everyone:"Everyone is first. Your rank and percent at the top, then the top 10, then the people just above and below you, so there's always someone close to pass.",
+  practice:"The Practice board takes your best Speed practice this week (Astrotype keyboard, at most 2 wrong words).",
+  friends:"Friends are your Game Center friends who use Astrotype. Usually a short list, so it's shown in full.",
+  friendsEmpty:"Most people won't have friends on it yet, so this invites one and points back to Everyone.",
+  waiting:"The board waits for 3 days with a speed this week, so one quick day can't put a shaky number up. The dots are this week's days.",
+  result:"The practice result adds your rank on the Practice board.",
+  privacy:"One switch to stop sharing. Apple can't delete a posted score, so the note says when it leaves the board: Monday's reset."
+};
+const status=()=>`<div class="status"><span>9:41</span><span>●●● ⌁ ▮</span></div>`;
+const tiles=`<div class="tiles"><div class="tile"><b>46</b><span>Everyday</span></div><div class="tile"><b>57</b><span>Best practice</span></div><div class="tile"><b>63</b><span>Fastest run</span></div><div class="tile"><b>8,412</b><span>Words counted</span></div></div>`;
+const miniLine=`<div class="chart"><svg viewBox="0 0 320 150" role="img" aria-label="Everyday speed, last 7 days"><line class="grid" x1="26" x2="320" y1="20" y2="20"/><line class="grid" x1="26" x2="320" y1="70" y2="70"/><line class="grid" x1="26" x2="320" y1="120" y2="120"/><text class="axis" x="0" y="24">50</text><text class="axis" x="0" y="74">45</text><text class="axis" x="0" y="124">40</text><path class="every" d="M30,90L78,80L126,74L174,84L222,60L270,64L314,60"/><circle class="pdot" cx="174" cy="32" r="5"/><circle class="pdot" cx="314" cy="22" r="5"/>${["M","T","W","T","F","S","S"].map((d,i)=>`<text class="axis" x="${30+i*47.3}" y="146" text-anchor="middle">${d}</text>`).join("")}</svg></div>`;
+const legend=`<div class="legend"><span><i style="background:var(--left)"></i>Everyday</span><span><i style="background:var(--right)"></i>Practice</span></div>`;
+function speed(kind){
+  const lb=kind==="before"?"":kind==="join"
+   ?`<div class="card" style="display:flex;flex-direction:column;gap:10px"><b style="font-size:17px">See where you rank</b><p class="sub" style="font-size:15px">Weekly leaderboards for everyday speed and Speed practice, with everyone on Astrotype and your friends. Shares your Game Center name and these two numbers, nothing you type.</p><div class="row"><button class="btn" data-go="everyone">Join</button><span class="sub">Free · Game Center</span></div></div>`
+   :`<button class="card" data-go="everyone" style="display:flex;flex-direction:column;gap:6px;border:0;text-align:left;cursor:pointer;width:100%;font:inherit;color:inherit"><div class="row"><b style="font-size:17px">Leaderboard</b><span class="spacer"></span><span class="chip up">Faster than ${pct(RANK)}%</span><span class="chev">›</span></div><div class="row" style="align-items:baseline;gap:8px"><span class="mid">#${RANK.toLocaleString()}</span><span class="unit">of ${OF.toLocaleString()} this week</span></div></button>`;
+  return `<div class="nav"><button class="back" data-go="home">‹ Home</button></div><div class="scroll">
+   <h1 class="h1">Your speed</h1>
+   <div class="row" style="align-items:flex-end;gap:8px"><span class="big">46</span><span class="unit" style="padding-bottom:6px">words per minute<br>last 7 days</span><span class="spacer"></span><span class="chip up">▲ 2</span></div>
+   <div class="seg" role="group" aria-label="Range"><button aria-pressed="true">Week</button><button aria-pressed="false">Month</button><button aria-pressed="false">Year</button></div>
+   <div class="card" style="display:flex;flex-direction:column;gap:10px">${miniLine}${legend}</div>
+   ${tiles}${lb}<button class="btn wide">Practice for speed</button></div>`;
+}
+function board(b,scope){
+  const me=b==="practice"?PRAC:EVERY,r=b==="practice"?PRANK:RANK,of=b==="practice"?POF:OF,p=Math.floor((1-r/of)*100);
+  const segs=`<div class="seg" role="group" aria-label="Board"><button data-go="${scope==="friends"?"friends":"everyone"}" aria-pressed="${b==="everyday"}">Everyday</button><button data-go="practice" aria-pressed="${b==="practice"}">Practice</button></div>
+   <div class="seg sm" role="group" aria-label="Who"><button data-go="${b==="practice"?"practice":"everyone"}" aria-pressed="${scope==="everyone"}">Everyone</button><button data-go="friends" aria-pressed="${scope==="friends"}">Friends</button></div>`;
+  const head=`<div class="nav"><button class="back" data-go="week">‹ Your speed</button><span class="spacer"></span><span class="chip">Resets Monday</span></div>`;
+  if(scope==="friendsEmpty")return `${head}<div class="scroll"><h1 class="h1">Leaderboard</h1>${segs.replace('aria-pressed="false">Friends','aria-pressed="true">Friends').replace('aria-pressed="true">Everyone','aria-pressed="false">Everyone')}
+    <div class="card empty"><div class="ic"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M17 8v6M14 11h6"/></svg></div><b style="font-size:17px">None of your Game Center friends use Astrotype yet</b><p class="sub" style="font-size:15px;max-width:280px">Send one the app and race them on next week's board. Meanwhile you're #${RANK.toLocaleString()} on Everyone.</p><button class="btn">Invite a friend</button><button class="btn ghost" data-go="everyone">See Everyone ›</button></div></div>`;
+  if(scope==="friends"){const fr=[["Larissa",52],[ME,46],["Pedro",41],["Ana",38]];
+    return `${head}<div class="scroll"><h1 class="h1">Leaderboard</h1>${segs}
+    <div class="card hero"><div class="row" style="align-items:baseline;gap:8px"><span class="rank count"><small>#</small>2</span><span class="unit">of 4 friends</span><span class="spacer"></span><span class="chip">6 behind Larissa</span></div></div>
+    <div class="list" role="list">${fr.map((f,i)=>row(i+1,f[0],f[1],i+2,f[0]===ME)).join("")}</div>
+    <button class="btn ghost">Invite a friend</button></div>`}
+  const waiting=scope==="waiting";
+  const hero=waiting
+   ?`<div class="card hero"><b style="font-size:17px">Type on 2 more days this week to get on the board</b><p class="sub" style="font-size:15px">Your everyday speed goes up once this week has 3 days with enough typing. Today counts.</p><div class="dots7" aria-label="This week: Monday counted, Tuesday counted is today">${["M","T","W","T","F","S","S"].map((d,i)=>`<i class="${i===0?"y":""} ${i===1?"t":""}">${i===0?"✓":d}</i>`).join("")}</div></div>`
+   :`<div class="card hero" aria-label="You're ${r.toLocaleString()}th of ${of.toLocaleString()} this week, faster than ${p} percent"><div class="row" style="align-items:baseline;gap:8px;flex-wrap:wrap"><span class="rank count"><small>#</small>${r.toLocaleString()}</span><span class="unit">of ${of.toLocaleString()} this week</span></div><div class="row" style="flex-wrap:wrap;gap:8px"><span class="chip up">Faster than ${p}%</span><span class="chip">${b==="practice"?"Best practice":"Everyday"} ${me} wpm</span></div></div>`;
+  return `${head}<div class="scroll"><h1 class="h1">Leaderboard</h1>${segs}${hero}
+   <div class="lbcols"><div><div class="sec">Top 10</div><div class="list" role="list">${top10(b)}</div></div>
+   ${waiting?"":`<div><div class="sec">Around you</div><div class="list" role="list">${around(b)}</div></div>`}</div>
+   <p class="note">Weekly boards on Game Center, reset every Monday. Only your Game Center name and these speeds are shared. <a href="#" data-go="privacy">Privacy and sharing ›</a></p></div>`;
+}
+const header=`<div class="row" style="margin-top:6px"><h1 class="h1">Both<br>flippers, go.</h1><span class="spacer"></span></div>`;
+const SCREENS={
+  before:()=>speed("before"), week:()=>speed("on"), join:()=>speed("join"),
+  home:()=>`<div class="scroll">${header}<button class="card" data-go="week" style="display:flex;flex-direction:column;gap:10px;border:0;text-align:left;cursor:pointer;width:100%;font:inherit;color:inherit">
+    <div class="row" style="flex-wrap:wrap;gap:6px"><b style="font-size:17px">Your speed</b><span class="spacer"></span><span class="chip up">▲ 2 this week</span><span class="chip">#${RANK.toLocaleString()} this week</span></div>
+    <div class="row" style="align-items:flex-end;gap:8px"><span class="big">46</span><span class="unit" style="padding-bottom:6px">words per minute,<br>everyday typing</span></div>${miniLine}</button>
+    <div class="row" style="gap:10px"><button class="btn" style="flex:1">Practice for speed</button><span class="chip sun">Best 57</span></div>
+    <div class="sec">Drills</div><div class="card row"><span class="badge done">✓</span><div style="flex:1"><b>Two-letter swipes</b><div class="sub">th, in, er, on</div></div></div></div>`,
+  everyone:()=>board("everyday","everyone"), practice:()=>board("practice","everyone"),
+  friends:()=>board("everyday","friends"), friendsEmpty:()=>board("everyday","friendsEmpty"), waiting:()=>board("everyday","waiting"),
+  result:()=>`<div class="nav"><button class="back" data-go="home">‹ Home</button></div>
+   <div class="scroll" style="text-align:center;align-items:center">
+   <svg class="ring" viewBox="0 0 200 200" aria-hidden="true"><circle cx="100" cy="100" r="62" fill="var(--sun)"/><path d="M108 52 72 110h28l-8 40 36-58h-28z" fill="#3A2600"/></svg>
+   <div class="big">57</div><div class="unit">words per minute</div>
+   <p class="sub" style="font-size:16px;max-width:300px">11 faster than your everyday 46. 1 wrong word.</p>
+   <button class="card row" data-go="practice" style="width:100%;border:0;font:inherit;color:inherit;cursor:pointer;text-align:left"><b style="flex:1">#${PRANK} this week on Practice</b><span class="chip up">Up 140</span><span class="chev">›</span></button>
+   <div class="row" style="width:100%;gap:10px"><button class="btn" style="flex:1">Again</button><button class="btn ghost" data-go="home">Done</button></div></div>`,
+  privacy:()=>`<div class="nav"><button class="back">‹ Settings</button></div>
+   <div class="scroll"><h1 class="h1">Privacy and sharing</h1>
+   <div class="sec">Typing speed</div>
+   <div class="group"><div class="r"><div class="t"><b>Measure my speed</b><span>Everywhere you type with Astrotype. Counts and times only, kept on this iPhone.</span></div><button class="toggle" aria-pressed="true" aria-label="Measure my speed"></button></div>
+   <button class="r danger"><div class="t"><b>Delete speed history</b></div></button></div>
+   <div class="sec">Leaderboards</div>
+   <div class="group"><div class="r"><div class="t"><b>Show me on leaderboards</b><span>Shares your Game Center name and your weekly speeds.</span></div><button class="toggle" aria-pressed="true" aria-label="Show me on leaderboards" onclick="this.setAttribute('aria-pressed',this.getAttribute('aria-pressed')!=='true')"></button></div></div>
+   <p class="note">Turning it off stops sharing. Your scores leave the boards when they reset on Monday.</p>
+   <div class="sec">Sharing</div>
+   <div class="group"><div class="r"><div class="t"><b>Share anonymous usage data</b><span>Crash reports and counts. Never what you type.</span></div><button class="toggle" aria-pressed="true" aria-label="Share anonymous usage data"></button></div></div></div>`
+};
+const phone=document.getElementById("phone");
+function render(anim=true){
+  phone.className="phone "+S.size;
+  document.documentElement.dataset.theme=S.theme;
+  phone.innerHTML=status()+`<div class="screen ${anim?"anim":""}">${SCREENS[S.screen]()}</div>`;
+  document.querySelectorAll(".picker [data-s]").forEach(b=>b.setAttribute("aria-current",b.dataset.s===S.screen));
+  document.querySelectorAll("#sizes button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.size===S.size));
+  document.querySelectorAll("#themes button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.theme===S.theme));
+  document.getElementById("why").textContent=WHY[S.screen];
+}
+document.addEventListener("click",e=>{
+  const s=e.target.closest("[data-s]");if(s){S.screen=s.dataset.s;render();return}
+  const z=e.target.closest("[data-size]");if(z){S.size=z.dataset.size;render(false);return}
+  const t=e.target.closest("[data-theme]");if(t){S.theme=t.dataset.theme;render(false);return}
+  const g=e.target.closest("[data-go]");if(g){e.preventDefault();if(SCREENS[g.dataset.go]){S.screen=g.dataset.go;render();}}
+});
+const q=new URLSearchParams(location.search);
+if(q.get("s"))S.screen=q.get("s");if(q.get("size"))S.size=q.get("size");if(q.get("theme"))S.theme=q.get("theme");
+render();
+</script>
+</body>
+</html>

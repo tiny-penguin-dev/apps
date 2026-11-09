@@ -131,6 +131,9 @@ public final class KeySurfaceView: UIView {
     /// tap goes to the next keyboard, a hold shows the list. Nil, the globe is a tap.
     public var onGlobeTouch: ((UIView, UIEvent) -> Void)?
     public var backspaceSwipeEnabled = true
+    /// Whether holding "123" opens the settings panel. Off where the guesses bar's menu
+    /// button opens it instead (Gabriel, 8 Nov 2026); then a held "123" is just "123".
+    public var holdsNumbersForSettings = true
 
     /// How far left of backspace a swipe has to travel to delete a word.
     public static let wordSwipe: CGFloat = 40
@@ -495,7 +498,7 @@ public final class KeySurfaceView: UIView {
                     try? await Task.sleep(for: .seconds(Self.repeatInterval))
                 }
             }
-        case .numbers:
+        case .numbers where holdsNumbersForSettings:
             touchState.hold = Task { [weak self] in
                 try? await Task.sleep(for: .seconds(Self.holdDelay))
                 guard !Task.isCancelled, let self, let state = self.active[oid], !state.gestured else { return }

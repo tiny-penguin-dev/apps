@@ -17,6 +17,7 @@ import UIKit
 ///
 ///     let keyboard = KeyboardView(model: model)
 ///     keyboard.onGlobeTouch = { view, event in handleInputModeList(from: view, with: event) }
+///     keyboard.onOpenApp = { openContainingApp() }
 public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFeedback {
     public static let barHeight: CGFloat = 44
     /// The narrowest open column beside the keys that takes the guesses.
@@ -47,12 +48,18 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
     public var onGlobeTouch: ((UIView, UIEvent) -> Void)? {
         didSet { surface.onGlobeTouch = onGlobeTouch }
     }
-    /// Whether the keyboard has our globe key: the extension sets it from
-    /// `needsInputModeSwitchKey` (true only where iOS draws no globe of its own). It
-    /// sits at the bar's leading end when the bar is on top, else on the bottom row
-    /// before the emoji key (features/space-bar).
+    /// Whether the keyboard must offer a way to the next keyboard: the extension sets it
+    /// from `needsInputModeSwitchKey` (true only where iOS draws no globe of its own).
+    /// Where the menu button has a place (the bar on top, the split's middle column),
+    /// "Switch keyboard" in its panel is that way; elsewhere our globe sits on the
+    /// bottom row before the emoji key (features/space-bar).
     public var showsGlobe = false {
         didSet { if showsGlobe != oldValue { setNeedsLayout() } }
+    }
+    /// "Open Astrotype" in the settings panel: the extension opens the app (its Settings).
+    /// Nil, the row doesn't show (the app's own practice keyboard).
+    public var onOpenApp: (() -> Void)? {
+        didSet { panel?.canOpenApp = onOpenApp != nil }
     }
     /// The keyboard's height changed with its width (a wide screen has taller keys).
     public var onHeightChange: ((CGFloat) -> Void)?
@@ -97,25 +104,21 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
     public var hapticsAvailable = true {
         didSet { if hapticsAvailable && !oldValue { keyHaptic.prepare() } }
     }
-    /// Our globe in the bar's left slot (features/space-bar): SF Symbol `globe` in
-    /// the bar's `dimInk`, like the pencil at the other end, no key background; the bar gives it
-    /// its 44 pt slot.
-    private lazy var globeKey: UIButton = {
+    /// The menu button in the bar's left slot: the Astrotype mark in the bar's grey
+    /// `dimInk`, like the pencil at the other end, no key background; the bar gives it
+    /// its 44 pt slot. A tap opens the settings panel, which holds "Switch keyboard"
+    /// and "Open Astrotype" (Gabriel, 8 Nov 2026: in place of the globe and of holding
+    /// "123"). In the split's middle column it sits faded at the bottom.
+    private lazy var menuKey: UIButton = {
         var config = UIButton.Configuration.plain()
-        config.image = UIImage(systemName: "globe", withConfiguration: UIImage.SymbolConfiguration(pointSize: 20, weight: .regular))
+        config.image = AstrotypeMark.image(height: 22)
         config.baseForegroundColor = Theme.ui(.muted)
         let button = UIButton(configuration: config)
-        button.accessibilityLabel = "Next keyboard"
-        button.addAction(UIAction { [weak self] _ in
-            if self?.onGlobeTouch == nil { self?.onSystemKey?(.globe) }
-        }, for: .touchUpInside)
-        button.addTarget(self, action: #selector(globeTouched(_:with:)), for: .allTouchEvents)
+        button.accessibilityLabel = "Astrotype menu"
+        button.accessibilityHint = "Keyboard settings, switch keyboard, and open the app"
+        button.addAction(UIAction { [weak self] _ in self?.toggleSettings() }, for: .touchUpInside)
         return button
     }()
-
-    @objc private func globeTouched(_ sender: UIView, with event: UIEvent) {
-        onGlobeTouch?(sender, event)
-    }
     private let keyHaptic = UIImpactFeedbackGenerator(style: .soft)
     private let commitHaptic = UIImpactFeedbackGenerator(style: .light)
 
@@ -157,6 +160,7 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         bar.onSaveCorrection = { [weak self] in self?.model.saveCorrection() }
         bar.onSnippets = { [weak self] in self?.showSnippets() }
         bar.onAutofill = { [weak self] index in self?.model.fill(autofill: index) }
+        bar.onShortcut = { [weak self] in self?.model.writeShortcut() }
         attachToModel()
         keyHaptic.prepare()
     }
@@ -255,7 +259,9 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         }
         let keys = model.layout.height
         let top = max(0, bounds.height - keys - (barOnTop ? Self.barHeight : 0))
-        bar.leadingKey = (showsGlobe && place == .top) || globeInColumn(place) ? globeKey : nil
+        bar.leadingKey = menuHasPlace(place) ? menuKey : nil
+        // Holding "123" opens the panel only where the menu button has no place.
+        surface.holdsNumbersForSettings = !menuHasPlace(place)
         switch place {
         case .top:
             bar.isHidden = false
@@ -333,16 +339,20 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
                       height: height, bottom: model.field.bottomRow)
     }
 
-    /// Whether our globe goes on the bottom row: only when there's no bar on top to
-    /// hold it and no split middle (the bar is off, or the guesses are a column at the
-    /// side of a wide keyboard).
-    private func rowGlobe(_ place: BarPlace) -> Bool { showsGlobe && place != .top && !globeInColumn(place) }
+    /// Whether our globe goes on the bottom row: only where the keyboard needs one and
+    /// the menu button (whose panel has "Switch keyboard") has no place: the bar is
+    /// off, or the guesses are a column at the side of a wide keyboard.
+    private func rowGlobe(_ place: BarPlace) -> Bool { showsGlobe && !menuHasPlace(place) }
 
-    /// Whether our globe sits faded at the bottom of the split's middle column instead
-    /// of on the row, like the globe iOS draws under its keyboards (Gabriel, 8 Nov 2026).
-    private func globeInColumn(_ place: BarPlace) -> Bool {
-        guard showsGlobe, case .column = place else { return false }
-        return model.splitOnWide
+    /// Whether the menu button shows: in the bar's left slot when the bar is on top, or
+    /// faded at the bottom of the split's middle column, where the globe was (Gabriel,
+    /// 8 Nov 2026).
+    private func menuHasPlace(_ place: BarPlace) -> Bool {
+        switch place {
+        case .top: true
+        case .column: model.splitOnWide
+        case .hidden: false
+        }
     }
 
     /// The split's extra letters, as set.
@@ -368,6 +378,7 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         bar.previews = model.state.previews
         bar.fillPrompt = model.state.fillPrompt
         bar.autofill = model.state.autofill
+        bar.shortcutPhrase = model.state.shortcutPhrase
         bar.offersSnippets = model.offersSnippets
         if shownField != model.field {
             shownField = model.field
@@ -384,7 +395,10 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
             }
         }
         if usesDefaultNote {
-            bar.note = model.entitlement.allows(.twoThumbs) ? "Both thumbs, one word" : "One finger at a time"
+            // Nothing to say when idle (Gabriel, 8-9 Nov 2026: "Both thumbs, one word" and
+            // "One finger at a time" were unnecessary). A second thumb on the free
+            // keyboard still flashes "Two thumbs is in Astrotype Pro".
+            bar.note = ""
         }
         if let searchView { showSearchResults(in: searchView) }
         surface.shifted = model.state.isShifted
@@ -392,7 +406,7 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         // Themes and effects are Pro, except Classic and Calm (features/customization).
         surface.theme = model.keyboardSettings.style(allows: model.entitlement.allows(.styles))
         bar.keyTheme = surface.theme
-        globeKey.configuration?.baseForegroundColor = bar.dimInk
+        menuKey.configuration?.baseForegroundColor = bar.dimInk
         surface.effects = model.keyboardSettings.activeEffects(allows: model.entitlement.allows(.effects))
         applyBackdrop()
         surface.spaceSlideEnabled = model.keyboardSettings.spaceSlide
@@ -451,6 +465,16 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         panel.onDone = { [weak self] in self?.hideSettings() }
         panel.isRecording = model.recorder != nil
         panel.onMark = { [weak self] in self?.model.markMoment() }
+        // "Switch keyboard" goes to iOS's own handling, as the globe did: a tap goes to
+        // the next keyboard, a hold shows the list (`onGlobeTouch`).
+        panel.onSwitchTouch = onGlobeTouch
+        // Closed once the finger lifts on it, so the keys are back on return.
+        panel.onSwitched = { [weak self] in DispatchQueue.main.async { self?.hideSettings() } }
+        panel.canOpenApp = onOpenApp != nil
+        panel.onOpenApp = { [weak self] in
+            self?.hideSettings()
+            self?.onOpenApp?()
+        }
         panel.frame = surface.frame
         panel.granted = (bounds.height, height)
         panel.heightStory = heightStory
@@ -458,6 +482,11 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         self.panel = panel
         setNeedsLayout()
         onPart?(.settings)
+    }
+
+    /// The menu button: opens the panel, or closes it when it is open.
+    private func toggleSettings() {
+        if panel == nil { showSettings() } else { hideSettings() }
     }
 
     public func hideSettings() {

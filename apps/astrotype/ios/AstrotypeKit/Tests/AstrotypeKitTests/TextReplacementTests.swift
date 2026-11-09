@@ -304,6 +304,36 @@ import Testing
         #expect(field.text == "mail g@example.com 1 Main St\n")
     }
 
+    @Test func aShortcutOfSymbolsShowsItsPhraseOnTheBar() {
+        var composer = Self.composer([("@@", "g@example.com")])
+        var field = TypingReplay.Field(text: "mail ")
+        composer.setContext(before: field.text)
+        #expect(composer.state.shortcutPhrase == nil)
+        // One "@" is the start of it: the bar offers it already.
+        field.apply(composer.press(.symbol("@"), time: 0))
+        composer.setContext(before: field.text)
+        #expect(composer.state.shortcutPhrase == "g@example.com")
+        field.apply(composer.press(.symbol("@"), time: 0.1))
+        composer.setContext(before: field.text)
+        #expect(composer.state.shortcutPhrase == "g@example.com")
+        // Tapped, it takes the shortcut's place.
+        field.apply(composer.writeShortcut(time: 0.2))
+        #expect(field.text == "mail g@example.com ")
+        composer.setContext(before: field.text)
+        #expect(composer.state.shortcutPhrase == nil)
+
+        // From "@" alone too, and nothing for a word or another symbol.
+        var other = Self.composer([("@@", "g@example.com")])
+        var text = TypingReplay.Field(text: "to @")
+        other.setContext(before: text.text)
+        text.apply(other.writeShortcut(time: 0))
+        #expect(text.text == "to g@example.com ")
+        other.setContext(before: "hi #")
+        #expect(other.state.shortcutPhrase == nil)
+        other.setContext(before: "hi there")
+        #expect(other.state.shortcutPhrase == nil)
+    }
+
     @Test func aShortcutBeingTypedShowsOnTheBar() {
         var composer = Self.composer([("omw", "On my way!"), ("omwl", "On my way, a bit late")])
         let lifted = Synth.taps(&composer, "om")

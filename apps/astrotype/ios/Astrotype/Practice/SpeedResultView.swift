@@ -39,6 +39,21 @@ struct SpeedResultView: View {
                             }
                         }
                     }
+                    // The Practice board's rank, once this result is on it (features/leaderboards).
+                    if result.keyboard == .astrotype, model.isOnLeaderboards,
+                       let rank = model.leaderboardPage(.practice, .everyone)?.me?.rank {
+                        Button { path.append(.leaderboard) } label: {
+                            Card {
+                                HStack {
+                                    Text("#\(rank.formatted()) this week on Practice").font(.sw(.heading))
+                                    Spacer()
+                                    Image(systemName: "chevron.right").font(.footnote.weight(.heavy)).foregroundStyle(Theme.muted)
+                                }
+                            }
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityHint("Opens the leaderboards")
+                    }
                 }
                 .padding(.horizontal, Theme.Space.gutter)
                 .frame(maxWidth: 560)
@@ -48,6 +63,7 @@ struct SpeedResultView: View {
                 Confetti().ignoresSafeArea().allowsHitTesting(false)
             }
         }
+        .task { await model.postPractice(result) }
         .safeAreaInset(edge: .bottom) {
             VStack(spacing: Theme.Space.s) {
                 if result.keyboard == .astrotype, model.appleWordsPerMinute == nil {

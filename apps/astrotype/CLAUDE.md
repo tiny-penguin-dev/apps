@@ -20,7 +20,9 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
     real services are named; `LiveMetrics` on `Telemetry`), `Onboarding/`
     (`TurnOnView`, `LanguagesSetupView` (only on a phone set to two languages), `SyncView`, `TryItView`, and `SetupPage`, their shared shape),
     `HelloView`, `HomeView` (led by `SpeedCard`), `Speed/` (`SpeedViews`: `SpeedCard`, `SpeedHistoryView`,
-    `SpeedChart`; the everyday typing speed, features/typing-speed), `Settings/` (`SettingsView`, the main page with its
+    `SpeedChart`; the everyday typing speed, features/typing-speed; `LeaderboardView`: `LeaderboardCard`, `RankRow`,
+    the weekly Game Center boards, features/leaderboards, with `App/GameCenterLeaderboards`, the live
+    `LeaderboardService`), `Settings/` (`SettingsView`, the main page with its
     `SettingsPage`s, and `SettingsPages`, one view per page; `StyleSettings`, Appearance's hub and its General, Styling, theme editor and Effects pages with the live `StylePreview` (features/customization); `DebugSettings`, the Debug page:
     the keyboard's memory against 40 MB from `KeyboardDebug`, the switch for the
     stats overlay on the keys, and in TestFlight builds the typing recorder: "Keep
@@ -33,7 +35,10 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
     `PracticeWordsView` (one prompt at a time from `PracticeWords`, from Settings → Privacy),
     `DrillView`),
     `Keyboard/KeyboardSession` (a text view whose input view is the shared keyboard,
-    with Try it's replay),
+    with Try it's replay), `Keyboard/KeyboardFrame` (that input view: the keys inside the
+    margin iOS draws around the extension, so practice looks like the real keyboard: on
+    iOS 26 the glass panel with rounded top corners, 5 pt sides and 4 pt top; on every
+    version the home indicator strip under the keys),
     `Telemetry.swift` (Sentry, see `docs/telemetry.md`), `PrivacyInfo.xcprivacy`.
     `Try/`, `Train/` and `Shared/` are v1: the handwriting pad, training recorder and
     the CloudKit sample upload, reachable from Settings behind the flag.
@@ -49,7 +54,7 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
     `KeyboardDebugRecorder` writes its live memory (`KeyboardDebug`) to the App Group
     for Settings → Debug whenever it has Full Access (never sent). With Full Access and
     "Keep recording" on it gives `KeyboardModel.recorder` a `TypingRecorder` over
-    `KeyboardFiles.typing` (red dot on the keys, Mark in the held-123 panel; turning it
+    `KeyboardFiles.typing` (red dot on the keys, Mark in the settings panel; turning it
     off deletes what was kept). `MemorySampler` takes one `MemorySample` a second
     while the keyboard shows and hands it to the stats overlay, the Debug page's file,
     `KeyboardHealthRecorder` and the log (`mem` events: on show, hide and memory
@@ -130,7 +135,9 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
       `StoreKitProStore` (the live `ProStore`), `KeyboardStatus` (is the keyboard on),
       `Metrics` (protocol; the app's live one is `Telemetry`), `TryWord` (the Try it
       words and their strokes), `Week`, `SpeedTest` (the test as it runs, `SpeedResult`), `TypingSpeed` (`SpeedMeter`,
-      `SpeedRun`, `SpeedRunStore`, `SpeedHistory`: the everyday speed, features/typing-speed),
+      `SpeedRun`, `SpeedRunStore`, `SpeedHistory`: the everyday speed, features/typing-speed), `Leaderboards`
+      (`LeaderboardRules`: what gets posted; `LeaderboardPage`, `LeaderboardService` with its fake,
+      features/leaderboards; the boards themselves are in `store/game-center.json`),
       `Drill` (the three drills and their words), `Milestone` and `Streak`,
       `PracticeRecording` (a session's touches, `TouchRecorder`, `PracticeStore`, the
       `PracticeUploader` protocol with its fake; the live one is
@@ -214,7 +221,7 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
   it for debugging; built),
   `field-types` (the keyboard following email, web, search and number fields),
   `next-word` (the likely next words on the bar after each word, with the FIX chip),
-  `guesses-bar` (the bar in three parts: globe key left, words centred, pencil right with the
+  `guesses-bar` (the bar in three parts: the Astrotype menu button left (the settings panel, with Switch keyboard and Open Astrotype; was the globe until 8 Nov 2026), words centred, pencil right with the
   fix row behind it; built 3 Nov 2026),
   `customization` (Appearance split into General, Styling and Effects: themes, your own
   theme, tap and swipe effects and flow levels; in design),

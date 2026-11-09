@@ -92,7 +92,9 @@ proposed after the first build)
   not only digits (";addr", "@@", "addr1"). Letters after a symbol (";" then "addr")
   are matched when the word goes in; one the keys don't type as a word ("@@") is
   replaced at space or return. Their letters are offered as words, so "addr" types
-  as written.
+  as written. While a symbol shortcut is typed ("@", then "@@") the bar shows its
+  phrase in the pill; tapping it writes it (`State.shortcutPhrase`,
+  `Composer.writeShortcut`; Gabriel, 9 Nov 2026: "@@" for his email showed nothing).
 - **Copy the iPhone's list in**: with Full Access the keyboard writes the iPhone's
   replacements to the App Group; Text replacements then offers "Copy N from your
   iPhone", which adds the ones with a new shortcut to the person's list to edit.

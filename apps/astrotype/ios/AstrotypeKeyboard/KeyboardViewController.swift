@@ -203,6 +203,8 @@ final class KeyboardViewController: UIInputViewController {
         keyboard.onGlobeTouch = { [weak self] view, event in
             self?.handleInputModeList(from: view, with: event)
         }
+        // "Open Astrotype" in the settings panel: the app, on its Settings.
+        keyboard.onOpenApp = { [weak self] in self?.openApp() }
         // The guesses bar going on or off, or the split, changes the height to ask for.
         keyboard.onHeightChange = { [weak self] _ in self?.view.setNeedsLayout() }
         keyboard.onPart = { [weak self] part in self?.health?.used(part) }
@@ -221,6 +223,28 @@ final class KeyboardViewController: UIInputViewController {
             }
         }
         return keyboard
+    }
+
+    /// Opens the Astrotype app on its Settings (`astrotype://settings`). A keyboard has
+    /// no `UIApplication.shared` and `extensionContext.open` only works for widgets, so
+    /// this walks the responder chain to the process's `UIApplication` and calls its
+    /// `open(_:options:completionHandler:)` by selector, which still works on iOS 18 and
+    /// later (the old `openURL:` stopped doing anything there). Keyboards like Gboard
+    /// open their app the same way.
+    private func openApp() {
+        guard let url = URL(string: "astrotype://settings") else { return }
+        let selector = NSSelectorFromString("openURL:options:completionHandler:")
+        var responder: UIResponder? = self
+        while let current = responder {
+            if current is UIApplication, current.responds(to: selector),
+               let method = class_getInstanceMethod(type(of: current), selector) {
+                typealias Open = @convention(c) (AnyObject, Selector, NSURL, NSDictionary, AnyObject?) -> Void
+                let open = unsafeBitCast(method_getImplementation(method), to: Open.self)
+                open(current, selector, url as NSURL, NSDictionary(), nil)
+                return
+            }
+            responder = current.next
+        }
     }
 
     /// Puts the keys in the controller's view.

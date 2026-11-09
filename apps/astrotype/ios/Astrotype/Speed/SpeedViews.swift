@@ -139,6 +139,11 @@ struct SpeedCard: View {
                         Chip(change > 0 ? "▲ \(change) this week" : "▼ \(-change) this week",
                              tint: change > 0 ? Theme.mint : Theme.slate)
                     }
+                    // Joined the leaderboards (features/leaderboards).
+                    if let rank = model.everydayRank?.me?.rank {
+                        Chip("#\(rank.formatted()) this week")
+                            .accessibilityLabel("Rank \(rank.formatted()) on the leaderboard this week")
+                    }
                 }
                 HStack(alignment: .lastTextBaseline, spacing: Theme.Space.s) {
                     Text("\(speed)").bigNumberFont()
@@ -232,6 +237,7 @@ struct SpeedHistoryView: View {
                         tile(summary.fastest.map(String.init) ?? "–", "Fastest run")
                         tile(summary.words >= 10_000 ? "\(summary.words / 1000)k" : summary.words.formatted(), "Words counted")
                     }
+                    LeaderboardCard(model: model) { path.append(.leaderboard) }
                     if let best = model.bestWordsPerMinute, let apple = model.appleWordsPerMinute {
                         Meter(leading: "Apple \(apple)", trailing: "You \(best)",
                               fraction: Double(best) / Double(max(best, apple, 1)))

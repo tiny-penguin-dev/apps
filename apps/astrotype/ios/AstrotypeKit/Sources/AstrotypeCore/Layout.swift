@@ -71,7 +71,9 @@ public struct Layout: Sendable, Equatable {
     }
 
     /// The keys beside space on the letters page, for the field (features/field-types).
-    /// 123, the globe and return keep their size and place; these take space's room.
+    /// On a whole keyboard space keeps its size: the first key of two takes the emoji
+    /// key's place, and the key after space comes out of return, which gets shorter
+    /// (Gabriel, 9 Nov 2026). A web address has no space; its keys share space's room.
     public enum BottomRow: String, Sendable, Equatable, Codable {
         /// Space alone.
         case standard
@@ -94,6 +96,17 @@ public struct Layout: Sendable, Equatable {
             case .social: [.symbol("@"), .symbol("#")]
             }
         }
+
+        /// On a whole keyboard, the key in the emoji key's place, when there are two.
+        var leftKey: Key? {
+            switch self {
+            case .email, .social: keys.first
+            case .standard, .url, .webSearch: nil
+            }
+        }
+
+        /// On a whole keyboard, the keys between space and return.
+        var rightKeys: [Key] { leftKey == nil ? keys : Array(keys.dropFirst()) }
 
         /// Whether the row keeps a space bar.
         public var hasSpace: Bool { self != .url }
@@ -395,10 +408,21 @@ public struct Layout: Sendable, Equatable {
 
         x = left
         add(page == .letters ? .numbers : .letters, row: 3, x: x, width: fnKey); x += fnKey + gap
-        for key in fnKeys { add(key, row: 3, x: x, width: fnKey); x += fnKey + gap }
-        let returnX = left + rowWidth - returnKey
-        spaceRow(bottom.keys, space: bottom.hasSpace, from: x, to: returnX - gap)
-        add(.returnKey, row: 3, x: returnX, width: returnKey)
+        // A field's first key takes the emoji key's place (not the globe's, which must
+        // stay); the keys after space come out of return, so space keeps its size.
+        var rowKeys = bottom.hasSpace ? bottom.rightKeys : bottom.keys
+        var leading = fnKeys
+        if let first = bottom.leftKey {
+            if globe { rowKeys.insert(first, at: 0) } else { leading = [first] }
+        }
+        for key in leading { add(key, row: 3, x: x, width: fnKey); x += fnKey + gap }
+        var wholeReturn = returnKey
+        if bottom.hasSpace, !rowKeys.isEmpty {
+            wholeReturn = max(fnKey, returnKey - CGFloat(rowKeys.count) * (unit + gap))
+        }
+        let returnX = left + rowWidth - wholeReturn
+        spaceRow(rowKeys, space: bottom.hasSpace, from: x, to: returnX - gap)
+        add(.returnKey, row: 3, x: returnX, width: wholeReturn)
 
         return Layout(width: width, page: page, bottomRow: bottom, split: false, extraLetters: false, globe: globe, height: height,
                       keyHeight: keyHeight, gap: gap, bottomInset: below, placements: placements, top: top, rowGap: rowGap)

@@ -1,0 +1,22 @@
+{
+  "leaderboards": [
+    {
+      "id": "com.tinypenguin.astrotype.board.everyday",
+      "name": "Everyday speed",
+      "sort": "DESC",
+      "submission": "BEST_SCORE",
+      "range": [1, 200],
+      "recurrence": {"start": "2026-11-09T08:00:00.000Z", "duration": "PT168H", "rule": "FREQ=DAILY;INTERVAL=7"},
+      "localizations": {"en-US": {"name": "Everyday speed", "suffix": " wpm", "suffixSingular": " wpm"}}
+    },
+    {
+      "id": "com.tinypenguin.astrotype.board.practice",
+      "name": "Speed practice",
+      "sort": "DESC",
+      "submission": "BEST_SCORE",
+      "range": [1, 200],
+      "recurrence": {"start": "2026-11-09T08:00:00.000Z", "duration": "PT168H", "rule": "FREQ=DAILY;INTERVAL=7"},
+      "localizations": {"en-US": {"name": "Speed practice", "suffix": " wpm", "suffixSingular": " wpm"}}
+    }
+  ]
+}

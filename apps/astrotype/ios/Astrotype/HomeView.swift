@@ -208,7 +208,7 @@ struct HomeView: View {
         VStack(spacing: Theme.Space.s) {
             proRow
             Button { path.append(.settings) } label: {
-                Row("Settings", subtitle: "iCloud sync, privacy, Pro, about") {
+                Row("Settings", subtitle: "iCloud sync, privacy, about") {
                     Text("Open ›").font(.system(.subheadline, design: .rounded, weight: .heavy)).foregroundStyle(Theme.muted)
                 }
             }

@@ -40,9 +40,11 @@ on the iPhone Duo's outer and inner screens.
   bottom edge. Keys are 7 pt radius like Apple's, because the keyboard must feel like a
   keyboard, not like the app.
 - **App icon:** a white "A" key with a teal and a coral orbit around it, on a starry
-  navy. Space and typing in one picture, the two thumb colors, no character. Light,
-  dark and tinted appearances; the sources are in `design/icon/` (its README says how
-  they become the PNGs in the asset catalog).
+  navy. Space and typing in one picture, the two thumb colors, no character. Each orbit
+  is a trail ending in its dot: solid where it crosses in front of the key, fading
+  behind it back round to the dot, and the coral one passes over the teal (Gabriel,
+  9 Nov 2026). Light, dark and tinted appearances, and the keyboard's grey mark, are
+  drawn by `design/icon/render.html` (its README says how they become the PNGs).
 
 ## Design system
 
@@ -164,7 +166,7 @@ This is the product, so it gets its own section.
 - **Where the guesses go:** where the keys leave a column of 96 pt or more (the middle
   of a split keyboard, the sides of a wide one) the guesses stack there, and the keys
   get the whole height. Otherwise (a phone) they are a bar above the keys, which
-  Settings ("Guesses bar") can turn off to give the keys its room.
+  Settings ("Top bar", 9 Nov 2026; it was "Guesses bar") can turn off to give the keys its room.
 - **The bar** (or column) has three parts that never move (features/guesses-bar, where
   the before and after screenshots are): a 44 pt key at the left end (the Astrotype
   button, the app icon's mark in the bar's grey, which opens the settings panel with

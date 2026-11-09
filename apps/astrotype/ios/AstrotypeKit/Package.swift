@@ -22,7 +22,8 @@ let package = Package(
         .target(name: "AstrotypeCore", resources: [.copy("Resources/en"), .copy("Resources/es"), .copy("Resources/emoji")]),
         // Shaders/: the keyboard's Metal shaders, which Xcode compiles into the target's
         // resource bundle (`MetalKeyboard.library`); `swift build` only copies them.
-        .target(name: "AstrotypeUI", dependencies: ["AstrotypeCore"], resources: [.process("Shaders")]),
+        // Media.xcassets: the grey Astrotype mark (design/icon/render.html).
+        .target(name: "AstrotypeUI", dependencies: ["AstrotypeCore"], resources: [.process("Shaders"), .process("Media.xcassets")]),
         .executableTarget(name: "AstrotypeTools", dependencies: ["AstrotypeCore"]),
         .testTarget(name: "AstrotypeKitTests", dependencies: ["AstrotypeCore"], exclude: ["Fixtures"]),
     ]

@@ -82,7 +82,7 @@ function drawOrbit(ctx, o, alpha, rgb, width, { inset = 0, under = null } = {}) 
   l.globalCompositeOperation = 'destination-out';
   // Inset a little for the grey mark, so the ring tucks under the key's edge with no
   // seam (the key is the same colour there).
-  l.beginPath(); l.roundRect(292 + inset, 292 + inset, 440 - 2 * inset, 440 - 2 * inset, 92 - inset); l.fill();
+  key(l, 0, inset); l.fill();
   // Its back half also goes under the front half of an orbit drawn before it.
   if (under) { l.beginPath(); strokeOutline(l, under, width + 6); l.fill(); }
   l.restore();
@@ -107,11 +107,17 @@ function strokeOutline(ctx, o, width) {
   for (const p of right.reverse()) ctx.lineTo(...p);
   ctx.closePath();
 }
-function key(ctx, y = 292) { ctx.beginPath(); ctx.roundRect(292, y, 440, 440, 92); }
+// The key: a little taller than wide (Gabriel, 9 Nov 2026).
+const KEY = { x: 292, y: 262, w: 440, h: 500, r: 96 };
+function key(ctx, dy = 0, inset = 0) {
+  ctx.beginPath();
+  ctx.roundRect(KEY.x + inset, KEY.y + dy + inset, KEY.w - 2 * inset, KEY.h - 2 * inset, KEY.r - inset);
+}
 function letterA(ctx) {
   ctx.beginPath();
-  ctx.moveTo(412.16, 644); ctx.lineTo(512, 388); ctx.lineTo(611.84, 644);
-  ctx.moveTo(452.1, 551.84); ctx.lineTo(571.9, 551.84);
+  // Lighter strokes and a lower bar than before, so the A's middle stays open small.
+  ctx.moveTo(408, 664); ctx.lineTo(512, 372); ctx.lineTo(616, 664);
+  ctx.moveTo(444, 566); ctx.lineTo(580, 566);
 }
 const rgb = hex => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16)).join(',');
 
@@ -140,18 +146,19 @@ function drawIcon(cv, look) {
   const os = orbits(432, 152, a.orbits);
   ctx.save();
   if (a.blur) { ctx.shadowColor = 'rgba(11,42,58,.22)'; ctx.shadowBlur = 44; ctx.shadowOffsetY = 22; }
-  ctx.fillStyle = a.shade; key(ctx, 306); ctx.fill();
+  ctx.fillStyle = a.shade; key(ctx, 14); ctx.fill();
   ctx.restore();
   ctx.fillStyle = a.key; key(ctx); ctx.fill();
-  ctx.strokeStyle = a.ink; ctx.lineWidth = 66; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; letterA(ctx); ctx.stroke();
+  ctx.strokeStyle = a.ink; ctx.lineWidth = 52; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; letterA(ctx); ctx.stroke();
   os.forEach((o, i) => drawOrbit(ctx, o, iconFade, rgb(o.color), 38, { under: i > 0 ? os[0] : null }));
   for (const o of os) { const [x, y] = pt(o, o.head); ctx.fillStyle = o.color; ctx.beginPath(); ctx.arc(x, y, 43.7, 0, 2 * Math.PI); ctx.fill(); }
 }
 
 // The grey mark: one colour (the keyboard tints it), so the depth comes from gaps: the
 // "A" and a thin gap round each front half are cut out of the key, and the second ring
-// cuts a gap in the first where it passes over it. Tighter, so it's less wide.
-const MARK_BOX = [140, 268, 744, 504];
+// cuts a gap in the first where it passes over it. The dots have no gap, so each trail
+// runs into its dot. Tighter, so it's less wide.
+const MARK_BOX = [140, 252, 744, 528];
 const markFade = t => Math.max(0.1, 1 - 0.9 * Math.pow(t, 1.3));
 function drawMark(cv) {
   const ctx = cv.getContext('2d'), w = 36, gap = 18, dot = 44;
@@ -161,24 +168,26 @@ function drawMark(cv) {
   ctx.fillStyle = '#000'; key(ctx); ctx.fill();
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   ctx.globalCompositeOperation = 'destination-out';
-  ctx.lineWidth = 66; letterA(ctx); ctx.stroke();
+  ctx.lineWidth = 58; letterA(ctx); ctx.stroke();
   ctx.globalCompositeOperation = 'source-over';
   os.forEach((o, i) => {
     // The gap only cuts the key and, for the second ring, the first one where they
     // cross; the back halves stay whole.
-    ctx.save();
-    ctx.globalCompositeOperation = 'destination-out';
-    key(ctx);
-    if (i > 0) strokeOutline(ctx, os[0], w + 2 * gap);
-    ctx.clip();
-    ctx.lineWidth = w + 2 * gap; frontPath(ctx, o); ctx.stroke();
-    ctx.restore();
+    // (Clipped once per area: as one path the key and the outline wind opposite ways
+    // and cancel out where they overlap, which is right where the rings cross.)
+    const areas = [c => key(c)];
+    if (i > 0) areas.push(c => { c.beginPath(); strokeOutline(c, os[0], w + 2 * gap); });
+    for (const area of areas) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'destination-out';
+      area(ctx); ctx.clip();
+      ctx.lineWidth = w + 2 * gap; frontPath(ctx, o); ctx.stroke();
+      ctx.restore();
+    }
     drawOrbit(ctx, o, markFade, '0,0,0', w, { inset: 4, under: i > 0 ? os[0] : null });
   });
   for (const o of os) {
     const [x, y] = pt(o, o.head);
-    ctx.save(); ctx.globalCompositeOperation = 'destination-out';
-    ctx.beginPath(); ctx.arc(x, y, dot + gap, 0, 2 * Math.PI); ctx.fill(); ctx.restore();
     ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(x, y, dot, 0, 2 * Math.PI); ctx.fill();
   }
 }

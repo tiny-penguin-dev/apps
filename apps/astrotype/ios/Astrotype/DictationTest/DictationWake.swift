@@ -20,6 +20,8 @@ import UIKit
 final class DictationWakeDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
     func application(_ application: UIApplication,
                      didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
+        // A fresh launch has no session; one left in the App Group is from a run iOS ended.
+        DictationProbeLog.sessionStarted = nil
         let center = UNUserNotificationCenter.current()
         center.delegate = self
         let start = UNNotificationAction(identifier: DictationProbeLog.startAction, title: "Start dictation", options: [])

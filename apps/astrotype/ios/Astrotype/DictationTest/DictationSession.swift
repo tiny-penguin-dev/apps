@@ -51,6 +51,10 @@ final class DictationSession {
     private let meter = Meter()
     private var observing = false
     private var timeout: Task<Void, Never>?
+    /// Round 7: a session the app started while open, with no Live Activity (the
+    /// keyboard's Talk opened the app). Ends after 5 minutes without listening.
+    private var withActivity = true
+    private var idle: Task<Void, Never>?
 
     var isRunning: Bool { running }
 
@@ -152,7 +156,30 @@ final class DictationSession {
         }
     }
 
-    private func startMic(source: String, endActivityOnFailure: Bool = true) async throws {
+    /// Round 7: the keyboard's Talk opened the app (astrotype://dictation). Start the mic
+    /// here, in front, with no Live Activity, and start listening straight away; the
+    /// person swipes back to where they were typing. Does the mic keep running in the
+    /// background with only the orange dot?
+    func startHere(source: String) async {
+        if isRunning {
+            if !meter.isOn { toggleListening(source: source) }
+            return
+        }
+        guard AVAudioApplication.shared.recordPermission == .granted else {
+            DictationProbeLog.write("\(source): the microphone isn't allowed yet. Open Settings → Debug → Dictation test and allow it.")
+            return
+        }
+        withActivity = false
+        do {
+            try await startMic(source: source, endActivityOnFailure: false, needsActivity: false)
+        } catch {
+            withActivity = true
+            return
+        }
+        toggleListening(source: source)
+    }
+
+    private func startMic(source: String, endActivityOnFailure: Bool = true, needsActivity: Bool = true) async throws {
         // 2. The microphone.
         let session = AVAudioSession.sharedInstance()
         do {
@@ -160,7 +187,7 @@ final class DictationSession {
             try session.setActive(true)
         } catch {
             if endActivityOnFailure { await endActivity() }
-            return try fail(source, "Mic: session failed (\((error as NSError).code)) even with the Live Activity.")
+            return try fail(source, "Mic: session failed (\((error as NSError).code)).")
         }
         let engine = AVAudioEngine()
         let input = engine.inputNode
@@ -177,14 +204,18 @@ final class DictationSession {
             input.removeTap(onBus: 0)
             try? session.setActive(false, options: .notifyOthersOnDeactivation)
             if endActivityOnFailure { await endActivity() }
-            return try fail(source, "Mic: engine failed (\((error as NSError).code)) even with the Live Activity.")
+            return try fail(source, "Mic: engine failed (\((error as NSError).code)).")
         }
         self.engine = engine
         running = true
         meter.sampleRate = format.sampleRate
         observeKeyboard()
         DictationProbeLog.sessionStarted = .now
-        DictationProbeLog.write("\(source): session ON in \(DictationProbeLog.place). Mic open, Live Activity showing. Tap Talk on the keyboard or the Live Activity.")
+        if needsActivity {
+            DictationProbeLog.write("\(source): session ON in \(DictationProbeLog.place). Mic open, Live Activity showing. Tap Talk on the keyboard or the Live Activity.")
+        } else {
+            DictationProbeLog.write("\(source): session ON in the app (\(Self.appState)), no Live Activity. Mic open, ends after 5 minutes without listening.")
+        }
 
         timeout?.cancel()
         timeout = Task { [weak self] in
@@ -193,6 +224,7 @@ final class DictationSession {
             await self?.stop(source: "10-minute limit")
         }
 
+        guard needsActivity else { return }
         // Hold the intent a moment with the mic running, then check the activity is
         // still up: iOS ends the app if audio runs without one when perform() returns.
         try? await Task.sleep(for: .seconds(1))
@@ -211,7 +243,15 @@ final class DictationSession {
         if meter.isOn {
             let heard = meter.finish()
             var paused = ""
-            if DictationPause.pauseMic {
+            if !withActivity {
+                paused = " Mic stays open; the session ends after 5 minutes without listening."
+                idle?.cancel()
+                idle = Task { [weak self] in
+                    try? await Task.sleep(for: .seconds(300))
+                    guard !Task.isCancelled else { return }
+                    await self?.stop(source: "5 minutes without listening")
+                }
+            } else if DictationPause.pauseMic {
                 pauseMic()
                 paused = DictationPause.keepAwake ? " Mic off, app kept awake with silence." : " Mic off, nothing keeping the app awake."
                 if DictationPause.hideActivity {
@@ -250,8 +290,10 @@ final class DictationSession {
                 update(listening: true, note: "Listening…")
                 return
             }
+            idle?.cancel()
+            idle = nil
             meter.begin()
-            DictationProbeLog.write("\(source): listening… (tap Talk again to stop)")
+            DictationProbeLog.write("\(source) (app \(Self.appState)): listening… (tap Talk again to stop)")
             update(listening: true, note: "Listening…")
         }
     }
@@ -326,6 +368,9 @@ final class DictationSession {
     func stop(source: String) async {
         timeout?.cancel()
         timeout = nil
+        idle?.cancel()
+        idle = nil
+        withActivity = true
         let heard = meter.isOn ? " Last: \(meter.finish())" : ""
         if let engine {
             engine.inputNode.removeTap(onBus: 0)

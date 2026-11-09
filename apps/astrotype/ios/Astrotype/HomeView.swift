@@ -109,6 +109,18 @@ struct HomeView: View {
             }
         }
         .tint(Theme.accent)
+        .overlay {
+            // Setup just finished: a little party, once.
+            if model.arrivedFromSetup {
+                Confetti()
+                    .ignoresSafeArea()
+                    .allowsHitTesting(false)
+                    .task {
+                        try? await Task.sleep(for: .seconds(2.5))
+                        model.arrivalCelebrated()
+                    }
+            }
+        }
     }
 
     /// The next milestone's sheet, while one is due and Home is on top; closing it

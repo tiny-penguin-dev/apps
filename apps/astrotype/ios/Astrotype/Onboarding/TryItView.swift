@@ -23,6 +23,9 @@ struct TryItView: View {
     var body: some View {
         ZStack {
             VStack(alignment: .leading, spacing: Theme.Space.m) {
+                if inSetup, let step = model.setupStep(skip: nil) {
+                    StepProgress(number: step.number, count: step.count).padding(.top, Theme.Space.s)
+                }
                 HStack {
                     Chip("Try it · word \(min(index + 1, words.count)) of \(words.count)")
                     Spacer()
@@ -86,7 +89,7 @@ struct TryItView: View {
 
     private func leave() {
         if inSetup {
-            model.finishOnboarding()
+            model.next()
         } else {
             dismiss()
         }

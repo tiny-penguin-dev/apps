@@ -11,11 +11,20 @@ import UIKit
 // under them.
 
 struct DictationProbePanel: View {
+    /// Round 7: opens the app on astrotype://dictation.
+    var openApp: () -> Void = {}
+
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 6) {
                 Button {
-                    DictationRunner.postTalk()
+                    // Round 7: no session yet, so open the app to start one (no Live Activity).
+                    if DictationProbeLog.sessionStarted == nil {
+                        DictationProbeLog.write("Keyboard Talk: no session, opening the app…")
+                        openApp()
+                    } else {
+                        DictationRunner.postTalk()
+                    }
                 } label: {
                     Label("Talk", systemImage: "mic.fill")
                 }
@@ -70,7 +79,7 @@ extension KeyboardViewController {
     func updateDictationProbe(_ probe: inout UIHostingController<DictationProbePanel>?) {
         let wanted = hasFullAccess && DictationProbeLog.defaults?.bool(forKey: DictationProbeLog.enabledKey) == true
         if wanted, probe == nil {
-            let host = UIHostingController(rootView: DictationProbePanel())
+            let host = UIHostingController(rootView: DictationProbePanel(openApp: { [weak self] in self?.openApp("dictation") }))
             host.view.backgroundColor = .clear
             host.sizingOptions = .intrinsicContentSize
             addChild(host)

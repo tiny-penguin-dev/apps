@@ -231,8 +231,8 @@ final class KeyboardViewController: UIInputViewController {
     /// `open(_:options:completionHandler:)` by selector, which still works on iOS 18 and
     /// later (the old `openURL:` stopped doing anything there). Keyboards like Gboard
     /// open their app the same way.
-    private func openApp() {
-        guard let url = URL(string: "astrotype://settings") else { return }
+    func openApp(_ page: String = "settings") {
+        guard let url = URL(string: "astrotype://\(page)") else { return }
         let selector = NSSelectorFromString("openURL:options:completionHandler:")
         var responder: UIResponder? = self
         while let current = responder {

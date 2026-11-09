@@ -182,30 +182,44 @@ import Testing
 
     // MARK: The bottom row
 
-    @Test func theEmailRowPutsAtAndDotBetweenSpaceAndReturn() {
+    @Test func theEmailRowSwapsEmojiForAtAndShortensReturn() {
         let standard = Layout.qwerty(width: 390)
         let email = Layout.qwerty(width: 390, bottom: .email)
         let space = email.frame(of: .space)!, at = email.frame(of: .symbol("@"))!, dot = email.frame(of: .symbol("."))!
         let ret = email.frame(of: .returnKey)!
-        // 123, the globe and return stay where they were.
-        #expect(ret == standard.frame(of: .returnKey))
-        #expect(email.frame(of: .emoji) == standard.frame(of: .emoji))
-        // Space gives up its room to two letter-wide keys.
+        // "@" takes the emoji key's place; space keeps its size and place.
+        #expect(email.frame(of: .emoji) == nil)
+        #expect(at == standard.frame(of: .emoji))
+        #expect(space == standard.frame(of: .space))
+        // "." comes out of return, which still ends at P's edge (Gabriel, 9 Nov 2026).
         let q = email.frame(of: .letter("q"))!
-        #expect(at.width == q.width && dot.width == q.width)
-        #expect(space.maxX < at.minX && at.maxX < dot.minX && dot.maxX < ret.minX)
+        #expect(dot.width == q.width)
+        #expect(ret.maxX == standard.frame(of: .returnKey)!.maxX)
+        #expect(abs(ret.width - (standard.frame(of: .returnKey)!.width - q.width - Layout.keyGap)) < 0.01)
+        #expect(space.maxX < dot.minX && dot.maxX < ret.minX)
         #expect(abs((ret.minX - dot.maxX) - Layout.keyGap) < 0.01)
-        #expect(space.width > 2.5 * q.width)
         // Each key is found where it is drawn.
         #expect(email.key(at: CGPoint(x: at.midX, y: at.midY)) == .symbol("@"))
     }
 
-    @Test func withAGlobeTheFieldsRowDropsTheEmojiKey() {
+    @Test func aWebSearchShortensReturnForItsDot() {
+        let standard = Layout.qwerty(width: 390)
+        let search = Layout.qwerty(width: 390, bottom: .webSearch)
+        #expect(search.frame(of: .space) == standard.frame(of: .space))
+        #expect(search.frame(of: .emoji) == standard.frame(of: .emoji))
+        #expect(search.frame(of: .returnKey)!.width < standard.frame(of: .returnKey)!.width)
+    }
+
+    @Test func withAGlobeTheFieldsRowKeepsIt() {
         let email = Layout.qwerty(width: 390, globe: true, bottom: .email)
         #expect(email.frame(of: .globe) == Layout.qwerty(width: 390, globe: true).frame(of: .globe))
         #expect(email.frame(of: .emoji) == nil)
+        // Both keys go after space then, and return is never narrower than 123.
+        let at = email.frame(of: .symbol("@"))!, space = email.frame(of: .space)!
+        #expect(space.maxX < at.minX)
+        #expect(email.frame(of: .returnKey)!.width >= email.frame(of: .numbers)!.width)
         let q = email.frame(of: .letter("q"))!
-        #expect(email.frame(of: .space)!.width > 2.5 * q.width)
+        #expect(space.width > 2.5 * q.width)
         // A plain field keeps both.
         #expect(Layout.qwerty(width: 390, globe: true).frame(of: .emoji) != nil)
     }

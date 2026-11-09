@@ -99,14 +99,15 @@ Status: Approved 2026-11-03 (Gabriel: "Build it")
   - Username: [after](design/screens/07-username.png)
   - Sizes: [email small](design/screens/02-email-small.png),
     [email wide](design/screens/02-email-wide.png)
-- **The bottom row:** 123 and 🌐 (or the emoji key, since `features/emoji`; with both
-  shown, a field's row keeps only the globe) keep their size and place in every kind, and so does
-  return, so the thumb finds them where it always does. Space gives up room to the
-  new keys: @ and . (or @ and #) are letter-key size and white like the letters,
-  because they type. In a web address there is
-  no space bar, as in Apple's, and ".", "/" and ".com" share its room (".com" twice as
-  wide as the other two). The split keyboard puts the new keys on the right half,
-  before return; the left half's space stays.
+- **The bottom row:** 123 keeps its size and place in every kind, and so does space,
+  so the thumb finds them where it always does (Gabriel, 9 Nov 2026). With two field
+  keys (email @ and ., social @ and #), the first takes the emoji key's place; the key
+  after space comes out of return, which gets shorter (never narrower than 123). A web
+  search's "." comes out of return too. The new keys are white like the letters,
+  because they type. When the globe is on the row it stays, and both keys go after
+  space. In a web address there is no space bar, as in Apple's, and ".", "/" and
+  ".com" share its room (".com" twice as wide as the other two). The split keyboard
+  puts one key on each half beside its space, as before.
 - **The return key:** the word in the key's own font at 16 pt, lower case like Apple's
   ("go", "search"). An action word is white on Apple's system blue; "next" and the
   plain return arrow stay on the dark function key. Waiting for text: the key at 40%

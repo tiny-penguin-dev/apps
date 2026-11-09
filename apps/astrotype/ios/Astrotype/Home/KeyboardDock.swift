@@ -38,11 +38,16 @@ struct KeyboardDock: View {
                     .buttonStyle(.plain)
                     .accessibilityLabel("Hide keyboard")
                 }
-                .padding(.leading, Theme.Space.xs)
+                .padding(.leading, Theme.Space.s)
                 .padding(.trailing, Theme.Space.m)
-                .background(Theme.card, in: RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
-                .padding(.horizontal, Theme.Space.s)
-                .padding(.bottom, Theme.Space.xs)
+                .padding(.vertical, Theme.Space.xs)
+                // A strip in the keyboard's own colour, the full width of the screen
+                // (Gabriel, 9 Nov 2026), sitting on the keys like part of them.
+                .background {
+                    UnevenRoundedRectangle(topLeadingRadius: Theme.Radius.md, topTrailingRadius: Theme.Radius.md, style: .continuous)
+                        .fill(Color(uiColor: Theme.ui(.kbGlass)))
+                        .ignoresSafeArea(.container, edges: .horizontal)
+                }
                 // Off screen while hidden: the field stays in the view so it can take the keys again.
                 .opacity(focused ? 1 : 0)
                 .allowsHitTesting(focused)

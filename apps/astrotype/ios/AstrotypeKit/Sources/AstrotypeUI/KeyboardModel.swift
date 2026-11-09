@@ -58,7 +58,16 @@ extension TextTarget {
 @MainActor
 public final class KeyboardModel {
     public private(set) var composer: Composer
-    public weak var target: TextTarget?
+    /// The field being typed in. A different one (a new keyboard opening, in another
+    /// app or field) leaves the open word behind as typed: the model is the process's,
+    /// so the composer still held the word the last keyboard was typing, and the next
+    /// letter wrote it again in the new field (Gabriel, 9 Nov 2026).
+    public weak var target: TextTarget? {
+        didSet {
+            guard target !== oldValue, search == nil, composer.hasOpenWord || markLength > 0 else { return }
+            reset()
+        }
+    }
     /// Called after every change to the bar, the open word, shift or the settings.
     public var onChange: (() -> Void)?
     public var onHaptic: ((Composer.Haptic) -> Void)?
@@ -843,6 +852,28 @@ public final class KeyboardModel {
     public var mic: MicStatus = .hidden {
         didSet { if mic != oldValue { onChange?() } }
     }
+    /// A keyboard opened (`follow` true) or went away (false) with `listen` the app's
+    /// latest. Words heard belong to the field they were said into: a listen this
+    /// keyboard didn't follow (it ended before the keyboard opened, or the keyboard went
+    /// away during it) never goes into the next field. A new keyboard process knew
+    /// nothing of the last listen and typed its whole transcript again (Gabriel, 9 Nov
+    /// 2026). `follow` is a listen still going on the trip back from the app.
+    public func dictationField(listen: Int, follow: Bool) {
+        guard listen > 0 else { return }
+        if follow {
+            // The app may have started counting again (it was ended): this listen is new.
+            if heardDone == listen, heard == nil { heardDone = nil }
+            return
+        }
+        guard heardDone != listen else { return }
+        if heard?.listen == listen {
+            dictationText.freeze(transcript: heard?.transcript ?? "")
+            heard = nil
+        }
+        heardDone = listen
+        log(TypingEvent(t: now, e: .dictation, n: listen, s: "left"))
+    }
+
     /// The mic pressed or let go, or ✕ or ✓ on the listening strip: for the keyboard's
     /// `DictationClient`.
     public var onMic: ((MicAction) -> Void)?

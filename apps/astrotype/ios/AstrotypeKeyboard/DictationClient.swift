@@ -57,6 +57,13 @@ final class DictationClient {
 
     func appeared() {
         observe()
+        // The app's last listen goes on in this field only on the trip back from the
+        // app; anything else was said into another field (`DictationFollow`).
+        if fullAccess, let latest = DictationLink.read(DictationState.self, from: DictationLink.stateURL) {
+            let request = DictationLink.read(DictationRequest.self, from: DictationLink.requestURL)
+            model.dictationField(listen: latest.listen,
+                                 follow: DictationFollow.follows(latest, request: request, at: Date()))
+        }
         read()
         ticker?.cancel()
         ticker = Task { [weak self] in
@@ -76,6 +83,7 @@ final class DictationClient {
         if !trip, state.phase(at: Date()) == .listening || asked != nil {
             send(.stop)
         }
+        if !trip { leave() }
         cancelAsk()
         refresh()
     }
@@ -148,6 +156,21 @@ final class DictationClient {
         model.logDictation("open")
         openedApp = Date()
         openApp()
+    }
+
+    /// The keyboard went away for good: the words still to come of the latest listen
+    /// (the app finishes it after `.stop`) stay out of the next field, here and in a
+    /// keyboard process that starts fresh.
+    private func leave() {
+        guard fullAccess else { return }
+        let latest = DictationLink.read(DictationState.self, from: DictationLink.stateURL) ?? state
+        guard latest.listen > 0 else { return }
+        model.dictationField(listen: latest.listen, follow: false)
+        var request = DictationLink.read(DictationRequest.self, from: DictationLink.requestURL)
+            ?? DictationRequest(language: Self.language(model.activeLanguages), how: .tap)
+        guard request.left != latest.listen else { return }
+        request.left = latest.listen
+        DictationLink.write(request, to: DictationLink.requestURL)
     }
 
     private func cancelAsk() {

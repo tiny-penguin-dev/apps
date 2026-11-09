@@ -53,7 +53,10 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
     `DictationClient` (one per process, in `KeyboardShared`) is the keyboard's side of
     dictation: it sends `DictationCommand`s, reads `DictationState` and hands the words
     to `KeyboardModel.dictationHeard`, which writes them with `DictationText` (talk and
-    type together: a key freezes what was said); the mic and the listening strip are
+    type together: a key freezes what was said); a listen's words only go into the field
+    they were said into: a keyboard going away marks the listen `left` in the request
+    file, and a keyboard that opens follows only a listen still going that no keyboard
+    left (`DictationFollow`, `KeyboardModel.dictationField`); the mic and the listening strip are
     `MicButton` and `WaveView` on `BarView`.
     `KeyboardViewController` hosts the shared `KeyboardView`, reads the field into a
     `Field` (features/field-types), types through

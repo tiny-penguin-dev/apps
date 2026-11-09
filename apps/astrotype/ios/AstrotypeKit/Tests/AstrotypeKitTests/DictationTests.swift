@@ -169,4 +169,34 @@ import Testing
         session.listen(at: now)
         #expect(session.state.problem == nil)
     }
+
+    /// A keyboard that opens writes only a listen still going that no keyboard left:
+    /// the trip back from the app. The last field's words never go into the next one.
+    @Test func newKeyboardFollowsOnlyTheTripBack() {
+        let now = Date()
+        let listening = DictationState(phase: .listening, transcript: "Hello there", listen: 3, alive: now)
+        let finished = DictationState(phase: .ready, transcript: "Hello there", listen: 3, finished: true, alive: now)
+        let asked = DictationRequest(language: "en-US", how: .tap)
+        var left = asked
+        left.left = 3
+        #expect(DictationFollow.follows(listening, request: asked, at: now))
+        #expect(DictationFollow.follows(listening, request: nil, at: now))
+        // Ended before this keyboard opened: said into another field.
+        #expect(!DictationFollow.follows(finished, request: asked, at: now))
+        // The last keyboard went away while it was still going.
+        #expect(!DictationFollow.follows(listening, request: left, at: now))
+        // A newer listen than the one left is followed.
+        var next = listening
+        next.listen = 4
+        #expect(DictationFollow.follows(next, request: left, at: now))
+        // The app stopped writing: nothing to follow.
+        #expect(!DictationFollow.follows(listening, request: asked, at: now.addingTimeInterval(60)))
+        #expect(!DictationFollow.follows(.off, request: nil, at: now))
+    }
+
+    @Test func requestWithoutLeftStillDecodes() throws {
+        let old = #"{"language":"en-US","how":"tap","sent":0}"#
+        let request = try JSONDecoder().decode(DictationRequest.self, from: Data(old.utf8))
+        #expect(request.left == nil && request.how == .tap)
+    }
 }

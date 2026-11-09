@@ -118,11 +118,27 @@ public struct DictationRequest: Codable, Equatable, Sendable {
     public var language: String
     public var how: DictationHow
     public var sent: Date
+    /// The listen a keyboard went away during (or after): its words are not for the next
+    /// field, even in a new keyboard process that never saw it. Only a newer request
+    /// (the next listen, or a trip to the app) clears it.
+    public var left: Int?
 
-    public init(language: String, how: DictationHow, sent: Date = Date()) {
+    public init(language: String, how: DictationHow, sent: Date = Date(), left: Int? = nil) {
         self.language = language
         self.how = how
         self.sent = sent
+        self.left = left
+    }
+}
+
+/// Whether a keyboard that just opened writes the words of the app's latest listen
+/// (features/dictation). Only a listen still going that no keyboard left: the trip back
+/// from the app after it started listening. A listen that ended before the keyboard
+/// opened, or that the last keyboard went away during, was said into another field.
+public enum DictationFollow {
+    public static func follows(_ state: DictationState, request: DictationRequest?, at now: Date) -> Bool {
+        guard state.listen > 0, state.phase(at: now) == .listening else { return false }
+        return request?.left != state.listen
     }
 }
 

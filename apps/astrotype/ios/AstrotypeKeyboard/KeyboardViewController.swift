@@ -75,9 +75,6 @@ final class KeyboardViewController: UIInputViewController {
     /// up (`hostDidEnterBackground`); iOS suspends this process with it.
     private var hostInBackground = false
     private var hostObservers: [any NSObjectProtocol] = []
-    /// The dictation test panel (throwaway spike, DictationTest/).
-    private var dictationProbe: UIHostingController<DictationProbePanel>?
-
     deinit {
         if counted { LiveCount.controllers.subtract(1, ordering: .relaxed) }
         // iOS can free a controller without ever calling `viewDidDisappear`, and keeps
@@ -299,7 +296,6 @@ final class KeyboardViewController: UIInputViewController {
         if recording { model.snapshot() }
         logMemory("show")
         model.contextChanged()
-        updateDictationProbe(&dictationProbe)
     }
 
     /// Starts or stops the typing recorder with the setting (Full Access only).

@@ -173,7 +173,8 @@ This is the product, so it gets its own section.
   globe sits faded at the bottom of the column, centred, else it goes back next to 123
   (Gabriel, 8 Nov 2026).
   The middle's states:
-  - *Idle:* a short note ("Both thumbs, one word") or, with nothing to say, empty.
+  - *Idle:* empty; the free keyboard says "One finger at a time". ("Both thumbs, one
+    word" was dropped as unnecessary, Gabriel 8 Nov 2026.)
   - *Open word:* up to three guesses, the chosen one in a pill in the centre with
     the others either side. The pill takes the theme's shift/delete/return colour and
     see-through with the letters' colour at 80%. Everything else on the bar has no key behind it, so
@@ -343,7 +344,7 @@ outfits.
   t→h→i→n→g. Space when it says something." / **Show me**, or just try it
 - Home: "Both flippers, go." / banner: "Astrotype isn't on yet." **Turn on** / "Pro
   trial · 11 days left."
-- Bar notes: "Both thumbs, one word" / "Tap or swipe. Space writes the word." / FIX /
+- Bar notes: (none when idle) / "Tap or swipe. Space writes the word." / FIX /
   free: "One finger at a time", "Two thumbs is in Astrotype Pro"
 - Speed test: "Type this" / result: "52" "words per minute" / "3 words needed a fix.
   That's 21 faster than Apple's keyboard and a new best." / **Again**, Done

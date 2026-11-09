@@ -1,0 +1,397 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Astrotype Dictation</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;700;800;900&display=swap">
+<style>
+/* One phone on a pale ice stage with a screen picker beside it. Tokens and components are Astrotype's (DESIGN.md "Design system"), copied from the fix-earlier-word mockup. New here: MicButton, ListeningStrip, SwipeHint. */
+:root{
+  --stage:#E6F0F4; --bg:#F3F8FA; --card:#FFFFFF; --ink:#1E2945; --muted:#67748F; --line:#DCE6EC;
+  --accent:#139FB5; --accent-ink:#FFFFFF; --left:#139FB5; --right:#FF6F86; --sun:#FFC24D; --mint:#2FBF96; --ice:#D9EDF3;
+  --key:#FFFFFF; --key-ink:#1E2945; --key-dark:#C9D6DE; --kb:#DCE6EC; --danger:#E0526A;
+  --font:ui-rounded,"SF Pro Rounded","Nunito",system-ui,sans-serif;
+  --r-lg:28px; --r-md:18px; --r-sm:12px;
+  --spring:cubic-bezier(.34,1.56,.64,1);
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --stage:#0A1118; --bg:#111A24; --card:#1A2634; --ink:#EEF4F8; --muted:#97A6B8; --line:#2A3B4C;
+  --accent:#2FC6DC; --accent-ink:#06202A; --left:#2FC6DC; --right:#FF8A9E; --sun:#FFCD66; --mint:#45D3AA; --ice:#1D3240;
+  --key:#2A3A4A; --key-ink:#EEF4F8; --key-dark:#1C2834; --kb:#131E29; --danger:#FF7A8E; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --stage:#0A1118; --bg:#111A24; --card:#1A2634; --ink:#EEF4F8; --muted:#97A6B8; --line:#2A3B4C;
+  --accent:#2FC6DC; --accent-ink:#06202A; --left:#2FC6DC; --right:#FF8A9E; --sun:#FFCD66; --mint:#45D3AA; --ice:#1D3240;
+  --key:#2A3A4A; --key-ink:#EEF4F8; --key-dark:#1C2834; --kb:#131E29; --danger:#FF7A8E; color-scheme:dark}
+html,body{height:100%;margin:0}
+body{background:var(--stage);color:var(--ink);font-family:var(--font);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+*{box-sizing:border-box}
+button{font:inherit;color:inherit}
+.stage{display:flex;gap:32px;justify-content:center;align-items:flex-start;padding-block:24px;flex-wrap:wrap}
+.picker{display:flex;flex-direction:column;gap:6px;max-width:250px;min-width:0}
+.picker h1{font-size:28px;font-weight:900;margin:0}
+.picker p{margin:0 0 10px;color:var(--muted);font-size:13px;line-height:1.45}
+.picker button{font-weight:700;font-size:14px;text-align:left;border:0;background:transparent;color:var(--muted);padding:7px 12px;border-radius:10px;cursor:pointer}
+.picker button[aria-current="true"]{background:var(--card);color:var(--ink)}
+.picker small{color:var(--muted);font-size:11px;letter-spacing:.06em;text-transform:uppercase;font-weight:800;margin-top:10px;padding-left:12px}
+.picker button:focus-visible,.phone :focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.seg-mini{display:flex;gap:4px;margin-top:4px;padding-left:8px;flex-wrap:wrap}
+.seg-mini button{padding:5px 10px;font-size:12px;background:var(--line)}
+.seg-mini button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.why{font-size:13px;color:var(--muted);line-height:1.45;background:var(--card);border-radius:12px;padding:10px 12px;margin-top:10px}
+.phone{width:390px;max-width:100%;height:844px;background:var(--bg);border-radius:48px;position:relative;overflow:hidden;
+  box-shadow:0 0 0 10px var(--ink),0 30px 60px rgba(20,30,60,.25);flex:none}
+.phone.small{width:320px;height:568px;border-radius:36px}
+.phone.wide{width:744px;height:1024px;border-radius:40px}
+@media (max-width:700px){.picker{max-width:100%;flex-direction:row;flex-wrap:wrap;align-items:center}.picker h1,.picker p,.why{width:100%}.picker small{display:none}
+  .phone{box-shadow:none;border-radius:32px}.phone.wide{display:none}}
+.status{position:absolute;top:14px;left:30px;right:30px;display:flex;justify-content:space-between;font-weight:800;font-size:15px;z-index:3}
+.phone.small .status{top:8px}
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;padding:54px 0 0}
+.phone.small .screen{padding-top:34px}
+.screen.anim{animation:in .4s var(--spring)}
+@keyframes in{from{transform:translateX(24px);opacity:0}to{transform:none;opacity:1}}
+.nav{display:flex;align-items:center;padding:0 22px;height:40px;flex:none}
+.back{font-weight:800;color:var(--accent);background:none;border:0;font-size:17px;padding:0;cursor:pointer}
+.navx{display:flex;align-items:center;gap:14px;margin-left:auto}
+.navx button{font-weight:800;color:var(--accent);background:none;border:0;font-size:17px;padding:0;cursor:pointer}
+.navx .plus{font-size:26px;line-height:1;font-weight:700}
+.scroll{overflow-y:auto;flex:1;padding:0 22px 40px;display:flex;flex-direction:column;gap:8px}
+.phone.small .scroll{padding:0 14px 30px}
+.phone.wide .scroll{padding:0 40px 40px}
+.h1{font-size:30px;font-weight:900;line-height:1.1;margin:4px 0 6px;text-wrap:balance}
+.phone.small .h1{font-size:26px}
+.sub{color:var(--muted);font-size:13px;line-height:1.4;margin:0 0 4px}
+.sec{font-size:13px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:14px 0 0 6px}
+.group{background:var(--card);border-radius:var(--r-md);overflow:hidden}
+.group>.r+.r{border-top:1px solid var(--line)}
+.foot{color:var(--muted);font-size:13px;line-height:1.4;margin:2px 6px 0}
+.r{display:flex;align-items:center;gap:12px;padding:11px 14px;min-height:52px;width:100%;color:inherit;text-align:left;background:none;border:0}
+button.r{cursor:pointer}
+.r .t{flex:1;min-width:0}
+.r .t b{display:block;font-size:16px;font-weight:800}
+.r .t span{display:block;color:var(--muted);font-size:13px;line-height:1.35;margin-top:1px}
+.r .val{color:var(--muted);font-weight:700;font-size:15px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.chev{color:var(--muted);font-weight:900;font-size:18px;margin-left:-4px}
+.r.danger .t b{color:var(--danger)}
+.r.new{box-shadow:inset 4px 0 0 var(--sun)}
+.ic{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;flex:none;color:#fff}
+.ic svg{width:18px;height:18px;stroke:#fff;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.ic.teal{background:var(--left)}.ic.coral{background:var(--right)}.ic.mint{background:var(--mint)}.ic.sun{background:var(--sun)}.ic.sun svg{stroke:#3A2600}.ic.navy{background:#5B6B8C}
+.toggle{width:52px;height:32px;border-radius:999px;background:var(--mint);border:0;position:relative;flex:none;padding:0}
+.toggle::after{content:"";position:absolute;top:3px;left:23px;width:26px;height:26px;border-radius:50%;background:#fff;box-shadow:0 2px 4px rgba(0,0,0,.2)}
+.chip{display:inline-flex;align-items:center;font-weight:800;border-radius:999px;white-space:nowrap;padding:4px 9px;font-size:12px}
+.chip.kept{background:color-mix(in srgb,var(--mint) 22%,transparent)}
+.chip.mine{background:color-mix(in srgb,var(--accent) 18%,transparent)}
+.chip.more{background:color-mix(in srgb,var(--sun) 35%,transparent)}
+.dots{display:flex;gap:4px;flex:none}.dots i{width:8px;height:8px;border-radius:50%;background:var(--line)}.dots i.on{background:var(--accent)}
+.mini-btn{font-weight:800;font-size:14px;border:0;border-radius:999px;background:var(--ice);color:var(--ink);padding:6px 12px;cursor:pointer;flex:none}
+.search{display:flex;align-items:center;gap:8px;background:var(--card);border-radius:var(--r-sm);padding:9px 12px}
+.search svg{width:18px;height:18px;stroke:var(--muted);fill:none;stroke-width:2.4;stroke-linecap:round;flex:none}
+.search input{flex:1;min-width:0;font:inherit;font-size:16px;font-weight:700;border:0;background:none;color:var(--ink);outline:none}
+.search input::placeholder{color:var(--muted)}
+.swipe{position:relative;overflow:hidden}
+.swipe .under{position:absolute;inset:0;display:flex;justify-content:flex-end;align-items:stretch}
+.swipe .under span{background:var(--mint);color:#fff;font-weight:800;display:grid;place-items:center;width:96px}
+.swipe .r{background:var(--card);transform:translateX(-96px)}
+.seg{display:flex;background:var(--line);border-radius:999px;padding:4px}
+.seg button{flex:1;font-weight:800;font-size:14px;border:0;background:transparent;color:var(--muted);padding:8px 0;border-radius:999px}
+.seg button[aria-pressed="true"]{background:var(--card);color:var(--ink)}
+.empty{color:var(--muted);font-size:15px;text-align:center;padding:24px 10px}
+.scrim{position:absolute;inset:0;background:rgba(10,17,24,.35);z-index:5;display:flex;align-items:flex-end;animation:fade .2s}
+@keyframes fade{from{opacity:0}}
+.sheet{background:var(--bg);width:100%;border-radius:var(--r-lg) var(--r-lg) 0 0;padding:18px 22px 34px;display:flex;flex-direction:column;gap:12px;animation:up .35s var(--spring)}
+@keyframes up{from{transform:translateY(40%)}}
+.sheet .bar{display:flex;align-items:center;justify-content:space-between}.sheet .bar b{font-size:17px;font-weight:900}
+.sheet .bar button{font-weight:800;font-size:17px;color:var(--accent);background:none;border:0;cursor:pointer}
+.sheet .note{color:var(--muted);font-size:13px;line-height:1.4;margin:0 4px}
+.phone.wide .scrim{align-items:center;justify-content:center}.phone.wide .sheet{width:420px;border-radius:var(--r-lg)}
+
+/* Keyboard */
+.thread{flex:1;display:flex;flex-direction:column;gap:8px;padding:8px 22px;justify-content:flex-end;overflow:hidden}
+.msg{max-width:78%;padding:10px 14px;border-radius:20px;font-size:16px;line-height:1.35;background:var(--card)}
+.compose{display:flex;gap:8px;padding:8px 14px}
+.field{flex:1;min-height:40px;padding:9px 14px;border-radius:22px;border:1px solid var(--line);font-size:17px;background:var(--card)}
+.field .sel{background:color-mix(in srgb,var(--accent) 28%,transparent);border-radius:3px}
+.field .fixed{background:color-mix(in srgb,var(--mint) 30%,transparent);border-radius:3px;transition:background 1s}
+.fingertap{display:inline-block;width:0;position:relative}
+.fingertap::after{content:"";position:absolute;left:-14px;top:-6px;width:28px;height:28px;border-radius:50%;background:color-mix(in srgb,var(--ink) 18%,transparent);animation:tap 1.4s ease-out infinite}
+@keyframes tap{0%{transform:scale(.4);opacity:1}80%,100%{transform:scale(1.2);opacity:0}}
+/* EarlierTag (new): says the bar is about an earlier word, not the one being typed */
+.pillwrap{position:relative;display:inline-flex}
+.tag{position:absolute;left:50%;top:-11px;transform:translateX(-50%);font-size:10px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;background:var(--accent);color:var(--accent-ink);padding:1px 7px;border-radius:999px;white-space:nowrap;pointer-events:none}
+/* Not it? field, as features/missed-words */
+.notit{display:flex;align-items:center;gap:8px;width:100%;min-width:0}
+.notit .box{flex:1;min-width:0;background:var(--card);border-radius:16px;padding:7px 12px;font-weight:800;font-size:17px;white-space:nowrap;overflow:hidden}
+.notit .box span{color:var(--muted);font-weight:700}
+.notit .save{border:0;border-radius:999px;background:var(--accent);color:var(--accent-ink);font-weight:800;padding:8px 14px;cursor:pointer}
+.caret{display:inline-block;width:2px;height:20px;background:var(--accent);vertical-align:-4px;margin-left:1px;animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+.kb{background:var(--kb);padding:6px 4px 26px;flex:none}
+.phone.small .kb{padding-bottom:6px}
+.kbar{height:44px;margin-bottom:6px;display:grid;grid-template-columns:44px minmax(0,1fr) 44px;align-items:center;gap:4px;padding:0 4px;position:relative}
+.kbar .center{display:flex;justify-content:center;align-items:center;gap:6px;min-width:0;height:100%}
+.kbar.fresh .center{animation:rise .25s ease-out}
+@keyframes rise{from{transform:translateY(6px);opacity:0}}
+.g{font-weight:700;font-size:17px;border:0;background:transparent;color:var(--ink);padding:7px 10px;border-radius:16px;cursor:pointer;white-space:nowrap;
+  transition:transform .25s var(--spring),background .15s}
+.g.pill{background:var(--card);font-weight:900;box-shadow:0 1px 0 rgba(0,0,0,.08)}
+.g.alt{color:var(--muted)}
+.g.held{background:var(--ice);transform:scale(1.08)}
+.icon{width:40px;height:40px;border:0;background:transparent;border-radius:12px;display:grid;place-items:center;cursor:pointer;color:var(--muted)}
+.icon svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+/* WordMenu (new): the bar while a guess is held */
+.wm{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:6px;min-width:0;width:100%}
+.wm .side{display:flex;min-width:0}.wm .side.l{justify-content:flex-end}.wm .side.r{justify-content:flex-start}
+.wm .word{border:0;cursor:pointer;color:var(--ink);font-weight:900;font-size:17px;padding:7px 10px;border-radius:16px;background:var(--card);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:0 1 auto;min-width:3.5em;max-width:9em}
+.act{display:inline-flex;align-items:center;gap:5px;border:0;border-radius:999px;font-weight:800;font-size:14px;padding:8px 12px;cursor:pointer;white-space:nowrap;flex:none}
+.act svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
+.act.never{background:var(--right);color:var(--accent-ink)}
+.act.more{background:var(--mint);color:var(--accent-ink)}
+.phone.small .act{padding:8px 9px;font-size:13px}
+.act .short{display:none}
+.phone.small .act .long,.wm.tight .act .long{display:none}.phone.small .act .short,.wm.tight .act .short{display:inline}
+.phone.wide .wm.tight .act .long{display:inline}.phone.wide .wm.tight .act .short{display:none}
+.wm.anim{animation:rise .2s ease-out}
+/* UndoNote (new) */
+.undo{display:flex;align-items:center;justify-content:center;gap:10px;font-weight:800;font-size:15px;color:var(--ink);width:100%;animation:rise .2s ease-out}
+.undo span{color:var(--muted);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.undo button{border:0;background:var(--ice);border-radius:999px;padding:6px 12px;font-weight:800;color:var(--accent);cursor:pointer}
+.keys{display:flex;flex-direction:column;gap:8px}
+.krow{display:flex;justify-content:center;gap:5px}
+.key{flex:1 1 0;max-width:34px;height:42px;border-radius:7px;background:var(--key);color:var(--key-ink);font-weight:700;font-size:20px;display:grid;place-items:center;box-shadow:0 1px 0 rgba(0,0,0,.25);border:0}
+.phone.small .key{height:38px;font-size:18px}
+.key.fn{background:var(--key-dark);font-size:14px;max-width:46px;flex:1.35 1 0}
+.key.space{flex:5.5 1 0;max-width:190px;font-size:13px;color:var(--muted);font-weight:800}
+.key.ret{flex:2.6 1 0;max-width:88px;background:var(--key-dark);font-size:14px}
+.phone.wide .key{max-width:58px;height:54px;font-size:24px}.phone.wide .key.fn{max-width:76px}.phone.wide .key.space{max-width:330px}.phone.wide .key.ret{max-width:150px}
+.hint{position:absolute;left:50%;bottom:calc(100% + 8px);transform:translateX(-50%);background:var(--ink);color:var(--bg);font-weight:800;font-size:13px;padding:8px 12px;border-radius:999px;white-space:nowrap;pointer-events:none}
+.splitview{flex:1;display:grid;grid-template-columns:300px 1fr;min-height:0}
+.splitview .side{border-right:1px solid var(--line)}
+.splitview .scroll{padding:0 24px 40px}
+
+/* MicButton (new): idle, ready (mint dot), listening, held */
+.mic{position:relative;width:40px;height:40px;border:0;background:transparent;border-radius:12px;display:grid;place-items:center;cursor:pointer;color:var(--muted);transition:transform .3s var(--spring)}
+.mic svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.mic.ready::after{content:"";position:absolute;top:7px;right:7px;width:8px;height:8px;border-radius:50%;background:var(--mint);box-shadow:0 0 0 2px var(--kb)}
+.mic:active{transform:scale(1.15)}
+.snip{font-weight:800;font-size:15px;color:var(--muted);background:transparent;border:0;padding:0 4px;cursor:pointer}
+.rslot{display:flex;align-items:center;justify-content:flex-end}
+.kbar.wider{grid-template-columns:44px minmax(0,1fr) 84px}
+/* ListeningStrip (new) */
+.strip{grid-column:1/-1;display:grid;grid-template-columns:44px minmax(0,1fr) 44px;align-items:center;gap:4px;height:100%;animation:rise .2s ease-out}
+.strip .mid{display:flex;align-items:center;justify-content:center;gap:10px;min-width:0}
+.wave{display:flex;align-items:center;justify-content:center;gap:3px;height:30px;flex:1;min-width:0;overflow:hidden}
+.wave i{width:3px;border-radius:2px;background:var(--right);height:6px;animation:wv 1s ease-in-out infinite}
+.wave i{flex:none}
+@keyframes wv{0%,100%{height:5px}50%{height:24px}}
+.strip .words{font-weight:700;font-size:15px;color:var(--ink);opacity:.8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.strip .words.idle{color:var(--muted)}
+.phone.small .strip .words{display:none}
+.done{width:40px;height:40px;border-radius:50%;border:0;background:var(--mint);color:#fff;display:grid;place-items:center;cursor:pointer}
+.done svg{width:20px;height:20px;stroke:#fff;fill:none;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
+.heldring{width:40px;height:40px;border-radius:50%;background:var(--right);display:grid;place-items:center;color:#fff;animation:pulse 1.2s ease-in-out infinite}
+.heldring svg{width:20px;height:20px;stroke:#fff;fill:none;stroke-width:2.4;stroke-linecap:round}
+@keyframes pulse{50%{box-shadow:0 0 0 8px color-mix(in srgb,var(--right) 25%,transparent)}}
+.dict{color:var(--ink)}.dict.vol{color:var(--muted)}
+/* Go back screen + SwipeHint (new) */
+.crumb{position:absolute;top:14px;left:24px;font-weight:700;font-size:13px;color:var(--accent);z-index:4}
+.phone.small .crumb{top:8px}
+.goback{position:absolute;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:60px 28px 120px;text-align:center}
+.goback .inner{display:flex;flex-direction:column;align-items:center;gap:14px;max-width:360px}
+.bigmic{width:96px;height:96px;border-radius:50%;background:var(--mint);display:grid;place-items:center;animation:in .5s var(--spring)}
+.bigmic svg{width:44px;height:44px;stroke:#fff;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.bigmic.ask{background:var(--ice)}.bigmic.ask svg{stroke:var(--accent)}
+.goback h2{font-size:30px;font-weight:900;margin:0;text-wrap:balance}
+.phone.small .goback h2{font-size:26px}
+.goback p{margin:0;color:var(--muted);font-size:17px;line-height:1.4;text-wrap:balance}
+.goback .notnow{border:0;background:none;color:var(--accent);font-weight:800;font-size:16px;cursor:pointer;padding:8px}
+.pbtn{border:0;border-radius:999px;background:var(--accent);color:var(--accent-ink);font-weight:900;font-size:17px;padding:14px 28px;box-shadow:0 4px 0 color-mix(in srgb,var(--accent) 60%,#000);cursor:pointer}
+.bubble{position:absolute;top:44px;left:18px;background:var(--ink);color:var(--bg);font-weight:800;font-size:13px;padding:7px 12px;border-radius:12px;z-index:4;animation:bob 1.6s ease-in-out infinite}
+.bubble::before{content:"";position:absolute;top:-6px;left:18px;border:6px solid transparent;border-top:0;border-bottom-color:var(--ink)}
+@keyframes bob{50%{transform:translateY(4px)}}
+.phone.small .bubble{top:32px}
+.swipehint{position:absolute;left:0;right:0;bottom:0;height:96px;pointer-events:none}
+.swipehint .label{position:absolute;left:0;right:0;bottom:52px;text-align:center;font-weight:800;font-size:14px;color:var(--accent)}
+.swipehint .track{position:absolute;left:50%;bottom:16px;width:160px;margin-left:-80px;height:9px}
+.homebar{position:absolute;left:50%;bottom:8px;width:134px;height:5px;margin-left:-67px;border-radius:3px;background:var(--ink);z-index:4}
+.trail{position:absolute;left:0;top:0;height:9px;border-radius:5px;background:linear-gradient(90deg,transparent,var(--left));animation:trail 1.6s cubic-bezier(.4,0,.2,1) infinite}
+.thumbdot{position:absolute;top:-10px;width:28px;height:28px;margin-left:-14px;border-radius:50%;background:color-mix(in srgb,var(--left) 35%,transparent);border:2px solid var(--left);animation:dot 1.6s cubic-bezier(.4,0,.2,1) infinite}
+@keyframes trail{0%{width:0;opacity:1}70%{width:160px;opacity:1}100%{width:160px;opacity:0}}
+@keyframes dot{0%{left:0;opacity:0}10%{opacity:1}70%{left:160px;opacity:1}100%{left:160px;opacity:0}}
+.arrowstill{display:none;position:absolute;left:50%;top:-12px;margin-left:-8px;font-size:22px;font-weight:900;color:var(--left)}
+@media (prefers-reduced-motion: reduce){.trail,.thumbdot{display:none}.arrowstill{display:block}}
+.phone.wide .goback .inner{max-width:420px}
+@media (prefers-reduced-motion: reduce){.wave i,.bubble,.heldring{animation:none!important}}
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="picker" id="picker">
+    <h1>Dictation</h1>
+    <p>Tap the mic and talk. The Astrotype app does the listening, because iOS doesn't let keyboards use the mic. The first time in a while, it opens once to turn the mic on.</p>
+    <small>First dictation</small>
+    <button data-s="idle">1. The mic on the bar</button>
+    <button data-s="open">2. Tap it: Astrotype opens</button>
+    <button data-s="ask">3. Very first time: allow the mic</button>
+    <button data-s="listen">4. Back in Notes: listening</button>
+    <button data-s="done">5. Tap ✓: your words are in</button>
+    <small>Within 5 minutes</small>
+    <button data-s="again">6. Tap the mic: listening at once</button>
+    <button data-s="hold">7. Or hold it to talk</button>
+    <button data-s="mix">8. Talk and type together</button>
+    <small>More</small>
+    <button data-s="settings">9. Settings → Dictation</button>
+    <button data-s="noaccess">10. Full Access off</button>
+    <small>Look</small>
+    <div class="seg-mini" id="device">
+      <button data-device="" aria-pressed="true">iPhone</button><button data-device="duo">iPhone Duo</button>
+    </div>
+    <div class="seg-mini" id="size">
+      <button data-size="small">Small</button><button data-size="" aria-pressed="true">Phone</button><button data-size="wide">Wide</button>
+    </div>
+    <div class="seg-mini" id="theme">
+      <button data-theme="light">Light</button><button data-theme="dark">Dark</button><button data-theme="" aria-pressed="true">Auto</button>
+    </div>
+    <div class="why" id="why"></div>
+  </div>
+  <div class="phone" id="phone"></div>
+</div>
+<script>
+const ICON = {
+  logo:'<svg viewBox="0 0 24 24"><path d="M6 19L12 5l6 14M8.5 14h7"/></svg>',
+  pencil:'<svg viewBox="0 0 24 24"><path d="M4 20l4-1 10-10-3-3L5 16z"/></svg>',
+  mic:'<svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>',
+  close:'<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+  check:'<svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7"/></svg>',
+};
+const S = {screen:'idle', size:'', device:'', anim:true};
+const CARET = '<span class="caret"></span>';
+const SAID = 'Running ten minutes late, save me a seat by the window.';
+let timer = null;
+
+const WHY = {
+  idle:'The mic sits at the bar\'s right end, next to snippets, whenever there\'s nothing to fix. While you fix a word, the pencil takes that spot as it does today.',
+  open:'No mic session yet, so Astrotype opens. It turns the mic on and shows where to go: the swipe trail runs along the real bottom edge. On phones that show “◀ Notes” at the top left, a bubble points at it too. Switch to iPhone Duo above: no ◀ button there, so no bubble.',
+  ask:'Only the very first time: Astrotype asks for the microphone, with one line on why, then shows the go-back screen.',
+  listen:'Back in Notes, it\'s already listening. Your words go into the field as you talk (the grey part may still change), so the bar just shows your voice. ✕ stops and takes it back, ✓ stops and keeps it.',
+  mix:'Keep talking and typing together. Say “Hello how”, type “r”, say “you”: a key freezes what you said, types as usual, and your next words go after it. Backspace and return work as always.',
+  done:'The words are in, followed by a space. The mint dot on the mic means the mic is still on and ready: for the next 5 minutes, dictating needs no trip to the app. iOS shows its orange dot meanwhile.',
+  again:'Tap the mic within 5 minutes and it listens straight away, no app switch.',
+  hold:'Hold the mic for 0.3 s or more and it listens only while you hold it. Let go to stop and keep the words.',
+  settings:'Settings → Dictation: turn the mic button off, or pick how long the mic stays ready after you dictate.',
+  noaccess:'Without Full Access the keyboard can\'t talk to the app, so the mic button explains what to turn on instead of opening the app.',
+};
+
+function keys(){
+  const r = ['qwertyuiop','asdfghjkl','zxcvbnm'];
+  return `<div class="keys">
+    <div class="krow">${[...r[0]].map(c=>`<button class="key">${c}</button>`).join('')}</div>
+    <div class="krow" style="padding:0 16px">${[...r[1]].map(c=>`<button class="key">${c}</button>`).join('')}</div>
+    <div class="krow"><button class="key fn">⇧</button>${[...r[2]].map(c=>`<button class="key">${c}</button>`).join('')}<button class="key fn">⌫</button></div>
+    <div class="krow"><button class="key fn">123</button><button class="key space">Astrotype</button><button class="key ret">return</button></div></div>`;
+}
+function notes(fieldHtml, barHtml, hint, wide){
+  return `<div class="screen${S.anim?' anim':''}">
+    <div class="thread"><div class="msg">Are you still coming tonight?</div></div>
+    <div class="compose"><div class="field" id="field">${fieldHtml}</div></div>
+    <div class="kb"><div class="kbar fresh${wide?' wider':''}" role="toolbar" aria-label="Suggestions">${barHtml}${hint?`<div class="hint">${hint}</div>`:''}</div>${keys()}</div></div>`;
+}
+function idleBar(ready, go){
+  return `<div><button class="icon" aria-label="Astrotype">${ICON.logo}</button></div>
+    <div class="center"></div>
+    <div class="rslot"><button class="snip" aria-label="Snippets">{ }</button><button class="mic${ready?' ready':''}" data-go="${go}" aria-label="Dictate${ready?', mic ready':''}">${ICON.mic}</button></div>`;
+}
+function strip(held){
+  return `<div class="strip">
+    <div><button class="icon" data-go="idle" aria-label="Stop and discard">${ICON.close}</button></div>
+    <div class="mid"><span class="wave" aria-label="${held?'Listening, let go to stop':'Listening'}">${Array.from({length:36},(_,i)=>`<i style="animation-delay:${((i*7)%13)*0.07}s;animation-duration:${0.7+((i*5)%7)*0.08}s"></i>`).join('')}</span>${held?'<span class="words idle">Let go to stop</span>':''}</div>
+    <div>${held?`<span class="heldring" data-go="done" role="button" aria-label="Let go to stop">${ICON.mic}</span>`:`<button class="done" data-go="done" aria-label="Done">${ICON.check}</button>`}</div></div>`;
+}
+function goBack(ask){
+  const duo = S.device==='duo';
+  const crumb = (!duo && !ask) ? `<div class="crumb">◀ Notes</div><div class="bubble">or tap here</div>` : (!duo ? '<div class="crumb">◀ Notes</div>' : '');
+  if (ask) return `${crumb}<div class="goback"><div class="inner">
+      <div class="bigmic ask">${ICON.mic}</div>
+      <h2>Let Astrotype hear you</h2>
+      <p>Astrotype needs the mic to turn your voice into text. It listens only while you dictate, on your phone, and keeps nothing.</p>
+      <button class="pbtn" data-go="open">Allow the mic</button>
+      <button class="notnow" data-go="idle">Not now</button></div></div>`;
+  return `${crumb}<div class="goback"><div class="inner">
+      <div class="bigmic">${ICON.mic}</div>
+      <h2>Mic's on</h2>
+      <p>Swipe right along the bottom edge to go back and talk.</p>
+      <button class="notnow" data-go="idle">Not now</button></div></div>
+    <div class="swipehint" data-go="listen"><div class="label">Swipe right here</div>
+      <div class="track"><div class="trail"></div><div class="thumbdot"></div><div class="arrowstill">→</div></div></div>
+    <div class="homebar" data-go="listen"></div>`;
+}
+function settings(){
+  return `<div class="screen${S.anim?' anim':''}"><div class="nav"><button class="back" data-go="idle">‹ Settings</button></div>
+    <div class="scroll"><div class="h1">Dictation</div>
+      <div class="group">
+        <div class="r"><div class="t"><b>Mic button on the keyboard</b><span>On the guesses bar, next to snippets.</span></div><span class="toggle" role="switch" aria-checked="true"></span></div>
+      </div>
+      <div class="sec">Keep the mic ready</div>
+      <div class="seg"><button>1 min</button><button aria-pressed="true">5 min</button><button>15 min</button></div>
+      <div class="foot">After you dictate, the mic stays on this long, so the next time needs no trip to Astrotype. iOS shows its orange dot meanwhile.</div>
+      <div class="foot">Your voice is turned into text on your phone. Nothing is sent or kept.</div>
+    </div></div>`;
+}
+const SCREENS = {
+  idle:()=>notes(`Yes! ${CARET}`, idleBar(false,'open'), null, true),
+  open:()=>goBack(false),
+  ask:()=>goBack(true),
+  listen:()=>notes(`Yes! <span class="dict" id="said"></span>${CARET}`, strip(false)),
+  done:()=>notes(`Yes! ${SAID} ${CARET}`, idleBar(true,'again'), null, true),
+  again:()=>notes(`Yes! ${SAID} <span class="dict" id="said"></span>${CARET}`, strip(false)),
+  mix:()=>notes(`Yes! <span class="dict">Hello how</span> r <span class="dict" id="said"></span>${CARET}`, strip(false)),
+  hold:()=>notes(`Yes! ${SAID} <span class="dict" id="said"></span>${CARET}`, strip(true)),
+  settings:()=>settings(),
+  noaccess:()=>notes(`Yes! ${CARET}`, `<div><button class="icon" aria-label="Astrotype">${ICON.logo}</button></div><div class="center"><span class="g alt" style="font-size:14px">Turn on Full Access to dictate</span></div><div class="rslot"><button class="mic" aria-label="Dictate">${ICON.mic}</button></div>`, null),
+};
+const LATER = 'See you there.';
+
+function stream(){
+  clearInterval(timer);
+  const said = document.getElementById('said'); const words = document.getElementById('words');
+  if (!said) return;
+  const text = (S.screen==='listen') ? SAID : (S.screen==='mix' ? 'you doing?' : LATER);
+  const parts = text.split(' '); let i = 0;
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const show = () => {
+    const done = parts.slice(0, i).join(' ');
+    said.innerHTML = i ? `${done.split(' ').slice(0,-1).join(' ')} <span class="dict vol">${done.split(' ').slice(-1)}</span>` : '';
+    if (words && i){ words.textContent = done.split(' ').slice(-4).join(' '); words.classList.remove('idle'); }
+  };
+  if (reduce){ i = parts.length; show(); return; }
+  timer = setInterval(()=>{ i = i >= parts.length + 4 ? 0 : i + 1; if (i <= parts.length) show(); }, 380);
+}
+const phone = document.getElementById('phone');
+function render(){
+  phone.className = 'phone' + (S.size ? ' ' + S.size : '');
+  const status = (S.screen==='open'||S.screen==='ask') && S.device!=='duo' ? '<div class="status"><span></span><span>●●●</span></div>' : '<div class="status"><span>9:41</span><span>●●●</span></div>';
+  phone.innerHTML = status + SCREENS[S.screen]();
+  document.querySelectorAll('#picker [data-s]').forEach(b => b.setAttribute('aria-current', b.dataset.s === S.screen));
+  document.getElementById('why').textContent = WHY[S.screen];
+  stream();
+}
+function go(s){ S.screen = s; render(); try{ history.replaceState(null,'','#'+s); }catch(e){} }
+function press(group, b){ document.querySelectorAll('#'+group+' button').forEach(x=>x.setAttribute('aria-pressed', x===b)); }
+document.getElementById('picker').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.s) go(b.dataset.s);
+  if (b.dataset.size !== undefined){ S.size = b.dataset.size; press('size', b); render(); }
+  if (b.dataset.device !== undefined){ S.device = b.dataset.device; press('device', b); render(); }
+  if (b.dataset.theme !== undefined){ if (b.dataset.theme) document.documentElement.dataset.theme = b.dataset.theme; else delete document.documentElement.dataset.theme; press('theme', b); }
+});
+phone.addEventListener('click', e => { const b = e.target.closest('[data-go]'); if (b && b.dataset.go) go(b.dataset.go); });
+const h = (location.hash||'').slice(1);
+if (SCREENS[h]) S.screen = h;
+render();
+</script>
+</body>
+</html>

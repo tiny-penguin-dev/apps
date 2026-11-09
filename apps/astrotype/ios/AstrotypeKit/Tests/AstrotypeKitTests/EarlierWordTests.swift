@@ -226,4 +226,16 @@ import Testing
         #expect(composer.cursorLanded(at: EarlierSpot(word: "cage", offset: 2)).isEmpty)
         if case .earlier = composer.state.bar { Issue.record("an open word was dropped for an earlier one") }
     }
+
+    @Test func onlyACursorMoveCounts() {
+        // Another app's dictation adds text before the cursor: not a move.
+        #expect(!EarlierSpot.cursorMoved(lastAfter: "", after: "", selected: nil))
+        #expect(!EarlierSpot.cursorMoved(lastAfter: " later", after: " later", selected: nil))
+        // A tap into an earlier word changes what's after the cursor.
+        #expect(EarlierSpot.cursorMoved(lastAfter: "", after: "ge tomorrow ", selected: nil))
+        // A selection always counts, even when what's after it is the same.
+        #expect(EarlierSpot.cursorMoved(lastAfter: "", after: "", selected: "more"))
+        // Before the keyboard has looked once, it can't tell.
+        #expect(!EarlierSpot.cursorMoved(lastAfter: nil, after: "ge", selected: nil))
+    }
 }

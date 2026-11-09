@@ -395,6 +395,7 @@ public final class KeyboardModel {
     public func keyboardWillHide() {
         log(TypingEvent(t: now, e: .hide))
         defer { recorder?.flush() }
+        lastAfter = nil
         for case .settled(let word) in composer.keyboardWillHide() { learn(from: word) }
         endSpeedRun()
         onChange?()
@@ -784,16 +785,25 @@ public final class KeyboardModel {
     /// What was after the cursor when the keyboard last typed, so a fix of a word
     /// written earlier can put the cursor back there (`EarlierSpot.rest`).
     private var typedAfter: String?
+    /// The text after the cursor when the keyboard last looked at the field, to tell a
+    /// cursor move from text another app put in (dictation, a paste).
+    private var lastAfter: String?
 
     /// The person put the cursor in a word written earlier, or selected one
     /// (features/fix-earlier-word): the bar shows it with its other readings. Only in
     /// a field that learns, and not in the app's practice fields.
     private func lookAtCursor() {
+        let after = output?.textAfterCursor ?? ""
+        let lastAfter = self.lastAfter
+        self.lastAfter = after
         guard search == nil, learningAllowed, offersNextWords, !composer.hasOpenWord,
               now - lastOwnEdit > 0.3, let output else { return }
         let wasShowing: Bool = { if case .earlier = composer.state.bar { true } else { false } }()
-        let spot = EarlierSpot.find(before: output.textBeforeCursor ?? "", after: output.textAfterCursor ?? "",
-                                    selected: output.selectedText, typedAfter: typedAfter)
+        // Text another app put in at the cursor (its dictation, a paste) is not the
+        // person tapping into a word: the bar only lets go of one it was showing.
+        let moved = EarlierSpot.cursorMoved(lastAfter: lastAfter, after: after, selected: output.selectedText)
+        let spot = moved ? EarlierSpot.find(before: output.textBeforeCursor ?? "", after: after,
+                                            selected: output.selectedText, typedAfter: typedAfter) : nil
         guard spot != nil || wasShowing else { return }
         log(TypingEvent(t: now, e: .earlier, i: spot?.rest, n: spot?.offset, s: spot?.word, k: spot?.selected == true ? "sel" : nil))
         apply(composer.cursorLanded(at: spot))
@@ -995,6 +1005,7 @@ public final class KeyboardModel {
         if effects.contains(where: Self.editsField) {
             lastOwnEdit = now
             typedAfter = output?.textAfterCursor
+            lastAfter = typedAfter
         }
         composer.setContext(before: output?.textBeforeCursor)
         if recording {

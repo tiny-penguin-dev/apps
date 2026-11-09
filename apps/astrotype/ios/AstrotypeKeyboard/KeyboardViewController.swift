@@ -75,9 +75,6 @@ final class KeyboardViewController: UIInputViewController {
     /// up (`hostDidEnterBackground`); iOS suspends this process with it.
     private var hostInBackground = false
     private var hostObservers: [any NSObjectProtocol] = []
-    /// The dictation test panel (throwaway spike, DictationTest/).
-    private var dictationProbe: UIHostingController<DictationProbePanel>?
-
     deinit {
         if counted { LiveCount.controllers.subtract(1, ordering: .relaxed) }
         // iOS can free a controller without ever calling `viewDidDisappear`, and keeps
@@ -225,7 +222,8 @@ final class KeyboardViewController: UIInputViewController {
         return keyboard
     }
 
-    /// Opens the Astrotype app on its Settings (`astrotype://settings`). A keyboard has
+    /// Opens the Astrotype app on `page`: its Settings (`astrotype://settings`), or the
+    /// mic for dictation (`astrotype://dictate`). A keyboard has
     /// no `UIApplication.shared` and `extensionContext.open` only works for widgets, so
     /// this walks the responder chain to the process's `UIApplication` and calls its
     /// `open(_:options:completionHandler:)` by selector, which still works on iOS 18 and
@@ -299,7 +297,7 @@ final class KeyboardViewController: UIInputViewController {
         if recording { model.snapshot() }
         logMemory("show")
         model.contextChanged()
-        updateDictationProbe(&dictationProbe)
+        KeyboardShared.current?.dictation?.appeared()
     }
 
     /// Starts or stops the typing recorder with the setting (Full Access only).
@@ -403,7 +401,10 @@ final class KeyboardViewController: UIInputViewController {
         sampler.stop()
         // The model is the process's (`KeyboardShared`): only the keyboard it types
         // into settles its word, not an older one closing after a new one opened.
-        if KeyboardShared.current?.showing === self { keyboard?.model.keyboardWillHide() }
+        if KeyboardShared.current?.showing === self {
+            keyboard?.model.keyboardWillHide()
+            KeyboardShared.current?.dictation?.disappeared()
+        }
         health?.disappeared()
         debug?.disappeared()
     }

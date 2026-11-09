@@ -61,8 +61,6 @@ struct DebugSettings: View {
             typingRecorder
         }
 
-        DictationTestSection()
-
         if !model.keyboardSessions.isEmpty {
             SectionLabel("Recent sessions").padding(.top, Theme.Space.m)
             SettingsGroup {

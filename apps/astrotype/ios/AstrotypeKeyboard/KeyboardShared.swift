@@ -19,6 +19,9 @@ final class KeyboardShared {
     private var entitlement: EntitlementController?
     /// The keyboard on screen, or the last one shown.
     weak var showing: KeyboardViewController?
+    /// Dictation (features/dictation): asks the app to listen, and gives the model
+    /// what it heard.
+    private(set) var dictation: DictationClient?
 
     /// The process's one, made the first time it is asked for.
     static func get(fullAccess: Bool) -> KeyboardShared {
@@ -78,6 +81,9 @@ final class KeyboardShared {
             ?? KeyboardFiles.own(KeyboardFiles.misses), limit: 200)
         model.onMiss = { word in misses.save([word]) }
         entitlement = Self.makeEntitlement(model: model, fullAccess: fullAccess)
+        dictation = DictationClient(model: model, fullAccess: fullAccess) { [weak self] in
+            self?.showing?.openApp(DictationLink.openPage)
+        }
     }
 
     private(set) var hasSettledIn = false

@@ -85,6 +85,12 @@ public struct TypingEvent: Codable, Sendable, Equatable {
         /// The next-word models loaded (features/next-word-model): `s` is the languages,
         /// how long it took and the memory before and after, as "en+es 140 ms 31.2 → 34.0 MB".
         case nextWordLoad = "nwl"
+        /// A dictation step (features/dictation), `s`: "tap" or "hold" (the mic
+        /// pressed), "open" (the mic was off, so the app opened), "listen" (the app is
+        /// listening, `n` the listen), "freeze" (a key kept what was said), "words" (`n`
+        /// characters of the field changed by speech), "done", "cancel", "fail" (with why
+        /// in `k`), "stale" (the app stopped answering).
+        case dictation = "dic"
     }
 
     /// The keyboard's clock, seconds.

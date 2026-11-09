@@ -14,7 +14,6 @@
 		5A0000000000000000000104 /* AstrotypeUI in Frameworks */ = {isa = PBXBuildFile; productRef = 5A0000000000000000000103 /* AstrotypeUI */; };
 		5A0000000000000000000106 /* Sentry-Dynamic in Frameworks */ = {isa = PBXBuildFile; productRef = 5A0000000000000000000105 /* Sentry-Dynamic */; };
 		5A0000000000000000000134 /* AstrotypeKeyboard.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 5A0000000000000000000110 /* AstrotypeKeyboard.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
-		5A0000000000000000000234 /* AstrotypeLive.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 5A0000000000000000000210 /* AstrotypeLive.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -27,15 +26,11 @@
 		5A0000000000000000000110 /* AstrotypeKeyboard.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = AstrotypeKeyboard.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		5A0000000000000000000111 /* AstrotypeKeyboard.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = AstrotypeKeyboard.xcconfig; sourceTree = "<group>"; };
 		5A0000000000000000000112 /* AstrotypeKeyboard-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "AstrotypeKeyboard-Info.plist"; sourceTree = "<group>"; };
-		5A0000000000000000000210 /* AstrotypeLive.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = AstrotypeLive.appex; sourceTree = BUILT_PRODUCTS_DIR; };
-		5A0000000000000000000211 /* AstrotypeLive.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = AstrotypeLive.xcconfig; sourceTree = "<group>"; };
-		5A0000000000000000000212 /* AstrotypeLive-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "AstrotypeLive-Info.plist"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		5A0000000000000000000020 /* Astrotype */ = {isa = PBXFileSystemSynchronizedRootGroup; path = Astrotype; sourceTree = "<group>"; };
 		5A0000000000000000000120 /* AstrotypeKeyboard */ = {isa = PBXFileSystemSynchronizedRootGroup; path = AstrotypeKeyboard; sourceTree = "<group>"; };
-		5A0000000000000000000220 /* AstrotypeLive */ = {isa = PBXFileSystemSynchronizedRootGroup; path = AstrotypeLive; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -59,13 +54,6 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		5A0000000000000000000231 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -76,7 +64,6 @@
 			dstSubfolderSpec = 13;
 			files = (
 				5A0000000000000000000134 /* AstrotypeKeyboard.appex in Embed Foundation Extensions */,
-				5A0000000000000000000234 /* AstrotypeLive.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -91,13 +78,6 @@
 			remoteGlobalIDString = 5A0000000000000000000140;
 			remoteInfo = AstrotypeKeyboard;
 		};
-		5A0000000000000000000251 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 5A0000000000000000000050 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 5A0000000000000000000240;
-			remoteInfo = AstrotypeLive;
-		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXTargetDependency section */
@@ -105,11 +85,6 @@
 			isa = PBXTargetDependency;
 			target = 5A0000000000000000000140 /* AstrotypeKeyboard */;
 			targetProxy = 5A0000000000000000000151 /* PBXContainerItemProxy */;
-		};
-		5A0000000000000000000250 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = 5A0000000000000000000240 /* AstrotypeLive */;
-			targetProxy = 5A0000000000000000000251 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -119,7 +94,6 @@
 			children = (
 				5A0000000000000000000020 /* Astrotype */,
 				5A0000000000000000000120 /* AstrotypeKeyboard */,
-				5A0000000000000000000220 /* AstrotypeLive */,
 				5A0000000000000000000014 /* AstrotypeKit */,
 				5A0000000000000000000003 /* Config */,
 				5A0000000000000000000002 /* Products */,
@@ -131,7 +105,6 @@
 			children = (
 				5A0000000000000000000010 /* Astrotype.app */,
 				5A0000000000000000000110 /* AstrotypeKeyboard.appex */,
-				5A0000000000000000000210 /* AstrotypeLive.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -145,8 +118,6 @@
 				5A0000000000000000000015 /* Astrotype.entitlements */,
 				5A0000000000000000000111 /* AstrotypeKeyboard.xcconfig */,
 				5A0000000000000000000112 /* AstrotypeKeyboard-Info.plist */,
-				5A0000000000000000000211 /* AstrotypeLive.xcconfig */,
-				5A0000000000000000000212 /* AstrotypeLive-Info.plist */,
 			);
 			path = Config;
 			sourceTree = "<group>";
@@ -168,7 +139,6 @@
 			);
 			dependencies = (
 				5A0000000000000000000150 /* PBXTargetDependency */,
-				5A0000000000000000000250 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				5A0000000000000000000020 /* Astrotype */,
@@ -209,29 +179,6 @@
 			productReference = 5A0000000000000000000110 /* AstrotypeKeyboard.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
-		5A0000000000000000000240 /* AstrotypeLive */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = 5A0000000000000000000261 /* Build configuration list for PBXNativeTarget "AstrotypeLive" */;
-			buildPhases = (
-				5A0000000000000000000230 /* Sources */,
-				5A0000000000000000000231 /* Frameworks */,
-				5A0000000000000000000232 /* Resources */,
-				5A00000000000000000B0003 /* Set build number */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-			);
-			fileSystemSynchronizedGroups = (
-				5A0000000000000000000220 /* AstrotypeLive */,
-			);
-			name = AstrotypeLive;
-			packageProductDependencies = (
-			);
-			productName = AstrotypeLive;
-			productReference = 5A0000000000000000000210 /* AstrotypeLive.appex */;
-			productType = "com.apple.product-type.app-extension";
-		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -246,9 +193,6 @@
 						CreatedOnToolsVersion = 16.0;
 					};
 					5A0000000000000000000140 = {
-						CreatedOnToolsVersion = 16.0;
-					};
-					5A0000000000000000000240 = {
 						CreatedOnToolsVersion = 16.0;
 					};
 				};
@@ -273,7 +217,6 @@
 			targets = (
 				5A0000000000000000000040 /* Astrotype */,
 				5A0000000000000000000140 /* AstrotypeKeyboard */,
-				5A0000000000000000000240 /* AstrotypeLive */,
 			);
 		};
 /* End PBXProject section */
@@ -287,13 +230,6 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		5A0000000000000000000132 /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		5A0000000000000000000232 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -345,27 +281,6 @@
 			shellScript = "\"$SRCROOT/../../../scripts/ios/set-build-number.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
-		5A00000000000000000B0003 /* Set build number */ = {
-			isa = PBXShellScriptBuildPhase;
-			alwaysOutOfDate = 1;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-				"$(TARGET_BUILD_DIR)/$(INFOPLIST_PATH)",
-			);
-			name = "Set build number";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "\"$SRCROOT/../../../scripts/ios/set-build-number.sh\"\n";
-			showEnvVarsInLog = 0;
-		};
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -377,13 +292,6 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		5A0000000000000000000130 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		5A0000000000000000000230 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -435,20 +343,6 @@
 			};
 			name = Release;
 		};
-		5A0000000000000000000274 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = 5A0000000000000000000211 /* AstrotypeLive.xcconfig */;
-			buildSettings = {
-			};
-			name = Debug;
-		};
-		5A0000000000000000000275 /* Release */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = 5A0000000000000000000211 /* AstrotypeLive.xcconfig */;
-			buildSettings = {
-			};
-			name = Release;
-		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -475,15 +369,6 @@
 			buildConfigurations = (
 				5A0000000000000000000174 /* Debug */,
 				5A0000000000000000000175 /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		5A0000000000000000000261 /* Build configuration list for PBXNativeTarget "AstrotypeLive" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				5A0000000000000000000274 /* Debug */,
-				5A0000000000000000000275 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

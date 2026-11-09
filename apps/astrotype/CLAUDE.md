@@ -39,10 +39,22 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
     margin iOS draws around the extension, so practice looks like the real keyboard: on
     iOS 26 the glass panel with rounded top corners, 5 pt sides and 4 pt top; on every
     version the home indicator strip under the keys),
+    `Dictation/` (features/dictation: `DictationModel`, owned by `AppModel`, runs the
+    mic for the keyboard; `SpeechListener` (live: `AVAudioEngine` plus iOS 26's
+    on-device `SpeechAnalyzer`, the mic started once while the app is in front and kept
+    on for the window); `DictationChannel` (the App Group state file and Darwin
+    notifications); `GoBackView`, the screen `astrotype://dictate` shows over everything,
+    with `SwipeHint` and the "or tap here" bubble, not on the Duo,
+    `DeviceInfo.hidesBackButton`),
     `Telemetry.swift` (Sentry, see `docs/telemetry.md`), `PrivacyInfo.xcprivacy`.
     `Try/`, `Train/` and `Shared/` are v1: the handwriting pad, training recorder and
     the CloudKit sample upload, reachable from Settings behind the flag.
   - `AstrotypeKeyboard/`: the keyboard extension (`com.tinypenguin.astrotype.keyboard`).
+    `DictationClient` (one per process, in `KeyboardShared`) is the keyboard's side of
+    dictation: it sends `DictationCommand`s, reads `DictationState` and hands the words
+    to `KeyboardModel.dictationHeard`, which writes them with `DictationText` (talk and
+    type together: a key freezes what was said); the mic and the listening strip are
+    `MicButton` and `WaveView` on `BarView`.
     `KeyboardViewController` hosts the shared `KeyboardView`, reads the field into a
     `Field` (features/field-types), types through
     `ProxyTarget` (the text document proxy), picks the stores (own files, mirrored to
@@ -88,13 +100,6 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
     (`KeyboardView.catalog`/`search`) and dropped on a memory warning. `ExtensionChecks`
     writes the StoreKit, memory and size readings into the bar's idle note while
     `Flags.extensionReadout` is on.
-  - `AstrotypeLive/`: the widget extension (`com.tinypenguin.astrotype.live`), which
-    draws Live Activities. For now it only has the throwaway dictation test's
-    (`DictationLiveActivity`); see `Astrotype/DictationTest/` and
-    `AstrotypeKeyboard/DictationTest/` (Settings → Debug → Dictation test). Shared intent
-    and attribute files are copied unchanged into each target that needs them. Round 3
-    (`DictationWake.swift`) adds push (`aps-environment`), a `UIApplicationDelegateAdaptor`
-    and the `astrotype-dictation-push.yml` Action; all of it goes when the test does.
   - `AstrotypeKit/`: the local package, three targets:
     - `AstrotypeCore`: Core and Services. `SpaceSlide` (a finger on space: a tap, or a cursor slide after a short hold and a real move), `Layout` (key geometry, with the field's
       `BottomRow`), `Field` (what the app says about the field and what the keyboard

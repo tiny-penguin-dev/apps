@@ -17,12 +17,8 @@
 	<array>
 		<string>CloudKit</string>
 	</array>
-	<!-- Throwaway dictation test, round 3: the push that starts its Live Activity and
-	     the CloudKit nudge's silent push. Export signs it as production. -->
 	<!-- Leaderboards (features/leaderboards). -->
 	<key>com.apple.developer.game-center</key>
 	<true/>
-	<key>aps-environment</key>
-	<string>development</string>
 </dict>
 </plist>

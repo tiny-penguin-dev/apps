@@ -172,8 +172,15 @@ This is the product, so it gets its own section.
   the before and after screenshots are): a 44 pt key at the left end (the Astrotype
   button, the app icon's mark in the bar's grey, which opens the settings panel with
   "Switch keyboard" and "Open Astrotype" at its top, Gabriel, 8 Nov 2026; ✕ while fixing), the words in the middle,
-  packed together and centred on the keyboard, and a 44 pt pencil ("Not it?") at the
-  right end. The middle holds one kind of thing at a time. When three words don't fit
+  packed together and centred on the keyboard, and one 44 pt button at the right end:
+  the pencil ("Not it?") when the last word has something to fix, otherwise the mic
+  (features/dictation, with a small mint dot while the mic is ready). While it listens
+  the bar is the listening strip: ✕ at the left (stop and take the words back), a wide
+  coral wave following the voice (a steady level bar under Reduce Motion), and the mic
+  as a mint ✓ at the right (stop and keep), or a pulsing coral mic with "Let go to
+  stop" while held. The words go straight into the field, so the bar doesn't repeat
+  them; a key keeps what was said and types as usual (talk and type together). In a
+  column the strip stacks: the wave, then ✕ and ✓. The middle holds one kind of thing at a time. When three words don't fit
   whole, the outer ones drop (never the chosen one) rather than cut a word. In a column
   the words stack from the top and the pencil sits under them; on a split keyboard the
   Astrotype button sits faded at the bottom of the column, centred (Gabriel, 8 Nov 2026).

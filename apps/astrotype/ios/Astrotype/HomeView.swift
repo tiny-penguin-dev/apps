@@ -14,8 +14,6 @@ struct HomeView: View {
     /// The dock was left open (Gabriel, 9 Nov 2026: show it or tuck it away).
     @AppStorage("home.keyboardShown") private var dockShown = true
     @State private var dock: KeyboardSession?
-    /// THROWAWAY dictation spike: "swipe back" after the keyboard opened the app.
-    @State private var dictationBackShowing = false
 
     enum Route: Hashable {
         case practice, practiceWords, settings, learnedWords, neverSuggest, textReplacements, wordPairs, missedWords, sharing, turnOn, sync, pro
@@ -102,14 +100,6 @@ struct HomeView: View {
             // The keyboard's "Open Astrotype" (astrotype://settings) lands on Settings.
             .onOpenURL { url in
                 if url.scheme == "astrotype", url.host == "settings" { path = [.settings] }
-                // THROWAWAY dictation spike, round 7: the keyboard's Talk with no session.
-                if url.scheme == "astrotype", url.host == "dictation" {
-                    dictationBackShowing = true
-                    Task { await DictationSession.shared.startHere(source: "Keyboard Talk opened the app") }
-                }
-            }
-            .sheet(isPresented: $dictationBackShowing) {
-                DictationGoBackView()
             }
             .sheet(isPresented: trialOverShowing) {
                 TrialOverView(model: model) { path.append(.pro) }

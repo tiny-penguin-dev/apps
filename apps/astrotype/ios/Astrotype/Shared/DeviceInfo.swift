@@ -1,3 +1,4 @@
+import AstrotypeCore
 import UIKit
 
 enum DeviceInfo {
@@ -9,6 +10,18 @@ enum DeviceInfo {
             String(decoding: raw.prefix { $0 != 0 }, as: UTF8.self)
         }
     }()
+
+    /// The iPhone Duo's model identifiers (features/dictation): it shows no "◀ App"
+    /// at the top left when another app opens Astrotype. iPhone19,4 is the one seen on
+    /// Gabriel's Duo in Sentry; to confirm on the device.
+    static let duoModels: Set<String> = ["iPhone19,4"]
+
+    /// Whether iOS shows no "◀ App" to go back with: the Duo (its model, or its wide
+    /// inner screen).
+    @MainActor static var hidesBackButton: Bool {
+        duoModels.contains(model)
+            || ((UIApplication.shared.connectedScenes.first as? UIWindowScene)?.screen.bounds.width ?? 0) >= Layout.wideWidth
+    }
 
     @MainActor static var system: String {
         "\(UIDevice.current.systemName) \(UIDevice.current.systemVersion)"

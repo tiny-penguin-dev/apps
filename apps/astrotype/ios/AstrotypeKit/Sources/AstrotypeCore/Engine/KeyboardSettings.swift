@@ -92,6 +92,11 @@ public struct KeyboardSettings: Codable, Sendable, Equatable {
     /// Offer the person's details on the bar when a field asks for them
     /// (features/autofill). On by default; it shows nothing until details are set.
     public var autofill = true
+    /// The mic on the bar (features/dictation). On by default.
+    public var dictation = true
+    /// How long the mic stays ready after a dictation, in minutes (`DictationWindow`:
+    /// 1, 5 or 15).
+    public var dictationMinutes = DictationWindow.defaultMinutes
 
     /// The chosen theme's id: a built-in one (`KeyboardTheme.builtIn`) or one of
     /// `customThemes` (features/customization). Classic by default.
@@ -178,6 +183,8 @@ public struct KeyboardSettings: Codable, Sendable, Equatable {
         usesPhoneReplacements = try c.decodeIfPresent(Bool.self, forKey: .usesPhoneReplacements) ?? true
         personalDetails = (try? c.decodeIfPresent(PersonalDetails.self, forKey: .personalDetails)) ?? PersonalDetails()
         autofill = try c.decodeIfPresent(Bool.self, forKey: .autofill) ?? true
+        dictation = try c.decodeIfPresent(Bool.self, forKey: .dictation) ?? true
+        dictationMinutes = try c.decodeIfPresent(Int.self, forKey: .dictationMinutes) ?? DictationWindow.defaultMinutes
         themeID = try c.decodeIfPresent(String.self, forKey: .themeID) ?? KeyboardTheme.classic.id
         customThemes = (try? c.decodeIfPresent([KeyboardTheme].self, forKey: .customThemes)) ?? []
         effects = (try? c.decodeIfPresent(EffectsSettings.self, forKey: .effects)) ?? .calm

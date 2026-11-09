@@ -61,6 +61,14 @@ enum Telemetry {
         SentrySDK.metrics.distribution(name, value: megabytes, options: options(attributes, unit: .megabyte))
     }
 
+    /// A step on Sentry's trail, sent with the next crash or report: what happened,
+    /// never anything typed or said.
+    static func breadcrumb(_ message: String, category: String) {
+        let crumb = Breadcrumb(level: .info, category: category)
+        crumb.message = message
+        SentrySDK.addBreadcrumb(crumb)
+    }
+
     /// Reports an error that was handled but shouldn't have happened.
     static func report(_ error: Error) {
         SentrySDK.capture(error: error)

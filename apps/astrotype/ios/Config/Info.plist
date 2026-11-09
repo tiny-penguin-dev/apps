@@ -24,18 +24,17 @@
 	<!-- Sentry DSN, filled in at build time. See docs/telemetry.md. -->
 	<key>SentryDSN</key>
 	<string>$(SENTRY_DSN)</string>
-	<!-- Throwaway dictation test (Astrotype/DictationTest): record in the background. -->
 	<key>NSGKFriendListUsageDescription</key>
 	<string>Astrotype shows your Game Center friends who use it on the Friends leaderboard.</string>
+	<!-- Dictation (features/dictation): the app listens for the keyboard, on the phone,
+	     and keeps the mic on in the background for a few minutes after. -->
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Astrotype is testing dictation: it records a few seconds to check the microphone works, and keeps nothing.</string>
-	<!-- Throwaway dictation test: its Live Activity (drawn by AstrotypeLive). -->
-	<key>NSSupportsLiveActivities</key>
-	<true/>
+	<string>Astrotype needs the mic to hear you. It listens only while you dictate, on your phone.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Astrotype turns what you say into text on your phone. Nothing is sent or kept.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>audio</string>
-		<string>remote-notification</string>
 	</array>
 </dict>
 </plist>

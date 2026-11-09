@@ -213,6 +213,7 @@ public final class KeyboardModel {
 
     /// A replacement picked on the snippet page: its phrase goes in at the cursor.
     public func write(replacement shortcut: String) {
+        freezeDictation()
         log(TypingEvent(t: now, e: .snippet, s: shortcut))
         autospace?.cancel()
         apply(composer.write(replacement: shortcut, time: now))
@@ -220,6 +221,7 @@ public final class KeyboardModel {
 
     /// The phrase of the shortcut at the cursor ("@@") tapped on the bar.
     public func writeShortcut() {
+        freezeDictation()
         log(TypingEvent(t: now, e: .shortcut))
         autospace?.cancel()
         apply(composer.writeShortcut(time: now))
@@ -228,6 +230,7 @@ public final class KeyboardModel {
     /// One of the person's details tapped on the bar (features/autofill): it goes in at
     /// the cursor. The log keeps only its place, never the detail.
     public func fill(autofill index: Int) {
+        freezeDictation()
         log(TypingEvent(t: now, e: .autofill, n: index))
         autospace?.cancel()
         apply(composer.fill(autofill: index, time: now))
@@ -470,6 +473,7 @@ public final class KeyboardModel {
     // MARK: Input
 
     public func touchBegan(id: Int, at point: CGPoint, time: TimeInterval) {
+        freezeDictation()
         dropLostWord()
         onTouch?(.began, id, point, time)
         down.insert(id)
@@ -512,6 +516,7 @@ public final class KeyboardModel {
     }
 
     public func press(_ key: Key) {
+        freezeDictation()
         if key == .backspace { logFieldState() }
         dropLostWord()
         speedTouched()
@@ -520,6 +525,7 @@ public final class KeyboardModel {
     }
 
     public func press(character: Character) {
+        freezeDictation()
         dropLostWord()
         speedTouched()
         log(TypingEvent(t: now, e: .character, s: String(character)))
@@ -528,6 +534,7 @@ public final class KeyboardModel {
 
     /// A key that types a string (".com").
     public func press(text: String) {
+        freezeDictation()
         dropLostWord()
         speedTouched()
         log(TypingEvent(t: now, e: .text, s: text))
@@ -547,6 +554,7 @@ public final class KeyboardModel {
     /// An emoji tapped on the emoji page: `form` is what goes in (a skin tone form, or
     /// the emoji itself), `base` the emoji it belongs to. Counts for Frequently used.
     public func type(emoji form: String, base: String) {
+        freezeDictation()
         log(TypingEvent(t: now, e: .emoji, s: form))
         apply(composer.insert(emoji: form, time: now))
         emojiHistory.record(base, at: Date())
@@ -618,6 +626,7 @@ public final class KeyboardModel {
     /// A guess tapped on the bar: a guess for the open word, another reading of the
     /// last word (FIX), or a next word.
     public func choose(guess index: Int) {
+        freezeDictation()
         log(TypingEvent(t: now, e: .guess, n: index))
         if case .fix(_, let chosen) = composer.state.bar, chosen != index { onFix?() }
         let earlier: (old: String, new: String)?
@@ -647,6 +656,7 @@ public final class KeyboardModel {
     /// Another reading of the last word, picked from the bar's fix row while next words
     /// show (features/guesses-bar): `reading` indexes `Bar.next`'s `fix`.
     public func chooseFix(reading: Int) {
+        freezeDictation()
         guard case .next(_, let fix, let chosen) = composer.state.bar,
               fix.indices.contains(reading), reading != chosen else { return }
         log(TypingEvent(t: now, e: .fix, n: reading))
@@ -656,6 +666,7 @@ public final class KeyboardModel {
 
     /// A slide on the space bar: the open word goes in, then the cursor moves.
     public func moveCursor(by offset: Int) {
+        freezeDictation()
         guard offset != 0 else { return }
         log(TypingEvent(t: now, e: .cursor, n: offset))
         apply(composer.cursorWillMove())
@@ -692,6 +703,7 @@ public final class KeyboardModel {
 
     /// A swipe left on backspace.
     public func deleteWord() {
+        freezeDictation()
         logFieldState()
         dropLostWord()
         log(TypingEvent(t: now, e: .deleteWord))
@@ -820,6 +832,104 @@ public final class KeyboardModel {
         markLength = 0
         for case .settled(let word) in composer.reset() { learn(from: word) }
         composer.setContext(before: output?.textBeforeCursor)
+        onChange?()
+    }
+
+    // MARK: Dictation
+
+    /// Where the mic stands, for the bar (features/dictation). The keyboard's
+    /// `DictationClient` sets it; `.hidden` where there is no dictation (the app's
+    /// practice keyboard) or it is turned off.
+    public var mic: MicStatus = .hidden {
+        didSet { if mic != oldValue { onChange?() } }
+    }
+    /// The mic pressed or let go, or ✕ or ✓ on the listening strip: for the keyboard's
+    /// `DictationClient`.
+    public var onMic: ((MicAction) -> Void)?
+    /// How loud it is while listening, 0 to 1, for the strip's wave. Called often, so it
+    /// goes straight to the bar, not through `onChange`.
+    public var onLevel: ((Double) -> Void)?
+
+    /// A short note on the bar ("Turn on Full Access to dictate").
+    public var onFlash: ((String) -> Void)?
+
+    public func flashNote(_ text: String) {
+        onFlash?(text)
+    }
+
+    /// A dictation step for the typing log (`TypingEvent.Kind.dictation`).
+    public func logDictation(_ step: String, why: String? = nil) {
+        log(TypingEvent(t: now, e: .dictation, s: step, k: why))
+    }
+
+    /// The words of the listen being written, and what was written for them.
+    private var dictationText = DictationText()
+    /// The app's latest words: the listen they belong to, all of them so far, and
+    /// whether they are final.
+    private var heard: (listen: Int, transcript: String, finished: Bool)?
+    /// The last listen whose words are all in.
+    private var heardDone: Int?
+
+    /// The mic button, or the strip's ✕ and ✓.
+    public func mic(_ action: MicAction) {
+        log(TypingEvent(t: now, e: .dictation, s: action.rawValue))
+        if action == .cancel { discardHeard() }
+        onMic?(action)
+    }
+
+    /// The app heard more (`DictationState`): the field catches up, or, while a word is
+    /// being typed or a finger is on the keys, waits until it goes in.
+    public func dictationHeard(listen: Int, transcript: String, finished: Bool) {
+        guard listen != heardDone else { return }
+        if heard?.listen != listen {
+            dictationText = DictationText()
+            log(TypingEvent(t: now, e: .dictation, n: listen, s: "listen"))
+        }
+        heard = (listen, transcript, finished)
+        writeHeard()
+    }
+
+    /// A key (or a guess, an emoji, a cursor slide) keeps what was said so far as it
+    /// stands; the next words go after what the person types.
+    private func freezeDictation() {
+        guard let heard, heard.listen != heardDone, !dictationText.written.isEmpty else { return }
+        dictationText.freeze(transcript: heard.transcript)
+        log(TypingEvent(t: now, e: .dictation, s: "freeze"))
+    }
+
+    /// ✕: the words still being heard come out of the field.
+    private func discardHeard() {
+        guard let heard, heard.listen != heardDone else { return }
+        write(dictationText.discard(transcript: heard.transcript))
+        heardDone = heard.listen
+        self.heard = nil
+    }
+
+    private func writeHeard() {
+        guard let heard, heard.listen != heardDone, let output, search == nil,
+              !composer.hasOpenWord, down.isEmpty else { return }
+        if case .correcting = composer.state.bar { return }
+        let before = output.textBeforeCursor ?? ""
+        if heard.finished {
+            write(dictationText.finish(transcript: heard.transcript, before: before))
+            heardDone = heard.listen
+            self.heard = nil
+            log(TypingEvent(t: now, e: .dictation, n: heard.listen, s: "done"))
+        } else {
+            write(dictationText.update(transcript: heard.transcript, before: before))
+        }
+    }
+
+    /// Backspaces, then typing, straight into the field.
+    private func write(_ edit: DictationEdit) {
+        guard !edit.isEmpty, let output else { return }
+        for _ in 0..<edit.delete { output.deleteBackward() }
+        if !edit.insert.isEmpty { output.insert(edit.insert) }
+        log(TypingEvent(t: now, e: .dictation, n: edit.insert.count - edit.delete, s: "words"))
+        lastOwnEdit = now
+        typedAfter = output.textAfterCursor
+        lastAfter = typedAfter
+        composer.setContext(before: output.textBeforeCursor)
         onChange?()
     }
 
@@ -1014,6 +1124,7 @@ public final class KeyboardModel {
             snapshotIfIdle()
         }
         scheduleAutospace()
+        writeHeard()
         onChange?()
     }
 

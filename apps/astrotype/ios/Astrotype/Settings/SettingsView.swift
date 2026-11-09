@@ -1,6 +1,5 @@
 import AstrotypeCore
 import AstrotypeUI
-import StoreKit
 import SwiftUI
 
 /// The pages Settings opens, one per area (features/settings/FEATURE.md). A new setting
@@ -10,9 +9,10 @@ enum SettingsPage: Hashable, CaseIterable {
     case typing, languages, appearance, words, dictation, privacy, about, debug
 }
 
-/// DESIGN.md screen 9: the main page of Settings. Status tiles (keyboard, sync, Pro),
+/// DESIGN.md screen 9: the main page of Settings. Status tiles (keyboard, sync),
 /// then the account rows. Typing, Languages and Your words are on Home, and Appearance
-/// is Home's Your keyboard card (Gabriel, 9 Nov 2026), so Settings keeps the serious things. On a phone a page pushes over
+/// is Home's Your keyboard card (Gabriel, 9 Nov 2026), so Settings keeps the serious things. Pro and Restore purchases live on the Pro
+/// screen, which Home links to (Gabriel, 9 Nov 2026). On a phone a page pushes over
 /// this one; on a wide screen this page is a sidebar with the open page beside it, and
 /// the open page survives the change either way.
 struct SettingsView: View {
@@ -22,9 +22,6 @@ struct SettingsView: View {
     /// (Privacy and sharing when nothing was picked).
     @State private var open: SettingsPage?
     @State private var wide = false
-    @State private var managing = false
-    @State private var restoring = false
-    @State private var restoreNote: String?
 
     var body: some View {
         Group {
@@ -57,7 +54,6 @@ struct SettingsView: View {
         .navigationDestination(item: Binding(get: { wide ? nil : open }, set: { if !wide { open = $0 } })) { page in
             SettingsPageView(page: page, model: model, path: $path)
         }
-        .manageSubscriptionsSheet(isPresented: $managing)
         .onAppear {
             model.refreshKeyboardStatus()
             model.reloadWords()
@@ -75,22 +71,16 @@ struct SettingsView: View {
                 GroupFootnote("Without Full Access, the keyboard in other apps keeps its own settings. Hold 123 on it to change them.")
             }
 
-            SectionLabel("Account").padding(.top, Theme.Space.m)
+            SectionLabel("General").padding(.top, Theme.Space.m)
             SettingsGroup {
                 link(.privacy, "Privacy and sharing",
                      subtitle: model.sharePractice ? "Sending practice sessions" : "Nothing you type is sent",
                      symbol: "lock", tint: Theme.slate)
-                SettingsLink("Astrotype Pro", subtitle: proSubtitle, symbol: "star.fill", tint: Theme.sun) {
-                    if model.isSubscribed { managing = true } else { path.append(.pro) }
-                }
-                SettingsRow("Restore purchases", subtitle: restoreNote, symbol: "arrow.clockwise", tint: Theme.ice) {
-                    if restoring {
-                        ProgressView().tint(Theme.accent)
-                    } else {
-                        Button("Restore") { restore() }.buttonStyle(.small)
-                    }
-                }
                 link(.about, "About", subtitle: "Version \(DeviceInfo.appVersion)", symbol: "info.circle", tint: Theme.ice)
+                SettingsLink("Run setup again", subtitle: "Turn it on, languages, your look and the lesson, step by step",
+                             symbol: "arrow.counterclockwise", tint: Theme.mint) {
+                    model.restartSetup()
+                }
             }
 
             SectionLabel("Debug").padding(.top, Theme.Space.m)
@@ -129,15 +119,6 @@ struct SettingsView: View {
             case .idle, .failed: model.sync()
             }
         }
-        StatusTile(isTrial ? "Pro trial" : "Astrotype Pro",
-                   status: proStatus, ok: model.proStatus != .free) {
-            if model.isSubscribed { managing = true } else { path.append(.pro) }
-        }
-    }
-
-    private var isTrial: Bool {
-        if case .trial = model.proStatus { return true }
-        return false
     }
 
     private var syncOK: Bool {
@@ -158,42 +139,9 @@ struct SettingsView: View {
         }
     }
 
-    private var proStatus: String {
-        switch model.proStatus {
-        case .pro: return "On"
-        case .trial:
-            let days = model.trial.daysLeft(now: model.now)
-            return "\(days) day\(days == 1 ? "" : "s") left"
-        case .free: return "Trial over"
-        }
-    }
-
-    private var proSubtitle: String {
-        switch model.proStatus {
-        case .pro: return "On. Both thumbs, every layout, every drill."
-        case .trial:
-            let days = model.trial.daysLeft(now: model.now)
-            return "Trial · \(days) day\(days == 1 ? "" : "s") left"
-        case .free: return "Two thumbs, split layouts and drills"
-        }
-    }
-
     private var debugSubtitle: String {
         guard let last = model.keyboardDebug?.last else { return "Keyboard memory, stats on the keys" }
         return "Keyboard memory \(MemoryReading.mb(last.footprintMB)) of \(Int(MemoryReading.budgetMB)) MB"
     }
 
-    private func restore() {
-        restoring = true
-        restoreNote = nil
-        Task { @MainActor in
-            do {
-                let found = try await model.restorePurchases()
-                restoreNote = found ? "Found it. You're Pro." : "No Pro subscription on this Apple Account."
-            } catch {
-                restoreNote = "I couldn't reach the App Store. Try again in a moment."
-            }
-            restoring = false
-        }
-    }
 }

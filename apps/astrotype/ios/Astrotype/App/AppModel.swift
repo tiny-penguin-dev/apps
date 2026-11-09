@@ -386,8 +386,22 @@ final class AppModel {
         environment.metrics.count("setup.full_access", ["answer": answer])
     }
 
+    /// Setup is being walked again from Settings (Gabriel, 9 Nov 2026).
+    private var replayingSetup = false
+
+    /// Settings → Run setup again: back to Hello, through every step to Home.
+    func restartSetup() {
+        replayingSetup = true
+        environment.metrics.count("setup.restarted")
+        show(.hello)
+    }
+
     /// Home reached: setup never shows again; the time it took is counted once.
     func finishOnboarding() {
+        if replayingSetup {
+            replayingSetup = false
+            arrivedFromSetup = true
+        }
         if !state.onboardingDone {
             state.onboardingDone = true
             if let first = state.firstLaunch {
@@ -1033,6 +1047,16 @@ final class AppModel {
     func homeStyleChanged(_ part: String) {
         environment.metrics.count("home.style_changed", ["part": part])
     }
+
+    /// Home's fix-it card came up with these problems (`home.fix_it`, once per launch each).
+    func fixItShown(_ problems: [String]) {
+        for problem in problems where !fixItCounted.contains(problem) {
+            fixItCounted.insert(problem)
+            environment.metrics.count("home.fix_it", ["problem": problem])
+        }
+    }
+
+    @ObservationIgnored private var fixItCounted: Set<String> = []
 
     /// The two-thumb lesson opened again from Learn.
     func lessonOpened() {

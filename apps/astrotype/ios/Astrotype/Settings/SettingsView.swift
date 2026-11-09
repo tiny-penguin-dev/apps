@@ -11,14 +11,15 @@ enum SettingsPage: Hashable, CaseIterable {
 }
 
 /// DESIGN.md screen 9: the main page of Settings. Status tiles (keyboard, sync, Pro),
-/// then links to a page per area and the account rows. On a phone a page pushes over
+/// then the account rows. Typing, Languages and Your words are on Home, and Appearance
+/// is Home's Your keyboard card (Gabriel, 9 Nov 2026), so Settings keeps the serious things. On a phone a page pushes over
 /// this one; on a wide screen this page is a sidebar with the open page beside it, and
 /// the open page survives the change either way.
 struct SettingsView: View {
     @Bindable var model: AppModel
     @Binding var path: [HomeView.Route]
     /// The open page. On a phone it is pushed; on a wide screen it sits beside the list
-    /// (Typing when nothing was picked).
+    /// (Privacy and sharing when nothing was picked).
     @State private var open: SettingsPage?
     @State private var wide = false
     @State private var managing = false
@@ -32,8 +33,8 @@ struct SettingsView: View {
                     ScrollView { main.padding(.horizontal, Theme.Space.l).padding(.bottom, Theme.Space.xl) }
                         .frame(width: 340)
                     Rectangle().fill(Theme.line).frame(width: 1).ignoresSafeArea(edges: .bottom)
-                    SettingsPageView(page: open ?? .typing, model: model, path: $path)
-                        .id(open ?? .typing)
+                    SettingsPageView(page: open ?? .privacy, model: model, path: $path)
+                        .id(open ?? .privacy)
                         .frame(maxWidth: .infinity)
                 }
             } else {
@@ -74,17 +75,6 @@ struct SettingsView: View {
                 GroupFootnote("Without Full Access, the keyboard in other apps keeps its own settings. Hold 123 on it to change them.")
             }
 
-            SectionLabel("Keyboard").padding(.top, Theme.Space.m)
-            SettingsGroup {
-                link(.typing, "Typing", subtitle: "Autospace, real words, gestures", symbol: "keyboard", tint: Theme.right)
-                link(.languages, "Languages", subtitle: languagesSubtitle, symbol: "character.bubble", tint: Theme.sun)
-                link(.appearance, "Appearance",
-                     subtitle: "\(model.keyboardSettings.style(allows: model.entitlement.allows(.styles)).name) theme, height \(Int((model.keyboardSettings.heightScale * 100).rounded()))%, effects",
-                     symbol: "paintpalette", tint: Theme.left)
-                link(.words, "Your words", subtitle: wordsSubtitle, symbol: "text.book.closed", tint: Theme.mint)
-                link(.dictation, "Dictation", subtitle: dictationSubtitle, symbol: "mic", tint: Theme.right)
-            }
-
             SectionLabel("Account").padding(.top, Theme.Space.m)
             SettingsGroup {
                 link(.privacy, "Privacy and sharing",
@@ -116,7 +106,7 @@ struct SettingsView: View {
 
     private func link(_ page: SettingsPage, _ title: String, subtitle: String, symbol: String, tint: Color) -> some View {
         SettingsLink(title, subtitle: subtitle, symbol: symbol, tint: tint,
-                     selected: wide && (open ?? .typing) == page) { open = page }
+                     selected: wide && (open ?? .privacy) == page) { open = page }
     }
 
     // MARK: Status
@@ -188,23 +178,9 @@ struct SettingsView: View {
         }
     }
 
-    private var languagesSubtitle: String {
-        model.activeLanguages.map { Language.names[$0] ?? $0 }.joined(separator: ", ")
-    }
-
     private var debugSubtitle: String {
         guard let last = model.keyboardDebug?.last else { return "Keyboard memory, stats on the keys" }
         return "Keyboard memory \(MemoryReading.mb(last.footprintMB)) of \(Int(MemoryReading.budgetMB)) MB"
-    }
-
-    private var dictationSubtitle: String {
-        guard model.keyboardSettings.dictation else { return "Off" }
-        return "Mic ready for \(model.keyboardSettings.dictationMinutes) min after you dictate"
-    }
-
-    private var wordsSubtitle: String {
-        let count = model.learnedWords.recent.count
-        return "\(count) learned · learning \(model.learnsFromYou ? "on" : "off")"
     }
 
     private func restore() {

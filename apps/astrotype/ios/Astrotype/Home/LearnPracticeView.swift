@@ -2,10 +2,10 @@ import AstrotypeCore
 import AstrotypeUI
 import SwiftUI
 
-/// Learn and practice (features/home-and-welcome): what used to sit on Home under Your
+/// Practice and learn (features/home-and-welcome): what used to sit on Home under Your
 /// speed, on its own screen (Gabriel, 9 Nov 2026). Practice: Speed practice, the three
 /// drills, Practice words, free typing and the week. Learn: the two-thumb lesson again,
-/// and tips. Home's two tiles open it at their half.
+/// and tips. Home's Your speed card opens it.
 struct LearnPracticeView: View {
     enum Part: Hashable { case practice, learn }
 
@@ -17,7 +17,7 @@ struct LearnPracticeView: View {
         ScrollViewReader { reader in
             ScrollView {
                 VStack(alignment: .leading, spacing: Theme.Space.m) {
-                    Text("Learn and practice").font(.sw(.title)).padding(.top, Theme.Space.s)
+                    Text("Practice and learn").font(.sw(.title)).padding(.top, Theme.Space.s)
                         .accessibilityAddTraits(.isHeader)
                     Text("A few minutes a day makes two thumbs feel natural.")
                         .font(.sw(.body)).foregroundStyle(Theme.muted)

@@ -87,7 +87,8 @@ private struct DictationSettings: View {
     }
 }
 
-/// What a touch does: two thumbs, autospace, how sure it must be of words, gestures.
+/// What a touch does: two thumbs, autospace, how sure it must be of words, gestures,
+/// and dictation.
 private struct TypingSettings: View {
     @Bindable var model: AppModel
     @Binding var path: [HomeView.Route]
@@ -147,6 +148,10 @@ private struct TypingSettings: View {
             SettingsToggle("Swipe left on ⌫", subtitle: "Delete the last word", symbol: "delete.left",
                            tint: Theme.right, isOn: $model.keyboardSettings.backspaceSwipe)
         }
+
+        // Dictation lives in Typing (Gabriel, 9 Nov 2026).
+        SectionLabel("Dictation").padding(.top, Theme.Space.m)
+        DictationSettings(model: model)
     }
 }
 

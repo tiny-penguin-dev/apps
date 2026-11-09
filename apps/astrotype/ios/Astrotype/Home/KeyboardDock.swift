@@ -64,6 +64,9 @@ struct KeyboardDock: View {
                 .buttonStyle(.plain)
                 .padding(.trailing, Theme.Space.gutter)
                 .padding(.bottom, Theme.Space.s)
+                // Sits by the screen's corner, not inside a side safe area (landscape, the Duo).
+                .frame(maxWidth: .infinity, alignment: .trailing)
+                .ignoresSafeArea(.container, edges: .horizontal)
                 .transition(reduceMotion ? .opacity : .scale(scale: 0.8).combined(with: .opacity))
                 .accessibilityLabel("Show keyboard")
             }
@@ -71,8 +74,9 @@ struct KeyboardDock: View {
         .animation(Theme.Motion.spring(reduceMotion: reduceMotion), value: focused)
         .onAppear {
             guard session == nil else { return }
-            let session = KeyboardSession(settingsStore: MemorySettingsStore(model.keyboardSettings), learned: model.learnedWords, personal: model.personal)
-            session.apply(entitlement: model.entitlement)
+            // Shows a Pro look being tried too (AppModel.demoSettings); the real keyboard doesn't.
+            let session = KeyboardSession(settingsStore: MemorySettingsStore(model.demoSettings), learned: model.learnedWords, personal: model.personal)
+            session.apply(entitlement: model.demoEntitlement)
             session.onWordsChange = { words in model.learnedWordsChanged(words) }
             session.onFocusChange = { isFocused in focused = isFocused }
             self.session = session
@@ -83,7 +87,8 @@ struct KeyboardDock: View {
             // Away while another screen is on top (it brings its own keys), back after.
             if active, shown { session?.focus() } else if !active { session?.unfocus() }
         }
-        .onChange(of: model.keyboardSettings) { session?.apply(model.keyboardSettings) }
-        .onChange(of: model.proStatus) { session?.apply(entitlement: model.entitlement) }
+        .onChange(of: model.demoSettings) { session?.apply(model.demoSettings) }
+        .onChange(of: model.proStatus) { session?.apply(entitlement: model.demoEntitlement) }
+        .onChange(of: model.isPreviewingLook) { session?.apply(entitlement: model.demoEntitlement) }
     }
 }

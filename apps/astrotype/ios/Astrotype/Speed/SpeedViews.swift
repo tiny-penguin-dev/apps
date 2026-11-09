@@ -106,55 +106,49 @@ struct SpeedCard: View {
     var model: AppModel
     var open: () -> Void
     var practice: () -> Void
-    /// Opens Learn and practice at one of its halves (features/home-and-welcome).
-    var learnAndPractice: (LearnPracticeView.Part) -> Void
+    /// Opens Practice and learn (features/home-and-welcome).
+    var learnAndPractice: () -> Void
     var turnOn: () -> Void
 
+    /// One card (Gabriel, 9 Nov 2026): the speed (tap for its history), Practice for
+    /// speed, then one row into Practice and learn.
     var body: some View {
-        VStack(alignment: .leading, spacing: Theme.Space.m) {
-            if let speed = model.everydaySpeed {
-                Button(action: open) { card(speed: speed) }
-                    .buttonStyle(.plain)
-                    .accessibilityHint("Opens your speed history")
-            } else {
-                Card { waiting }
-            }
-            HStack(spacing: Theme.Space.m) {
-                Button("Practice for speed", action: practice).buttonStyle(.small)
-                Spacer(minLength: 0)
-                if let best = model.bestWordsPerMinute {
-                    Chip("Best \(best)").accessibilityLabel("Best practice \(best) words per minute")
+        Card {
+            VStack(alignment: .leading, spacing: Theme.Space.m) {
+                if let speed = model.everydaySpeed {
+                    Button(action: open) { stats(speed: speed) }
+                        .buttonStyle(.plain)
+                        .accessibilityHint("Opens your speed history")
+                } else {
+                    waiting
                 }
-            }
-            // Practice and Learn live on their own screen; these lead there.
-            HStack(alignment: .top, spacing: Theme.Space.s) {
-                tile("Practice", subtitle: "Drills and your missed words", emoji: "🎯", tint: Theme.right, week: true) {
-                    learnAndPractice(.practice)
+                HStack(spacing: Theme.Space.m) {
+                    Button("Practice for speed", action: practice).buttonStyle(.small)
+                    Spacer(minLength: 0)
+                    if let best = model.bestWordsPerMinute {
+                        Chip("Best \(best)").accessibilityLabel("Best practice \(best) words per minute")
+                    }
                 }
-                tile("Learn", subtitle: "The two-thumb lesson and tips", emoji: "🐧", tint: Theme.left, week: false) {
-                    learnAndPractice(.learn)
-                }
+                Rectangle().fill(Theme.line).frame(height: 1)
+                practiceAndLearn
             }
         }
     }
 
-    private func tile(_ title: String, subtitle: String, emoji: String, tint: Color, week: Bool,
-                      action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            VStack(alignment: .leading, spacing: Theme.Space.xs) {
-                Text(emoji)
+    /// The way into Practice and learn: drills, missed words, the lesson and tips.
+    private var practiceAndLearn: some View {
+        Button(action: learnAndPractice) {
+            HStack(spacing: Theme.Space.m) {
+                Text("🎯")
                     .font(.system(size: 18))
-                    .frame(width: 34, height: 34)
-                    .background(tint.opacity(0.22), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .frame(width: 36, height: 36)
+                    .background(Theme.right.opacity(0.22), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                     .accessibilityHidden(true)
-                HStack {
-                    Text(title).font(.system(.headline, design: .rounded, weight: .black))
-                    Spacer(minLength: 0)
-                    Image(systemName: "chevron.right").font(.footnote.weight(.heavy)).foregroundStyle(Theme.muted)
-                }
-                Text(subtitle).font(.sw(.small)).foregroundStyle(Theme.muted)
-                    .fixedSize(horizontal: false, vertical: true)
-                if week {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Practice and learn").font(.system(.headline, design: .rounded, weight: .black))
+                    Text("Drills, missed words, the two-thumb lesson and tips")
+                        .font(.sw(.small)).foregroundStyle(Theme.muted)
+                        .fixedSize(horizontal: false, vertical: true)
                     HStack(spacing: 3) {
                         ForEach(model.week.days, id: \.key) { day in
                             Circle().fill(day.practised ? Theme.mint : Theme.line).frame(width: 8, height: 8)
@@ -162,51 +156,49 @@ struct SpeedCard: View {
                     }
                     .accessibilityHidden(true)
                 }
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right").font(.footnote.weight(.heavy)).foregroundStyle(Theme.muted)
             }
-            .padding(Theme.Space.m)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Theme.card, in: RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
             .contentShape(Rectangle())
         }
         .buttonStyle(CardPressStyle())
         .accessibilityElement(children: .combine)
-        .accessibilityHint("Opens Learn and practice")
+        .accessibilityHint("Opens Practice and learn")
     }
 
-    private func card(speed: Int) -> some View {
-        Card {
-            VStack(alignment: .leading, spacing: Theme.Space.s) {
-                HStack {
-                    Text("Your speed").font(.sw(.heading))
-                    Spacer()
-                    if let change = model.speedWeekChange, change != 0 {
-                        Chip(change > 0 ? "▲ \(change) this week" : "▼ \(-change) this week",
-                             tint: change > 0 ? Theme.mint : Theme.slate)
-                    }
-                    // Joined the leaderboards (features/leaderboards).
-                    if let rank = model.everydayRank?.me?.rank {
-                        Chip("#\(rank.formatted()) this week")
-                            .accessibilityLabel("Rank \(rank.formatted()) on the leaderboard this week")
-                    }
+    private func stats(speed: Int) -> some View {
+        VStack(alignment: .leading, spacing: Theme.Space.s) {
+            HStack {
+                Text("Your speed").font(.sw(.heading))
+                Spacer()
+                if let change = model.speedWeekChange, change != 0 {
+                    Chip(change > 0 ? "▲ \(change) this week" : "▼ \(-change) this week",
+                         tint: change > 0 ? Theme.mint : Theme.slate)
                 }
-                HStack(alignment: .lastTextBaseline, spacing: Theme.Space.s) {
-                    Text("\(speed)").bigNumberFont()
-                    Text("words per minute,\neveryday typing")
-                        .font(.system(.subheadline, design: .rounded, weight: .heavy))
-                        .foregroundStyle(Theme.muted)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                .accessibilityElement(children: .combine)
-                SpeedChart(points: model.speedPoints(.month), compact: true)
-                    .frame(height: 64)
-                    .allowsHitTesting(false)
-                HStack {
-                    SpeedLegend()
-                    Spacer()
-                    Image(systemName: "chevron.right").font(.footnote.weight(.heavy)).foregroundStyle(Theme.muted)
+                // Joined the leaderboards (features/leaderboards).
+                if let rank = model.everydayRank?.me?.rank {
+                    Chip("#\(rank.formatted()) this week")
+                        .accessibilityLabel("Rank \(rank.formatted()) on the leaderboard this week")
                 }
             }
+            HStack(alignment: .lastTextBaseline, spacing: Theme.Space.s) {
+                Text("\(speed)").bigNumberFont()
+                Text("words per minute,\neveryday typing")
+                    .font(.system(.subheadline, design: .rounded, weight: .heavy))
+                    .foregroundStyle(Theme.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .accessibilityElement(children: .combine)
+            SpeedChart(points: model.speedPoints(.month), compact: true)
+                .frame(height: 64)
+                .allowsHitTesting(false)
+            HStack {
+                SpeedLegend()
+                Spacer()
+                Image(systemName: "chevron.right").font(.footnote.weight(.heavy)).foregroundStyle(Theme.muted)
+            }
         }
+        .contentShape(Rectangle())
     }
 
     /// No speed yet: why, and what to do.

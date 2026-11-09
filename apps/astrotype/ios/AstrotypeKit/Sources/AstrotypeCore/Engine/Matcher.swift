@@ -475,9 +475,11 @@ public struct Matcher: Sendable {
         // last in the bar, so they can still be picked or held and learned
         // (Gabriel, 7 Nov 2026). Pecked letters with no word near them are a word the
         // keyboard doesn't know ("overwritten"), not a slip: they stay as typed rather
-        // than vanishing from the field mid-word (Gabriel, 7 Nov 2026).
+        // than vanishing from the field mid-word (Gabriel, 7 Nov 2026). The same goes
+        // for swipes: a long made-up word swiped fast reaches a point where no word is
+        // near its keys, and it must not vanish there either (Gabriel, 9 Nov 2026).
         guard strictness < 1 else {
-            guard pecked else { return near }
+            guard pecked else { return near.isEmpty ? [literal] : near }
             guard !near.isEmpty else { return [literal] }
             guard limit > 1 else { return near }
             return Array(near.prefix(limit - 1)) + [literal]

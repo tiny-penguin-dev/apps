@@ -56,6 +56,22 @@ import Testing
         #expect(composer.state.openWord == "overwrit")
     }
 
+    /// At "Words only", a long made-up word swiped fast (two thumbs, short swipes) stays
+    /// in the field and goes in on space, even once no word is near its keys (Gabriel,
+    /// 9 Nov 2026: it vanished and every swipe after it typed nothing).
+    @Test func atFullSwipesWithNothingNearStay() {
+        var composer = Self.composer(strictness: 1)
+        let swipes = ["kj", "dew", "ji", "de", "nji", "xdew", "nju", "dew", "juy", "de"]
+        var t = 0.0
+        for (i, keys) in swipes.enumerated() {
+            Synth.play(&composer, [.swipe(keys, id: i + 1, from: t, to: t + 0.12)])
+            t += 0.3
+            #expect(composer.state.openWord?.isEmpty == false, "after \(i + 1) swipes")
+        }
+        let effects = composer.press(.space, time: t)
+        #expect(effects.contains { if case .commit(let w) = $0 { !w.isEmpty } else { false } })
+    }
+
     @Test func atZeroWhatWasTappedGoesIn() {
         let typed = Self.peck("bting", strictness: 0)
         #expect(typed.word == "bting")

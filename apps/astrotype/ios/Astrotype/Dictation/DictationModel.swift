@@ -182,7 +182,8 @@ final class DictationModel {
 
     private func heard(words: String? = nil, level: Double? = nil) {
         session.heard(words ?? session.state.transcript, level: level ?? session.state.level, at: now())
-        publishThrottled()
+        // New words go to the keyboard at once; the wave's level can wait its turn.
+        if words != nil { publish() } else { publishThrottled() }
     }
 
     private func stopListening(how: String) async {

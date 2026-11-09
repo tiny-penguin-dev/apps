@@ -59,6 +59,9 @@ final class LiveSpeechListener: SpeechListener {
     private var transcriber: SpeechTranscriber?
     private var analyzer: SpeechAnalyzer?
     private var results: Task<String, Never>?
+    /// The next listen's analyzer, made and warmed up ahead, so the first words don't
+    /// wait for it (Gabriel, 9 Nov 2026: "make them feel more instant").
+    private var next: Prepared?
     private var interruption: NSObjectProtocol?
 
     var isMicOn: Bool { engine?.isRunning == true }
@@ -115,6 +118,7 @@ final class LiveSpeechListener: SpeechListener {
             throw DictationFailure(step: .mic, code: (error as NSError).code)
         }
         self.engine = engine
+        warmUp(language: lastLanguage)
         interruption = NotificationCenter.default.addObserver(forName: AVAudioSession.interruptionNotification,
                                                               object: session, queue: .main) { [weak self] note in
             let raw = note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt
@@ -128,6 +132,7 @@ final class LiveSpeechListener: SpeechListener {
     }
 
     func micOff() {
+        next = nil
         // Ends the analyzer's input, so a listen still going finishes with what it has.
         sink.set(nil)
         if let engine {
@@ -140,8 +145,29 @@ final class LiveSpeechListener: SpeechListener {
         interruption = nil
     }
 
-    func listen(language: String, onWords: @escaping @MainActor (String) -> Void,
-                onLevel: @escaping @MainActor (Double) -> Void) async throws {
+    /// A transcriber and analyzer for one listen, with the formats to feed it.
+    private struct Prepared {
+        var language: String
+        var transcriber: SpeechTranscriber
+        var analyzer: SpeechAnalyzer
+        var format: AVAudioFormat
+        var converter: AVAudioConverter
+    }
+
+    private var lastLanguage = Locale.preferredLanguages.first ?? "en-US"
+
+    /// Makes the next listen's analyzer now and loads its model, so a tap on the mic
+    /// starts hearing at once.
+    private func warmUp(language: String) {
+        guard engine != nil, next?.language != language else { return }
+        Task { [weak self] in
+            guard let self, let prepared = try? await self.make(language: language) else { return }
+            try? await prepared.analyzer.prepareToAnalyze(in: prepared.format)
+            if self.engine != nil, self.analyzer == nil { self.next = prepared }
+        }
+    }
+
+    private func make(language: String) async throws -> Prepared {
         guard let engine else { throw DictationFailure(step: .mic) }
         guard let locale = await SpeechTranscriber.supportedLocale(equivalentTo: Locale(identifier: language)) else {
             throw DictationFailure(step: .speech)
@@ -153,10 +179,30 @@ final class LiveSpeechListener: SpeechListener {
               let converter = AVAudioConverter(from: micFormat, to: format) else {
             throw DictationFailure(step: .speech, code: 1)
         }
+        return Prepared(language: language, transcriber: transcriber, analyzer: analyzer, format: format, converter: converter)
+    }
+
+    func listen(language: String, onWords: @escaping @MainActor (String) -> Void,
+                onLevel: @escaping @MainActor (Double) -> Void) async throws {
+        lastLanguage = language
+        let prepared: Prepared
+        if let next, next.language == language {
+            prepared = next
+        } else {
+            prepared = try await make(language: language)
+        }
+        next = nil
+        let transcriber = prepared.transcriber
+        let analyzer = prepared.analyzer
+        // The mic's audio goes in from now; the stream holds it until the analyzer runs.
         let (stream, input) = AsyncStream.makeStream(of: AnalyzerInput.self)
+        sink.set(AudioSink.Target(input: input, converter: prepared.converter, format: prepared.format) { level in
+            Task { @MainActor in onLevel(level) }
+        })
         do {
             try await analyzer.start(inputSequence: stream)
         } catch {
+            sink.set(nil)
             throw DictationFailure(step: .speech, code: (error as NSError).code)
         }
         self.transcriber = transcriber
@@ -179,9 +225,6 @@ final class LiveSpeechListener: SpeechListener {
             } catch {}
             return Self.join(final, volatile)
         }
-        sink.set(AudioSink.Target(input: input, converter: converter, format: format) { level in
-            Task { @MainActor in onLevel(level) }
-        })
     }
 
     func stop() async -> String {
@@ -193,11 +236,12 @@ final class LiveSpeechListener: SpeechListener {
         analyzer = nil
         transcriber = nil
         results = nil
+        warmUp(language: lastLanguage)
         return words
     }
 
     private static func transcriber(_ locale: Locale) -> SpeechTranscriber {
-        SpeechTranscriber(locale: locale, transcriptionOptions: [], reportingOptions: [.volatileResults], attributeOptions: [])
+        SpeechTranscriber(locale: locale, transcriptionOptions: [], reportingOptions: [.volatileResults, .fastResults], attributeOptions: [])
     }
 
     /// Two pieces of what was said, with one space between.
@@ -211,7 +255,7 @@ final class LiveSpeechListener: SpeechListener {
 
     /// Not on the main actor: the tap's closure runs on the audio thread (ASTROTYPE-5).
     nonisolated private static func installTap(on input: AVAudioInputNode, format: AVAudioFormat, sink: AudioSink) {
-        input.installTap(onBus: 0, bufferSize: 2048, format: format) { buffer, _ in
+        input.installTap(onBus: 0, bufferSize: 1024, format: format) { buffer, _ in
             sink.add(buffer)
         }
     }

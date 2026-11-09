@@ -109,7 +109,7 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
     /// its 44 pt slot. A tap opens the settings panel, which holds "Switch keyboard"
     /// and "Open Astrotype" (Gabriel, 8 Nov 2026: in place of the globe and of holding
     /// "123"). In the split's middle column it sits on the bottom row, beside the
-    /// pencil or snippets.
+    /// pencil.
     private lazy var menuKey: UIButton = {
         var config = UIButton.Configuration.plain()
         config.image = AstrotypeMark.image(height: 22)
@@ -159,7 +159,6 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         bar.onNotIt = { [weak self] in self?.model.beginCorrection() }
         bar.onCancelCorrection = { [weak self] in self?.model.cancelCorrection() }
         bar.onSaveCorrection = { [weak self] in self?.model.saveCorrection() }
-        bar.onSnippets = { [weak self] in self?.showSnippets() }
         bar.onAutofill = { [weak self] index in self?.model.fill(autofill: index) }
         bar.onShortcut = { [weak self] in self?.model.writeShortcut() }
         attachToModel()
@@ -383,7 +382,6 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         bar.fillPrompt = model.state.fillPrompt
         bar.autofill = model.state.autofill
         bar.shortcutPhrase = model.state.shortcutPhrase
-        bar.offersSnippets = model.offersSnippets
         if shownField != model.field {
             shownField = model.field
             page = model.field.startPage
@@ -475,6 +473,10 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         // Closed once the finger lifts on it, so the keys are back on return.
         panel.onSwitched = { [weak self] in DispatchQueue.main.async { self?.hideSettings() } }
         panel.canOpenApp = onOpenApp != nil
+        // The text replacements live in the menu, not on the bar (Gabriel, 9 Nov 2026:
+        // one button at the bar's right).
+        panel.offersSnippets = model.offersSnippets
+        panel.onSnippets = { [weak self] in self?.showSnippets() }
         panel.onOpenApp = { [weak self] in
             self?.hideSettings()
             self?.onOpenApp?()

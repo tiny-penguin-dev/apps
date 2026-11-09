@@ -81,8 +81,9 @@ proposed after the first build)
   types a space, 123 for digits); return or Save goes to the next blank, then the
   phrase goes in with the answers. ✕ leaves the shortcut as typed. A blank left empty
   writes nothing; a blank name used twice is asked once.
-- **Snippet page**: a text button at the bar's right end (where the pencil goes when
-  there is nothing to fix) opens a list of every replacement (the person's, then the
+- **Snippet page**: "Text replacements" in the menu behind the Astrotype button (a
+  button at the bar's right end until 9 Nov 2026, when that end went to one button)
+  opens a list of every replacement (the person's, then the
   iPhone's A to Z) in place of the bar and keys, over a strip with ABC, the title and
   delete. Tapping one writes its phrase at the cursor (an open word goes in first) and
   brings the letters back.
@@ -114,7 +115,7 @@ proposed after the first build)
   `replaceToken` for symbol shortcuts at space/return; `completion` adds the shortcut
   guess and `State.previews` holds each bar word's phrase; `write(replacement:)` for
   the snippet page (logged as `TypingEvent.Kind.snippet`, replayed by `TypingReplay`).
-- UI: `BarView` (`previews`, `fillPrompt`, `offersSnippets` / `onSnippets`),
+- UI: `BarView` (`previews`, `fillPrompt`), `SettingsPanelView` (`offersSnippets` / `onSnippets`),
   `SnippetsPageView`, `KeyboardView.showSnippets`, `KeyboardModel.snippets`,
   `write(replacement:)`, the pasteboard for `{clipboard}`.
 - `PhoneReplacementsFile` + `KeyboardFiles.phoneReplacements`; the keyboard writes it in

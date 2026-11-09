@@ -63,12 +63,6 @@ public final class BarView: UIView {
     public var fillPrompt: String? {
         didSet { if fillPrompt != oldValue { render() } }
     }
-    /// Whether to offer the snippet page (the person has text replacements), in the
-    /// pencil's place when there is nothing to fix (features/text-replacements).
-    public var offersSnippets = false {
-        didSet { if offersSnippets != oldValue { render() } }
-    }
-    public var onSnippets: (() -> Void)?
     /// The person's details on offer (`Composer.State.autofill`, features/autofill): in
     /// place of the next words when nothing is typed, or on the left of the guesses
     /// while one is being typed. Each has a person icon, so it reads as yours.
@@ -117,7 +111,7 @@ public final class BarView: UIView {
         didSet {
             guard keyRows != oldValue else { return }
             let small = !keyRows.isEmpty
-            for (button, symbol) in [(pencilButton, "pencil"), (snippetButton, "text.insert"), (closeButton, "xmark")] {
+            for (button, symbol) in [(pencilButton, "pencil"), (closeButton, "xmark")] {
                 button.configuration?.image = Self.iconConfiguration(symbol, small: small).image
             }
             setNeedsLayout()
@@ -278,7 +272,6 @@ public final class BarView: UIView {
 
     private let label = UILabel()
     private let pencilButton = UIButton(configuration: .plain())
-    private let snippetButton = UIButton(configuration: .plain())
     private let closeButton = UIButton(configuration: .plain())
     private let saveButton = UIButton(configuration: .plain())
     private let fieldLabel = UILabel()
@@ -311,11 +304,6 @@ public final class BarView: UIView {
         pencilButton.addAction(UIAction { [weak self] _ in self?.tappedPencil() }, for: .touchUpInside)
         addSubview(pencilButton)
 
-        snippetButton.configuration = Self.iconConfiguration("text.insert")
-        snippetButton.accessibilityLabel = "Text replacements"
-        snippetButton.accessibilityHint = "Shows your replacements to write one"
-        snippetButton.addAction(UIAction { [weak self] _ in self?.onSnippets?() }, for: .touchUpInside)
-        addSubview(snippetButton)
 
         closeButton.configuration = Self.iconConfiguration("xmark")
         closeButton.addAction(UIAction { [weak self] _ in self?.tappedClose() }, for: .touchUpInside)
@@ -409,7 +397,6 @@ public final class BarView: UIView {
         closeButton.frame = left
         leadingKey?.frame = left
         pencilButton.frame = CGRect(x: inset.maxX - end, y: 0, width: end, height: inset.height)
-        snippetButton.frame = pencilButton.frame
         if menu != nil || undo != nil {
             // The whole bar, the ends included; the word (or the note) dead centre.
             let fit = stack.systemLayoutSizeFitting(CGSize(width: inset.width, height: inset.height),
@@ -480,8 +467,7 @@ public final class BarView: UIView {
         let bottom = CGRect(x: area.midX - end / 2, y: area.maxY - end, width: end, height: end)
         pencilButton.frame = bottom
         closeButton.frame = bottom
-        snippetButton.frame = bottom
-        if !pencilButton.isHidden || !closeButton.isHidden || !snippetButton.isHidden {
+        if !pencilButton.isHidden || !closeButton.isHidden {
             area = area.divided(atDistance: end + Theme.Space.s, from: .maxYEdge).remainder
         }
         // The note and the guesses start at the top of the column (Gabriel, 8 Nov 2026).
@@ -495,13 +481,13 @@ public final class BarView: UIView {
     }
 
     /// The split's middle column lined up with the keys: up to three words, one per
-    /// letter row, and the small buttons (the pencil, ✕ or snippets, then the menu
+    /// letter row, and the small buttons (the pencil or ✕, then the menu
     /// button) side by side on the bottom row.
     private func layoutRows() {
         let area = bounds.insetBy(dx: Theme.Space.xs, dy: 0)
         let end = Self.endWidth
         let bottom = keyRows[3]
-        let ends: [UIView] = [pencilButton, closeButton, snippetButton] + (leadingKey.map { [$0] } ?? [])
+        let ends: [UIView] = [pencilButton, closeButton] + (leadingKey.map { [$0] } ?? [])
         let buttons = ends.filter { !$0.isHidden }
         let width = min(end, area.width / CGFloat(max(1, buttons.count)))
         var x = area.midX - width * CGFloat(buttons.count) / 2
@@ -537,7 +523,6 @@ public final class BarView: UIView {
         label.textColor = dim
         pencilButton.configuration?.baseForegroundColor = dim
         closeButton.configuration?.baseForegroundColor = dim
-        snippetButton.configuration?.baseForegroundColor = dim
         stack.arrangedSubviews.forEach { $0.removeFromSuperview() }
         indices = []
         keptView = nil
@@ -549,8 +534,6 @@ public final class BarView: UIView {
         let wordBar = (menu != nil || undo != nil) && notice == nil
         pencilButton.isHidden = !(canCorrect || !readings.isEmpty) || notice != nil || correcting != nil || fixing || wordBar
         closeButton.isHidden = (correcting == nil && !fixing) || wordBar
-        snippetButton.isHidden = !offersSnippets || !pencilButton.isHidden || !closeButton.isHidden
-            || correcting != nil || notice != nil || wordBar
         closeButton.accessibilityLabel = correcting != nil ? "Cancel" : "Back to the next words"
         leadingKey?.isHidden = axis == .vertical ? false : !closeButton.isHidden || wordBar
         saveButton.isHidden = correcting == nil

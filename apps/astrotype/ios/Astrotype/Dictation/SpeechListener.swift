@@ -59,9 +59,6 @@ final class LiveSpeechListener: SpeechListener {
     private var transcriber: SpeechTranscriber?
     private var analyzer: SpeechAnalyzer?
     private var results: Task<String, Never>?
-    /// The next listen's analyzer, made and warmed up ahead, so the first words don't
-    /// wait for it (Gabriel, 9 Nov 2026: "make them feel more instant").
-    private var next: Prepared?
     private var interruption: NSObjectProtocol?
 
     var isMicOn: Bool { engine?.isRunning == true }
@@ -118,7 +115,6 @@ final class LiveSpeechListener: SpeechListener {
             throw DictationFailure(step: .mic, code: (error as NSError).code)
         }
         self.engine = engine
-        warmUp(language: lastLanguage)
         interruption = NotificationCenter.default.addObserver(forName: AVAudioSession.interruptionNotification,
                                                               object: session, queue: .main) { [weak self] note in
             let raw = note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt
@@ -132,7 +128,6 @@ final class LiveSpeechListener: SpeechListener {
     }
 
     func micOff() {
-        next = nil
         // Ends the analyzer's input, so a listen still going finishes with what it has.
         sink.set(nil)
         if let engine {
@@ -154,19 +149,6 @@ final class LiveSpeechListener: SpeechListener {
         var converter: AVAudioConverter
     }
 
-    private var lastLanguage = Locale.preferredLanguages.first ?? "en-US"
-
-    /// Makes the next listen's analyzer now and loads its model, so a tap on the mic
-    /// starts hearing at once.
-    private func warmUp(language: String) {
-        guard engine != nil, next?.language != language else { return }
-        Task { [weak self] in
-            guard let self, let prepared = try? await self.make(language: language) else { return }
-            try? await prepared.analyzer.prepareToAnalyze(in: prepared.format)
-            if self.engine != nil, self.analyzer == nil { self.next = prepared }
-        }
-    }
-
     private func make(language: String) async throws -> Prepared {
         guard let engine else { throw DictationFailure(step: .mic) }
         guard let locale = await SpeechTranscriber.supportedLocale(equivalentTo: Locale(identifier: language)) else {
@@ -184,14 +166,9 @@ final class LiveSpeechListener: SpeechListener {
 
     func listen(language: String, onWords: @escaping @MainActor (String) -> Void,
                 onLevel: @escaping @MainActor (Double) -> Void) async throws {
-        lastLanguage = language
-        let prepared: Prepared
-        if let next, next.language == language {
-            prepared = next
-        } else {
-            prepared = try await make(language: language)
-        }
-        next = nil
+        // Made for each listen and let go after it, so nothing sits in memory while
+        // the mic waits (Gabriel, 9 Nov 2026).
+        let prepared = try await make(language: language)
         let transcriber = prepared.transcriber
         let analyzer = prepared.analyzer
         // The mic's audio goes in from now; the stream holds it until the analyzer runs.
@@ -236,7 +213,6 @@ final class LiveSpeechListener: SpeechListener {
         analyzer = nil
         transcriber = nil
         results = nil
-        warmUp(language: lastLanguage)
         return words
     }
 

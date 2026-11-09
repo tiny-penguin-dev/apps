@@ -21,9 +21,12 @@ Status: Draft
     there is no way to see the lesson again later.
 - **Who wants it:** everyone. Both are on the simple path.
 - **How it works:**
-  - **Home** keeps Your speed on top. Under it, a new **Your keyboard** card: a live
-    keyboard you can tap, a row of themes, a row of effects, and a Height slider.
-    Changes apply right away, in every app. "More styling" opens the full Appearance
+  - **Home** keeps Your speed on top. Under it, a new **Your keyboard** card with a
+    row of themes, a row of effects and a Height slider. The live keyboard itself is
+    **docked at the bottom of Home, like a real keyboard** (Gabriel, 9 Nov 2026), so
+    it's always there to tap while you pick. **Hide** slides it away and a small
+    **Keyboard** button in the corner brings it back; Home remembers which way you left
+    it. Changes apply right away, in every app. "More styling" opens the full Appearance
     page (your own themes, flow levels, guesses bar, haptics, split) as today.
   - Below that, **Practice** (Speed practice, the three drills, Practice words and the
     week dots), then a new **Learn two thumbs again** row that replays the lesson, then
@@ -33,7 +36,7 @@ Status: Draft
     1. **Hello**: "Type with both thumbs." (as now)
     2. **Turn it on**: the three Settings steps, the chip flips to On by itself (as now)
     3. **Languages**: only on a phone with more than one language (as now)
-    4. **Make it yours** (new): pick a theme and an effect on a live keyboard. Classic
+    4. **Make it yours** (new): pick a theme and an effect, with the keyboard docked at the bottom to try them. Classic
        and Calm are picked to start. "You can change this any time on Home."
     5. **Try it**: the five words with thumb hints and Show me (as now), typed on the
        style you just picked
@@ -69,6 +72,9 @@ Status: Draft
 3. **Full Access after Try it** (my pick, it reads better once it has learned words), or
    keep it before as today?
 
+- **Leaderboards** (PR #203, built in another thread): its rank chip sits in Your
+  speed's card, which this redesign keeps as is, so the two fit together.
+
 ## Design
 
 Status: Draft
@@ -83,33 +89,39 @@ Status: Draft
     Keep your words and Try it all use one `WizardPage`, with the progress bar on top and
     Skip in the corner. Their words stay the same.
 - **New screens:**
-  - **Your keyboard card** (`02-home.png`, `03-home-dark.png`, `04-home-free.png`, `05-home-scrolled.png`): a live keyboard (the same `StylePreview`
-    the Styling page uses), tap it to see the effect. Under it, theme cards in a
+  - **Your keyboard card** (`02-home.png`, `03-home-dark.png`, `04-home-free.png`, `05-home-scrolled.png`): theme cards in a
     sideways row (Classic, Iceberg, Tuxedo, Krill, Midnight, Paper, Arcade, Bold, then
     your own) and effect chips (Calm, Arcade, Glitch, Rainbow, Space, Zen, Sugar Rush,
     Off). A Height slider. "More styling ›" at the bottom.
+  - **Keyboard dock** (`02-home.png`, `08-home-kb-hidden.png`): the practice keyboard in
+    the same glass frame as the real one (`KeyboardFrame`), pinned to the bottom of
+    Home, with a grab handle, a line that shows what you type ("Type anything. It stays
+    right here.") and a **Hide** button. Hidden, it leaves a **Keyboard** button in the
+    corner. Home scrolls above it, so nothing is covered. On the wide screen it spans
+    the bottom with the keys centred (`07-home-wide.png`).
   - **Make it yours** (`14-make-it-yours.png`, `18-style-dark.png`): the same card, bigger, as a wizard step.
   - **Learn two thumbs again**: a row in Practice that opens Try it on its own (no
     progress bar, Done instead of Skip; `19-lesson.png`).
 - **Motion and copy:**
+  - The dock slides up and down with a spring (fade under Reduce Motion).
   - The progress bar fills with a spring between steps; pages slide in from the right
     (fade under Reduce Motion), as now.
   - Picking a theme: the preview keys flip to the new colours with a small bounce, light
     haptic. Picking an effect plays it once on the preview by itself.
   - Copy: "Make it yours" / "Pick a look and a little sparkle. You can change it any
-    time on Home." · Card: "Your keyboard" / "Tap the keys to try it." · "More styling ›"
+    time on Home." · Card: "Your keyboard" · Dock: "Type anything. It stays right here." / "Hide" / "Keyboard" · "More styling ›"
     · "Learn two thumbs again" / "The five-word lesson from the start." · Trial over on
     the card: "Pro looks are resting. Classic and Calm are on."
 - **Design system:** uses `Card`, `SectionLabel`, `Chip`, `ProBadge`, `SettingsSlider`,
   `StylePreview`, and the theme card from Styling (moves to AstrotypeUI as `ThemeCard`).
   New: `WizardPage` (replaces `SetupPage`: progress, title, line, content, buttons) and
   `StepProgress` (the bar).
-- **Sizes:** on the small phone the card's theme row scrolls sideways and the preview
-  gets shorter (`06-home-small.png`). On the wide Duo screen Home has two columns: Your
+- **Sizes:** on the small phone the card's theme row scrolls sideways and the dock drops
+  its typed line (`06-home-small.png`). On the wide Duo screen Home has two columns: Your
   speed and Your keyboard on the left, Practice on the right (`07-home-wide.png`); the
   wizard stays a centred 560-wide column with a bigger preview (`16-style-wide.png`).
 - **Accessibility:** theme cards read "Iceberg theme, Pro, selected". The progress bar
-  reads "Step 4 of 6". The live preview is decorative to VoiceOver; picking reads the
+  reads "Step 4 of 6". The docked keyboard is decorative to VoiceOver (its Hide/Keyboard buttons are not); picking reads the
   new name. Reduce Motion: no bounce, effects preview shows one still frame.
 
 ### Open questions

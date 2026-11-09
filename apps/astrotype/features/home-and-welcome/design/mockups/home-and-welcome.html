@@ -180,6 +180,26 @@ input[type=range]{flex:1;accent-color:var(--accent)}
 .hint{color:var(--muted);font-size:14px;line-height:1.5}
 .hint .L{color:var(--left);font-weight:900}.hint .R{color:var(--right);font-weight:900}.hint b{color:var(--ink)}
 .kdock{padding:0 4px 26px;flex:none}
+/* KeyboardDock: the live keyboard docked at the bottom like the real one (KeyboardFrame's glass panel), with a handle to hide it */
+.dock{position:absolute;left:0;right:0;bottom:0;z-index:4;background:var(--glass);border-radius:30px 30px 0 0;padding:6px 5px 30px;
+  box-shadow:0 -6px 24px rgba(20,30,60,.12);transition:transform .5s var(--spring)}
+:root{--glass:#DFE0E5}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--glass:#212121}}
+:root[data-theme="dark"]{--glass:#212121}
+.dock.hidden{transform:translateY(calc(100% + 10px))}
+.dock .dhead{display:flex;align-items:center;gap:8px;padding:2px 10px 6px}
+.dock .grab{position:absolute;top:6px;left:50%;width:40px;height:5px;margin-left:-20px;border-radius:3px;background:color-mix(in srgb,var(--ink) 25%,transparent)}
+.dock .play{flex:1;min-width:0;font-weight:700;font-size:15px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-top:8px}
+.dock .play.empty{color:var(--muted)}
+.dock .hide{border:0;background:color-mix(in srgb,var(--ink) 10%,transparent);color:var(--ink);font-weight:800;font-size:13px;padding:6px 12px;border-radius:999px;cursor:pointer;margin-top:8px}
+.dock .kbd{background:transparent;padding-top:0}
+.phone.wide .dock .inner{max-width:680px;margin:0 auto}
+.phone.small .dock{padding-bottom:6px}
+.kpill{position:absolute;right:18px;bottom:30px;z-index:4;border:0;cursor:pointer;background:var(--ink);color:var(--bg);font-weight:800;font-size:15px;padding:12px 18px;border-radius:999px;
+  box-shadow:0 8px 20px rgba(20,30,60,.25);display:flex;gap:8px;align-items:center;transition:transform .4s var(--spring),opacity .2s}
+.kpill.gone{transform:translateY(30px) scale(.8);opacity:0;pointer-events:none}
+.scroll:has(~.kpill){padding-bottom:100px}
+.scroll.docked{padding-bottom:var(--dockh,320px)}
 .phone.wide .kdock{width:620px;align-self:center}
 .confetti{position:absolute;inset:0;pointer-events:none;z-index:5}
 .stub{display:flex;flex-direction:column;gap:10px;align-items:center;justify-content:center;flex:1;text-align:center;padding:30px;color:var(--muted)}
@@ -194,6 +214,7 @@ input[type=range]{flex:1;accent-color:var(--accent)}
     <small>Home</small>
     <button data-s="before">Home today (before)</button>
     <button data-s="home">New Home</button>
+    <button data-s="homeHidden">New Home, keyboard hidden</button>
     <button data-s="homeFree">New Home, trial over</button>
     <small>Welcome wizard</small>
     <button data-s="hello">1 · Hello</button>
@@ -256,16 +277,17 @@ const WORDS=[
 ];
 
 const S={screen:"home",size:"",theme:"light",kbTheme:"classic",fx:"calm",height:100,pro:true,keyboardOn:false,langs:{en:true,es:true},
-  tryIdx:0,typed:"",lesson:false,sync:false};
+  tryIdx:0,typed:"",lesson:false,sync:false,dockOpen:true,play:""};
 const STEPS=["hello","turnOn","languages","style","tryIt","sync"];
 const WHY={
   before:"Home today: Your speed, Pro, three drills, the week and a Settings row. How the keyboard looks is Home → Settings → Appearance → Styling or Effects, three taps down.",
-  home:"Your speed still leads. Under it, Your keyboard: a live keyboard you can tap, every theme in a sideways row, effect chips, height. Changes go to the keyboard in every app right away. More styling opens today's Appearance page. Practice is one section, with Learn two thumbs again at the end.",
+  home:"Your speed still leads. The keyboard sits at the bottom like the real one, so it's always there to try while you pick a theme, an effect or a height in the Your keyboard card above it. Hide tucks it away; the Keyboard button brings it back. Changes go to the keyboard in every app right away.",
+  homeHidden:"Keyboard hidden: Home is just Home again, and a small Keyboard button in the corner brings it back. Home remembers which way you left it.",
   homeFree:"After the trial, Pro looks fall back to Classic and Calm as today. The card says so once, kindly, and Pro cards keep their tag; tapping one opens Pro.",
   hello:"Step 1, as today. No progress bar yet, just the hello.",
   turnOn:"Step 2. Same words and the same chip that flips to On by itself. Tap 'Open Settings' here to pretend you turned it on. Skip and 'I'll do it later' both move on.",
   languages:"Step 3, only on a phone with more than one language the keyboard knows. Same as today, in the wizard's shape.",
-  style:"Step 4, new. The Your keyboard card, bigger. Classic and Calm are picked to start. Tap a theme or an effect, then tap the keys. Everyone is on the trial here, so Pro looks just carry a small tag.",
+  style:"Step 4, new. The keyboard is docked at the bottom, like on Home, with the theme and effect pickers above it. Classic and Calm are picked to start. Tap a theme or an effect, then tap the keys. Everyone is on the trial here, so Pro looks just carry a small tag.",
   tryIt:"Step 5, today's lesson in the same shape, typed on the look you just picked. Tap 'Show me' to watch, or type the letters and press space. Tap Skip to jump ahead.",
   sync:"Step 6, the Full Access ask, moved after Try it: now it already has words worth keeping.",
   arrive:"Done: Home with confetti, already in your style.",
@@ -362,7 +384,7 @@ function speedCard(){
   const pts=[31,33,32,36,35,38,37,40,39,42,41,44,43,46];const w=300,h=46;const xs=i=>i*w/(pts.length-1),ys=v=>h-4-(v-28)/20*(h-8);
   const d=pts.map((v,i)=>`${i?"L":"M"}${xs(i).toFixed(1)},${ys(v).toFixed(1)}`).join("");
   return `<div class="card" style="display:flex;flex-direction:column;gap:10px">
-    <div class="row"><b style="font-size:17px">Your speed</b><span class="spacer"></span><span class="chip on">↑ 6 this month</span></div>
+    <div class="row"><b style="font-size:17px">Your speed</b><span class="spacer"></span><span class="chip">#1,204 this week</span><span class="chip on">↑ 6</span></div>
     <div class="row" style="align-items:flex-end;gap:8px"><span class="big">46</span><span class="unit" style="padding-bottom:6px">words a minute, every day</span></div>
     <svg class="spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none"><path class="fl" d="${d}L${w},${h}L0,${h}Z"/><path class="ln" d="${d}" vector-effect="non-scaling-stroke"/><circle class="pd" cx="${xs(10)}" cy="${ys(49)}" r="5"/><circle class="pd" cx="${xs(12)}" cy="${ys(51)}" r="5"/></svg>
     <div class="row"><button class="btn small">Practice for speed</button><span class="spacer"></span><button class="btn ghost" style="font-size:14px">History ›</button></div>
@@ -377,14 +399,22 @@ function fxChips(){
 }
 function keyboardCard(opts={}){
   return `<div class="card kcard">
-    ${kbd({h:opts.big?40:36})}
-    <div class="tryline">Tap the keys to try it.</div>
+    ${opts.inline?kbd({h:40}):""}
     ${!S.pro?`<div class="resting">Pro looks are resting. Classic and Calm are on. <a href="#" data-go="pro" style="color:var(--accent);font-weight:900;text-decoration:none">See Pro</a></div>`:""}
     <div class="lbl">THEME</div>${themeRow()}
     <div class="lbl">EFFECTS</div>${fxChips()}
     ${opts.height===false?"":`<div class="sl"><div class="top"><b>Height</b><span id="hv">${S.height}%</span></div><div class="ends">Short<input type="range" id="height" min="80" max="120" step="5" value="${S.height}" aria-label="Height">Tall</div></div>`}
-    ${opts.more===false?"":`<button class="more" data-go="appearance"><div style="text-align:left">More styling<br><span>Your own themes, flow levels, guesses bar, haptics</span></div><span class="chev">›</span></button>`}
+    ${opts.more===false?"":`${S.dockOpen?"":`<button class="more" data-act="showkb"><div style="text-align:left">Try it on the keyboard<br><span>Shows it at the bottom of Home</span></div><span class="chev">⌨︎</span></button>`}<button class="more" data-go="appearance"><div style="text-align:left">More styling<br><span>Your own themes, flow levels, guesses bar, haptics</span></div><span class="chev">›</span></button>`}
   </div>`;
+}
+function dock(opts={}){
+  const play=S.play||"";
+  return `<div class="dock ${S.dockOpen||opts.fixed?"":"hidden"}" id="dock"><div class="inner">
+    ${opts.fixed?`<div class="dhead"><span class="play ${play?"":"empty"}" id="play">${play||"Tap or swipe to try your look"}</span></div>`
+      :`<span class="grab" aria-hidden="true"></span><div class="dhead"><span class="play ${play?"":"empty"}" id="play">${play||"Type anything. It stays right here."}</span><button class="hide" data-act="hidekb" aria-label="Hide keyboard">Hide ⌄</button></div>`}
+    ${kbd({h:40,bar:opts.fixed?undefined:`<span>I</span><span class="mid">the</span><span>you</span>`})}
+  </div></div>
+  ${opts.fixed?"":`<button class="kpill ${S.dockOpen?"gone":""}" data-act="showkb" aria-label="Show keyboard">⌨︎ Keyboard</button>`}`;
 }
 function practice(){
   const drills=[["Two-letter swipes","th, in, er, on",true],["Switching thumbs","Start left, finish right",false],["Doubled letters","A tap inside a swipe",false]];
@@ -408,10 +438,10 @@ const wide=()=>S.size==="wide";
 function homeScreen(){
   const left=`${speedCard()}${sec("Your keyboard")}${keyboardCard()}`;
   const right=`${practice()}${bottomRows()}`;
-  return `<div class="scroll">
+  return `<div class="scroll ${S.dockOpen?"docked":""}">
     <div class="hdr"><div class="h1">${wide()?"Both flippers, go.":"Both<br>flippers, go."}</div>${thumbsSVG()}</div>
     <div class="cols"><div class="col">${left}</div><div class="col">${right}</div></div>
-  </div>`;
+  </div>${dock()}`;
 }
 function beforeScreen(){
   return `<div class="scroll">
@@ -426,16 +456,17 @@ function beforeScreen(){
     <p class="note">Themes and effects: Settings → Appearance → Styling / Effects.</p>
   </div>`;
 }
-function wizard(step,{title,body,content="",buttons,dock=""}){
+function wizard(step,{title,body,content="",buttons,dock="",after=""}){
   const i=STEPS.indexOf(step),n=STEPS.length;
   const top=step==="hello"?"":S.lesson?`<div class="wtop"><span class="chip">Lesson</span><span class="spacer"></span><button class="skip" data-go="home">Done</button></div>`
     :`<div class="wtop"><div class="prog" role="progressbar" aria-label="Step ${i+1} of ${n}" aria-valuenow="${i+1}" aria-valuemin="1" aria-valuemax="${n}" style="--p:${(S.prevP??i)/n*100}%"><i></i></div><button class="skip" data-next>Skip</button></div>`;
-  return `${top}<div class="wbody">${title?`<div class="h1">${title}</div>`:""}${body?`<p class="sub">${body}</p>`:""}${content}</div>${dock}<div class="wfoot">${buttons}</div>`;
+  return `${top}<div class="wbody">${title?`<div class="h1">${title}</div>`:""}${body?`<p class="sub">${body}</p>`:""}${content}</div>${dock}<div class="wfoot" ${after?'style="padding-bottom:var(--dockh,300px)"':""}>${buttons}</div>${after}`;
 }
 const SCREENS={
   before:beforeScreen,
   home:homeScreen,
   homeFree:homeScreen,
+  homeHidden:homeScreen,
   arrive:homeScreen,
   hello:()=>`<div class="wbody" style="justify-content:center;align-items:center;text-align:center;gap:16px">
       <div class="art">${bigArt()}</div><div class="h1">Type with both thumbs.</div>
@@ -449,7 +480,7 @@ const SCREENS={
     content:`<div class="group">${[["en","English","English"],["es","Español","Spanish"]].map(([c,n,e])=>row({lead:`<span class="ic" style="background:${c==="en"?"var(--left)":"var(--right)"}">${c.toUpperCase()}</span>`,title:n,sub:e,end:`<button class="toggle" role="switch" aria-label="${n}" aria-checked="${S.langs[c]}" data-lang="${c}"></button>`})).join("")}</div>`,
     buttons:`<button class="btn wide" data-next>Continue</button>`}),
   style:()=>wizard("style",{title:"Make it yours",body:"Pick a look and a little sparkle. You can change it any time on Home.",
-    content:keyboardCard({big:true,more:false,height:false}),buttons:`<button class="btn wide" data-next>Looks good</button>`}),
+    content:keyboardCard({more:false,height:false}),buttons:`<button class="btn wide" data-next>Looks good</button>`,after:dock({fixed:true})}),
   tryIt:()=>{const W=WORDS[S.tryIdx];return wizard("tryIt",{title:"",
     content:`<div class="row"><span class="chip">Try it · word ${S.tryIdx+1} of 5</span></div>
       <div><div class="note" style="margin:0">Type this word</div><div class="word">${W.w}</div></div>
@@ -476,13 +507,18 @@ function render(anim=true){
   document.querySelectorAll("#themes button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.theme===(pageDark()?"dark":"light")));
   document.getElementById("why").textContent=WHY[S.screen]||"";
   const kb=phone.querySelector("[data-kb]");
-  S.eng=kb?wireKbd(kb,S.screen==="tryIt"||S.screen==="lesson"?typeKey:null):null;
+  S.eng=kb?wireKbd(kb,S.screen==="tryIt"||S.screen==="lesson"?typeKey:playKey):null;
+  syncDock();
   const pr=phone.querySelector(".prog");if(pr){requestAnimationFrame(()=>requestAnimationFrame(()=>pr.style.setProperty("--p",(STEPS.indexOf(S.screen)+1)/STEPS.length*100+"%")))}
-  const h=phone.querySelector("#height");if(h)h.oninput=e=>{S.height=+e.target.value;phone.querySelector("#hv").textContent=S.height+"%";const k=phone.querySelector("[data-kb]");k.style.setProperty("--kh",Math.round((S.screen==="style"?40:36)*S.height/100)+"px")};
+  const h=phone.querySelector("#height");if(h)h.oninput=e=>{S.height=+e.target.value;phone.querySelector("#hv").textContent=S.height+"%";const k=phone.querySelector("[data-kb]");k.style.setProperty("--kh",Math.round(40*S.height/100)+"px");syncDock()};
 }
 function go(s){S.prevP=STEPS.includes(S.screen)?STEPS.indexOf(S.screen)+1:0;if(s==="homeFree")S.pro=false;else if(["home","arrive","before"].includes(s)&&S.screen==="homeFree")S.pro=true;
+  if(["home","homeFree","arrive"].includes(s))S.dockOpen=true;if(s==="homeHidden")S.dockOpen=false;
   if(s==="tryIt"||s==="lesson"){S.tryIdx=0;S.typed=""}S.lesson=s==="lesson";S.screen=s;render()}
 function next(){const i=STEPS.indexOf(S.screen);if(S.screen==="tryIt"&&S.lesson){go("home");return}go(i>=0&&i<STEPS.length-1?STEPS[i+1]:"arrive")}
+function syncDock(){const d=phone.querySelector("#dock");if(!d)return;const h=d.offsetHeight+12;phone.querySelectorAll(".scroll.docked,.wfoot").forEach(e=>e.style.setProperty("--dockh",h+"px"))}
+function playKey(k){if(k==="space")S.play=(S.play||"")+" ";else if(k==="del")S.play=(S.play||"").slice(0,-1);else if(k.length===1)S.play=(S.play||"")+k;else return;
+  const p=phone.querySelector("#play");if(p){const t=S.play.trim()?S.play:"";p.textContent=t?S.play.slice(-40):p.dataset.ph||"Type anything. It stays right here.";p.classList.toggle("empty",!t)}}
 function typeKey(k){
   if(k==="space"){const W=WORDS[S.tryIdx];if(S.typed===W.w){if(S.tryIdx<4){S.tryIdx++;S.typed="";rerenderTry()}else{confetti();setTimeout(()=>S.lesson?go("home"):next(),1300)}}else{S.typed="";rerenderTry()}return}
   if(k==="del"){S.typed=S.typed.slice(0,-1);rerenderTry();return}
@@ -507,11 +543,14 @@ phone.addEventListener("click",e=>{
     demo(S.eng,[["h","L"],["e","L"],["l","R"],["l","R"],["o","R"]]);setTimeout(()=>demo(S.eng,[["w","L"],["a","L"],["d","L"]]),700);return}
   if(t.dataset.lang){const c=t.dataset.lang;const on=t.getAttribute("aria-checked")!=="true";if(!on&&Object.values(S.langs).filter(Boolean).length<2)return;S.langs[c]=on;t.setAttribute("aria-checked",on);return}
   if(t.hasAttribute("data-next")){next();return}
+  if(t.dataset.act==="showkb"||t.dataset.act==="hidekb"){S.dockOpen=t.dataset.act==="showkb";const d=phone.querySelector("#dock");d.classList.toggle("hidden",!S.dockOpen);
+    phone.querySelector(".kpill")?.classList.toggle("gone",S.dockOpen);const sc=phone.querySelector(".scroll");sc.classList.toggle("docked",S.dockOpen);syncDock();
+    const m=phone.querySelectorAll('.more[data-act="showkb"]');m.forEach(x=>x.style.display=S.dockOpen?"none":"");return}
   if(t.dataset.act==="turnon"){S.keyboardOn=true;render(false);confetti();return}
   if(t.dataset.act==="finish"){go("arrive");return}
   if(t.dataset.act==="showme"){const W=WORDS[S.tryIdx];demo(S.eng,W.seq);S.typed="";setTimeout(()=>{S.typed=W.w;rerenderTry()},W.seq.length*200+100);return}
   const g=t.dataset.go;
-  if(g==="home"){go(S.pro?"home":"homeFree");return}
+  if(g==="home"){const o=S.dockOpen;go(S.pro?"home":"homeFree");if(!o&&S.screen!=="arrive"){S.dockOpen=false;render(false)}return}
   if(g==="lesson"){go("lesson");return}
   const STUBS={appearance:["Appearance","Today's Appearance page (General, Styling, Effects), unchanged. It's just one tap from Home now."],settings:["Settings","Today's Settings. Appearance stays there too."],
     pro:["Astrotype Pro","Today's Pro screen."],drill:["Drill","Today's drill screen."],pw:["Practice words","Today's Practice words."]};
@@ -525,7 +564,7 @@ document.querySelector(".picker").addEventListener("click",e=>{
   if(b.dataset.theme){document.documentElement.dataset.theme=b.dataset.theme;render(false)}
 });
 const [h,hs,ht,hk,hf]=location.hash.slice(1).split(",");if(SCREENS[h])S.screen=h;if(S.screen==="homeFree")S.pro=false;
-if(hs)S.size=hs==="iphone"?"":hs;if(ht)document.documentElement.dataset.theme=ht;if(hk&&THEMES[hk])S.kbTheme=hk;if(hf&&FX[hf])S.fx=hf;if(S.screen==="turnOn"&&hk==="on")S.keyboardOn=true;
+if(S.screen==="homeHidden")S.dockOpen=false;if(hs)S.size=hs==="iphone"?"":hs;if(ht)document.documentElement.dataset.theme=ht;if(hk&&THEMES[hk])S.kbTheme=hk;if(hf&&FX[hf])S.fx=hf;if(S.screen==="turnOn"&&hk==="on")S.keyboardOn=true;
 render();
 </script>
 </body>

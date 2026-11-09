@@ -8,8 +8,8 @@
         "sort": "DESC",                                     # DESC: higher is better
         "submission": "BEST_SCORE",                         # or MOST_RECENT_SCORE
         "range": [1, 200],                                  # scores outside are refused
-        "recurrence": {"start": "2026-11-09T08:00:00.000Z", "duration": "P7DT0H0M0S",
-                       "rule": "FREQ=WEEKLY;INTERVAL=1"},   # optional: a board that resets
+        "recurrence": {"start": "2026-11-09T08:00:00.000Z", "duration": "PT168H",
+                       "rule": "FREQ=DAILY;INTERVAL=7"},    # optional: a board that resets
         "localizations": {"en-US": {"name": "Everyday speed", "suffix": " wpm",
                                     "suffixSingular": " wpm"}}
       }]
@@ -24,7 +24,8 @@ Usage: asc-game-center.py <bundle-id> <game-center.json> [--apply]
 Env:   see asc.py. The API key needs the App Manager or Admin role.
 """
 
-# recurrence duration: ISO 8601 with time parts, like P7DT0H0M0S (Apple refuses P7D).
+# Recurrence: Apple takes the duration in hours, minutes or seconds only (a week is PT168H,
+# never P7D) and a rule of MINUTELY, HOURLY or DAILY (a week is FREQ=DAILY;INTERVAL=7).
 import json
 import os
 import sys

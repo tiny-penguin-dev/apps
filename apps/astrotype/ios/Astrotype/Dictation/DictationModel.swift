@@ -47,6 +47,7 @@ final class DictationModel {
     @ObservationIgnored private let now: () -> Date
     @ObservationIgnored private var heartbeat: Task<Void, Never>?
     @ObservationIgnored private var listenStarted: Date?
+    @ObservationIgnored private var firstWordsCounted = false
     /// When the keyboard opened the app, for `dictation.returned`.
     @ObservationIgnored private var openedAt: Date?
     @ObservationIgnored private var lastPublish = Date.distantPast
@@ -163,6 +164,7 @@ final class DictationModel {
             return
         }
         listenStarted = now()
+        firstWordsCounted = false
         metrics.count("dictation.started", ["mic": openedApp ? "opened_app" : "ready"])
         note("listening")
         publish()
@@ -182,6 +184,11 @@ final class DictationModel {
 
     private func heard(words: String? = nil, level: Double? = nil) {
         session.heard(words ?? session.state.transcript, level: level ?? session.state.level, at: now())
+        if words != nil, let listenStarted, !firstWordsCounted {
+            // How long the first words took, to see where a slow start comes from.
+            firstWordsCounted = true
+            metrics.duration("dictation.first_words", seconds: now().timeIntervalSince(listenStarted))
+        }
         publishThrottled()
     }
 

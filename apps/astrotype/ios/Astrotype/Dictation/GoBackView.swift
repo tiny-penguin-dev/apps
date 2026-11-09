@@ -37,8 +37,10 @@ struct GoBackView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
             if model.screen == .micOn {
+                // The whole width, past the side the Duo's status bar takes, so the trail
+                // runs where the home indicator is (Gabriel, 9 Nov 2026).
                 SwipeHint(reduceMotion: reduceMotion)
-                    .ignoresSafeArea(edges: .bottom)
+                    .ignoresSafeArea(edges: [.bottom, .horizontal])
                     .accessibilityHidden(true)
                 if !DeviceInfo.hidesBackButton {
                     BackBubble()

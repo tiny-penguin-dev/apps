@@ -140,8 +140,16 @@ final class LiveSpeechListener: SpeechListener {
         interruption = nil
     }
 
-    func listen(language: String, onWords: @escaping @MainActor (String) -> Void,
-                onLevel: @escaping @MainActor (Double) -> Void) async throws {
+    /// A transcriber and analyzer for one listen, with the formats to feed it.
+    private struct Prepared {
+        var language: String
+        var transcriber: SpeechTranscriber
+        var analyzer: SpeechAnalyzer
+        var format: AVAudioFormat
+        var converter: AVAudioConverter
+    }
+
+    private func make(language: String) async throws -> Prepared {
         guard let engine else { throw DictationFailure(step: .mic) }
         guard let locale = await SpeechTranscriber.supportedLocale(equivalentTo: Locale(identifier: language)) else {
             throw DictationFailure(step: .speech)
@@ -153,10 +161,25 @@ final class LiveSpeechListener: SpeechListener {
               let converter = AVAudioConverter(from: micFormat, to: format) else {
             throw DictationFailure(step: .speech, code: 1)
         }
+        return Prepared(language: language, transcriber: transcriber, analyzer: analyzer, format: format, converter: converter)
+    }
+
+    func listen(language: String, onWords: @escaping @MainActor (String) -> Void,
+                onLevel: @escaping @MainActor (Double) -> Void) async throws {
+        // Made for each listen and let go after it, so nothing sits in memory while
+        // the mic waits (Gabriel, 9 Nov 2026).
+        let prepared = try await make(language: language)
+        let transcriber = prepared.transcriber
+        let analyzer = prepared.analyzer
+        // The mic's audio goes in from now; the stream holds it until the analyzer runs.
         let (stream, input) = AsyncStream.makeStream(of: AnalyzerInput.self)
+        sink.set(AudioSink.Target(input: input, converter: prepared.converter, format: prepared.format) { level in
+            Task { @MainActor in onLevel(level) }
+        })
         do {
             try await analyzer.start(inputSequence: stream)
         } catch {
+            sink.set(nil)
             throw DictationFailure(step: .speech, code: (error as NSError).code)
         }
         self.transcriber = transcriber
@@ -179,9 +202,6 @@ final class LiveSpeechListener: SpeechListener {
             } catch {}
             return Self.join(final, volatile)
         }
-        sink.set(AudioSink.Target(input: input, converter: converter, format: format) { level in
-            Task { @MainActor in onLevel(level) }
-        })
     }
 
     func stop() async -> String {
@@ -197,7 +217,7 @@ final class LiveSpeechListener: SpeechListener {
     }
 
     private static func transcriber(_ locale: Locale) -> SpeechTranscriber {
-        SpeechTranscriber(locale: locale, transcriptionOptions: [], reportingOptions: [.volatileResults], attributeOptions: [])
+        SpeechTranscriber(locale: locale, transcriptionOptions: [], reportingOptions: [.volatileResults, .fastResults], attributeOptions: [])
     }
 
     /// Two pieces of what was said, with one space between.
@@ -211,7 +231,7 @@ final class LiveSpeechListener: SpeechListener {
 
     /// Not on the main actor: the tap's closure runs on the audio thread (ASTROTYPE-5).
     nonisolated private static func installTap(on input: AVAudioInputNode, format: AVAudioFormat, sink: AudioSink) {
-        input.installTap(onBus: 0, bufferSize: 2048, format: format) { buffer, _ in
+        input.installTap(onBus: 0, bufferSize: 1024, format: format) { buffer, _ in
             sink.add(buffer)
         }
     }

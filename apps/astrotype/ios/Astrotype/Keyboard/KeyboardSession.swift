@@ -22,6 +22,8 @@ final class KeyboardSession: NSObject, UITextViewDelegate {
     var onFix: (() -> Void)?
     /// A touch began on the keys (the speed test starts its clock).
     var onFirstTouch: (() -> Void)?
+    /// The keyboard came up (true) or went away (false): Home's dock follows it.
+    var onFocusChange: ((Bool) -> Void)?
     /// The session's touches, while recording (`startRecording`).
     private var recorder: TouchRecorder?
 
@@ -130,6 +132,13 @@ final class KeyboardSession: NSObject, UITextViewDelegate {
         target.textView?.becomeFirstResponder()
     }
 
+    /// Puts the keyboard away.
+    func unfocus() {
+        target.textView?.resignFirstResponder()
+    }
+
+    var isFocused: Bool { target.textView?.isFirstResponder ?? false }
+
     /// Plays a Try it word's strokes on the keys without typing.
     func replay(_ word: TryWord, completion: (@MainActor () -> Void)? = nil) {
         keyboard.surface.replay(word.strokes.map { (side: $0.side, letters: $0.letters) }, completion: completion)
@@ -146,6 +155,10 @@ final class KeyboardSession: NSObject, UITextViewDelegate {
         if model.entitlement.status != entitlement.status { model.entitlement = entitlement }
     }
 
+    func textViewDidBeginEditing(_ textView: UITextView) { onFocusChange?(true) }
+
+    func textViewDidEndEditing(_ textView: UITextView) { onFocusChange?(false) }
+
     func textViewDidChange(_ textView: UITextView) {
         guard !target.isSwappingWord else { return }
         model.contextChanged()
@@ -156,6 +169,9 @@ final class KeyboardSession: NSObject, UITextViewDelegate {
 struct KeyboardField: UIViewRepresentable {
     let session: KeyboardSession
     var font: UIFont = .preferredFont(forTextStyle: .title2)
+    /// Brings the keyboard up as soon as the field is on screen (every screen but Home,
+    /// whose dock remembers whether it was left open).
+    var focusesOnAppear = true
 
     func makeUIView(context: Context) -> UITextView {
         let textView = UITextView()
@@ -171,7 +187,7 @@ struct KeyboardField: UIViewRepresentable {
         textView.inputView = session.inputFrame
         textView.delegate = session
         session.target.textView = textView
-        Task { @MainActor in textView.becomeFirstResponder() }
+        if focusesOnAppear { Task { @MainActor in textView.becomeFirstResponder() } }
         return textView
     }
 

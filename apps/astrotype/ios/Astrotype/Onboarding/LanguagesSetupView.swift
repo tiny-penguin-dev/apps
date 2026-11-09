@@ -10,7 +10,7 @@ struct LanguagesSetupView: View {
     @State private var chosen: [String] = []
 
     var body: some View {
-        SetupPage(title: "Which languages do you type in?",
+        WizardPage(title: "Which languages do you type in?", step: model.setupStep(skip: { model.next() }),
                   body: "With two on, Astrotype guesses from both as you go. No switching. Free types in one; your trial covers both.") {
             SettingsGroup {
                 ForEach(Language.bundledCodes, id: \.self) { code in

@@ -91,15 +91,18 @@ on day one.
 2. "Turn on the keyboard": a short, honest walkthrough of Settings > General > Keyboard >
    Keyboards > Add New Keyboard. We cannot do this step for them (iOS rule), so the app
    shows exactly where to tap and checks when it is done.
-3. "Keep your words everywhere": one screen that asks for Full Access so learned words
-   and settings sync over iCloud, and says plainly that this is the only reason. Skippable;
-   the keyboard works without it.
+3. "Make it yours" (features/home-and-welcome): pick a theme and an effect, with the
+   keyboard up to try them. Classic and Calm are picked to start. Skippable.
 4. "Try it": a practice field in the app with the keyboard already up. Five words drawn
    over the keys, thumb by thumb. Skippable.
-5. Done. The home screen shows the speed test and the practice drills. Everyone starts
-   on the two-week Pro trial, so the first days are the full two-thumb keyboard.
-
-Goal: typing in the app within **one minute**, in another app within two.
+5. "Keep your words everywhere": one screen that asks for Full Access so learned words
+   and settings sync over iCloud, and says plainly that this is the only reason. Skippable;
+   the keyboard works without it. Last, so it comes once the keyboard has words to keep.
+6. Done, with confetti. Every step after Hello shares one shape: a progress bar, Skip in
+   the corner, one thing to do. Home leads with Your speed, then Your keyboard (themes,
+   effects, height, with the keyboard docked at the bottom to try them); practice and
+   the lesson are one tap away in Learn and practice. Everyone starts on the two-week
+   Pro trial, so the first days are the full two-thumb keyboard.
 
 ### 5.2 Typing a word
 1. Tap or swipe with either thumb, in any order, overlapping if you like. Each piece
@@ -271,6 +274,10 @@ and `guess.*` rows below).
 | `setup.keyboard_on` | How many people get past the Settings step (the big drop-off) |
 | `setup.full_access` (`on` / `skipped`) | How many accept the sync ask |
 | `onboarding.finished` (duration) | How long first setup takes (goal: under two minutes) |
+| `setup.step` (`step`) | Where people drop off in the welcome wizard |
+| `setup.style` (`theme`, `effects`, `changed`) | Whether people make the keyboard theirs in setup |
+| `home.style_changed` (`part`) | Whether Home's Your keyboard card gets used |
+| `lesson.replayed` | Whether people want the two-thumb lesson again |
 | `speedtest.finished` (gauge: words per minute) | Whether people get faster over time |
 | `speed.everyday` (gauge: words per minute, once per finished day with a speed) | Whether people really type faster with Astrotype, outside practice (features/typing-speed) |
 | `speed.opened` (count) | Whether people look at their speed graph |

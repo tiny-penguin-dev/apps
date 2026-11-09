@@ -10,7 +10,22 @@ import AstrotypeCore
 @Observable
 final class AppModel {
     enum Screen: Equatable {
-        case hello, turnOn, languages, sync, tryIt, home
+        /// The welcome wizard's order (features/home-and-welcome): Make it yours before
+        /// Try it, Full Access last.
+        case hello, turnOn, languages, style, tryIt, sync, home
+
+        /// The name counted as `setup.step`.
+        var metricName: String {
+            switch self {
+            case .hello: "hello"
+            case .turnOn: "turn_on"
+            case .languages: "languages"
+            case .style: "style"
+            case .tryIt: "try"
+            case .sync: "sync"
+            case .home: "done"
+            }
+        }
     }
 
     private(set) var screen: Screen
@@ -102,6 +117,10 @@ final class AppModel {
 
     /// The Full Access screen was answered already (its ghost button says Next, not Skip).
     var fullAccessAsked: Bool { state.fullAccessAsked }
+    /// Setup just ended: Home throws confetti once (features/home-and-welcome).
+    private(set) var arrivedFromSetup = false
+
+    func arrivalCelebrated() { arrivedFromSetup = false }
 
     // MARK: Keyboard status
 
@@ -257,13 +276,43 @@ final class AppModel {
     /// The next setup screen, from Hello through to Home.
     func next() {
         switch screen {
-        case .hello: screen = .turnOn
-        case .turnOn: screen = asksLanguages ? .languages : .sync
-        case .languages: screen = .sync
-        case .sync: screen = .tryIt
-        case .tryIt: finishOnboarding()
+        case .hello: show(.turnOn)
+        case .turnOn: show(asksLanguages ? .languages : .style)
+        case .languages: show(.style)
+        case .style: show(.tryIt)
+        case .tryIt: show(.sync)
+        case .sync: finishOnboarding()
         case .home: break
         }
+    }
+
+    /// A setup screen came up; each is counted once as `setup.step`, so the drop-off
+    /// shows step by step.
+    private func show(_ next: Screen) {
+        screen = next
+        environment.metrics.count("setup.step", ["step": next.metricName])
+    }
+
+    /// The setup screens this phone walks through, Hello first.
+    private var setupScreens: [Screen] {
+        [.hello, .turnOn] + (asksLanguages ? [.languages] : []) + [.style, .tryIt, .sync]
+    }
+
+    /// The wizard's progress and Skip for the screen up now; nil outside setup.
+    func setupStep(skip: (() -> Void)?) -> WizardStep? {
+        guard let index = setupScreens.firstIndex(of: screen) else { return nil }
+        return WizardStep(number: index + 1, count: setupScreens.count, skip: skip)
+    }
+
+    /// Leaving Make it yours: what was picked, and whether it changed from Classic and Calm.
+    func styleChosen() {
+        let settings = keyboardSettings
+        let theme = settings.chosenTheme
+        let effects = settings.trails ? (settings.effects.preset?.rawValue ?? "mix") : "off"
+        let changed = theme.id != KeyboardTheme.classic.id || effects != EffectsSettings.Preset.calm.rawValue
+        environment.metrics.count("setup.style", ["theme": theme.isCustom ? "custom" : theme.id, "effects": effects,
+                                                   "changed": changed ? "yes" : "no"])
+        next()
     }
 
     /// Open Settings from the Full Access screen; counted once as `setup.full_access`.
@@ -274,7 +323,7 @@ final class AppModel {
 
     func skipFullAccess() {
         answerFullAccess("skipped")
-        if screen == .sync { screen = .tryIt }
+        if screen == .sync { finishOnboarding() }
     }
 
     private func answerFullAccess(_ answer: String) {
@@ -290,6 +339,8 @@ final class AppModel {
             if let first = state.firstLaunch {
                 environment.metrics.duration("onboarding.finished", seconds: now.timeIntervalSince(first))
             }
+            environment.metrics.count("setup.step", ["step": Screen.home.metricName])
+            arrivedFromSetup = true
         }
         screen = .home
     }
@@ -922,6 +973,16 @@ final class AppModel {
         keyboardSettings.themeID = id
         let theme = keyboardSettings.chosenTheme
         environment.metrics.count("appearance.theme_chosen", ["theme": theme.isCustom ? "custom" : theme.id])
+    }
+
+    /// A theme or effect was picked on Home's Your keyboard card (features/home-and-welcome).
+    func homeStyleChanged(_ part: String) {
+        environment.metrics.count("home.style_changed", ["part": part])
+    }
+
+    /// The two-thumb lesson opened again from Learn.
+    func lessonOpened() {
+        environment.metrics.count("lesson.replayed")
     }
 
     /// Picks an effects preset, or flow on or off.

@@ -2,13 +2,18 @@ import AstrotypeCore
 import AstrotypeUI
 import SwiftUI
 
-/// DESIGN.md screen 5: "Both flippers, go." Your speed (features/typing-speed) and the Pro row on the
-/// left, drills, the week and Settings on the right; one column on a phone, two on the
-/// wide size. A sun-yellow banner leads back to setup while the keyboard is off. The
+/// Home (features/home-and-welcome): "Astrotype", Your speed with its Practice and
+/// Learn tiles, the Your keyboard card (themes, effects, height), then Pro and Settings,
+/// with the practice keyboard docked at the bottom to try the look on. One column on a
+/// phone; on the wide size Your speed, Pro and Settings on the left and Your keyboard on
+/// the right. A sun-yellow banner leads back to setup while the keyboard is off. The
 /// Trial over sheet comes up here once, on the first launch after the trial ends.
 struct HomeView: View {
     var model: AppModel
     @State private var path: [Route] = []
+    /// The dock was left open (Gabriel, 9 Nov 2026: show it or tuck it away).
+    @AppStorage("home.keyboardShown") private var dockShown = true
+    @State private var dock: KeyboardSession?
     /// THROWAWAY dictation spike: "swipe back" after the keyboard opened the app.
     @State private var dictationBackShowing = false
 
@@ -24,6 +29,11 @@ struct HomeView: View {
         /// A page of Settings opened from elsewhere (Your speed → Privacy and sharing).
         case settingsPage(SettingsPage)
         case drill(Drill.ID)
+        /// Learn and practice, at one of its halves (features/home-and-welcome).
+        case learnPractice(LearnPracticeView.Part)
+        /// The two-thumb lesson again, from Learn.
+        case lesson
+        case tips
     }
 
     var body: some View {
@@ -38,12 +48,17 @@ struct HomeView: View {
                         }
                         if wide {
                             HStack(alignment: .top, spacing: Theme.Space.gutter) {
-                                leftColumn.frame(maxWidth: .infinity)
-                                rightColumn.frame(maxWidth: .infinity)
+                                VStack(spacing: Theme.Space.l) {
+                                    leftColumn
+                                    accountRows
+                                }
+                                .frame(maxWidth: .infinity)
+                                keyboardColumn.frame(maxWidth: .infinity)
                             }
                         } else {
                             leftColumn
-                            rightColumn
+                            keyboardColumn
+                            accountRows
                         }
                     }
                     .padding(.horizontal, Theme.Space.gutter)
@@ -51,6 +66,10 @@ struct HomeView: View {
                     .frame(maxWidth: wide ? 1100 : 560)
                     .frame(maxWidth: .infinity)
                 }
+                .scrollDismissesKeyboard(.never)
+            }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                KeyboardDock(model: model, shown: $dockShown, active: path.isEmpty && !sheetUp) { dock = $0 }
             }
             .background(Theme.bg.ignoresSafeArea())
             .foregroundStyle(Theme.ink)
@@ -75,6 +94,9 @@ struct HomeView: View {
                 case .speed: SpeedHistoryView(model: model, path: $path)
                 case .leaderboard: LeaderboardView(model: model, path: $path)
                 case .settingsPage(let page): SettingsPageView(page: page, model: model, path: $path)
+                case .learnPractice(let part): LearnPracticeView(model: model, part: part, path: $path)
+                case .lesson: TryItView(model: model, inSetup: false).toolbar(.hidden, for: .navigationBar)
+                case .tips: TipsView()
                 }
             }
             // The keyboard's "Open Astrotype" (astrotype://settings) lands on Settings.
@@ -97,6 +119,18 @@ struct HomeView: View {
             }
         }
         .tint(Theme.accent)
+        .overlay {
+            // Setup just finished: a little party, once.
+            if model.arrivedFromSetup {
+                Confetti()
+                    .ignoresSafeArea()
+                    .allowsHitTesting(false)
+                    .task {
+                        try? await Task.sleep(for: .seconds(2.5))
+                        model.arrivalCelebrated()
+                    }
+            }
+        }
     }
 
     /// The next milestone's sheet, while one is due and Home is on top; closing it
@@ -111,28 +145,50 @@ struct HomeView: View {
         Binding(get: { model.trialOverDue }, set: { if !$0 { model.trialOverSeen() } })
     }
 
+    /// Just the name (Gabriel, 9 Nov 2026: "it's fine if it just says Astrotype").
     private func header(wide: Bool) -> some View {
-        HStack(alignment: .top) {
-            if wide {
-                Text("Both flippers, go.").displayTitleFont().fixedSize(horizontal: false, vertical: true)
-            } else {
-                Text("Both\nflippers, go.").font(.sw(.title)).fixedSize(horizontal: false, vertical: true)
-            }
+        HStack(alignment: .center) {
+            Text("Astrotype")
+                .font(.sw(.title))
+                .accessibilityAddTraits(.isHeader)
             Spacer()
-            ThumbsArt(animated: false).frame(width: 72, height: 72)
+            ThumbsArt(animated: false).frame(width: 56, height: 56)
         }
         .padding(.top, Theme.Space.l)
     }
 
+    /// A sheet is over Home: the dock's keys stay down.
+    private var sheetUp: Bool { model.trialOverDue || (path.isEmpty && model.pendingMilestone != nil) }
+
     private var leftColumn: some View {
         VStack(alignment: .leading, spacing: Theme.Space.m) {
             // Your speed leads Home (features/typing-speed): the everyday speed, and
-            // practice that measures you against it.
+            // practice that measures you against it, with Practice and Learn under it.
             SpeedCard(model: model, open: { path.append(.speed) },
                       practice: { path.append(.speedTest(.astrotype, nil)) },
-                      drills: { path.append(.practice) },
+                      learnAndPractice: { path.append(.learnPractice($0)) },
                       turnOn: { path.append(.turnOn) })
+        }
+    }
+
+    private var keyboardColumn: some View {
+        VStack(alignment: .leading, spacing: Theme.Space.s) {
+            SectionLabel("Your keyboard")
+            YourKeyboardCard(model: model, moreStyling: { path.append(.settingsPage(.appearance)) },
+                             openPro: { path.append(.pro) },
+                             played: { dock?.keyboard.surface.playBurst() })
+        }
+    }
+
+    private var accountRows: some View {
+        VStack(spacing: Theme.Space.s) {
             proRow
+            Button { path.append(.settings) } label: {
+                Row("Settings", subtitle: "Typing, languages, your words, privacy") {
+                    Text("Open ›").font(.system(.subheadline, design: .rounded, weight: .heavy)).foregroundStyle(Theme.muted)
+                }
+            }
+            .buttonStyle(.plain)
         }
     }
 
@@ -156,56 +212,5 @@ struct HomeView: View {
             }
         }
         .buttonStyle(.plain)
-    }
-
-    private var rightColumn: some View {
-        VStack(alignment: .leading, spacing: Theme.Space.m) {
-            SectionLabel("Drills")
-            VStack(spacing: Theme.Space.s) {
-                ForEach(Drill.all) { drill in
-                    drillRow(drill)
-                }
-            }
-            if !model.entitlement.allows(.drills) {
-                Text("Drills are in Astrotype Pro.")
-                    .font(.sw(.small)).foregroundStyle(Theme.muted).padding(.leading, Theme.Space.xs)
-            }
-            SectionLabel("This week").padding(.top, Theme.Space.s)
-            WeekDots(days: model.week.days.map { WeekDots.Day(id: $0.key, letter: $0.letter, done: $0.practised, isToday: $0.isToday) })
-            Button { path.append(.settings) } label: {
-                Row("Settings", subtitle: "Autospace, gestures, trails, sync") {
-                    Text("Open ›").font(.system(.subheadline, design: .rounded, weight: .heavy)).foregroundStyle(Theme.muted)
-                }
-            }
-            .buttonStyle(.plain)
-            .padding(.top, Theme.Space.s)
-        }
-    }
-
-    /// A drill: ticked when finished today; opens the drill, or the Pro screen when
-    /// drills are not allowed.
-    private func drillRow(_ drill: Drill) -> some View {
-        let allowed = model.entitlement.allows(.drills)
-        return Button {
-            path.append(allowed ? .drill(drill.id) : .pro)
-        } label: {
-            Card {
-                HStack(spacing: Theme.Space.m) {
-                    NumberBadge(model.isDrillDone(drill.id) ? .done : .number(drill.number))
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(drill.title).font(.system(.body, design: .rounded, weight: .bold))
-                        Text(drill.subtitle).font(.sw(.small)).foregroundStyle(Theme.muted)
-                    }
-                    Spacer()
-                    if allowed {
-                        Text("›").font(.system(.body, design: .rounded, weight: .black)).foregroundStyle(Theme.accent)
-                    } else {
-                        ProBadge()
-                    }
-                }
-            }
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel("\(drill.title), \(drill.subtitle)\(model.isDrillDone(drill.id) ? ", done today" : "")\(allowed ? "" : ", in Astrotype Pro")")
     }
 }

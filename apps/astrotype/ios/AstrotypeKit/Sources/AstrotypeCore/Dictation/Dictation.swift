@@ -80,6 +80,38 @@ public enum DictationHow: String, Codable, Sendable {
     case tap, hold
 }
 
+/// The mic on the bar, as the keyboard draws it.
+public enum MicStatus: Equatable, Sendable {
+    /// No mic: dictation is off in Settings, or this isn't the keyboard.
+    case hidden
+    /// The mic is off: a tap opens the app to turn it on.
+    case off
+    /// The mic is on (a small mint dot): a tap listens at once.
+    case ready
+    /// Waiting for the app to start listening.
+    case starting
+    /// Listening: the bar is the listening strip. `held`: the finger is on the mic,
+    /// and letting go stops.
+    case listening(held: Bool)
+
+    public var isListening: Bool {
+        switch self {
+        case .starting, .listening: true
+        case .hidden, .off, .ready: false
+        }
+    }
+}
+
+/// What the person did to the mic or the listening strip.
+public enum MicAction: String, Equatable, Sendable {
+    /// A finger down on the mic, and up.
+    case down, up
+    /// ✕ on the strip: stop and take back the words.
+    case cancel
+    /// ✓ on the strip: stop and keep them.
+    case done
+}
+
 /// What the keyboard asks for with its next command.
 public struct DictationRequest: Codable, Equatable, Sendable {
     /// The language to listen for, a BCP 47 identifier ("en-US").
@@ -115,8 +147,8 @@ public enum DictationLink {
     public static let stateChanged = "com.tinypenguin.astrotype.dictation.state"
     public static let stateFile = "dictation.json"
     public static let requestFile = "dictation-request.json"
-    /// The URL the keyboard opens when the mic is off.
-    public static let openURL = "astrotype://dictate"
+    /// The app's page the keyboard opens when the mic is off (`astrotype://dictate`).
+    public static let openPage = "dictate"
     /// How often the app writes while the mic is on, so the keyboard can tell it's alive.
     public static let heartbeat: TimeInterval = 2
     /// A state this old means the app is gone.
@@ -160,11 +192,127 @@ public enum DictationWindow {
 
 /// The keyboard's mic button: a short tap toggles listening, a longer press listens
 /// while held.
+///
+/// - Mic off: letting go opens the app (`openApp`).
+/// - Mic ready: touching down starts listening at once (`listen`), so a hold hears
+///   from the start; letting go after a tap keeps listening, after a hold stops.
+/// - Listening: letting go stops (`stop`).
 public enum DictationPress {
     public static let holdAfter: TimeInterval = 0.3
 
     public static func how(heldFor seconds: TimeInterval) -> DictationHow {
         seconds < holdAfter ? .tap : .hold
+    }
+
+    public enum Step: Equatable, Sendable {
+        case none, listen, stop, openApp
+    }
+
+    /// What touching the mic down does, in `phase`.
+    public static func down(in phase: DictationPhase) -> Step {
+        phase == .ready ? .listen : .none
+    }
+
+    /// What letting go does: `phase` is what it was when the finger went down.
+    public static func up(heldFor seconds: TimeInterval, phaseAtDown phase: DictationPhase) -> Step {
+        switch phase {
+        case .off: .openApp
+        case .ready: how(heldFor: seconds) == .hold ? .stop : .none
+        case .listening: .stop
+        }
+    }
+}
+
+/// The app's side of dictation, without the mic itself: what the state is after each
+/// thing that happens, and when the mic should turn off. `DictationModel` in the app
+/// runs the mic and speech to text and writes `state` for the keyboard.
+///
+///     var session = DictationSession(minutes: 5)
+///     session.micOn(at: now)                     // ready
+///     session.listen(at: now)                    // listening, listen 1
+///     session.heard("Hello", level: 0.4, at: now)
+///     session.finished("Hello there", at: now)   // ready, finished
+///     session.shouldTurnOff(at: now + 301)       // true
+public struct DictationSession: Equatable, Sendable {
+    public private(set) var state = DictationState()
+    /// When the mic was turned on or last finished listening.
+    public private(set) var lastUsed: Date?
+    /// Settings → Dictation → Keep the mic ready.
+    public var minutes: Int
+
+    public init(minutes: Int = DictationWindow.defaultMinutes) {
+        self.minutes = minutes
+    }
+
+    public var isOn: Bool { state.phase != .off }
+    public var isListening: Bool { state.phase == .listening }
+
+    /// The mic is on and waiting.
+    public mutating func micOn(at now: Date) {
+        state.phase = .ready
+        state.problem = nil
+        state.level = 0
+        lastUsed = now
+        touch(at: now)
+    }
+
+    /// Start a new listen. Returns false when the mic isn't on or it already listens.
+    @discardableResult
+    public mutating func listen(at now: Date) -> Bool {
+        guard state.phase == .ready else { return false }
+        state.phase = .listening
+        state.listen += 1
+        state.transcript = ""
+        state.finished = false
+        state.level = 0
+        touch(at: now)
+        return true
+    }
+
+    /// Words heard so far in this listen (`transcript` is all of them, from its start).
+    public mutating func heard(_ transcript: String, level: Double, at now: Date) {
+        guard state.phase == .listening else { return }
+        state.transcript = transcript
+        state.level = min(1, max(0, level))
+        touch(at: now)
+    }
+
+    /// The listen ended and these are its final words; back to ready.
+    public mutating func finished(_ transcript: String, at now: Date) {
+        guard state.phase == .listening else { return }
+        state.transcript = transcript
+        state.finished = true
+        state.phase = .ready
+        state.level = 0
+        lastUsed = now
+        touch(at: now)
+    }
+
+    /// The mic went off (the window ended, the person turned it off, iOS stopped it, or
+    /// it failed with `problem`).
+    public mutating func off(problem: DictationProblem? = nil, at now: Date) {
+        if state.phase == .listening { state.finished = true }
+        state.phase = .off
+        state.problem = problem
+        state.level = 0
+        state.readyUntil = nil
+        touch(at: now)
+    }
+
+    /// A heartbeat: the state is rewritten so the keyboard knows the app is alive.
+    public mutating func touch(at now: Date) {
+        state.alive = now
+        if state.phase == .off {
+            state.readyUntil = nil
+        } else if let lastUsed {
+            state.readyUntil = DictationWindow.endsAt(lastUsed: lastUsed, minutes: minutes)
+        }
+    }
+
+    /// Whether the window has run out: ready, and unused for `minutes`.
+    public func shouldTurnOff(at now: Date) -> Bool {
+        guard state.phase == .ready, let end = state.readyUntil else { return false }
+        return now >= end
     }
 }
 
@@ -212,13 +360,21 @@ public struct DictationText: Equatable, Sendable {
     /// before the cursor as the field has it now. If it no longer ends with what was
     /// written (the person moved the cursor), what's there is kept and the words from
     /// here on go at the new spot.
+    ///
+    /// A field may tell only the last part of its text (`before` shorter than what was
+    /// written, and the end of it): then the words keep the space and capital they
+    /// started with.
     public mutating func update(transcript: String, before: String) -> DictationEdit {
-        guard before.hasSuffix(written) else {
+        let live = Self.live(transcript, after: frozen)
+        let wanted: String
+        if before.hasSuffix(written) {
+            wanted = Self.joined(live, after: String(before.dropLast(written.count)))
+        } else if !before.isEmpty, before.count < written.count, written.hasSuffix(before) {
+            wanted = Self.rejoined(live, like: written)
+        } else {
             freeze(transcript: transcript)
             return .none
         }
-        let context = String(before.dropLast(written.count))
-        let wanted = Self.joined(Self.live(transcript, after: frozen), after: context)
         let edit = DictationEdit.between(written, wanted)
         written = wanted
         return edit
@@ -258,6 +414,14 @@ public struct DictationText: Equatable, Sendable {
 
     static func wordCount(_ text: String) -> Int {
         text.split(whereSeparator: \.isWhitespace).count
+    }
+
+    /// `words` with the leading space and first capital of `old`.
+    static func rejoined(_ words: String, like old: String) -> String {
+        guard let first = words.first else { return "" }
+        let space = old.first?.isWhitespace == true ? " " : ""
+        let capital = old.first { !$0.isWhitespace }?.isUppercase == true
+        return space + (capital ? first.uppercased() + words.dropFirst() : words)
     }
 
     /// `words` as they go in after `context`: a space between them unless the context

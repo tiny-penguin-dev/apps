@@ -105,4 +105,55 @@ import Testing
         let decoded = try? JSONDecoder().decode(DictationState.self, from: JSONEncoder().encode(state))
         #expect(decoded == state)
     }
+
+    @Test func micPressSteps() {
+        #expect(DictationPress.down(in: .off) == .none)
+        #expect(DictationPress.up(heldFor: 0.1, phaseAtDown: .off) == .openApp)
+        #expect(DictationPress.down(in: .ready) == .listen)
+        #expect(DictationPress.up(heldFor: 0.1, phaseAtDown: .ready) == .none)
+        #expect(DictationPress.up(heldFor: 1, phaseAtDown: .ready) == .stop)
+        #expect(DictationPress.down(in: .listening) == .none)
+        #expect(DictationPress.up(heldFor: 0.1, phaseAtDown: .listening) == .stop)
+    }
+
+    @Test func sessionRunsAListenAndTurnsOff() {
+        let start = Date(timeIntervalSince1970: 0)
+        var session = DictationSession(minutes: 1)
+        let early = session.listen(at: start)
+        #expect(!early)
+        session.micOn(at: start)
+        #expect(session.state.phase == .ready)
+        #expect(session.state.readyUntil == start.addingTimeInterval(60))
+        let first = session.listen(at: start)
+        let again = session.listen(at: start)
+        #expect(first && !again)
+        #expect(session.state.listen == 1)
+        session.heard("Hello", level: 3, at: start)
+        #expect(session.state.transcript == "Hello" && session.state.level == 1)
+        // Listening never times out.
+        #expect(!session.shouldTurnOff(at: start.addingTimeInterval(600)))
+        let done = start.addingTimeInterval(30)
+        session.finished("Hello there", at: done)
+        #expect(session.state.phase == .ready && session.state.finished)
+        #expect(session.state.readyUntil == done.addingTimeInterval(60))
+        #expect(!session.shouldTurnOff(at: done.addingTimeInterval(59)))
+        #expect(session.shouldTurnOff(at: done.addingTimeInterval(60)))
+        // The next listen starts clean.
+        session.listen(at: done)
+        #expect(session.state.listen == 2 && session.state.transcript.isEmpty && !session.state.finished)
+        session.off(problem: .failed, at: done)
+        #expect(session.state.phase == .off && session.state.finished && session.state.readyUntil == nil)
+    }
+
+    /// A field that tells only the end of its text still gets the rest of the words.
+    @Test func aFieldThatTellsLittle() {
+        var text = DictationText()
+        var field = "Ok."
+        Self.apply(text.update(transcript: "this is a long one", before: field), to: &field)
+        #expect(field == "Ok. This is a long one")
+        // The field now says only "long one".
+        let edit = text.update(transcript: "this is a long one indeed", before: "long one")
+        Self.apply(edit, to: &field)
+        #expect(field == "Ok. This is a long one indeed")
+    }
 }

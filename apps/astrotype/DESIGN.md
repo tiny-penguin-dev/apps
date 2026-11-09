@@ -40,9 +40,11 @@ on the iPhone Duo's outer and inner screens.
   bottom edge. Keys are 7 pt radius like Apple's, because the keyboard must feel like a
   keyboard, not like the app.
 - **App icon:** a white "A" key with a teal and a coral orbit around it, on a starry
-  navy. Space and typing in one picture, the two thumb colors, no character. Light,
-  dark and tinted appearances; the sources are in `design/icon/` (its README says how
-  they become the PNGs in the asset catalog).
+  navy. Space and typing in one picture, the two thumb colors, no character. Each orbit
+  is a trail ending in its dot: solid where it crosses in front of the key, fading
+  behind it back round to the dot, and the coral one passes over the teal (Gabriel,
+  9 Nov 2026). Light, dark and tinted appearances, and the keyboard's grey mark, are
+  drawn by `design/icon/render.html` (its README says how they become the PNGs).
 
 ## Design system
 

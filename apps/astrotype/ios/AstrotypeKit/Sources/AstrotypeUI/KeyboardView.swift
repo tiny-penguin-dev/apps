@@ -111,7 +111,7 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
     /// "123"). In the split's middle column it sits faded at the bottom.
     private lazy var menuKey: UIButton = {
         var config = UIButton.Configuration.plain()
-        config.image = AstrotypeMark.image(width: 30)
+        config.image = AstrotypeMark.image
         config.baseForegroundColor = Theme.ui(.muted)
         let button = UIButton(configuration: config)
         button.accessibilityLabel = "Astrotype menu"

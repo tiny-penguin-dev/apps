@@ -106,7 +106,8 @@ struct SpeedCard: View {
     var model: AppModel
     var open: () -> Void
     var practice: () -> Void
-    var drills: () -> Void
+    /// Opens Learn and practice at one of its halves (features/home-and-welcome).
+    var learnAndPractice: (LearnPracticeView.Part) -> Void
     var turnOn: () -> Void
 
     var body: some View {
@@ -120,13 +121,56 @@ struct SpeedCard: View {
             }
             HStack(spacing: Theme.Space.m) {
                 Button("Practice for speed", action: practice).buttonStyle(.small)
-                Button("Practice", action: drills).buttonStyle(.ghost)
                 Spacer(minLength: 0)
                 if let best = model.bestWordsPerMinute {
                     Chip("Best \(best)").accessibilityLabel("Best practice \(best) words per minute")
                 }
             }
+            // Practice and Learn live on their own screen; these lead there.
+            HStack(alignment: .top, spacing: Theme.Space.s) {
+                tile("Practice", subtitle: "Drills and your missed words", emoji: "🎯", tint: Theme.right, week: true) {
+                    learnAndPractice(.practice)
+                }
+                tile("Learn", subtitle: "The two-thumb lesson and tips", emoji: "🐧", tint: Theme.left, week: false) {
+                    learnAndPractice(.learn)
+                }
+            }
         }
+    }
+
+    private func tile(_ title: String, subtitle: String, emoji: String, tint: Color, week: Bool,
+                      action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: Theme.Space.xs) {
+                Text(emoji)
+                    .font(.system(size: 18))
+                    .frame(width: 34, height: 34)
+                    .background(tint.opacity(0.22), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .accessibilityHidden(true)
+                HStack {
+                    Text(title).font(.system(.headline, design: .rounded, weight: .black))
+                    Spacer(minLength: 0)
+                    Image(systemName: "chevron.right").font(.footnote.weight(.heavy)).foregroundStyle(Theme.muted)
+                }
+                Text(subtitle).font(.sw(.small)).foregroundStyle(Theme.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+                if week {
+                    HStack(spacing: 3) {
+                        ForEach(model.week.days, id: \.key) { day in
+                            Circle().fill(day.practised ? Theme.mint : Theme.line).frame(width: 8, height: 8)
+                        }
+                    }
+                    .accessibilityHidden(true)
+                }
+            }
+            .padding(Theme.Space.m)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Theme.card, in: RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(CardPressStyle())
+        .accessibilityElement(children: .combine)
+        .accessibilityHint("Opens Learn and practice")
     }
 
     private func card(speed: Int) -> some View {

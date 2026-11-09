@@ -179,7 +179,7 @@ private struct StylingSettings: View {
 
 /// A theme in small: three rows of keys in its colours on the keyboard's backdrop, and
 /// its name.
-private struct ThemeCard: View {
+struct ThemeCard: View {
     var theme: KeyboardTheme
     var dark: Bool
     var selected: Bool
@@ -232,7 +232,7 @@ private struct ThemeCard: View {
 }
 
 /// Cards squeeze a little when pressed.
-private struct CardPressStyle: ButtonStyle {
+struct CardPressStyle: ButtonStyle {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     func makeBody(configuration: Configuration) -> some View {

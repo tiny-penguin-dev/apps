@@ -924,6 +924,16 @@ final class AppModel {
         environment.metrics.count("appearance.theme_chosen", ["theme": theme.isCustom ? "custom" : theme.id])
     }
 
+    /// A theme or effect was picked on Home's Your keyboard card (features/home-and-welcome).
+    func homeStyleChanged(_ part: String) {
+        environment.metrics.count("home.style_changed", ["part": part])
+    }
+
+    /// The two-thumb lesson opened again from Learn.
+    func lessonOpened() {
+        environment.metrics.count("lesson.replayed")
+    }
+
     /// Picks an effects preset, or flow on or off.
     func chooseEffects(_ effects: EffectsSettings) {
         keyboardSettings.effects = effects

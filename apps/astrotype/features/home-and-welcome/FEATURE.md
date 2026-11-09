@@ -141,4 +141,34 @@ None beyond the Product ones.
 
 ## Build
 
-Status: Not started
+Status: Approved 2026-11-09 (Gabriel: "go ahead and build it")
+
+- **Approach:** app-only (no keyboard or package changes). Home's pieces go in a new
+  `Astrotype/Home/` folder; the setup screens stay in `Onboarding/`.
+- **Core pieces:**
+  - `KeyboardDock` (Home's docked keyboard): a one-line `KeyboardField` whose input view
+    is a `KeyboardSession`'s keys, so iOS raises and lowers them like any keyboard.
+    `KeyboardField(focusesOnAppear: false)`, `KeyboardSession.unfocus()` and
+    `onFocusChange` are the only changes to the session. Shown or hidden is kept in
+    `@AppStorage("home.keyboardShown")`; the keys go down while another screen or a sheet
+    is over Home.
+  - `YourKeyboardCard` with `ThemeRow` (the Styling page's `ThemeCard`, now shared) and
+    `EffectRow`/`EffectCard` (a `Canvas` in a `TimelineView`, paused under Reduce Motion
+    and Low Power Mode; picking one plays a burst on the dock's real keys).
+  - `LearnPracticeView` (+ `TipsView`), opened from two tiles under `SpeedCard`.
+  - `WizardPage` + `StepProgress` replace `SetupPage`; `AppModel.Screen` gains `.style`
+    and the order becomes hello → turnOn → languages → style → tryIt → sync → home.
+- **Phases:**
+  1. **Home** (one PR): header "Astrotype", Your keyboard card, the dock, effect cards,
+     Learn and practice, Tips, the lesson from Learn. *Done when* Home shows the card and
+     the keys at the bottom, Hide and Keyboard work, and the tiles open Learn and practice.
+  2. **Welcome wizard** (one PR): `WizardPage`/`StepProgress` on every setup screen, the
+     Make it yours step, Full Access after Try it, the `setup.step`/`setup.style`
+     metrics, and the docs folded into `PRODUCT.md`/`DESIGN.md`. *Done when* a fresh
+     install walks the six steps with the progress bar and lands on Home.
+- **Risks:** the dock's keys and a pushed screen's own keys swapping on push and pop;
+  checked on TestFlight. The effect cards are drawn sketches, not the Metal effects
+  themselves (eight live keyboards would cost too much); the real one plays on the dock.
+- **Metrics:** `home.style_changed` (theme, effects) and `lesson.replayed` in phase 1;
+  `setup.step` and `setup.style` in phase 2.
+- **Last step:** fold this feature into the app's `PRODUCT.md` and `DESIGN.md`.

@@ -7,6 +7,10 @@ import SwiftUI
 /// after the fifth, confetti and Home.
 struct TryItView: View {
     var model: AppModel
+    /// In setup it moves on when done or skipped; from Learn (the two-thumb lesson again)
+    /// it goes back.
+    var inSetup = true
+    @Environment(\.dismiss) private var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var session: KeyboardSession?
     @State private var index = 0
@@ -22,7 +26,7 @@ struct TryItView: View {
                 HStack {
                     Chip("Try it · word \(min(index + 1, words.count)) of \(words.count)")
                     Spacer()
-                    Button("Skip") { model.finishOnboarding() }
+                    Button(inSetup ? "Skip" : "Done") { leave() }
                         .buttonStyle(.ghost)
                 }
                 .padding(.top, Theme.Space.s)
@@ -80,6 +84,14 @@ struct TryItView: View {
         }
     }
 
+    private func leave() {
+        if inSetup {
+            model.finishOnboarding()
+        } else {
+            dismiss()
+        }
+    }
+
     private func showMe() {
         guard let session, !showing else { return }
         showing = true
@@ -98,7 +110,7 @@ struct TryItView: View {
             session.clear()
             Task { @MainActor in
                 try? await Task.sleep(for: .seconds(1.4))
-                model.finishOnboarding()
+                leave()
             }
         }
     }

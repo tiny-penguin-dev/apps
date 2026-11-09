@@ -9,7 +9,7 @@ using this."
 
 ## Product
 
-Status: Draft
+Status: Approved 2026-11-09 (Gabriel: "Ok build")
 
 - **The problem:** Your speed (built 8 Nov 2026) tells you how fast you type, but not
   whether that's fast. A number like 46 means more next to everyone else's, and a rank
@@ -79,7 +79,7 @@ None. (Free, friends and everyone with everyone first: Gabriel, 8 Nov 2026.)
 
 ## Design
 
-Status: Draft
+Status: Approved 2026-11-09 (Gabriel: "Ok build")
 
 Mockup: [`design/mockups/leaderboards.html`](design/mockups/leaderboards.html)
 (Artifact: https://claude.ai/artifact/3rZqZUVdtPxWgZquX14xV1).

@@ -30,6 +30,8 @@ public struct TypingEvent: Codable, Sendable, Equatable {
         case emoji
         /// A text replacement picked on the snippet page (`s`, its shortcut).
         case snippet = "snip"
+        /// The phrase of the shortcut at the cursor ("@@") tapped on the bar.
+        case shortcut = "rep"
         /// One of the person's details tapped on the bar (`n`, its place; features/autofill).
         case autofill = "af"
         /// Emoji search opened, closed, cleared; an emoji from its results.
@@ -126,7 +128,7 @@ public struct TypingEvent: Codable, Sendable, Equatable {
     /// what the keyboard noted about itself.
     public var isInput: Bool {
         switch e {
-        case .down, .move, .up, .cancel, .pick, .key, .character, .text, .emoji, .snippet, .autofill, .searchOpen, .searchClose, .searchClear,
+        case .down, .move, .up, .cancel, .pick, .key, .character, .text, .emoji, .snippet, .shortcut, .autofill, .searchOpen, .searchClose, .searchClear,
              .searchEmoji, .guess, .fix, .cursor, .notIt, .notItCancel, .notItSave, .deleteWord, .boost, .forget, .wordUndo, .earlier, .earlierUndo, .tick, .hide:
             true
         default:

@@ -218,6 +218,13 @@ public final class KeyboardModel {
         apply(composer.write(replacement: shortcut, time: now))
     }
 
+    /// The phrase of the shortcut at the cursor ("@@") tapped on the bar.
+    public func writeShortcut() {
+        log(TypingEvent(t: now, e: .shortcut))
+        autospace?.cancel()
+        apply(composer.writeShortcut(time: now))
+    }
+
     /// One of the person's details tapped on the bar (features/autofill): it goes in at
     /// the cursor. The log keeps only its place, never the detail.
     public func fill(autofill index: Int) {

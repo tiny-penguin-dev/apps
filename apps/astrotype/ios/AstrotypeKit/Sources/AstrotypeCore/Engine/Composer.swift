@@ -165,6 +165,10 @@ public struct Composer: Sendable {
         /// A replacement is asking for its `{?blanks}` (features/text-replacements): the
         /// one being typed, by name. The bar shows `.correcting` with what is typed so far.
         public var fillPrompt: String?
+        /// With no word open, a shortcut of symbols right before the cursor ("@@"), or
+        /// one being typed ("@"): its phrase, which the bar offers (`writeShortcut`).
+        /// Space writes it too once the shortcut is whole.
+        public var shortcutPhrase: String?
         /// The person's details the bar offers (features/autofill): for an empty field
         /// that asks for them, after "my email is ", or the one being typed. Tapped with
         /// `fill(autofill:)`.
@@ -1434,6 +1438,35 @@ public struct Composer: Sendable {
 
     /// No open word, and space or return pressed after a shortcut with symbols in it
     /// ("@@", "addr1"), which the keys don't type as a word: its phrase takes its place.
+    /// A shortcut the keys don't type as a word ("@@", ";addr" before its letters) right
+    /// before the cursor, or one it begins: the shortcut's phrase and the text it
+    /// takes the place of. Nil while a word is open or the bar is busy.
+    private var shortcutAtCursor: (phrase: String, token: String)? {
+        guard settings.replacesText, !settings.replacements.isEmpty, pieces.isEmpty, open.isEmpty,
+              correction == nil, earlier == nil else { return nil }
+        let token = tokenBefore
+        let key = token.lowercased()
+        guard !token.isEmpty, token.count <= 24, !TextReplacements.isWord(key) else { return nil }
+        if let phrase = settings.replacements.phrase(for: key) { return (phrase, token) }
+        let longer = settings.replacements.phrases.keys
+            .filter { $0.count > key.count && $0.hasPrefix(key) && !TextReplacements.isWord($0) }
+            .min { ($0.count, $0) < ($1.count, $1) }
+        return longer.flatMap { settings.replacements.phrase(for: $0) }.map { ($0, token) }
+    }
+
+    /// The phrase the bar offers for the shortcut at the cursor (`State.shortcutPhrase`)
+    /// tapped: it takes the shortcut's place, a space after it as after a word.
+    public mutating func writeShortcut(time: TimeInterval) -> [Effect] {
+        guard let found = shortcutAtCursor else { return [] }
+        leaveEarlier()
+        autoSpaced = false
+        wordSpace = false
+        lastSpace = nil
+        return settle() + putReplacement(found.phrase, original: found.token, open: nil,
+                                         trailing: settings.spacesWords ? " " : "",
+                                         capital: found.token.first?.isUppercase == true)
+    }
+
     private mutating func replaceToken(trailing: String) -> [Effect]? {
         guard settings.replacesText, !settings.replacements.isEmpty else { return nil }
         let token = tokenBefore
@@ -1738,6 +1771,9 @@ public struct Composer: Sendable {
             state.openWord = nil
             state.replacement = nil
             state.previews = [:]
+        }
+        state.shortcutPhrase = shortcutAtCursor.map {
+            expansion(of: $0.phrase, capital: $0.token.first?.isUppercase == true, preview: true).text
         }
         refreshAutofill()
         // "Not it?" for a swiped word only: pecked letters were typed as meant.

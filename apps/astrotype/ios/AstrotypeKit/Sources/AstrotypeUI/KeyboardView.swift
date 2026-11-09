@@ -160,6 +160,7 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         bar.onSaveCorrection = { [weak self] in self?.model.saveCorrection() }
         bar.onSnippets = { [weak self] in self?.showSnippets() }
         bar.onAutofill = { [weak self] index in self?.model.fill(autofill: index) }
+        bar.onShortcut = { [weak self] in self?.model.writeShortcut() }
         attachToModel()
         keyHaptic.prepare()
     }
@@ -377,6 +378,7 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         bar.previews = model.state.previews
         bar.fillPrompt = model.state.fillPrompt
         bar.autofill = model.state.autofill
+        bar.shortcutPhrase = model.state.shortcutPhrase
         bar.offersSnippets = model.offersSnippets
         if shownField != model.field {
             shownField = model.field
@@ -393,9 +395,10 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
             }
         }
         if usesDefaultNote {
-            // Nothing to say on the full keyboard (Gabriel, 8 Nov 2026: "Both thumbs, one
-            // word" was unnecessary); the free keyboard still says why one finger.
-            bar.note = model.entitlement.allows(.twoThumbs) ? "" : "One finger at a time"
+            // Nothing to say when idle (Gabriel, 8-9 Nov 2026: "Both thumbs, one word" and
+            // "One finger at a time" were unnecessary). A second thumb on the free
+            // keyboard still flashes "Two thumbs is in Astrotype Pro".
+            bar.note = ""
         }
         if let searchView { showSearchResults(in: searchView) }
         surface.shifted = model.state.isShifted

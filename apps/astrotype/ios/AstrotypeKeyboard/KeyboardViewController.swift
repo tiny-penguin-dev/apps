@@ -743,9 +743,20 @@ final class ProxyTarget: TextTarget {
     /// The open word is lost when the field changed under it (submit, or a tap on
     /// another field) or text is selected: the next key is meant for the selection, not
     /// for the word. Our own selection delete is ignored while the proxy catches up.
+    ///
+    /// A field can also be emptied while it keeps its identifier: Messages clears its
+    /// field on Send. The word was still open, so the next letter typed it again with
+    /// the new one ("hello" sent, then "hellox"; Gabriel, 9 Nov 2026). So the word is
+    /// lost too when the text before the cursor no longer ends with it. A field that
+    /// hides its text (nil) is trusted, as in `mark`.
     var lostOpenWord: Bool {
         guard !open.isEmpty else { return false }
         if documentID != openDocument { return true }
+        if let before = proxy.documentContextBeforeInput {
+            // Empty context in a field that still has text is a field that tells
+            // nothing, not one that was emptied.
+            if before.isEmpty ? !proxy.hasText : !before.hasSuffix(open) { return true }
+        }
         guard !clearedSelection, let selected = proxy.selectedText else { return false }
         return !selected.isEmpty
     }

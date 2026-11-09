@@ -130,6 +130,8 @@ struct ThemeRow: View {
                 .scrollTargetLayout()
             }
             .contentMargins(.horizontal, Theme.Space.l, for: .scrollContent)
+            // Only as tall as its cards (it grew on the wide layout).
+            .fixedSize(horizontal: false, vertical: true)
             // The picked one in view when the screen opens.
             .onAppear { reader.scrollTo(shown.id, anchor: .center) }
         }
@@ -190,6 +192,8 @@ struct EffectRow: View {
                 .scrollTargetLayout()
             }
             .contentMargins(.horizontal, Theme.Space.l, for: .scrollContent)
+            // Only as tall as its cards (it grew on the wide layout).
+            .fixedSize(horizontal: false, vertical: true)
             .onAppear { if let picked { reader.scrollTo(picked, anchor: .center) } }
         }
         .sensoryFeedback(.selection, trigger: picked)

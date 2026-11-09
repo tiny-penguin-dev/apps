@@ -28,7 +28,10 @@ final class KeyboardFrame: UIView {
         if #available(iOS 26, *) { side = 5 } else { side = 0 }
         let top: CGFloat
         if #available(iOS 26, *) { top = 4 } else { top = 0 }
-        return UIEdgeInsets(top: top, left: max(side, safeArea.left), bottom: safeArea.bottom, right: max(side, safeArea.right))
+        // The same on both sides, as the system centres its keys even when only one
+        // side has a safe area (the clock's side on the Duo).
+        let sides = max(side, safeArea.left, safeArea.right)
+        return UIEdgeInsets(top: top, left: sides, bottom: safeArea.bottom, right: sides)
     }
 
     /// The panel's top corners on iOS 26.

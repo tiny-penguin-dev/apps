@@ -18,8 +18,8 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
     `AppModel` from `AppEnvironment.live()`, shows the setup screens then `HomeView`),
     `App/` (`AppModel`, the only thing views talk to; `AppEnvironment`, the one place
     real services are named; `LiveMetrics` on `Telemetry`), `Onboarding/`
-    (`TurnOnView`, `LanguagesSetupView` (only on a phone set to two languages), `SyncView`, `TryItView`, and `SetupPage`, their shared shape),
-    `HelloView`, `HomeView` (led by `SpeedCard`), `Speed/` (`SpeedViews`: `SpeedCard`, `SpeedHistoryView`,
+    (the welcome wizard, in order: `TurnOnView`, `LanguagesSetupView` (only on a phone set to two languages), `MakeItYoursView`, `TryItView` (also the lesson from Learn, `inSetup: false`), `SyncView`; `WizardPage`, their shared shape, with `StepProgress` and Skip from `AppModel.setupStep`),
+    `HelloView`, `HomeView` (header "Astrotype", led by `SpeedCard` with its Practice and Learn tiles), `Home/` (features/home-and-welcome: `YourKeyboardCard` with `ThemeRow` and `EffectRow`/`EffectCard`, the drawn effect previews; `KeyboardDock`, the practice keyboard docked at the bottom of Home, shown or hidden in `@AppStorage("home.keyboardShown")`; `LearnPracticeView` and `TipsView`), `Speed/` (`SpeedViews`: `SpeedCard`, `SpeedHistoryView`,
     `SpeedChart`; the everyday typing speed, features/typing-speed; `LeaderboardView`: `LeaderboardCard`, `RankRow`,
     the weekly Game Center boards, features/leaderboards, with `App/GameCenterLeaderboards`, the live
     `LeaderboardService`), `Settings/` (`SettingsView`, the main page with its

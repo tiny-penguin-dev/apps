@@ -99,9 +99,10 @@ code (`AstrotypeKit/Theme`, `docs/building.md` rule 1). Screens only use these.
 |---|---|---|---|
 | 1 | Hello | A keyboard with two thumb trails drawing themselves. "Type with both thumbs." One button. | [01](design/screens/01-hello.png) |
 | 2 | Turn on the keyboard | The three Settings steps, a status chip that flips to "On" when the keyboard appears, "Open Settings". | [02](design/screens/02-turn-on.png) |
-| 3 | Keep your words everywhere | The Full Access ask, with its one reason (iCloud sync of words and settings) and "Nothing you type is ever sent anywhere". A cloud linked to a phone and a Mac. Skippable. | [03](design/screens/03-sync.png) |
+| 2b | Make it yours | Home's theme and effect rows with the keyboard up to try them (features/home-and-welcome). Every setup step shares `WizardPage`: a progress bar, Skip, one big button. | [feature](features/home-and-welcome/design/screens/14-make-it-yours.png) |
+| 3 | Keep your words everywhere | Now the last setup step, after Try it. The Full Access ask, with its one reason (iCloud sync of words and settings) and "Nothing you type is ever sent anywhere". A cloud linked to a phone and a Mac. Skippable. | [03](design/screens/03-sync.png) |
 | 4 | Try it | A practice field with the keyboard up. Five words, each with a thumb-by-thumb hint. "Show me" replays the word with trails. | [04](design/screens/04-try.png), [dark](design/screens/04-try-dark.png), [small](design/screens/04-try-small.png), [wide](design/screens/04-try-wide.png) |
-| 5 | Home | "Both flippers, go." Speed test card (best, versus Apple's keyboard), trial status, drills, this week, Settings. A yellow banner if the keyboard is not on. | [05](design/screens/05-home.png), [dark](design/screens/05-home-dark.png), [small](design/screens/05-home-small.png), [wide](design/screens/05-home-wide.png) |
+| 5 | Home | "Astrotype". Your speed with Practice and Learn tiles, the Your keyboard card (themes, effects that each play on a key, height, More styling), Pro, Settings, and the practice keyboard docked at the bottom (Hide / Keyboard). A yellow banner if the keyboard is not on. Learn and practice is its own screen. (features/home-and-welcome: [Home](features/home-and-welcome/design/screens/02-home.png), [Learn and practice](features/home-and-welcome/design/screens/09-learn-practice.png)) | [05](design/screens/05-home.png), [dark](design/screens/05-home-dark.png), [small](design/screens/05-home-small.png), [wide](design/screens/05-home-wide.png) |
 | 6 | Speed test | A sentence to type with the typed part turning mint, a timer, the keyboard. | [06](design/screens/06-speed.png) |
 | 7 | Speed test result | A bolt in a sun, the words per minute, fixes, versus Apple's, confetti on a new best. | [07](design/screens/07-result.png) |
 | 8 | Drill | One habit per drill. Word cards, the keys of the next word outlined in the thumb's color. | [08](design/screens/08-drill.png) |
@@ -273,8 +274,8 @@ This is the product, so it gets its own section.
 ## Flows
 
 - **First launch** (PRODUCT 5.1): Hello → Turn on the keyboard → (only on a phone set
-  to both English and Spanish: Which languages do you type in?) → Keep your words
-  everywhere → Try it (five words) → Home. Everyone starts on the Pro trial, so Try it
+  to both English and Spanish: Which languages do you type in?) → Make it yours → Try it
+  (five words) → Keep your words everywhere → Home, with confetti. Everyone starts on the Pro trial, so Try it
   teaches two thumbs from the first word.
 - **Typing a word** (5.2): pieces → open word in the bar and the field → space, pause or
   punctuation commits → the bar offers fixes for a moment → next word.
@@ -344,7 +345,7 @@ outfits.
   Settings**, Skip for now
 - Try it: "Type this word" / "Left thumb taps s and e. Right thumb swipes o→m, then
   t→h→i→n→g. Space when it says something." / **Show me**, or just try it
-- Home: "Both flippers, go." / banner: "Astrotype isn't on yet." **Turn on** / "Pro
+- Home: "Astrotype" / banner: "Astrotype isn't on yet." **Turn on** / "Pro
   trial · 11 days left."
 - Bar notes: (none when idle) / "Tap or swipe. Space writes the word." / FIX /
   free: "Two thumbs is in Astrotype Pro"

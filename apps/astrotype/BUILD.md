@@ -380,7 +380,7 @@ opening the app. The trial start reaches the extension through `trial.json`
 Access and otherwise counts from its own first run, taking the earlier of the two.
 Free mode lives in `Composer.Settings.twoThumbs`: a second touch while one is on the
 keys returns `.notice(.twoThumbsIsPro)` and nothing else; the bar flashes "Two thumbs
-is in Astrotype Pro" for 1.6 s and its idle note reads "One finger at a time". The
+is in Astrotype Pro" for 1.6 s (the idle bar says nothing). The
 split layout is gated the same way (`KeyboardModel.splitOnWide`, the in-keyboard
 panel's switch greys out with "· PRO", the app's picker too). Screens: `ProView`
 (`SubscriptionStoreView` under the star tile and four perks; "You're Pro" with Manage

@@ -174,8 +174,8 @@ This is the product, so it gets its own section.
   the words stack from the top and the pencil sits under them; on a split keyboard the
   Astrotype button sits faded at the bottom of the column, centred (Gabriel, 8 Nov 2026).
   The middle's states:
-  - *Idle:* empty; the free keyboard says "One finger at a time". ("Both thumbs, one
-    word" was dropped as unnecessary, Gabriel 8 Nov 2026.)
+  - *Idle:* empty. ("Both thumbs, one word" and the free keyboard's "One finger at a
+    time" were dropped as unnecessary, Gabriel 8-9 Nov 2026.)
   - *Open word:* up to three guesses, the chosen one in a pill in the centre with
     the others either side. The pill takes the theme's shift/delete/return colour and
     see-through with the letters' colour at 80%. Everything else on the bar has no key behind it, so
@@ -347,7 +347,7 @@ outfits.
 - Home: "Both flippers, go." / banner: "Astrotype isn't on yet." **Turn on** / "Pro
   trial · 11 days left."
 - Bar notes: (none when idle) / "Tap or swipe. Space writes the word." / FIX /
-  free: "One finger at a time", "Two thumbs is in Astrotype Pro"
+  free: "Two thumbs is in Astrotype Pro"
 - Speed test: "Type this" / result: "52" "words per minute" / "3 words needed a fix.
   That's 21 faster than Apple's keyboard and a new best." / **Again**, Done
 - Drill: "Switching thumbs" / "Left swipes w→e, right swipes n→t. Keys light up to show

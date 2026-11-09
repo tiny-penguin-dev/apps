@@ -395,9 +395,10 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
             }
         }
         if usesDefaultNote {
-            // Nothing to say on the full keyboard (Gabriel, 8 Nov 2026: "Both thumbs, one
-            // word" was unnecessary); the free keyboard still says why one finger.
-            bar.note = model.entitlement.allows(.twoThumbs) ? "" : "One finger at a time"
+            // Nothing to say when idle (Gabriel, 8-9 Nov 2026: "Both thumbs, one word" and
+            // "One finger at a time" were unnecessary). A second thumb on the free
+            // keyboard still flashes "Two thumbs is in Astrotype Pro".
+            bar.note = ""
         }
         if let searchView { showSearchResults(in: searchView) }
         surface.shifted = model.state.isShifted

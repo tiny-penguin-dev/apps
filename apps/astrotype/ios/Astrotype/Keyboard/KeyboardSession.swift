@@ -41,7 +41,7 @@ final class KeyboardSession: NSObject, UITextViewDelegate {
         // Practice measures typing and records each word's touches: no next words.
         model.offersNextWords = false
         keyboard = AstrotypeUI.KeyboardView(model: model)
-        inputFrame = KeyboardFrame(keyboard: keyboard, bottom: Self.windowBottom)
+        inputFrame = KeyboardFrame(keyboard: keyboard, safeArea: Self.windowInsets)
         super.init()
         keyboard.onHeightChange = { [weak self] height in
             guard let self else { return }
@@ -97,9 +97,9 @@ final class KeyboardSession: NSObject, UITextViewDelegate {
     /// it. UIKit sizes an input view from its frame when it comes up, and the frame
     /// started at a phone's height: on a wide screen the taller keys were cut off when
     /// the resize after the first layout came too late (Gabriel, 1 Nov 2026).
-    func fit(width: CGFloat, bottom: CGFloat = KeyboardSession.windowBottom) {
+    func fit(width: CGFloat, safeArea: UIEdgeInsets = KeyboardSession.windowInsets) {
         guard width > 0 else { return }
-        inputFrame.setBottom(bottom)
+        inputFrame.setSafeArea(safeArea)
         let height = inputFrame.height(forWidth: width)
         guard inputFrame.frame.size.height != height || inputFrame.frame.size.width != width else { return }
         inputFrame.frame = CGRect(x: 0, y: 0, width: width, height: height)
@@ -114,12 +114,13 @@ final class KeyboardSession: NSObject, UITextViewDelegate {
         return scene.keyWindow?.bounds.width ?? scene.screen.bounds.width
     }
 
-    /// The strip under the keys: the window's home indicator area, where iOS leaves
-    /// room under the extension too (0 on a phone with a home button).
-    static var windowBottom: CGFloat {
+    /// The window's safe area: the bottom is the strip under the keys (the home
+    /// indicator's, 0 with a home button), the sides keep wide keys off the screen's
+    /// edges, as iOS does for the extension.
+    static var windowInsets: UIEdgeInsets {
         let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first { $0.activationState == .foregroundActive }
             ?? UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
-        return scene?.keyWindow?.safeAreaInsets.bottom ?? 0
+        return scene?.keyWindow?.safeAreaInsets ?? .zero
     }
 
     /// Empties the field and drops any open word.
@@ -192,6 +193,6 @@ struct KeyboardField: UIViewRepresentable {
     }
 
     func updateUIView(_ uiView: UITextView, context: Context) {
-        if let window = uiView.window { session.fit(width: window.bounds.width, bottom: window.safeAreaInsets.bottom) }
+        if let window = uiView.window { session.fit(width: window.bounds.width, safeArea: window.safeAreaInsets) }
     }
 }

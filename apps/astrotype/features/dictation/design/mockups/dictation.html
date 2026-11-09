@@ -180,7 +180,10 @@ button.r{cursor:pointer}
 .mic:active{transform:scale(1.15)}
 .snip{font-weight:800;font-size:15px;color:var(--muted);background:transparent;border:0;padding:0 4px;cursor:pointer}
 .rslot{display:flex;align-items:center;justify-content:flex-end}
-.kbar.wider{grid-template-columns:44px minmax(0,1fr) 84px}
+.mickey svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.key.mickey{flex:1.2 1 0;max-width:44px}
+.key.mickey.on{background:var(--right);color:#fff}
+.phone.wide .key.mickey{max-width:70px}
 /* ListeningStrip (new) */
 .strip{grid-column:1/-1;display:grid;grid-template-columns:44px minmax(0,1fr) 44px;align-items:center;gap:4px;height:100%;animation:rise .2s ease-out}
 .strip .mid{display:flex;align-items:center;justify-content:center;gap:10px;min-width:0}
@@ -243,10 +246,14 @@ button.r{cursor:pointer}
     <button data-s="again">6. Tap the mic: listening at once</button>
     <button data-s="hold">7. Or hold it to talk</button>
     <button data-s="mix">8. Talk and type together</button>
+    <button data-s="swiped">8b. After a swipe: the pencil</button>
     <small>More</small>
     <button data-s="settings">9. Settings → Dictation</button>
     <button data-s="noaccess">10. Full Access off</button>
     <small>Look</small>
+    <div class="seg-mini" id="place">
+      <button data-place="top" aria-pressed="true">Mic top right</button><button data-place="bottom">Mic bottom right</button>
+    </div>
     <div class="seg-mini" id="device">
       <button data-device="" aria-pressed="true">iPhone</button><button data-device="duo">iPhone Duo</button>
     </div>
@@ -268,13 +275,14 @@ const ICON = {
   close:'<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>',
   check:'<svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7"/></svg>',
 };
-const S = {screen:'idle', size:'', device:'', anim:true};
+const S = {screen:'idle', size:'', device:'', place:'top', anim:true};
 const CARET = '<span class="caret"></span>';
 const SAID = 'Running ten minutes late, save me a seat by the window.';
 let timer = null;
 
 const WHY = {
-  idle:'The mic sits at the bar\'s right end, next to snippets, whenever there\'s nothing to fix. While you fix a word, the pencil takes that spot as it does today.',
+  idle:'Switch “Mic top right” / “Mic bottom right” above. Top right: the bar\'s right end holds one button, the mic, except when the last word has something to fix (then the pencil). Snippets move into the Astrotype menu (the logo). Bottom right: a mic key left of return, like where iOS puts its own, and space gets a little shorter.',
+  swiped:'Top right: right after a swiped or fixable word, the pencil takes the spot (as today) and the mic comes back as soon as you type on or the word is fixed. Bottom right: the mic key never moves, the pencil keeps the bar\'s right end.',
   open:'No mic session yet, so Astrotype opens. It turns the mic on and shows where to go: the swipe trail runs along the real bottom edge. On phones that show “◀ Notes” at the top left, a bubble points at it too. Switch to iPhone Duo above: no ◀ button there, so no bubble.',
   ask:'Only the very first time: Astrotype asks for the microphone, with one line on why, then shows the go-back screen.',
   listen:'Back in Notes, it\'s already listening. Your words go into the field as you talk (the grey part may still change), so the bar just shows your voice. ✕ stops and takes it back, ✓ stops and keeps it.',
@@ -292,7 +300,7 @@ function keys(){
     <div class="krow">${[...r[0]].map(c=>`<button class="key">${c}</button>`).join('')}</div>
     <div class="krow" style="padding:0 16px">${[...r[1]].map(c=>`<button class="key">${c}</button>`).join('')}</div>
     <div class="krow"><button class="key fn">⇧</button>${[...r[2]].map(c=>`<button class="key">${c}</button>`).join('')}<button class="key fn">⌫</button></div>
-    <div class="krow"><button class="key fn">123</button><button class="key space">Astrotype</button><button class="key ret">return</button></div></div>`;
+    <div class="krow"><button class="key fn">123</button><button class="key space">Astrotype</button>${S.place==='bottom'?`<button class="key fn mickey${listening()?' on':''}" data-go="${micGo()}" aria-label="Dictate">${ICON.mic}</button>`:''}<button class="key ret">return</button></div></div>`;
 }
 function notes(fieldHtml, barHtml, hint, wide){
   return `<div class="screen${S.anim?' anim':''}">
@@ -300,10 +308,20 @@ function notes(fieldHtml, barHtml, hint, wide){
     <div class="compose"><div class="field" id="field">${fieldHtml}</div></div>
     <div class="kb"><div class="kbar fresh${wide?' wider':''}" role="toolbar" aria-label="Suggestions">${barHtml}${hint?`<div class="hint">${hint}</div>`:''}</div>${keys()}</div></div>`;
 }
-function idleBar(ready, go){
+function listening(){ return ['listen','again','hold','mix'].includes(S.screen); }
+function ready(){ return ['done','again','hold','mix','swiped'].includes(S.screen); }
+function micGo(){ return ready() ? 'again' : 'open'; }
+/* One button at the bar's right end: the pencil when the last word has something to fix,
+   otherwise the mic (top-right placement). Snippets moved to the Astrotype menu. */
+function rightSlot(fixable){
+  if (fixable) return `<button class="icon" aria-label="Not it?">${ICON.pencil}</button>`;
+  if (S.place==='top') return `<button class="mic${ready()?' ready':''}" data-go="${micGo()}" aria-label="Dictate${ready()?', mic ready':''}">${ICON.mic}</button>`;
+  return '';
+}
+function idleBar(){
   return `<div><button class="icon" aria-label="Astrotype">${ICON.logo}</button></div>
     <div class="center"></div>
-    <div class="rslot"><button class="snip" aria-label="Snippets">{ }</button><button class="mic${ready?' ready':''}" data-go="${go}" aria-label="Dictate${ready?', mic ready':''}">${ICON.mic}</button></div>`;
+    <div class="rslot">${rightSlot(false)}</div>`;
 }
 function strip(held){
   return `<div class="strip">
@@ -342,12 +360,13 @@ function settings(){
     </div></div>`;
 }
 const SCREENS = {
-  idle:()=>notes(`Yes! ${CARET}`, idleBar(false,'open'), null, true),
+  idle:()=>notes(`Yes! ${CARET}`, idleBar()),
   open:()=>goBack(false),
   ask:()=>goBack(true),
   listen:()=>notes(`Yes! <span class="dict" id="said"></span>${CARET}`, strip(false)),
-  done:()=>notes(`Yes! ${SAID} ${CARET}`, idleBar(true,'again'), null, true),
+  done:()=>notes(`Yes! ${SAID} ${CARET}`, idleBar()),
   again:()=>notes(`Yes! ${SAID} <span class="dict" id="said"></span>${CARET}`, strip(false)),
+  swiped:()=>notes(`Yes! See you <span class="dict">tonihgt</span>${CARET}`, `<div><button class="icon" aria-label="Astrotype">${ICON.logo}</button></div><div class="center"><button class="g alt">tonight</button><button class="g pill">tonihgt</button><button class="g alt">toning</button></div><div class="rslot">${rightSlot(true)}</div>`),
   mix:()=>notes(`Yes! <span class="dict">Hello how</span> r <span class="dict" id="said"></span>${CARET}`, strip(false)),
   hold:()=>notes(`Yes! ${SAID} <span class="dict" id="said"></span>${CARET}`, strip(true)),
   settings:()=>settings(),
@@ -385,6 +404,7 @@ document.getElementById('picker').addEventListener('click', e => {
   const b = e.target.closest('button'); if (!b) return;
   if (b.dataset.s) go(b.dataset.s);
   if (b.dataset.size !== undefined){ S.size = b.dataset.size; press('size', b); render(); }
+  if (b.dataset.place !== undefined){ S.place = b.dataset.place; press('place', b); render(); }
   if (b.dataset.device !== undefined){ S.device = b.dataset.device; press('device', b); render(); }
   if (b.dataset.theme !== undefined){ if (b.dataset.theme) document.documentElement.dataset.theme = b.dataset.theme; else delete document.documentElement.dataset.theme; press('theme', b); }
 });

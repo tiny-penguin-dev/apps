@@ -61,9 +61,15 @@ Status: Draft
 
 - **Mockups:** `design/mockups/dictation.html` (Artifact link: https://claude.ai/artifact/1X9CUKqafCqWTwL2ace9qu)
 - **What changes:**
-  - **The bar** gets a mic button at its right end, next to the snippets button, when
-    there's nothing to fix (idle and next words). While you fix a word the pencil has
-    that spot, as today. A small mint dot on the mic means the mic is on and ready.
+  - **Where the mic goes** (open, both mocked; Gabriel, 9 Nov 2026):
+    - *Top right:* the bar's right end holds one button. It's the pencil when the last
+      word has something to fix (as today), otherwise the mic. Snippets leave the bar
+      and become a row in the Astrotype menu (the logo), next to Switch keyboard and
+      Open Astrotype. In the split middle column the same one button sits on the
+      bottom row next to the logo (`BarView.layoutRows()`, from the split-column work).
+    - *Bottom right:* a mic key left of return, near where iOS puts its own; space gets
+      a little shorter. The bar's right end keeps only the pencil.
+    - Either way, a small mint dot on the mic means the mic is on and ready.
   - **Listening state:** the bar turns into a listening strip: ✕ at the left (stop and
     take back what was said), a wide live sound wave across the middle, and a mint ✓
     at the right (stop and keep). The words go straight into the field as you speak, so
@@ -106,15 +112,14 @@ Status: Draft
 - **Sizes:** the wave fills whatever width the middle has. On the
   Duo's inner screen the go-back screen centres its text in a narrower column and the
   trail still runs along the full bottom edge. In a column layout (split keyboard) the
-  mic joins the small buttons on the column's bottom row (`BarView.layoutRows()`'s
-  `ends`), and the strip stacks: wave, words, then ✕ and ✓.
+  strip stacks: the wave, then ✕ and ✓.
 - **Accessibility:** the mic button reads "Dictate" ("Dictate, mic ready" when on), with
   the hint "Double tap to start. Double tap and hold to talk." The strip's buttons read
   "Stop and discard" and "Done". VoiceOver hears "Listening" when it starts. The
   go-back screen's text says what to do without the animation.
 - **Open questions** for Gabriel:
-  1. Mic next to snippets at the bar's right end, or a mic key left of space (like
-     Gboard), taking some of space's width?
+  1. Top right (one button: pencil when there's something to fix, else mic) or a mic
+     key left of return?
 
 ## Build
 

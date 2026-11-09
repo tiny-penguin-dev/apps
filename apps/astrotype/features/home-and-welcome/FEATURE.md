@@ -172,3 +172,19 @@ Status: Approved 2026-11-09 (Gabriel: "go ahead and build it")
 - **Metrics:** `home.style_changed` (theme, effects) and `lesson.replayed` in phase 1;
   `setup.step` and `setup.style` in phase 2.
 - **Last step:** fold this feature into the app's `PRODUCT.md` and `DESIGN.md`.
+
+### After trying it (Gabriel, 9 Nov 2026)
+
+- The theme and effect rows run to the edges of the Your keyboard card and are clipped
+  there; the theme tiles are lighter than the card. Each row scrolls to the picked one
+  when Home opens.
+- The floating Keyboard button ignores the side safe areas.
+- Your speed is one card: the speed, Practice for speed, and one "Practice and learn"
+  row (the screen is renamed to match).
+- Typing (with Dictation inside it), Languages and Your words moved from Settings to Home,
+  under the Your keyboard card. Appearance left Settings (the card and More styling cover
+  it). Settings keeps the status tiles, privacy, Pro, About and Debug.
+- With Pro off, a Pro theme or effect can be tried on the practice keyboards (Home's
+  dock, Make it yours). A note says so, with Get Pro and a close button; the real
+  keyboard keeps Classic and Calm, and nothing is saved. Counted as
+  `home.style_changed` with part `theme_preview` or `effects_preview`.

@@ -132,6 +132,50 @@ final class AppModel {
 
     func arrivalCelebrated() { arrivedFromSetup = false }
 
+    // MARK: Trying a Pro look
+
+    /// A Pro theme or effect tried with Pro off (Gabriel, 9 Nov 2026: preview Pro looks
+    /// on the demo keyboard, but not in normal use). Only the practice keyboards show
+    /// it; the real keyboard keeps Classic and Calm. Never saved.
+    private(set) var previewThemeID: String?
+    private(set) var previewEffects: EffectsSettings?
+
+    var isPreviewingLook: Bool { previewThemeID != nil || previewEffects != nil }
+
+    /// What the practice keyboards show: the settings with the Pro limits applied, then
+    /// any look being tried on top.
+    var demoSettings: KeyboardSettings {
+        var settings = keyboardSettings
+        settings.themeID = previewThemeID ?? settings.style(allows: entitlement.allows(.styles)).id
+        if let previewEffects {
+            settings.effects = previewEffects
+            settings.trails = true
+        } else if let active = settings.activeEffects(allows: entitlement.allows(.effects)) {
+            settings.effects = active
+        }
+        return settings
+    }
+
+    /// The practice keyboards draw everything while a look is being tried.
+    var demoEntitlement: Entitlement { isPreviewingLook ? .full : entitlement }
+
+    /// Tries a Pro theme (nil goes back to the real one).
+    func tryTheme(_ id: String?) {
+        previewThemeID = id
+        if id != nil { environment.metrics.count("home.style_changed", ["part": "theme_preview"]) }
+    }
+
+    /// Tries a Pro effects preset (nil goes back to the real one).
+    func tryEffects(_ effects: EffectsSettings?) {
+        previewEffects = effects
+        if effects != nil { environment.metrics.count("home.style_changed", ["part": "effects_preview"]) }
+    }
+
+    func stopPreview() {
+        previewThemeID = nil
+        previewEffects = nil
+    }
+
     // MARK: Keyboard status
 
     /// Re-reads whether the keyboard is on and what the extension last reported; counts

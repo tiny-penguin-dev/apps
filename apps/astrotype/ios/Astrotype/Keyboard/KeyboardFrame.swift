@@ -14,15 +14,21 @@ import UIKit
 @MainActor
 final class KeyboardFrame: UIView {
     let keyboard: AstrotypeUI.KeyboardView
-    private let panel = UIView()
+    /// The backdrop: Liquid Glass on iOS 26, like the system's panel (Gabriel, 9 Nov
+    /// 2026: the practice keyboard should be glass like the real one), solid before.
+    private let panel: UIView
 
     /// Room around the keys. Sides and top only on iOS 26, where the system's panel has
-    /// them (5 pt and 4 pt on his phone); the bottom is the home indicator's strip.
-    static func margins(bottom: CGFloat) -> UIEdgeInsets {
-        if #available(iOS 26, *) {
-            return UIEdgeInsets(top: 4, left: 5, bottom: bottom, right: 5)
-        }
-        return UIEdgeInsets(top: 0, left: 0, bottom: bottom, right: 0)
+    /// them (5 pt and 4 pt on his phone); the bottom is the home indicator's strip. On a
+    /// wide screen the sides also keep out of the window's side safe areas, as the
+    /// system's keyboard does (Gabriel, 9 Nov 2026: the wide and split keys ran to the
+    /// screen's edges where the real ones don't).
+    static func margins(safeArea: UIEdgeInsets) -> UIEdgeInsets {
+        let side: CGFloat
+        if #available(iOS 26, *) { side = 5 } else { side = 0 }
+        let top: CGFloat
+        if #available(iOS 26, *) { top = 4 } else { top = 0 }
+        return UIEdgeInsets(top: top, left: max(side, safeArea.left), bottom: safeArea.bottom, right: max(side, safeArea.right))
     }
 
     /// The panel's top corners on iOS 26.
@@ -30,20 +36,13 @@ final class KeyboardFrame: UIView {
 
     private(set) var margins: UIEdgeInsets
 
-    init(keyboard: AstrotypeUI.KeyboardView, bottom: CGFloat) {
+    init(keyboard: AstrotypeUI.KeyboardView, safeArea: UIEdgeInsets) {
         self.keyboard = keyboard
-        margins = Self.margins(bottom: bottom)
+        margins = Self.margins(safeArea: safeArea)
+        panel = Self.makePanel()
         super.init(frame: CGRect(x: 0, y: 0, width: keyboard.bounds.width, height: keyboard.bounds.height + margins.top + margins.bottom))
         autoresizingMask = [.flexibleWidth]
         backgroundColor = .clear
-        if #available(iOS 26, *) {
-            panel.backgroundColor = Theme.ui(.kbGlass)
-            panel.layer.cornerRadius = Self.cornerRadius
-            panel.layer.cornerCurve = .continuous
-            panel.layer.maskedCorners = [.layerMinXMinYCorner, .layerMaxXMinYCorner]
-        } else {
-            panel.backgroundColor = Theme.ui(.kb)
-        }
         addSubview(panel)
         // The panel draws the backdrop, as the system's does for the extension.
         keyboard.usesSystemBackdrop = true
@@ -53,13 +52,30 @@ final class KeyboardFrame: UIView {
         addSubview(keyboard)
     }
 
+    private static func makePanel() -> UIView {
+        if #available(iOS 26, *) {
+            let glass = UIGlassEffect(style: .regular)
+            glass.tintColor = Theme.ui(.kbGlass).withAlphaComponent(0.55)
+            let effect = UIVisualEffectView(effect: glass)
+            effect.layer.cornerRadius = cornerRadius
+            effect.layer.cornerCurve = .continuous
+            effect.layer.maskedCorners = [.layerMinXMinYCorner, .layerMaxXMinYCorner]
+            effect.clipsToBounds = true
+            return effect
+        }
+        let panel = UIView()
+        panel.backgroundColor = Theme.ui(.kb)
+        return panel
+    }
+
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
 
-    /// The bottom strip changed (the window's safe area is known now).
-    func setBottom(_ bottom: CGFloat) {
-        guard margins.bottom != bottom else { return }
-        margins = Self.margins(bottom: bottom)
+    /// The window's safe area changed (known now, or the screen turned).
+    func setSafeArea(_ safeArea: UIEdgeInsets) {
+        let new = Self.margins(safeArea: safeArea)
+        guard margins != new else { return }
+        margins = new
         setNeedsLayout()
     }
 

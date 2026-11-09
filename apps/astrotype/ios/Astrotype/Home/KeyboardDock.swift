@@ -38,11 +38,12 @@ struct KeyboardDock: View {
                     .buttonStyle(.plain)
                     .accessibilityLabel("Hide keyboard")
                 }
-                .padding(.leading, Theme.Space.xs)
+                .padding(.leading, Theme.Space.s)
                 .padding(.trailing, Theme.Space.m)
-                .background(Theme.card, in: RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
-                .padding(.horizontal, Theme.Space.s)
-                .padding(.bottom, Theme.Space.xs)
+                .padding(.vertical, Theme.Space.xs)
+                // A strip in the keyboard's own colour, the full width of the screen
+                // (Gabriel, 9 Nov 2026), sitting on the keys like part of them.
+                .background { DockStrip().ignoresSafeArea(.container, edges: .horizontal) }
                 // Off screen while hidden: the field stays in the view so it can take the keys again.
                 .opacity(focused ? 1 : 0)
                 .allowsHitTesting(focused)
@@ -64,6 +65,9 @@ struct KeyboardDock: View {
                 .buttonStyle(.plain)
                 .padding(.trailing, Theme.Space.gutter)
                 .padding(.bottom, Theme.Space.s)
+                // Sits by the screen's corner, not inside a side safe area (landscape, the Duo).
+                .frame(maxWidth: .infinity, alignment: .trailing)
+                .ignoresSafeArea(.container, edges: .horizontal)
                 .transition(reduceMotion ? .opacity : .scale(scale: 0.8).combined(with: .opacity))
                 .accessibilityLabel("Show keyboard")
             }
@@ -71,8 +75,9 @@ struct KeyboardDock: View {
         .animation(Theme.Motion.spring(reduceMotion: reduceMotion), value: focused)
         .onAppear {
             guard session == nil else { return }
-            let session = KeyboardSession(settingsStore: MemorySettingsStore(model.keyboardSettings), learned: model.learnedWords, personal: model.personal)
-            session.apply(entitlement: model.entitlement)
+            // Shows a Pro look being tried too (AppModel.demoSettings); the real keyboard doesn't.
+            let session = KeyboardSession(settingsStore: MemorySettingsStore(model.demoSettings), learned: model.learnedWords, personal: model.personal)
+            session.apply(entitlement: model.demoEntitlement)
             session.onWordsChange = { words in model.learnedWordsChanged(words) }
             session.onFocusChange = { isFocused in focused = isFocused }
             self.session = session
@@ -83,7 +88,21 @@ struct KeyboardDock: View {
             // Away while another screen is on top (it brings its own keys), back after.
             if active, shown { session?.focus() } else if !active { session?.unfocus() }
         }
-        .onChange(of: model.keyboardSettings) { session?.apply(model.keyboardSettings) }
-        .onChange(of: model.proStatus) { session?.apply(entitlement: model.entitlement) }
+        .onChange(of: model.demoSettings) { session?.apply(model.demoSettings) }
+        .onChange(of: model.proStatus) { session?.apply(entitlement: model.demoEntitlement) }
+        .onChange(of: model.isPreviewingLook) { session?.apply(entitlement: model.demoEntitlement) }
+    }
+}
+
+/// The strip behind the try-it field: glass like the keys under it on iOS 26, the
+/// keyboard's own colour before.
+private struct DockStrip: View {
+    var body: some View {
+        let shape = UnevenRoundedRectangle(topLeadingRadius: Theme.Radius.md, topTrailingRadius: Theme.Radius.md, style: .continuous)
+        if #available(iOS 26, *) {
+            Color.clear.glassEffect(.regular.tint(Color(uiColor: Theme.ui(.kbGlass)).opacity(0.55)), in: shape)
+        } else {
+            shape.fill(Color(uiColor: Theme.ui(.kb)))
+        }
     }
 }

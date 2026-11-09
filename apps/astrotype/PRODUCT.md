@@ -280,7 +280,7 @@ and `guess.*` rows below).
 | `onboarding.finished` (duration) | How long first setup takes (goal: under two minutes) |
 | `setup.step` (`step`) | Where people drop off in the welcome wizard |
 | `setup.style` (`theme`, `effects`, `changed`) | Whether people make the keyboard theirs in setup |
-| `home.style_changed` (`part`) | Whether Home's Your keyboard card gets used |
+| `home.style_changed` (`part`: theme, effects, theme_preview, effects_preview) | Whether Home's Your keyboard card gets used, and how often free users try a Pro look |
 | `lesson.replayed` | Whether people want the two-thumb lesson again |
 | `speedtest.finished` (gauge: words per minute) | Whether people get faster over time |
 | `speed.everyday` (gauge: words per minute, once per finished day with a speed) | Whether people really type faster with Astrotype, outside practice (features/typing-speed) |

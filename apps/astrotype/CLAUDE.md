@@ -19,10 +19,10 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
     `App/` (`AppModel`, the only thing views talk to; `AppEnvironment`, the one place
     real services are named; `LiveMetrics` on `Telemetry`), `Onboarding/`
     (the welcome wizard, in order: `TurnOnView`, `LanguagesSetupView` (only on a phone set to two languages), `MakeItYoursView`, `TryItView` (also the lesson from Learn, `inSetup: false`), `SyncView`; `WizardPage`, their shared shape, with `StepProgress` and Skip from `AppModel.setupStep`),
-    `HelloView`, `HomeView` (header "Astrotype", led by `SpeedCard` with its Practice and Learn tiles), `Home/` (features/home-and-welcome: `YourKeyboardCard` with `ThemeRow` and `EffectRow`/`EffectCard`, the drawn effect previews; `KeyboardDock`, the practice keyboard docked at the bottom of Home, shown or hidden in `@AppStorage("home.keyboardShown")`; `LearnPracticeView` and `TipsView`), `Speed/` (`SpeedViews`: `SpeedCard`, `SpeedHistoryView`,
+    `HelloView`, `HomeView` (header "Astrotype", led by the one-card `SpeedCard` with its Practice and learn row, then Your keyboard, then links to Typing, Languages and Your words; a Pro look tried with Pro off lives in `AppModel.previewThemeID`/`previewEffects` and only the practice keyboards show it via `demoSettings`/`demoEntitlement`), `Home/` (features/home-and-welcome: `YourKeyboardCard` with `ThemeRow` and `EffectRow`/`EffectCard`, the drawn effect previews; `KeyboardDock`, the practice keyboard docked at the bottom of Home, shown or hidden in `@AppStorage("home.keyboardShown")`; `LearnPracticeView` and `TipsView`), `Speed/` (`SpeedViews`: `SpeedCard`, `SpeedHistoryView`,
     `SpeedChart`; the everyday typing speed, features/typing-speed; `LeaderboardView`: `LeaderboardCard`, `RankRow`,
     the weekly Game Center boards, features/leaderboards, with `App/GameCenterLeaderboards`, the live
-    `LeaderboardService`), `Settings/` (`SettingsView`, the main page with its
+    `LeaderboardService`), `Settings/` (`SettingsView`, the main page (status tiles, account rows; Typing, Languages and Your words open from Home) with its
     `SettingsPage`s, and `SettingsPages`, one view per page; `StyleSettings`, Appearance's hub and its General, Styling, theme editor and Effects pages with the live `StylePreview` (features/customization); `DebugSettings`, the Debug page:
     the keyboard's memory against 40 MB from `KeyboardDebug`, the switch for the
     stats overlay on the keys, and in TestFlight builds the typing recorder: "Keep

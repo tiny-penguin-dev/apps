@@ -26,10 +26,10 @@ struct MakeItYoursView: View {
         }
         .onAppear {
             guard session == nil else { return }
-            let session = KeyboardSession(settingsStore: MemorySettingsStore(model.keyboardSettings), learned: model.learnedWords, personal: model.personal)
-            session.apply(entitlement: model.entitlement)
+            let session = KeyboardSession(settingsStore: MemorySettingsStore(model.demoSettings), learned: model.learnedWords, personal: model.personal)
+            session.apply(entitlement: model.demoEntitlement)
             self.session = session
         }
-        .onChange(of: model.keyboardSettings) { session?.apply(model.keyboardSettings) }
+        .onChange(of: model.demoSettings) { session?.apply(model.demoSettings) }
     }
 }

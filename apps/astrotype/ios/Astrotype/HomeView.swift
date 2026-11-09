@@ -2,8 +2,9 @@ import AstrotypeCore
 import AstrotypeUI
 import SwiftUI
 
-/// Home (features/home-and-welcome): "Astrotype", Your speed with its Practice and
-/// Learn tiles, the Your keyboard card (themes, effects, height), then Pro and Settings,
+/// Home (features/home-and-welcome): "Astrotype", the Your speed card with Practice and
+/// learn in it, the Your keyboard card (themes, effects, height), the everyday settings
+/// (Typing, Languages, Your words), then Pro and Settings,
 /// with the practice keyboard docked at the bottom to try the look on. One column on a
 /// phone; on the wide size Your speed, Pro and Settings on the left and Your keyboard on
 /// the right. A sun-yellow banner leads back to setup while the keyboard is off. The
@@ -48,6 +49,7 @@ struct HomeView: View {
                             HStack(alignment: .top, spacing: Theme.Space.gutter) {
                                 VStack(spacing: Theme.Space.l) {
                                     leftColumn
+                                    everydaySettings
                                     accountRows
                                 }
                                 .frame(maxWidth: .infinity)
@@ -56,6 +58,7 @@ struct HomeView: View {
                         } else {
                             leftColumn
                             keyboardColumn
+                            everydaySettings
                             accountRows
                         }
                     }
@@ -151,14 +154,12 @@ struct HomeView: View {
     private var sheetUp: Bool { model.trialOverDue || (path.isEmpty && model.pendingMilestone != nil) }
 
     private var leftColumn: some View {
-        VStack(alignment: .leading, spacing: Theme.Space.m) {
-            // Your speed leads Home (features/typing-speed): the everyday speed, and
-            // practice that measures you against it, with Practice and Learn under it.
-            SpeedCard(model: model, open: { path.append(.speed) },
-                      practice: { path.append(.speedTest(.astrotype, nil)) },
-                      learnAndPractice: { path.append(.learnPractice($0)) },
-                      turnOn: { path.append(.turnOn) })
-        }
+        // Your speed leads Home (features/typing-speed): one card with the everyday speed,
+        // Practice for speed, and the way into Practice and learn.
+        SpeedCard(model: model, open: { path.append(.speed) },
+                  practice: { path.append(.speedTest(.astrotype, nil)) },
+                  learnAndPractice: { path.append(.learnPractice(.practice)) },
+                  turnOn: { path.append(.turnOn) })
     }
 
     private var keyboardColumn: some View {
@@ -166,15 +167,48 @@ struct HomeView: View {
             SectionLabel("Your keyboard")
             YourKeyboardCard(model: model, moreStyling: { path.append(.settingsPage(.appearance)) },
                              openPro: { path.append(.pro) },
-                             played: { dock?.keyboard.surface.playBurst() })
+                             played: playOnDock)
         }
+    }
+
+    /// Plays the picked effect on the docked keys, once the dock has the new settings.
+    private func playOnDock() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { dock?.keyboard.surface.playBurst() }
+    }
+
+    /// The everyday settings, on Home (Gabriel, 9 Nov 2026: Settings is for the more
+    /// serious things). Dictation lives inside Typing.
+    private var everydaySettings: some View {
+        VStack(alignment: .leading, spacing: Theme.Space.s) {
+            SectionLabel("Typing")
+            SettingsGroup {
+                SettingsLink("Typing", subtitle: "Autospace, real words, gestures, dictation", symbol: "keyboard", tint: Theme.right) {
+                    path.append(.settingsPage(.typing))
+                }
+                SettingsLink("Languages", subtitle: languagesSubtitle, symbol: "character.bubble", tint: Theme.sun) {
+                    path.append(.settingsPage(.languages))
+                }
+                SettingsLink("Your words", subtitle: wordsSubtitle, symbol: "text.book.closed", tint: Theme.mint) {
+                    path.append(.settingsPage(.words))
+                }
+            }
+        }
+    }
+
+    private var languagesSubtitle: String {
+        model.activeLanguages.map { Language.names[$0] ?? $0 }.joined(separator: ", ")
+    }
+
+    private var wordsSubtitle: String {
+        let count = model.learnedWords.recent.count
+        return "\(count) learned · learning \(model.learnsFromYou ? "on" : "off")"
     }
 
     private var accountRows: some View {
         VStack(spacing: Theme.Space.s) {
             proRow
             Button { path.append(.settings) } label: {
-                Row("Settings", subtitle: "Typing, languages, your words, privacy") {
+                Row("Settings", subtitle: "iCloud sync, privacy, Pro, about") {
                     Text("Open ›").font(.system(.subheadline, design: .rounded, weight: .heavy)).foregroundStyle(Theme.muted)
                 }
             }

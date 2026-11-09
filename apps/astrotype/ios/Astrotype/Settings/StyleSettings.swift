@@ -184,6 +184,8 @@ struct ThemeCard: View {
     var dark: Bool
     var selected: Bool
     var locked: Bool
+    /// The tile behind it; Home's card asks for a lighter one so the tiles stand out.
+    var fill: Color = Theme.card
 
     var body: some View {
         let colors = theme.colors(dark: dark)
@@ -222,7 +224,7 @@ struct ThemeCard: View {
             }
         }
         .padding(Theme.Space.s)
-        .background(Theme.card, in: RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous))
+        .background(fill, in: RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous)
                 .strokeBorder(selected ? Theme.accent : .clear, lineWidth: 2.5)

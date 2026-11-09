@@ -12,7 +12,7 @@ struct YourKeyboardCard: View {
     var showsHeight = true
     /// Opens Settings → Appearance; nil hides the link (the wizard).
     var moreStyling: (() -> Void)?
-    /// A Pro theme or effect was picked with Pro off.
+    /// Opens Pro (from the note while a Pro look is being tried).
     var openPro: () -> Void
     /// An effect was picked: play it on the keys.
     var played: () -> Void = {}
@@ -22,20 +22,40 @@ struct YourKeyboardCard: View {
     var body: some View {
         Card {
             VStack(alignment: .leading, spacing: Theme.Space.m) {
-                if !model.entitlement.allows(.styles) {
-                    Text("Pro looks are resting. Classic and Calm are on.")
+                if model.isPreviewingLook {
+                    HStack(spacing: Theme.Space.s) {
+                        Text("Trying a Pro look on this keyboard. Your keyboard keeps Classic and Calm.")
+                            .font(.sw(.small))
+                            .fixedSize(horizontal: false, vertical: true)
+                        Spacer(minLength: 0)
+                        Button("Get Pro", action: openPro).buttonStyle(.small)
+                        Button {
+                            model.stopPreview()
+                        } label: {
+                            Image(systemName: "xmark").font(.footnote.weight(.heavy)).foregroundStyle(Theme.muted)
+                                .frame(width: 32, height: 32)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Stop trying")
+                    }
+                    .padding(Theme.Space.s)
+                    .background(Theme.sun.opacity(0.28), in: RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous))
+                } else if !model.entitlement.allows(.styles) {
+                    Text("Pro looks are resting. Tap one to try it on the keyboard here.")
                         .font(.sw(.small))
                         .padding(Theme.Space.s)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .background(Theme.sun.opacity(0.28), in: RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous))
                 }
                 label("Theme")
-                ThemeRow(model: model, openPro: openPro, picked: { if counts { model.homeStyleChanged("theme") } })
+                ThemeRow(model: model, picked: { if counts { model.homeStyleChanged("theme") } })
+                    .bleeds()
                 label("Effects")
-                EffectRow(model: model, openPro: openPro, played: {
+                EffectRow(model: model, played: {
                     played()
                     if counts { model.homeStyleChanged("effects") }
                 })
+                .bleeds()
                 if showsHeight {
                     SettingsSlider("Height", value: Binding(get: { model.keyboardSettings.keyboardHeight }, set: { value in
                         model.keyboardSettings.keyboardHeight = value
@@ -71,78 +91,116 @@ struct YourKeyboardCard: View {
     }
 }
 
-/// The themes, built in then the person's own, sideways.
+/// The themes, built in then the person's own, sideways. With Pro off a Pro theme is
+/// tried on the practice keyboard only (`AppModel.tryTheme`).
 struct ThemeRow: View {
     @Bindable var model: AppModel
-    var openPro: () -> Void
     var picked: () -> Void = {}
     @Environment(\.colorScheme) private var scheme
 
     var body: some View {
         let pro = model.entitlement.allows(.styles)
-        let shown = model.keyboardSettings.style(allows: pro)
-        ScrollView(.horizontal, showsIndicators: false) {
-            LazyHStack(spacing: Theme.Space.s) {
-                ForEach(KeyboardTheme.builtIn + model.keyboardSettings.customThemes, id: \.id) { theme in
-                    let locked = !pro && !theme.isFree
-                    Button {
-                        if locked { openPro() } else { model.chooseTheme(theme.id); picked() }
-                    } label: {
-                        ThemeCard(theme: theme, dark: scheme == .dark, selected: shown.id == theme.id, locked: locked)
-                            .frame(width: 140)
+        let shown = model.demoSettings.chosenTheme
+        ScrollViewReader { reader in
+            ScrollView(.horizontal, showsIndicators: false) {
+                LazyHStack(spacing: Theme.Space.s) {
+                    ForEach(KeyboardTheme.builtIn + model.keyboardSettings.customThemes, id: \.id) { theme in
+                        let locked = !pro && !theme.isFree
+                        Button {
+                            if locked {
+                                model.tryTheme(theme.id)
+                            } else {
+                                model.tryTheme(nil)
+                                model.chooseTheme(theme.id)
+                            }
+                            picked()
+                        } label: {
+                            ThemeCard(theme: theme, dark: scheme == .dark, selected: shown.id == theme.id, locked: locked,
+                                      fill: Theme.ink.opacity(0.07))
+                                .frame(width: 140)
+                        }
+                        .buttonStyle(CardPressStyle())
+                        .id(theme.id)
+                        .accessibilityLabel("\(theme.name) theme" + (theme.isFree ? "" : ", Pro"))
+                        .accessibilityHint(locked ? "Tries it on the keyboard here" : "")
+                        .accessibilityAddTraits(shown.id == theme.id ? .isSelected : [])
                     }
-                    .buttonStyle(CardPressStyle())
-                    .accessibilityLabel("\(theme.name) theme" + (theme.isFree ? "" : ", Pro"))
-                    .accessibilityAddTraits(shown.id == theme.id ? .isSelected : [])
                 }
+                .padding(.vertical, 3)
+                .scrollTargetLayout()
             }
-            .padding(.vertical, 3)
+            .contentMargins(.horizontal, Theme.Space.l, for: .scrollContent)
+            // The picked one in view when the screen opens.
+            .onAppear { reader.scrollTo(shown.id, anchor: .center) }
         }
-        .scrollClipDisabled()
         .sensoryFeedback(.selection, trigger: shown.id)
     }
 }
 
 /// The effect presets, sideways, each card playing its own effect on one key, then Off.
+/// With Pro off a Pro preset is tried on the practice keyboard only.
 struct EffectRow: View {
     @Bindable var model: AppModel
-    var openPro: () -> Void
     var played: () -> Void
+
+    private enum Pick: Hashable { case preset(EffectsSettings.Preset), off }
 
     var body: some View {
         let pro = model.entitlement.allows(.effects)
-        let current: EffectsSettings.Preset? = model.keyboardSettings.activeEffects(allows: pro)?.preset
-        let off = !model.keyboardSettings.trails
-        ScrollView(.horizontal, showsIndicators: false) {
-            LazyHStack(spacing: Theme.Space.s) {
-                ForEach(EffectsSettings.Preset.allCases, id: \.self) { preset in
-                    let locked = !pro && preset != .calm
+        let demo = model.demoSettings
+        let off = !demo.trails
+        let current: EffectsSettings.Preset? = demo.activeEffects(allows: true)?.preset
+        let picked: Pick? = off ? .off : current.map { .preset($0) }
+        ScrollViewReader { reader in
+            ScrollView(.horizontal, showsIndicators: false) {
+                LazyHStack(spacing: Theme.Space.s) {
+                    ForEach(EffectsSettings.Preset.allCases, id: \.self) { preset in
+                        let locked = !pro && preset != .calm
+                        Button {
+                            if locked {
+                                model.tryEffects(.preset(preset))
+                            } else {
+                                model.tryEffects(nil)
+                                model.keyboardSettings.trails = true
+                                model.chooseEffects(.preset(preset))
+                            }
+                            played()
+                        } label: {
+                            EffectCard(look: .init(preset), name: preset.name, selected: picked == .preset(preset), pro: preset != .calm)
+                        }
+                        .buttonStyle(CardPressStyle())
+                        .id(Pick.preset(preset))
+                        .accessibilityLabel("\(preset.name) effects" + (preset == .calm ? "" : ", Pro"))
+                        .accessibilityHint(locked ? "Tries it on the keyboard here" : "")
+                        .accessibilityAddTraits(picked == .preset(preset) ? .isSelected : [])
+                    }
                     Button {
-                        if locked { openPro(); return }
-                        model.keyboardSettings.trails = true
-                        model.chooseEffects(.preset(preset))
+                        model.tryEffects(nil)
+                        model.keyboardSettings.trails = false
                         played()
                     } label: {
-                        EffectCard(look: .init(preset), name: preset.name, selected: !off && current == preset, pro: preset != .calm)
+                        EffectCard(look: .off, name: "Off", selected: off, pro: false)
                     }
                     .buttonStyle(CardPressStyle())
-                    .accessibilityLabel("\(preset.name) effects" + (preset == .calm ? "" : ", Pro"))
-                    .accessibilityAddTraits(!off && current == preset ? .isSelected : [])
+                    .id(Pick.off)
+                    .accessibilityLabel("Effects off")
+                    .accessibilityAddTraits(off ? .isSelected : [])
                 }
-                Button {
-                    model.keyboardSettings.trails = false
-                    played()
-                } label: {
-                    EffectCard(look: .off, name: "Off", selected: off, pro: false)
-                }
-                .buttonStyle(CardPressStyle())
-                .accessibilityLabel("Effects off")
-                .accessibilityAddTraits(off ? .isSelected : [])
+                .padding(.vertical, 3)
+                .scrollTargetLayout()
             }
-            .padding(.vertical, 3)
+            .contentMargins(.horizontal, Theme.Space.l, for: .scrollContent)
+            .onAppear { if let picked { reader.scrollTo(picked, anchor: .center) } }
         }
-        .scrollClipDisabled()
-        .sensoryFeedback(.selection, trigger: current)
+        .sensoryFeedback(.selection, trigger: picked)
+    }
+}
+
+extension View {
+    /// A sideways row inside a `Card` runs to the card's edges and is clipped there,
+    /// with its first card lined up with the rest of the card's content.
+    func bleeds() -> some View {
+        padding(.horizontal, -Theme.Space.l)
     }
 }
 
@@ -200,7 +258,7 @@ struct EffectCard: View {
                 }
             }
             .frame(width: 104, height: 70)
-            .background(look.tint.opacity(look == .space ? 0.85 : 0.16), in: RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous))
+            .background(look.tint.opacity(look == .space ? 0.85 : 0.3), in: RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous))
             .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: Theme.Radius.sm + 3, style: .continuous)

@@ -7,7 +7,8 @@ import SwiftUI
 /// (Typing, Languages, Your words), then Pro and Settings,
 /// with the practice keyboard docked at the bottom to try the look on. One column on a
 /// phone; on the wide size Your speed, Pro and Settings on the left and Your keyboard on
-/// the right. A sun-yellow banner leads back to setup while the keyboard is off. The
+/// the right. A sun-yellow card on top shows only while something needs fixing
+/// (`FixItCard`: keyboard off, Full Access off, sync failed). The
 /// Trial over sheet comes up here once, on the first launch after the trial ends.
 struct HomeView: View {
     var model: AppModel
@@ -42,9 +43,8 @@ struct HomeView: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: Theme.Space.l) {
                         header(wide: wide)
-                        if !model.isKeyboardOn {
-                            Banner("Astrotype isn't on yet.", action: "Turn on") { path.append(.turnOn) }
-                        }
+                        // Only while something is wrong, with how to fix it.
+                        FixItCard(model: model, turnOn: { path.append(.turnOn) }, fullAccess: { path.append(.sync) })
                         if wide {
                             HStack(alignment: .top, spacing: Theme.Space.gutter) {
                                 VStack(spacing: Theme.Space.l) {

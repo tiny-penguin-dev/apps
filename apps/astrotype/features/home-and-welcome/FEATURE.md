@@ -188,3 +188,7 @@ Status: Approved 2026-11-09 (Gabriel: "go ahead and build it")
   dock, Make it yours). A note says so, with Get Pro and a close button; the real
   keyboard keeps Classic and Calm, and nothing is saved. Counted as
   `home.style_changed` with part `theme_preview` or `effects_preview`.
+- (Gabriel, 9 Nov 2026) A sun-yellow fix-it card at the top of Home shows only while
+  something is wrong: the keyboard is off (Turn on), Full Access is off (Turn on, or Not
+  now, which hides it for good), or iCloud sync failed (Try again). It replaces the old
+  "isn't on yet" banner. Settings → Run setup again walks the wizard from Hello.

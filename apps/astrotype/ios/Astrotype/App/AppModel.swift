@@ -1048,6 +1048,16 @@ final class AppModel {
         environment.metrics.count("home.style_changed", ["part": part])
     }
 
+    /// Home's fix-it card came up with these problems (`home.fix_it`, once per launch each).
+    func fixItShown(_ problems: [String]) {
+        for problem in problems where !fixItCounted.contains(problem) {
+            fixItCounted.insert(problem)
+            environment.metrics.count("home.fix_it", ["problem": problem])
+        }
+    }
+
+    @ObservationIgnored private var fixItCounted: Set<String> = []
+
     /// The two-thumb lesson opened again from Learn.
     func lessonOpened() {
         environment.metrics.count("lesson.replayed")

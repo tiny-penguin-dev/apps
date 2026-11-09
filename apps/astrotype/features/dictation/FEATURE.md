@@ -51,17 +51,17 @@ seven test rounds)
   - `dictation.session_ended` count, `{"why": "idle" | "user" | "system"}`: how often
     iOS stops us before the 5 minutes.
   - `dictation.failed` count, `{"step": "permission" | "mic" | "speech" | "no_app"}`.
-- **Open questions** for Gabriel:
-  1. Free or Pro? I'd make it free: it's a basic, and Apple's is free.
-  2. Is 5 minutes right as the default? Settings could offer 1, 5 or 15.
+- **Decided** (Gabriel, 9 Nov 2026): free; 5 minutes by default, with 1, 5 or 15 in
+  Settings.
 
 ## Design
 
-Status: Draft
+Status: Approved 2026-11-09 (Gabriel: "put the mic on the top right and do what you
+said. You can start building.")
 
 - **Mockups:** `design/mockups/dictation.html` (Artifact link: https://claude.ai/artifact/1X9CUKqafCqWTwL2ace9qu)
 - **What changes:**
-  - **Where the mic goes** (open, both mocked; Gabriel, 9 Nov 2026):
+  - **Where the mic goes:** top right (Gabriel picked it, 9 Nov 2026). Both were mocked:
     - *Top right:* the bar's right end holds one button. It's the pencil when the last
       word has something to fix (as today), otherwise the mic. Snippets leave the bar
       and become a row in the Astrotype menu (the logo), next to Switch keyboard and
@@ -117,13 +117,11 @@ Status: Draft
   the hint "Double tap to start. Double tap and hold to talk." The strip's buttons read
   "Stop and discard" and "Done". VoiceOver hears "Listening" when it starts. The
   go-back screen's text says what to do without the animation.
-- **Open questions** for Gabriel:
-  1. Top right (one button: pencil when there's something to fix, else mic) or a mic
-     key left of return?
+- **Decided:** top right, one button (pencil when there's something to fix, else mic).
 
 ## Build
 
-Status: Draft
+Status: Approved 2026-11-09
 
 - **Approach:** the keyboard and the app already share an App Group, and the spike
   proved Darwin notifications reach the running app. The app owns the mic and speech

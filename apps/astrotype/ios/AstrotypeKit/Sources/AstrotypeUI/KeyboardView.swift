@@ -160,6 +160,7 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         bar.onSaveCorrection = { [weak self] in self?.model.saveCorrection() }
         bar.onSnippets = { [weak self] in self?.showSnippets() }
         bar.onAutofill = { [weak self] index in self?.model.fill(autofill: index) }
+        bar.onShortcut = { [weak self] in self?.model.writeShortcut() }
         attachToModel()
         keyHaptic.prepare()
     }
@@ -377,6 +378,7 @@ public final class KeyboardView: UIView, KeySurfaceDelegate, UIInputViewAudioFee
         bar.previews = model.state.previews
         bar.fillPrompt = model.state.fillPrompt
         bar.autofill = model.state.autofill
+        bar.shortcutPhrase = model.state.shortcutPhrase
         bar.offersSnippets = model.offersSnippets
         if shownField != model.field {
             shownField = model.field

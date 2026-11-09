@@ -75,6 +75,12 @@ public final class BarView: UIView {
     }
     /// A detail tapped: its index in `autofill`.
     public var onAutofill: ((Int) -> Void)?
+    /// The phrase of a shortcut of symbols at the cursor ("@@"), with no word open
+    /// (`Composer.State.shortcutPhrase`): shown in the middle, tapped to write it.
+    public var shortcutPhrase: String? {
+        didSet { if shortcutPhrase != oldValue { render() } }
+    }
+    public var onShortcut: (() -> Void)?
     /// A guess boosted or blocked, and how: "menu" or "slide".
     public var onBoost: ((Int, String) -> Void)?
     public var onForget: ((Int, String) -> Void)?
@@ -518,6 +524,21 @@ public final class BarView: UIView {
             if canCorrect { addTypeIt() }
             setNeedsLayout()
             return
+        }
+        if let shortcutPhrase {
+            switch bar {
+            case .idle, .next, .fix:
+                // A shortcut like "@@" just typed: its phrase in the pill, as for a word.
+                let button = GuessButton(configuration: guessConfiguration(shortcutPhrase, chosen: true))
+                button.accessibilityLabel = TextReplacements.oneLine(shortcutPhrase)
+                button.accessibilityHint = "Writes it in place of the shortcut"
+                button.addAction(UIAction { [weak self] _ in self?.onShortcut?() }, for: .touchUpInside)
+                stack.addArrangedSubview(button)
+                keptView = button
+                setNeedsLayout()
+                return
+            default: break
+            }
         }
         if !autofill.isEmpty {
             switch bar {

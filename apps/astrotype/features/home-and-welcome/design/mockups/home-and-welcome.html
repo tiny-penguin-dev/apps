@@ -122,6 +122,25 @@ button.r{cursor:pointer}
 .tcard .mini i.l{background:var(--mleft)}.tcard .mini i.rr{background:var(--mright)}
 .tcard .nm{font-size:13px;font-weight:800;display:flex;gap:4px;align-items:center;justify-content:center}
 .fxchips{display:flex;flex-wrap:wrap;gap:8px}
+/* EffectCard: an effect in the sideways row, with a picture of what it does */
+.fcard{flex:none;width:96px;border:0;background:none;padding:0;cursor:pointer;scroll-snap-align:start;display:flex;flex-direction:column;gap:5px;align-items:stretch;transition:transform .3s var(--spring)}
+.fcard:active{transform:scale(.95)}
+.fcard .pic{height:64px;border-radius:12px;display:grid;place-items:center;outline:3px solid transparent;outline-offset:2px;transition:outline-color .2s;
+  background:color-mix(in srgb,var(--fc) 16%,var(--bg))}
+.fcard .pic svg{width:46px;height:46px;overflow:visible}
+.fcard[aria-pressed="true"] .pic{outline-color:var(--accent)}
+.fcard .pic{position:relative;overflow:hidden}
+.fcard .pic canvas{position:absolute;inset:0;width:100%;height:100%}
+.fcard .pic .mk{position:relative;width:30px;height:34px;border-radius:7px;background:var(--card);box-shadow:0 1px 0 rgba(0,0,0,.2);display:grid;place-items:center;font-weight:800;font-size:15px;color:var(--ink);z-index:1}
+.fcard .nm{font-size:13px;font-weight:800;display:flex;gap:4px;align-items:center;justify-content:center;white-space:nowrap}
+/* Learn and practice links at the bottom of Your speed */
+.lp{display:grid;grid-template-columns:1fr 1fr;gap:10px;border-top:1px solid var(--line);padding-top:12px;margin-top:2px}
+.lp button{border:0;background:var(--bg);border-radius:14px;padding:12px;text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:6px;transition:transform .3s var(--spring)}
+.lp button:active{transform:scale(.96)}
+.lp b{font-size:16px;font-weight:900;display:flex;justify-content:space-between;align-items:center}
+.lp span{color:var(--muted);font-size:12px;font-weight:700;line-height:1.3}
+.lp .ic{width:32px;height:32px}
+.mini-week{display:flex;gap:3px}.mini-week i{width:9px;height:9px;border-radius:50%;background:var(--line)}.mini-week i.y{background:var(--mint)}
 .fxchip{border:0;cursor:pointer;font-weight:800;font-size:14px;padding:8px 12px;border-radius:999px;background:var(--bg);display:inline-flex;align-items:center;gap:6px;transition:transform .3s var(--spring),background .2s}
 .fxchip:active{transform:scale(.94)}
 .fxchip[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
@@ -216,6 +235,7 @@ input[type=range]{flex:1;accent-color:var(--accent)}
     <button data-s="home">New Home</button>
     <button data-s="homeHidden">New Home, keyboard hidden</button>
     <button data-s="homeFree">New Home, trial over</button>
+    <button data-s="learnPractice">Learn and practice</button>
     <small>Welcome wizard</small>
     <button data-s="hello">1 · Hello</button>
     <button data-s="turnOn">2 · Turn it on</button>
@@ -262,10 +282,20 @@ const FX={
   arcade:{name:"Arcade",c:"#FF2DAA",tap:"burst",trail:"rainbow",confetti:true},
   glitch:{name:"Glitch",c:"#7B61FF",tap:"glitch",trail:"line"},
   rainbow:{name:"Rainbow",c:"#FF9F1C",tap:"ring",trail:"rainbow"},
-  space:{name:"Space",c:"#2B3A8C",tap:"stars",trail:"comet"},
+  space:{name:"Space",c:"#5B6CFF",tap:"stars",trail:"comet"},
   zen:{name:"Zen",c:"#2FBF96",tap:"soft",trail:"line"},
   sugar:{name:"Sugar Rush",c:"#FF6FB5",tap:"hearts",trail:"rainbow"},
   off:{name:"Off",c:"#97A6B8",tap:"none",trail:"none"},
+};
+const FXPIC={
+  calm:c=>`<circle cx="23" cy="23" r="6" fill="${c}"/><circle cx="23" cy="23" r="13" fill="none" stroke="${c}" stroke-width="3" opacity=".6"/><circle cx="23" cy="23" r="20" fill="none" stroke="${c}" stroke-width="2" opacity=".3"/>`,
+  arcade:c=>[[8,10,"#FF2DAA"],[36,8,"#00B8D4"],[40,32,"#FFC24D"],[6,34,"#2FBF96"],[23,4,"#7B61FF"],[23,40,"#FF6F86"]].map(([x,y,k],i)=>`<rect x="${x}" y="${y}" width="7" height="4" rx="1" fill="${k}" transform="rotate(${i*35} ${x+3} ${y+2})"/>`).join("")+`<circle cx="23" cy="23" r="5" fill="${c}"/>`,
+  glitch:c=>`<rect x="6" y="12" width="30" height="5" fill="#FF2DAA"/><rect x="12" y="21" width="30" height="5" fill="${c}"/><rect x="4" y="30" width="26" height="4" fill="#00F0FF"/>`,
+  rainbow:c=>["#FF6F86","#FFC24D","#2FBF96","#139FB5","#7B61FF"].map((k,i)=>`<path d="M${4+i*4} 38 a${19-i*4} ${19-i*4} 0 0 1 ${38-i*8} 0" fill="none" stroke="${k}" stroke-width="3.5" stroke-linecap="round"/>`).join(""),
+  space:c=>`<circle cx="23" cy="23" r="21" fill="${c}"/>`+[[12,12,5],[32,16,3.5],[20,32,3],[34,32,4.5],[14,24,2]].map(([x,y,r])=>`<path d="M${x} ${y-r} L${x+r*.3} ${y-r*.3} L${x+r} ${y} L${x+r*.3} ${y+r*.3} L${x} ${y+r} L${x-r*.3} ${y+r*.3} L${x-r} ${y} L${x-r*.3} ${y-r*.3}Z" fill="#FFE88A"/>`).join(""),
+  zen:c=>`<path d="M23 6 C 36 16, 36 32, 23 40 C 10 32, 10 16, 23 6Z" fill="${c}" opacity=".85"/><path d="M23 12 V36" stroke="#fff" stroke-width="2" stroke-linecap="round"/>`,
+  sugar:c=>[[16,18,1],[31,14,.7],[28,31,.9],[12,33,.55]].map(([x,y,s])=>`<path transform="translate(${x} ${y}) scale(${s})" d="M0 6 C -10 -2, -6 -10, 0 -4 C 6 -10, 10 -2, 0 6Z" fill="${["#FF6FB5","#FFB3D9","#FF2DAA","#FFC24D"][Math.round(s*10)%4]}"/>`).join(""),
+  off:c=>`<circle cx="23" cy="23" r="15" fill="none" stroke="${c}" stroke-width="3.5"/><path d="M12 34 L34 12" stroke="${c}" stroke-width="3.5" stroke-linecap="round"/>`,
 };
 const FREE_THEMES=["classic"], FREE_FX=["calm","off"];
 const WORDS=[
@@ -281,7 +311,8 @@ const S={screen:"home",size:"",theme:"light",kbTheme:"classic",fx:"calm",height:
 const STEPS=["hello","turnOn","languages","style","tryIt","sync"];
 const WHY={
   before:"Home today: Your speed, Pro, three drills, the week and a Settings row. How the keyboard looks is Home → Settings → Appearance → Styling or Effects, three taps down.",
-  home:"Your speed still leads. The keyboard sits at the bottom like the real one, so it's always there to try while you pick a theme, an effect or a height in the Your keyboard card above it. Hide tucks it away; the Keyboard button brings it back. Changes go to the keyboard in every app right away.",
+  home:"Your speed still leads, with Practice and Learn links at its bottom. Effects are a sideways row of picture cards, like the themes. The keyboard sits at the bottom like the real one, so it's always there to try while you pick a theme, an effect or a height in the Your keyboard card above it. Hide tucks it away; the Keyboard button brings it back. Changes go to the keyboard in every app right away.",
+  learnPractice:"Practice and Learn moved off Home into their own screen. Home links to it from the bottom of Your speed: Practice (Speed practice, drills, Practice words, the week) and Learn (the lesson, tips). Each link jumps to its half.",
   homeHidden:"Keyboard hidden: Home is just Home again, and a small Keyboard button in the corner brings it back. Home remembers which way you left it.",
   homeFree:"After the trial, Pro looks fall back to Classic and Calm as today. The card says so once, kindly, and Pro cards keep their tag; tapping one opens Pro.",
   hello:"Step 1, as today. No progress bar yet, just the hello.",
@@ -373,14 +404,48 @@ function wireKbd(el,onKey){
   },press,lit,centre,keyFor:c=>el.querySelector(`.k[data-k="${c}"]`)};
   live.add(eng);return eng;
 }
+// EffectCard previews: each card loops its own effect around a tiny key (sketch of running the real effect on one key).
+function fxPreviews(){
+  const rm=matchMedia("(prefers-reduced-motion: reduce)").matches;
+  phone.querySelectorAll("[data-fxpic]").forEach(pic=>{
+    const id=pic.dataset.fxpic,f=FX[id],cv=pic.querySelector("canvas"),g=cv.getContext("2d");
+    const W=96,H=64;cv.width=W*2;cv.height=H*2;g.setTransform(2,0,0,2,0,0);
+    const parts=[];let t0=performance.now()+Math.random()*900,trail=[];const key=pic.querySelector(".mk");
+    const eng={el:pic,step(dt,now){g.clearRect(0,0,W,H);const t=(now-t0)%1600;const cx=W/2,cy=H/2;
+      if(id==="off"){return}
+      if(t<dt+1){ // a tap each loop
+        key.animate([{transform:"scale(.86)"},{transform:"none"}],{duration:220,easing:"cubic-bezier(.34,1.56,.64,1)"});
+        if(id==="glitch")key.animate([{transform:"translate(3px,-1px)",filter:"hue-rotate(90deg)"},{transform:"translate(-3px,1px)"},{transform:"none"}],{duration:200,easing:"steps(3)"});
+        const n=rm?3:{arcade:16,space:8,sugar:8,rainbow:0}[id]||0;
+        for(let i=0;i<n;i++){const a=Math.random()*Math.PI*2,v=.6+Math.random()*1.6;parts.push({x:cx,y:cy,vx:Math.cos(a)*v,vy:Math.sin(a)*v-.4,life:1,
+          c:id==="arcade"?`hsl(${Math.random()*360},90%,60%)`:id==="sugar"?["#FF6FB5","#FFB3D9","#FFC24D"][i%3]:"#FFE88A"})}
+        if(["calm","zen","rainbow","glitch"].includes(id))parts.push({ring:1,x:cx,y:cy,r:id==="zen"?6:10,life:1})
+      }
+      // trails swipe across the card
+      if(["calm","rainbow","space","sugar","arcade"].includes(id)&&t>700&&t<1300){const k=(t-700)/600;trail.push({x:8+k*(W-16),y:H-14-Math.sin(k*Math.PI)*24,t:now})}
+      trail=trail.filter(p=>now-p.t<(id==="space"?380:260));
+      for(let i=1;i<trail.length;i++){const a=trail[i-1],b=trail[i],age=1-(now-b.t)/300;g.globalAlpha=Math.max(0,age);
+        g.strokeStyle=id==="rainbow"||id==="arcade"||id==="sugar"?`hsl(${(b.t/3)%360},90%,62%)`:f.c;g.lineWidth=id==="space"?1.5+5*age:1+3.5*age;g.lineCap="round";g.beginPath();g.moveTo(a.x,a.y);g.lineTo(b.x,b.y);g.stroke()}
+      g.globalAlpha=1;
+      for(let i=parts.length-1;i>=0;i--){const p=parts[i];p.life-=dt/(id==="zen"?1100:650);if(p.life<=0){parts.splice(i,1);continue}g.globalAlpha=p.life;
+        if(p.ring){p.r+=dt*(id==="zen"?.025:.05);g.strokeStyle=id==="rainbow"?`hsl(${(now/4)%360},90%,60%)`:f.c;g.lineWidth=id==="zen"?2:3;g.beginPath();g.arc(p.x,p.y,p.r,0,7);g.stroke()}
+        else{p.x+=p.vx*dt/16;p.y+=p.vy*dt/16;p.vy+=.03*dt/16;g.fillStyle=p.c;
+          if(id==="sugar"){g.font="10px sans-serif";g.fillText("♥",p.x-3,p.y+3)}else if(id==="space"){g.font="9px sans-serif";g.fillText("✦",p.x-3,p.y+3)}else g.fillRect(p.x-1.5,p.y-1.5,3,3)}
+        g.globalAlpha=1}
+      if(id==="glitch"&&t<260){g.fillStyle="#FF2DAA";g.fillRect(cx-28+Math.random()*6,cy-8,40,3);g.fillStyle="#00F0FF";g.fillRect(cx-18+Math.random()*6,cy+5,44,2)}
+      if(id==="space"){g.fillStyle="#fff";for(let i=0;i<6;i++){const tw=.4+.6*Math.abs(Math.sin(now/400+i*1.7));g.globalAlpha=tw*.7;g.fillRect((i*37)%W+4,(i*23)%H+3,1.5,1.5)}g.globalAlpha=1}
+    }};
+    live.add(eng);
+  });
+}
 let lastT=performance.now();
-(function loop(t){const dt=Math.min(50,t-lastT);lastT=t;live.forEach(e=>{if(!document.body.contains(e.el))live.delete(e);else e.step(dt)});requestAnimationFrame(loop)})(lastT);
+(function loop(t){const dt=Math.min(50,t-lastT);lastT=t;live.forEach(e=>{if(!document.body.contains(e.el))live.delete(e);else e.step(dt,t)});requestAnimationFrame(loop)})(lastT);
 function demo(eng,seq){if(!eng)return;let i=0;const go=()=>{if(i>=seq.length)return;const [c,s]=seq[i++];const k=eng.keyFor(c);if(i===1||seq[i-2][1]!==s)eng.press(k,s);else{eng.lit(k,s)}setTimeout(go,200)};go()}
 
 /* ---------- Pieces ---------- */
 const sec=(t,extra="")=>`<div class="sec">${t}${extra}</div>`;
 const row=o=>`<${o.go?`button data-go="${o.go}"`:"div"} class="r">${o.lead||""}<div class="t"><b>${o.title}</b>${o.sub?`<span>${o.sub}</span>`:""}</div>${o.end||""}${o.go?'<span class="chev" aria-hidden="true">›</span>':""}</${o.go?"button":"div"}>`;
-function speedCard(){
+function speedCard(opts={}){
   const pts=[31,33,32,36,35,38,37,40,39,42,41,44,43,46];const w=300,h=46;const xs=i=>i*w/(pts.length-1),ys=v=>h-4-(v-28)/20*(h-8);
   const d=pts.map((v,i)=>`${i?"L":"M"}${xs(i).toFixed(1)},${ys(v).toFixed(1)}`).join("");
   return `<div class="card" style="display:flex;flex-direction:column;gap:10px">
@@ -388,6 +453,10 @@ function speedCard(){
     <div class="row" style="align-items:flex-end;gap:8px"><span class="big">46</span><span class="unit" style="padding-bottom:6px">words a minute, every day</span></div>
     <svg class="spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none"><path class="fl" d="${d}L${w},${h}L0,${h}Z"/><path class="ln" d="${d}" vector-effect="non-scaling-stroke"/><circle class="pd" cx="${xs(10)}" cy="${ys(49)}" r="5"/><circle class="pd" cx="${xs(12)}" cy="${ys(51)}" r="5"/></svg>
     <div class="row"><button class="btn small">Practice for speed</button><span class="spacer"></span><button class="btn ghost" style="font-size:14px">History ›</button></div>
+    ${opts.links===false?"":`<div class="lp">
+      <button data-go="learnPractice" data-sec="practice"><span class="ic" style="background:color-mix(in srgb,var(--right) 22%,var(--card))">🎯</span><b>Practice <span class="chev">›</span></b><span>3 drills and your missed words</span><span class="mini-week">${[1,1,0,1,1,0,0].map(y=>`<i class="${y?"y":""}"></i>`).join("")}</span></button>
+      <button data-go="learnPractice" data-sec="learn"><span class="ic" style="background:color-mix(in srgb,var(--left) 22%,var(--card))">🐧</span><b>Learn <span class="chev">›</span></b><span>The two-thumb lesson and tips</span></button>
+    </div>`}
   </div>`;
 }
 function themeRow(){
@@ -395,7 +464,7 @@ function themeRow(){
     return `<button class="tcard" role="option" aria-pressed="${shownTheme()===id}" aria-selected="${shownTheme()===id}" aria-label="${th.name} theme${isProTheme(id)?", Pro":""}${shownTheme()===id?", selected":""}" data-theme-id="${id}" ${locked?'data-locked="1"':""}>${mini(th)}<span class="nm">${th.name}${isProTheme(id)?'<i class="pro">PRO</i>':""}</span></button>`}).join("")}</div>`;
 }
 function fxChips(){
-  return `<div class="fxchips" role="radiogroup" aria-label="Effects">${Object.entries(FX).map(([id,f])=>`<button class="fxchip" role="radio" aria-checked="${shownFx()===id}" aria-pressed="${shownFx()===id}" data-fx="${id}">${id==="off"?"":`<span class="dot" style="background:${f.c}"></span>`}${f.name}${isProFx(id)?'<i class="pro">PRO</i>':""}</button>`).join("")}</div>`;
+  return `<div class="hscroll" role="radiogroup" aria-label="Effects">${Object.entries(FX).map(([id,f])=>`<button class="fcard" role="radio" aria-checked="${shownFx()===id}" aria-pressed="${shownFx()===id}" aria-label="${f.name} effects${isProFx(id)?", Pro":""}" data-fx="${id}"><span class="pic" style="--fc:${f.c}" data-fxpic="${id}"><canvas></canvas><span class="mk" aria-hidden="true">a</span></span><span class="nm">${f.name}${isProFx(id)?'<i class="pro">PRO</i>':""}</span></button>`).join("")}</div>`;
 }
 function keyboardCard(opts={}){
   return `<div class="card kcard">
@@ -426,6 +495,26 @@ function practice(){
   </div>
   <div class="card week">${["M","T","W","T","F","S","S"].map((d,i)=>`<div><i class="${i<5&&i!==2?"y":""}">${i<5&&i!==2?"✓":""}</i>${d}</div>`).join("")}</div>`;
 }
+function learnPracticeScreen(){
+  const drills=[["Two-letter swipes","th, in, er, on",true],["Switching thumbs","Start left, finish right",false],["Doubled letters","A tap inside a swipe",false]];
+  return `<div class="nav"><button class="back" data-go="home">‹ Home</button></div><div class="scroll">
+    <div class="h1">Learn and practice</div>
+    <p class="sub">A few minutes a day makes two thumbs feel natural.</p>
+    <div id="sec-practice">${sec("Practice")}</div>
+    <div class="group">
+      ${row({lead:'<span class="ic" style="background:var(--accent)">⏱</span>',title:"Speed practice",sub:"Three sentences, measured against your everyday 46",go:"speedtest"})}
+      ${drills.map(([t,s,done],i)=>row({lead:`<span class="badge ${done?"done":""}">${done?"✓":i+1}</span>`,title:t,sub:s,go:"drill",end:S.pro?"":'<i class="pro">PRO</i>'})).join("")}
+      ${row({lead:'<span class="ic" style="background:var(--right)">Aa</span>',title:"Practice words",sub:"Words you've missed, one more time",go:"pw"})}
+    </div>
+    ${sec("This week")}
+    <div class="card week">${["M","T","W","T","F","S","S"].map((d,i)=>`<div><i class="${i<5&&i!==2?"y":""}">${i<5&&i!==2?"✓":""}</i>${d}</div>`).join("")}</div>
+    <div id="sec-learn">${sec("Learn")}</div>
+    <div class="group">
+      ${row({lead:'<span class="ic" style="background:color-mix(in srgb,var(--left) 22%,var(--card))">🐧</span>',title:"The two-thumb lesson",sub:"Five words with thumb hints, from the start",go:"lesson"})}
+      ${row({lead:'<span class="ic" style="background:var(--sun);color:#3A2600">?</span>',title:"Tips",sub:"Gestures, fixing a word, the 123 panel",go:"tips"})}
+    </div>
+  </div>`;
+}
 function bottomRows(){
   return `<div class="group" style="margin-top:8px">
     ${row({lead:'<span class="ic" style="background:var(--sun);color:#3A2600">★</span>',title:S.pro?"Pro trial":"Astrotype Pro",sub:S.pro?"9 days left. Two thumbs, every look, every drill.":"Two-thumb typing is resting. Keep it from $2.99 a month.",go:"pro"})}
@@ -436,8 +525,8 @@ function bottomRows(){
 /* ---------- Screens ---------- */
 const wide=()=>S.size==="wide";
 function homeScreen(){
-  const left=`${speedCard()}${sec("Your keyboard")}${keyboardCard()}`;
-  const right=`${practice()}${bottomRows()}`;
+  const left=wide()?`${speedCard()}${bottomRows()}`:`${speedCard()}${sec("Your keyboard")}${keyboardCard()}${bottomRows()}`;
+  const right=wide()?`${sec("Your keyboard")}${keyboardCard()}`:"";
   return `<div class="scroll ${S.dockOpen?"docked":""}">
     <div class="hdr"><div class="h1">${wide()?"Both flippers, go.":"Both<br>flippers, go."}</div>${thumbsSVG()}</div>
     <div class="cols"><div class="col">${left}</div><div class="col">${right}</div></div>
@@ -493,6 +582,7 @@ const SCREENS={
       <div class="step"><span class="badge">1</span><span>Settings › Keyboards › <b>Astrotype</b></span></div><div class="step"><span class="badge">2</span><span>Turn on <b>Allow Full Access</b></span></div>`,
     buttons:`<button class="btn wide" data-act="finish">Open Settings</button><button class="btn ghost" data-act="finish">Skip for now</button>`}),
   lesson:()=>SCREENS.tryIt(),
+  learnPractice:learnPracticeScreen,
   stub:()=>`<div class="nav"><button class="back" data-go="home">‹ Home</button></div><div class="stub"><div class="h1" style="color:var(--ink)">${S.stub}</div><p>${S.stubWhy}</p></div>`,
 };
 
@@ -508,7 +598,7 @@ function render(anim=true){
   document.getElementById("why").textContent=WHY[S.screen]||"";
   const kb=phone.querySelector("[data-kb]");
   S.eng=kb?wireKbd(kb,S.screen==="tryIt"||S.screen==="lesson"?typeKey:playKey):null;
-  syncDock();
+  syncDock();fxPreviews();
   const pr=phone.querySelector(".prog");if(pr){requestAnimationFrame(()=>requestAnimationFrame(()=>pr.style.setProperty("--p",(STEPS.indexOf(S.screen)+1)/STEPS.length*100+"%")))}
   const h=phone.querySelector("#height");if(h)h.oninput=e=>{S.height=+e.target.value;phone.querySelector("#hv").textContent=S.height+"%";const k=phone.querySelector("[data-kb]");k.style.setProperty("--kh",Math.round(40*S.height/100)+"px");syncDock()};
 }
@@ -552,8 +642,9 @@ phone.addEventListener("click",e=>{
   const g=t.dataset.go;
   if(g==="home"){const o=S.dockOpen;go(S.pro?"home":"homeFree");if(!o&&S.screen!=="arrive"){S.dockOpen=false;render(false)}return}
   if(g==="lesson"){go("lesson");return}
+  if(g==="learnPractice"){go("learnPractice");const sc=t.dataset.sec;if(sc){const el=phone.querySelector("#sec-"+sc);el&&el.scrollIntoView({block:"start"})}return}
   const STUBS={appearance:["Appearance","Today's Appearance page (General, Styling, Effects), unchanged. It's just one tap from Home now."],settings:["Settings","Today's Settings. Appearance stays there too."],
-    pro:["Astrotype Pro","Today's Pro screen."],drill:["Drill","Today's drill screen."],pw:["Practice words","Today's Practice words."]};
+    pro:["Astrotype Pro","Today's Pro screen."],drill:["Drill","Today's drill screen."],pw:["Practice words","Today's Practice words."],speedtest:["Speed practice","Today's Speed practice."],tips:["Tips","Short cards: slide on space, swipe left on ⌫, hold a guess, the 123 panel. Later, if you want it."]};
   if(STUBS[g])stub(...STUBS[g]);
 });
 function stub(t,w){S.stub=t;S.stubWhy=w;S.from=S.screen;S.screen="stub";render()}

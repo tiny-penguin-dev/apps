@@ -28,9 +28,15 @@ Status: Draft
     **Keyboard** button in the corner brings it back; Home remembers which way you left
     it. Changes apply right away, in every app. "More styling" opens the full Appearance
     page (your own themes, flow levels, guesses bar, haptics, split) as today.
-  - Below that, **Practice** (Speed practice, the three drills, Practice words and the
-    week dots), then a new **Learn two thumbs again** row that replays the lesson, then
-    Pro and Settings.
+  - **Learn and practice** get their own screen (Gabriel, 9 Nov 2026). The bottom of
+    the Your speed card has two links into it: **Practice** (Speed practice, the three
+    drills, Practice words, the week) and **Learn** (the two-thumb lesson again, and
+    short tips). Each jumps to its half of the screen. Home then ends with Pro and
+    Settings.
+  - **Effects pick from a sideways row**, like the themes, not a stack of chips
+    (Gabriel, 9 Nov 2026: the vertical list was hard to read). Each card plays its own
+    effect on one little key, over and over, so you can tell them apart at a glance.
+    The Appearance → Effects page's presets get the same row.
   - **Welcome wizard** on first launch: one screen shape for every step, with a progress
     bar, a short title, one thing to do and one big button. Steps:
     1. **Hello**: "Type with both thumbs." (as now)
@@ -82,8 +88,8 @@ Status: Draft
 - **Mockups:** `design/mockups/home-and-welcome.html` (Artifact: https://claude.ai/artifact/CYaxjuqLHErz1c2uJtQgsm) (tap through it; every button in the phone works)
 - **What changes:**
   - **Home** (`screens/01-before-home.png` → `02-home.png`): header and Your speed stay.
-    New Your keyboard card. Drills, Practice words and the week move into one Practice
-    section. The old "Settings · Autospace, gestures, trails, sync" row becomes a plain
+    New Your keyboard card. Drills, Practice words and the week move to the new Learn and
+    practice screen, linked from the bottom of Your speed. The old "Settings · Autospace, gestures, trails, sync" row becomes a plain
     Settings row at the bottom, next to Pro.
   - **Setup screens** (before: the app's `design/screens/01-hello.png` to `04-try.png`; after: `11-hello.png` to `17-keep-words.png`): Hello, Turn on, Languages,
     Keep your words and Try it all use one `WizardPage`, with the progress bar on top and
@@ -91,8 +97,11 @@ Status: Draft
 - **New screens:**
   - **Your keyboard card** (`02-home.png`, `03-home-dark.png`, `04-home-free.png`, `05-home-scrolled.png`): theme cards in a
     sideways row (Classic, Iceberg, Tuxedo, Krill, Midnight, Paper, Arcade, Bold, then
-    your own) and effect chips (Calm, Arcade, Glitch, Rainbow, Space, Zen, Sugar Rush,
-    Off). A Height slider. "More styling ›" at the bottom.
+    your own), then effect cards in a second sideways row (Calm, Arcade, Glitch, Rainbow,
+    Space, Zen, Sugar Rush, Off). Each `EffectCard` is the theme card's size, tinted in the
+    effect's colour, with one key in the middle that the effect taps and swipes across
+    every 1.6 s (the real Metal effect on a single key; a still frame under Reduce Motion
+    or Low Power Mode, and only the cards on screen run). A Height slider. "More styling ›" at the bottom.
   - **Keyboard dock** (`02-home.png`, `08-home-kb-hidden.png`): the practice keyboard in
     the same glass frame as the real one (`KeyboardFrame`), pinned to the bottom of
     Home, with a grab handle, a line that shows what you type ("Type anything. It stays
@@ -100,8 +109,12 @@ Status: Draft
     corner. Home scrolls above it, so nothing is covered. On the wide screen it spans
     the bottom with the keys centred (`07-home-wide.png`).
   - **Make it yours** (`14-make-it-yours.png`, `18-style-dark.png`): the same card, bigger, as a wizard step.
-  - **Learn two thumbs again**: a row in Practice that opens Try it on its own (no
-    progress bar, Done instead of Skip; `19-lesson.png`).
+  - **Learn and practice** (`09-learn-practice.png`): Practice (Speed practice, the three
+    drills, Practice words), This week, then Learn (the two-thumb lesson, Tips). Opened from
+    the two links at the bottom of Your speed (Practice shows the week's dots).
+  - **The two-thumb lesson** from Learn opens Try it on its own (no progress bar, Done
+    instead of Skip; `19-lesson.png`). **Tips** is a short list of cards (slide on
+    space, swipe left on ⌫, hold a guess, the 123 panel).
 - **Motion and copy:**
   - The dock slides up and down with a spring (fade under Reduce Motion).
   - The progress bar fills with a spring between steps; pages slide in from the right
@@ -118,7 +131,7 @@ Status: Draft
   `StepProgress` (the bar).
 - **Sizes:** on the small phone the card's theme row scrolls sideways and the dock drops
   its typed line (`06-home-small.png`). On the wide Duo screen Home has two columns: Your
-  speed and Your keyboard on the left, Practice on the right (`07-home-wide.png`); the
+  speed, Pro and Settings on the left, Your keyboard on the right (`07-home-wide.png`); the
   wizard stays a centred 560-wide column with a bigger preview (`16-style-wide.png`).
 - **Accessibility:** theme cards read "Iceberg theme, Pro, selected". The progress bar
   reads "Step 4 of 6". The docked keyboard is decorative to VoiceOver (its Hide/Keyboard buttons are not); picking reads the

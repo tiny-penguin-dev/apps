@@ -1,0 +1,662 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Astrotype Home and Welcome</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;700;800;900&display=swap">
+<style>
+/* One phone on a pale ice stage with a screen picker beside it. Tokens and components are Astrotype's (DESIGN.md "Design system"), same names as the other feature mockups.
+   New here: WizardPage (progress bar, title, line, content, one big button), StepProgress, the Your keyboard card (StylePreview + ThemeCard row + effect chips). */
+:root{
+  --stage:#E6F0F4; --bg:#F3F8FA; --card:#FFFFFF; --ink:#1E2945; --muted:#67748F; --line:#DCE6EC;
+  --accent:#139FB5; --accent-ink:#FFFFFF; --left:#139FB5; --right:#FF6F86; --sun:#FFC24D; --mint:#2FBF96; --ice:#D9EDF3;
+  --font:ui-rounded,"SF Pro Rounded","Nunito",system-ui,sans-serif;
+  --r-lg:28px; --r-md:18px; --r-sm:12px;
+  --spring:cubic-bezier(.34,1.56,.64,1);
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --stage:#0A1118; --bg:#111A24; --card:#1A2634; --ink:#EEF4F8; --muted:#97A6B8; --line:#2A3B4C;
+  --accent:#2FC6DC; --accent-ink:#06202A; --left:#2FC6DC; --right:#FF8A9E; --sun:#FFCD66; --mint:#45D3AA; --ice:#1D3240; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --stage:#0A1118; --bg:#111A24; --card:#1A2634; --ink:#EEF4F8; --muted:#97A6B8; --line:#2A3B4C;
+  --accent:#2FC6DC; --accent-ink:#06202A; --left:#2FC6DC; --right:#FF8A9E; --sun:#FFCD66; --mint:#45D3AA; --ice:#1D3240; color-scheme:dark}
+html,body{height:100%;margin:0}
+body{background:var(--stage);color:var(--ink);font-family:var(--font);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+*{box-sizing:border-box}
+button{font:inherit;color:inherit}
+.stage{display:flex;gap:32px;justify-content:center;align-items:flex-start;padding-block:24px;flex-wrap:wrap}
+.picker{display:flex;flex-direction:column;gap:6px;max-width:270px;min-width:0}
+.picker h1{font-size:28px;font-weight:900;margin:0}
+.picker p{margin:0 0 10px;color:var(--muted);font-size:13px;line-height:1.45}
+.picker button{font-weight:700;font-size:14px;text-align:left;border:0;background:transparent;color:var(--muted);padding:7px 12px;border-radius:10px;cursor:pointer}
+.picker button[aria-current="true"]{background:var(--card);color:var(--ink)}
+.picker small{color:var(--muted);font-size:11px;letter-spacing:.06em;text-transform:uppercase;font-weight:800;margin-top:10px;padding-left:12px}
+.picker button:focus-visible,.phone :focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.seg-mini{display:flex;gap:4px;margin-top:4px;padding-left:8px;flex-wrap:wrap}
+.seg-mini button{padding:5px 10px;font-size:12px;background:var(--line)}
+.seg-mini button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.why{font-size:13px;color:var(--muted);line-height:1.45;background:var(--card);border-radius:12px;padding:10px 12px;margin-top:10px}
+.phone{width:390px;max-width:100%;height:844px;background:var(--bg);border-radius:48px;position:relative;overflow:hidden;
+  box-shadow:0 0 0 10px var(--ink),0 30px 60px rgba(20,30,60,.25);flex:none}
+.phone.small{width:375px;height:667px;border-radius:36px}
+.phone.wide{width:744px;height:1024px;border-radius:40px}
+@media (max-width:700px){.picker{max-width:100%;flex-direction:row;flex-wrap:wrap;align-items:center}.picker h1,.picker p,.why{width:100%}.picker small{display:none}
+  .phone{box-shadow:none;border-radius:32px}.phone.wide{display:none}}
+.status{position:absolute;top:14px;left:30px;right:30px;display:flex;justify-content:space-between;font-weight:800;font-size:15px;z-index:3}
+.phone.small .status{top:8px}
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;padding:54px 0 0}
+.phone.small .screen{padding-top:34px}
+.screen.anim{animation:in .45s var(--spring)}
+@keyframes in{from{transform:translateX(28px);opacity:0}to{transform:none;opacity:1}}
+.nav{display:flex;align-items:center;padding:0 22px;height:40px;flex:none}
+.back{font-weight:800;color:var(--accent);background:none;border:0;font-size:17px;padding:0;cursor:pointer}
+.scroll{overflow-y:auto;flex:1;padding:0 22px 40px;display:flex;flex-direction:column;gap:12px}
+.phone.small .scroll{padding:0 14px 30px}
+.phone.wide .scroll{padding:0 40px 40px}
+.h1{font-size:30px;font-weight:900;line-height:1.1;margin:4px 0 6px;text-wrap:balance}
+.phone.small .h1{font-size:26px}
+.sub{color:var(--muted);font-size:15px;line-height:1.45;margin:0}
+.sec{font-size:13px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:12px 0 -4px 6px;display:flex;align-items:center;gap:8px}
+.card{background:var(--card);border-radius:var(--r-md);padding:16px}
+.row{display:flex;align-items:center;gap:12px}
+.spacer{flex:1}
+.chip{display:inline-flex;align-items:center;gap:4px;font-weight:800;font-size:13px;padding:5px 10px;border-radius:999px;background:var(--ice);color:var(--ink);white-space:nowrap}
+.chip.on{background:color-mix(in srgb,var(--mint) 25%,transparent)}
+.btn{font-weight:800;border:0;border-radius:999px;background:var(--accent);color:var(--accent-ink);cursor:pointer;font-size:14px;padding:10px 16px;
+  box-shadow:0 4px 0 color-mix(in srgb,var(--accent) 60%,#000 25%);transition:transform .25s var(--spring)}
+.btn:active{transform:translateY(3px) scale(.98)}
+.btn.ghost{background:transparent;color:var(--muted);box-shadow:none;padding:8px}
+.btn.wide{width:100%;font-size:17px;padding:15px}
+.btn.small{font-size:13px;padding:7px 12px;box-shadow:0 3px 0 color-mix(in srgb,var(--accent) 60%,#000 25%)}
+.pro{font-size:10px;font-weight:900;letter-spacing:.08em;background:var(--sun);color:#3A2600;padding:3px 6px;border-radius:6px;font-style:normal}
+.big{font-size:56px;font-weight:900;font-variant-numeric:tabular-nums;line-height:1}
+.unit{font-weight:800;color:var(--muted);font-size:15px}
+.group{background:var(--card);border-radius:var(--r-md);overflow:hidden}
+.group>.r+.r{border-top:1px solid var(--line)}
+.r{display:flex;align-items:center;gap:12px;padding:11px 14px;min-height:52px;width:100%;color:inherit;text-align:left;background:none;border:0}
+button.r{cursor:pointer}
+.r .t{flex:1;min-width:0}
+.r .t b{display:block;font-size:16px;font-weight:800}
+.r .t span{display:block;color:var(--muted);font-size:13px;line-height:1.35;margin-top:1px}
+.chev{color:var(--muted);font-weight:900;font-size:18px}
+.ic{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;flex:none;color:#fff;font-size:15px;font-weight:900}
+.badge{width:28px;height:28px;border-radius:50%;background:var(--ice);display:grid;place-items:center;font-weight:900;flex:none;font-size:14px}
+.badge.done{background:var(--mint);color:#fff}
+.week{display:flex;justify-content:space-between;padding:4px 6px}
+.week div{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:12px;font-weight:800;color:var(--muted)}
+.week i{width:30px;height:30px;border-radius:50%;background:var(--line);display:grid;place-items:center;font-style:normal;color:#fff}
+.week i.y{background:var(--mint)}
+.cols{display:flex;flex-direction:column;gap:12px}
+.phone.wide .cols{flex-direction:row;align-items:flex-start;gap:24px}
+.col{display:flex;flex-direction:column;gap:12px;min-width:0}
+.scroll>*,.col>*,.wbody>*{flex-shrink:0}
+.phone.wide .cols>.col{flex:1}
+.note{color:var(--muted);font-size:13px;line-height:1.45;margin:2px 6px 0}
+.banner{background:color-mix(in srgb,var(--sun) 35%,var(--card));border-radius:var(--r-md);padding:12px 14px;display:flex;align-items:center;gap:10px;font-weight:800;font-size:14px}
+
+/* Home header + speed card */
+.hdr{display:flex;align-items:flex-start;justify-content:space-between;padding-top:12px}
+.hdr .h1{font-size:34px;margin:0}
+.thumbs{width:68px;height:68px;flex:none}
+.spark{width:100%;height:46px;display:block}
+.spark .ln{fill:none;stroke:var(--left);stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
+.spark .fl{fill:color-mix(in srgb,var(--left) 14%,transparent)}
+.spark .pd{fill:var(--right);stroke:var(--card);stroke-width:2}
+
+/* Your keyboard card */
+.kcard{display:flex;flex-direction:column;gap:12px;padding:12px}
+.kcard .lbl{font-size:13px;font-weight:900;color:var(--muted);letter-spacing:.04em;margin:2px 4px -4px}
+.hscroll{display:flex;gap:10px;overflow-x:auto;padding:6px 6px 6px;margin:0 -4px;scroll-snap-type:x proximity;scrollbar-width:none}
+.hscroll::-webkit-scrollbar{display:none}
+.tcard{flex:none;width:96px;border:0;background:none;padding:0;cursor:pointer;scroll-snap-align:start;display:flex;flex-direction:column;gap:5px;align-items:stretch;transition:transform .3s var(--spring)}
+.tcard:active{transform:scale(.95)}
+.tcard .mini{border-radius:12px;padding:5px;display:flex;flex-direction:column;gap:3px;outline:3px solid transparent;outline-offset:2px;transition:outline-color .2s}
+.tcard[aria-pressed="true"] .mini{outline-color:var(--accent)}
+.tcard .mini div{display:flex;gap:2px;justify-content:center}
+.tcard .mini i{height:9px;flex:1;max-width:8px;border-radius:2px;background:var(--mkey);box-shadow:0 0 0 var(--mbw) var(--mbc)}
+.tcard .mini i.f{background:var(--mfn);max-width:12px}
+.tcard .mini i.sp{max-width:none;flex:5}
+.tcard .mini i.l{background:var(--mleft)}.tcard .mini i.rr{background:var(--mright)}
+.tcard .nm{font-size:13px;font-weight:800;display:flex;gap:4px;align-items:center;justify-content:center}
+.fxchips{display:flex;flex-wrap:wrap;gap:8px}
+/* EffectCard: an effect in the sideways row, with a picture of what it does */
+.fcard{flex:none;width:96px;border:0;background:none;padding:0;cursor:pointer;scroll-snap-align:start;display:flex;flex-direction:column;gap:5px;align-items:stretch;transition:transform .3s var(--spring)}
+.fcard:active{transform:scale(.95)}
+.fcard .pic{height:64px;border-radius:12px;display:grid;place-items:center;outline:3px solid transparent;outline-offset:2px;transition:outline-color .2s;
+  background:color-mix(in srgb,var(--fc) 16%,var(--bg))}
+.fcard .pic svg{width:46px;height:46px;overflow:visible}
+.fcard[aria-pressed="true"] .pic{outline-color:var(--accent)}
+.fcard .pic{position:relative;overflow:hidden}
+.fcard .pic canvas{position:absolute;inset:0;width:100%;height:100%}
+.fcard .pic .mk{position:relative;width:30px;height:34px;border-radius:7px;background:var(--card);box-shadow:0 1px 0 rgba(0,0,0,.2);display:grid;place-items:center;font-weight:800;font-size:15px;color:var(--ink);z-index:1}
+.fcard .nm{font-size:13px;font-weight:800;display:flex;gap:4px;align-items:center;justify-content:center;white-space:nowrap}
+/* Learn and practice links at the bottom of Your speed */
+.lp{display:grid;grid-template-columns:1fr 1fr;gap:10px;border-top:1px solid var(--line);padding-top:12px;margin-top:2px}
+.lp button{border:0;background:var(--bg);border-radius:14px;padding:12px;text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:6px;transition:transform .3s var(--spring)}
+.lp button:active{transform:scale(.96)}
+.lp b{font-size:16px;font-weight:900;display:flex;justify-content:space-between;align-items:center}
+.lp span{color:var(--muted);font-size:12px;font-weight:700;line-height:1.3}
+.lp .ic{width:32px;height:32px}
+.mini-week{display:flex;gap:3px}.mini-week i{width:9px;height:9px;border-radius:50%;background:var(--line)}.mini-week i.y{background:var(--mint)}
+.fxchip{border:0;cursor:pointer;font-weight:800;font-size:14px;padding:8px 12px;border-radius:999px;background:var(--bg);display:inline-flex;align-items:center;gap:6px;transition:transform .3s var(--spring),background .2s}
+.fxchip:active{transform:scale(.94)}
+.fxchip[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.fxchip .dot{width:10px;height:10px;border-radius:50%}
+.sl{display:flex;flex-direction:column;gap:6px;padding:0 4px}
+.sl .top{display:flex;justify-content:space-between;font-weight:800;font-size:15px}
+.sl .top span{color:var(--muted);font-variant-numeric:tabular-nums}
+.sl .ends{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:12px;font-weight:800}
+input[type=range]{flex:1;accent-color:var(--accent)}
+.more{display:flex;align-items:center;justify-content:space-between;border:0;background:var(--bg);border-radius:12px;padding:11px 14px;font-weight:800;font-size:15px;cursor:pointer;color:var(--ink)}
+.more span{color:var(--muted);font-weight:700;font-size:13px}
+.resting{background:color-mix(in srgb,var(--sun) 28%,var(--card));border-radius:12px;padding:10px 12px;font-size:13px;font-weight:700;line-height:1.4}
+
+/* The live keyboard (StylePreview) */
+.kbd{position:relative;border-radius:16px;padding:6px 3px 8px;background:var(--kkb);font-family:var(--kfont);user-select:none;-webkit-user-select:none;touch-action:none;overflow:hidden;transition:background .35s}
+.kbd .kbar{display:flex;justify-content:center;gap:22px;font-size:14px;color:var(--kink);opacity:.75;padding:3px 0 6px;font-family:var(--font);font-weight:700;min-height:26px}
+.kbd .kbar .mid{opacity:1;background:var(--kfn);padding:1px 10px;border-radius:999px}
+.krow{display:flex;justify-content:center;gap:var(--kgap);margin-bottom:var(--kgap);padding:0 2px}
+.krow.r2{padding:0 5%}
+.k{flex:1;max-width:10%;height:var(--kh);border-radius:var(--krad);background:var(--kkey);color:var(--kink);display:grid;place-items:center;font-size:calc(var(--kh)*.44);
+  box-shadow:var(--ksh),inset 0 0 0 var(--kbw) var(--kbc);transition:background .35s,color .35s,transform .25s var(--spring),border-radius .35s;position:relative}
+.k.f{background:var(--kfn);max-width:13%;font-size:calc(var(--kh)*.3);font-family:var(--font);font-weight:700}
+.k.space{max-width:none;flex:5;font-size:calc(var(--kh)*.32)}
+.k.ret{max-width:none;flex:1.6}
+.k.hit{transform:scale(.9)}
+.k.lit{background:var(--klit)!important;color:#fff}
+.k.jolt{animation:jolt .18s steps(3)}
+@keyframes jolt{0%{transform:translate(2px,-1px)}50%{transform:translate(-3px,1px);filter:hue-rotate(90deg)}100%{transform:none}}
+.kbd.flip .k{animation:flip .5s var(--spring)}
+@keyframes flip{0%{transform:scale(.8)}100%{transform:none}}
+.kbd canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.kbd .combo{position:absolute;right:10px;top:5px;font-family:var(--font);font-weight:900;font-size:13px;color:var(--kacc);opacity:0;transition:opacity .2s}
+.tryline{text-align:center;color:var(--muted);font-size:13px;font-weight:700;margin-top:-4px}
+
+/* Wizard (WizardPage + StepProgress) */
+.wtop{display:flex;align-items:center;gap:14px;padding:6px 22px 0;height:40px;flex:none}
+.prog{flex:1;height:8px;border-radius:999px;background:var(--line);overflow:hidden}
+.prog i{display:block;height:100%;border-radius:999px;background:var(--accent);width:var(--p);transition:width .6s var(--spring)}
+.wtop .skip{font-weight:800;color:var(--muted);background:none;border:0;font-size:15px;cursor:pointer;padding:6px 0}
+.wbody{flex:1;overflow-y:auto;padding:8px 22px 12px;display:flex;flex-direction:column;gap:14px}
+.phone.small .wbody{padding:4px 14px 8px}
+.phone.wide .wbody,.phone.wide .wfoot{width:560px;align-self:center}
+.wfoot{padding:10px 22px 34px;display:flex;flex-direction:column;gap:4px;flex:none}
+.phone.small .wfoot{padding:8px 14px 18px}
+.art{display:grid;place-items:center;padding:6px 0}
+.step{display:flex;align-items:center;gap:12px;font-size:17px;font-weight:700}
+.step .badge{background:var(--accent);color:var(--accent-ink)}
+.step b{color:var(--accent)}
+.toggle{width:52px;height:32px;border-radius:999px;background:var(--mint);border:0;position:relative;flex:none;padding:0;cursor:pointer}
+.toggle::after{content:"";position:absolute;top:3px;left:23px;width:26px;height:26px;border-radius:50%;background:#fff;box-shadow:0 2px 4px rgba(0,0,0,.2);transition:left .3s var(--spring)}
+.toggle[aria-checked="false"]{background:var(--line)}.toggle[aria-checked="false"]::after{left:3px}
+.word{font-size:34px;font-weight:900}
+.field{min-height:52px;padding:12px 16px;border-radius:var(--r-md);background:var(--card);font-size:20px;font-weight:700;display:flex;align-items:center}
+.field .caret{width:2px;height:24px;background:var(--accent);margin-left:2px;animation:blink 1s steps(2) infinite}
+@keyframes blink{50%{opacity:0}}
+.hint{color:var(--muted);font-size:14px;line-height:1.5}
+.hint .L{color:var(--left);font-weight:900}.hint .R{color:var(--right);font-weight:900}.hint b{color:var(--ink)}
+.kdock{padding:0 4px 26px;flex:none}
+/* KeyboardDock: the live keyboard docked at the bottom like the real one (KeyboardFrame's glass panel), with a handle to hide it */
+.dock{position:absolute;left:0;right:0;bottom:0;z-index:4;background:var(--glass);border-radius:30px 30px 0 0;padding:6px 5px 30px;
+  box-shadow:0 -6px 24px rgba(20,30,60,.12);transition:transform .5s var(--spring)}
+:root{--glass:#DFE0E5}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--glass:#212121}}
+:root[data-theme="dark"]{--glass:#212121}
+.dock.hidden{transform:translateY(calc(100% + 10px))}
+.dock .dhead{display:flex;align-items:center;gap:8px;padding:2px 10px 6px}
+.dock .grab{position:absolute;top:6px;left:50%;width:40px;height:5px;margin-left:-20px;border-radius:3px;background:color-mix(in srgb,var(--ink) 25%,transparent)}
+.dock .play{flex:1;min-width:0;font-weight:700;font-size:15px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-top:8px}
+.dock .play.empty{color:var(--muted)}
+.dock .hide{border:0;background:color-mix(in srgb,var(--ink) 10%,transparent);color:var(--ink);font-weight:800;font-size:13px;padding:6px 12px;border-radius:999px;cursor:pointer;margin-top:8px}
+.dock .kbd{background:transparent;padding-top:0}
+.phone.wide .dock .inner{max-width:680px;margin:0 auto}
+.phone.small .dock{padding-bottom:6px}
+.kpill{position:absolute;right:18px;bottom:30px;z-index:4;border:0;cursor:pointer;background:var(--ink);color:var(--bg);font-weight:800;font-size:15px;padding:12px 18px;border-radius:999px;
+  box-shadow:0 8px 20px rgba(20,30,60,.25);display:flex;gap:8px;align-items:center;transition:transform .4s var(--spring),opacity .2s}
+.kpill.gone{transform:translateY(30px) scale(.8);opacity:0;pointer-events:none}
+.scroll:has(~.kpill){padding-bottom:100px}
+.scroll.docked{padding-bottom:var(--dockh,320px)}
+.phone.wide .kdock{width:620px;align-self:center}
+.confetti{position:absolute;inset:0;pointer-events:none;z-index:5}
+.stub{display:flex;flex-direction:column;gap:10px;align-items:center;justify-content:center;flex:1;text-align:center;padding:30px;color:var(--muted)}
+@media (prefers-reduced-motion:reduce){.screen.anim,.kbd.flip .k,.k.jolt{animation:none}.prog i{transition:none}}
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="picker" role="navigation" aria-label="Screens">
+    <h1>Home and welcome</h1>
+    <p>Your keyboard's look on Home, and a welcome wizard that sets it up and teaches it. Tap through: the buttons in the phone work.</p>
+    <small>Home</small>
+    <button data-s="before">Home today (before)</button>
+    <button data-s="home">New Home</button>
+    <button data-s="homeHidden">New Home, keyboard hidden</button>
+    <button data-s="homeFree">New Home, trial over</button>
+    <button data-s="learnPractice">Learn and practice</button>
+    <small>Welcome wizard</small>
+    <button data-s="hello">1 · Hello</button>
+    <button data-s="turnOn">2 · Turn it on</button>
+    <button data-s="languages">3 · Languages</button>
+    <button data-s="style">4 · Make it yours</button>
+    <button data-s="tryIt">5 · Try it</button>
+    <button data-s="sync">6 · Keep your words</button>
+    <button data-s="arrive">Home, first time</button>
+    <small>From Home</small>
+    <button data-s="lesson">Learn two thumbs again</button>
+    <small>Look</small>
+    <div class="seg-mini" id="sizes"><button data-size="">iPhone</button><button data-size="small">Small</button><button data-size="wide">Wide</button></div>
+    <div class="seg-mini" id="themes"><button data-theme="light">Light</button><button data-theme="dark">Dark</button></div>
+    <div class="why" id="why"></div>
+  </div>
+  <div class="phone" id="phone"></div>
+</div>
+<script>
+/* ---------- Data (matches the app: KeyboardTheme.swift, EffectsSettings.Preset) ---------- */
+const SHAPE={gap:6,radius:6,bw:0,shadow:"soft",font:"rounded"};
+const T=(name,light,dark,shape={})=>({name,light,dark,shape:{...SHAPE,...shape}});
+const THEMES={
+  classic:T("Classic",{kb:"#D1D3D9",key:"#FFFFFF",fn:"#EDEEF0",ink:"#000000",bc:"#000",left:"#139FB5",right:"#FF6F86",acc:"#636366"},
+                      {kb:"#2A2A2C",key:"#6B6B6B",fn:"#4A4A4A",ink:"#FFFFFF",bc:"#FFF",left:"#2FC6DC",right:"#FF8A9E",acc:"#A0A0A0"},{gap:4,radius:10,shadow:"none"}),
+  iceberg:T("Iceberg",{kb:"#D9EDF3",key:"#FFFFFF",fn:"#BFE0EA",ink:"#1E2945",bc:"#139FB5",left:"#139FB5",right:"#FF6F86",acc:"#139FB5"},
+                      {kb:"#0E1C27",key:"#1D3240",fn:"#152836",ink:"#D9F4FF",bc:"#2FC6DC",left:"#2FC6DC",right:"#FF8A9E",acc:"#2FC6DC"},{radius:9}),
+  tuxedo:T("Tuxedo",{kb:"#E9E9EC",key:"#1C1C1E",fn:"#3A3A3C",ink:"#FFFFFF",bc:"#FF9F1C",left:"#FF9F1C",right:"#FFC94D",acc:"#FF9F1C"},
+                    {kb:"#000000",key:"#1C1C1E",fn:"#2C2C2E",ink:"#FFFFFF",bc:"#FF9F1C",left:"#FF9F1C",right:"#FFC94D",acc:"#FF9F1C"},{radius:8}),
+  krill:T("Krill",{kb:"#FFE4E8",key:"#FFFFFF",fn:"#FFC7D1",ink:"#7A2E3B",bc:"#FF6F86",left:"#FF6F86",right:"#FF9F1C",acc:"#FF6F86"},
+                  {kb:"#26121A",key:"#46222D",fn:"#371A23",ink:"#FFD9E0",bc:"#FF8A9E",left:"#FF8A9E",right:"#FFB25C",acc:"#FF8A9E"},{radius:12}),
+  midnight:T("Midnight",{kb:"#E8EAFF",key:"#FFFFFF",fn:"#D3D7FA",ink:"#283070",bc:"#5B6CFF",left:"#5B6CFF",right:"#B15CFF",acc:"#5B6CFF"},
+                        {kb:"#0B1026",key:"#1A2246",fn:"#141B3A",ink:"#C9F7FF",bc:"#2FC6DC",left:"#2FC6DC",right:"#B98CFF",acc:"#7B61FF"},{bw:1,radius:8}),
+  paper:T("Paper",{kb:"#F7F3EA",key:"#F7F3EA",fn:"#ECE5D3",ink:"#2B2A26",bc:"#2B2A26",left:"#2B2A26",right:"#C2410C",acc:"#C2410C"},
+                  {kb:"#1A1916",key:"#1A1916",fn:"#26241F",ink:"#EDE6D6",bc:"#EDE6D6",left:"#EDE6D6",right:"#FB923C",acc:"#FB923C"},{bw:1.5,shadow:"none",font:"classic",radius:4}),
+  arcade:T("Arcade",{kb:"#FFF0FB",key:"#FFFFFF",fn:"#FBD9F3",ink:"#8A00D4",bc:"#00B8D4",left:"#00B8D4",right:"#FF2DAA",acc:"#FF2DAA"},
+                  {kb:"#0D0221",key:"#1A0B3A",fn:"#140830",ink:"#FF4FD8",bc:"#00F0FF",left:"#00F0FF",right:"#FF4FD8",acc:"#FF4FD8"},{bw:1.5,shadow:"none",font:"mono",radius:4}),
+  bold:T("Bold",{kb:"#FFFFFF",key:"#FFFFFF",fn:"#E5E5E5",ink:"#000000",bc:"#000000",left:"#0057FF",right:"#E00000",acc:"#0057FF"},
+                {kb:"#000000",key:"#000000",fn:"#1A1A1A",ink:"#FFFFFF",bc:"#FFFFFF",left:"#4DA3FF",right:"#FF5C5C",acc:"#4DA3FF"},{bw:2,shadow:"none",radius:6}),
+};
+const FONTS={rounded:"ui-rounded,'SF Pro Rounded','Nunito',system-ui,sans-serif",classic:"-apple-system,system-ui,'Helvetica Neue',Arial,sans-serif",mono:"ui-monospace,'SF Mono',Menlo,Consolas,monospace"};
+// Each preset's touch, in a few words. The real ones are Metal; these are sketches.
+const FX={
+  calm:{name:"Calm",c:"#139FB5",tap:"ring",trail:"line"},
+  arcade:{name:"Arcade",c:"#FF2DAA",tap:"burst",trail:"rainbow",confetti:true},
+  glitch:{name:"Glitch",c:"#7B61FF",tap:"glitch",trail:"line"},
+  rainbow:{name:"Rainbow",c:"#FF9F1C",tap:"ring",trail:"rainbow"},
+  space:{name:"Space",c:"#5B6CFF",tap:"stars",trail:"comet"},
+  zen:{name:"Zen",c:"#2FBF96",tap:"soft",trail:"line"},
+  sugar:{name:"Sugar Rush",c:"#FF6FB5",tap:"hearts",trail:"rainbow"},
+  off:{name:"Off",c:"#97A6B8",tap:"none",trail:"none"},
+};
+const FXPIC={
+  calm:c=>`<circle cx="23" cy="23" r="6" fill="${c}"/><circle cx="23" cy="23" r="13" fill="none" stroke="${c}" stroke-width="3" opacity=".6"/><circle cx="23" cy="23" r="20" fill="none" stroke="${c}" stroke-width="2" opacity=".3"/>`,
+  arcade:c=>[[8,10,"#FF2DAA"],[36,8,"#00B8D4"],[40,32,"#FFC24D"],[6,34,"#2FBF96"],[23,4,"#7B61FF"],[23,40,"#FF6F86"]].map(([x,y,k],i)=>`<rect x="${x}" y="${y}" width="7" height="4" rx="1" fill="${k}" transform="rotate(${i*35} ${x+3} ${y+2})"/>`).join("")+`<circle cx="23" cy="23" r="5" fill="${c}"/>`,
+  glitch:c=>`<rect x="6" y="12" width="30" height="5" fill="#FF2DAA"/><rect x="12" y="21" width="30" height="5" fill="${c}"/><rect x="4" y="30" width="26" height="4" fill="#00F0FF"/>`,
+  rainbow:c=>["#FF6F86","#FFC24D","#2FBF96","#139FB5","#7B61FF"].map((k,i)=>`<path d="M${4+i*4} 38 a${19-i*4} ${19-i*4} 0 0 1 ${38-i*8} 0" fill="none" stroke="${k}" stroke-width="3.5" stroke-linecap="round"/>`).join(""),
+  space:c=>`<circle cx="23" cy="23" r="21" fill="${c}"/>`+[[12,12,5],[32,16,3.5],[20,32,3],[34,32,4.5],[14,24,2]].map(([x,y,r])=>`<path d="M${x} ${y-r} L${x+r*.3} ${y-r*.3} L${x+r} ${y} L${x+r*.3} ${y+r*.3} L${x} ${y+r} L${x-r*.3} ${y+r*.3} L${x-r} ${y} L${x-r*.3} ${y-r*.3}Z" fill="#FFE88A"/>`).join(""),
+  zen:c=>`<path d="M23 6 C 36 16, 36 32, 23 40 C 10 32, 10 16, 23 6Z" fill="${c}" opacity=".85"/><path d="M23 12 V36" stroke="#fff" stroke-width="2" stroke-linecap="round"/>`,
+  sugar:c=>[[16,18,1],[31,14,.7],[28,31,.9],[12,33,.55]].map(([x,y,s])=>`<path transform="translate(${x} ${y}) scale(${s})" d="M0 6 C -10 -2, -6 -10, 0 -4 C 6 -10, 10 -2, 0 6Z" fill="${["#FF6FB5","#FFB3D9","#FF2DAA","#FFC24D"][Math.round(s*10)%4]}"/>`).join(""),
+  off:c=>`<circle cx="23" cy="23" r="15" fill="none" stroke="${c}" stroke-width="3.5"/><path d="M12 34 L34 12" stroke="${c}" stroke-width="3.5" stroke-linecap="round"/>`,
+};
+const FREE_THEMES=["classic"], FREE_FX=["calm","off"];
+const WORDS=[
+  {w:"something",hint:'<span class="L">Left thumb</span> taps <b>s</b> and <b>e</b>. <span class="R">Right thumb</span> swipes <b>o→m</b>, then <b>t→h→i→n→g</b>. Space when it says something.',seq:[["s","L"],["o","R"],["m","R"],["e","L"],["t","R"],["h","R"],["i","R"],["n","R"],["g","R"]]},
+  {w:"with",hint:'<span class="L">Left thumb</span> taps <b>w</b> and <b>t</b>. <span class="R">Right thumb</span> taps <b>i</b> and <b>h</b>. Space when it says with.',seq:[["w","L"],["i","R"],["t","L"],["h","R"]]},
+  {w:"great",hint:'<span class="L">Left thumb</span> swipes <b>g→r→e→a→t</b>. Space when it says great.',seq:[["g","L"],["r","L"],["e","L"],["a","L"],["t","L"]]},
+  {w:"morning",hint:'<span class="R">Right thumb</span> swipes <b>m→o</b>, then <b>n→i→n→g</b>. <span class="L">Left thumb</span> taps <b>r</b>. Space when it says morning.',seq:[["m","R"],["o","R"],["r","L"],["n","R"],["i","R"],["n","R"],["g","R"]]},
+  {w:"think",hint:'<span class="L">Left thumb</span> taps <b>t</b>. <span class="R">Right thumb</span> swipes <b>h→i→n→k</b>. Space when it says think.',seq:[["t","L"],["h","R"],["i","R"],["n","R"],["k","R"]]},
+];
+
+const S={screen:"home",size:"",theme:"light",kbTheme:"classic",fx:"calm",height:100,pro:true,keyboardOn:false,langs:{en:true,es:true},
+  tryIdx:0,typed:"",lesson:false,sync:false,dockOpen:true,play:""};
+const STEPS=["hello","turnOn","languages","style","tryIt","sync"];
+const WHY={
+  before:"Home today: Your speed, Pro, three drills, the week and a Settings row. How the keyboard looks is Home → Settings → Appearance → Styling or Effects, three taps down.",
+  home:"Your speed still leads, with Practice and Learn links at its bottom. Effects are a sideways row of picture cards, like the themes. The keyboard sits at the bottom like the real one, so it's always there to try while you pick a theme, an effect or a height in the Your keyboard card above it. Hide tucks it away; the Keyboard button brings it back. Changes go to the keyboard in every app right away.",
+  learnPractice:"Practice and Learn moved off Home into their own screen. Home links to it from the bottom of Your speed: Practice (Speed practice, drills, Practice words, the week) and Learn (the lesson, tips). Each link jumps to its half.",
+  homeHidden:"Keyboard hidden: Home is just Home again, and a small Keyboard button in the corner brings it back. Home remembers which way you left it.",
+  homeFree:"After the trial, Pro looks fall back to Classic and Calm as today. The card says so once, kindly, and Pro cards keep their tag; tapping one opens Pro.",
+  hello:"Step 1, as today. No progress bar yet, just the hello.",
+  turnOn:"Step 2. Same words and the same chip that flips to On by itself. Tap 'Open Settings' here to pretend you turned it on. Skip and 'I'll do it later' both move on.",
+  languages:"Step 3, only on a phone with more than one language the keyboard knows. Same as today, in the wizard's shape.",
+  style:"Step 4, new. The keyboard is docked at the bottom, like on Home, with the theme and effect pickers above it. Classic and Calm are picked to start. Tap a theme or an effect, then tap the keys. Everyone is on the trial here, so Pro looks just carry a small tag.",
+  tryIt:"Step 5, today's lesson in the same shape, typed on the look you just picked. Tap 'Show me' to watch, or type the letters and press space. Tap Skip to jump ahead.",
+  sync:"Step 6, the Full Access ask, moved after Try it: now it already has words worth keeping.",
+  arrive:"Done: Home with confetti, already in your style.",
+  lesson:"Learn two thumbs again, from Practice on Home. The same five words, no progress bar, Done instead of Skip.",
+};
+
+/* ---------- Helpers ---------- */
+const phone=document.getElementById("phone");
+const status=()=>`<div class="status"><span>9:41</span><span>●●● ⌁ ▮</span></div>`;
+const pageDark=()=>{const d=document.documentElement.dataset.theme;return d?d==="dark":matchMedia("(prefers-color-scheme: dark)").matches};
+const look=()=>pageDark()?"dark":"light";
+const isProTheme=id=>!FREE_THEMES.includes(id), isProFx=id=>!FREE_FX.includes(id);
+const shownTheme=()=>(!S.pro&&isProTheme(S.kbTheme))?"classic":S.kbTheme;
+const shownFx=()=>(!S.pro&&isProFx(S.fx))?"calm":S.fx;
+function vars(th,lk){
+  const c=th[lk],s=th.shape,dark=lk==="dark";
+  const sh={none:"none",soft:`0 1px 0 rgba(0,0,0,${dark?.5:.28})`}[s.shadow];
+  return `--kkb:${c.kb};--kkey:${c.key};--kfn:${c.fn};--kink:${c.ink};--kbc:${s.bw?c.bc:"transparent"};--kbw:${s.bw}px;--krad:${s.radius}px;--kgap:${s.gap}px;--ksh:${sh};--kfont:${FONTS[s.font]};--kleft:${c.left};--kright:${c.right};--kacc:${c.acc};`;
+}
+function mini(th){const c=th[look()];const r=n=>Array.from({length:n},()=>"<i></i>").join("");
+  return `<div class="mini" style="background:${c.kb};--mkey:${c.key};--mfn:${c.fn};--mleft:${c.left};--mright:${c.right};--mbw:${th.shape.bw?1:0}px;--mbc:${c.bc}" aria-hidden="true">
+  <div>${r(8)}</div><div><i></i><i class="l"></i>${r(4)}<i class="rr"></i></div><div><i class="f"></i>${r(5)}<i class="f"></i></div><div><i class="f"></i><i class="sp"></i><i class="f"></i></div></div>`}
+function kbd(opts={}){
+  const th=THEMES[shownTheme()];
+  const h=Math.round((opts.h||40)*S.height/100);
+  const L=s=>[...s].map(c=>`<div class="k" data-k="${c}">${c}</div>`).join("");
+  return `<div class="kbd" data-kb style="${vars(th,look())}--kh:${h}px" aria-hidden="true">
+    <div class="kbar">${opts.bar||"<span>I</span><span class=\"mid\">the</span><span>you</span>"}</div>
+    <div class="krow">${L("qwertyuiop")}</div>
+    <div class="krow r2">${L("asdfghjkl")}</div>
+    <div class="krow"><div class="k f" data-k="shift">⇧</div>${L("zxcvbnm")}<div class="k f" data-k="del">⌫</div></div>
+    <div class="krow"><div class="k f" data-k="123">123</div><div class="k f" data-k="emoji">☺</div><div class="k space" data-k="space">space</div><div class="k f ret" data-k="ret">return</div></div>
+    <canvas></canvas><span class="combo"></span>
+  </div>`;
+}
+const thumbsSVG=(s=68)=>`<svg class="thumbs" width="${s}" height="${s}" viewBox="0 0 68 68" aria-hidden="true"><rect x="6" y="20" width="56" height="34" rx="9" fill="var(--card)" stroke="var(--line)" stroke-width="2"/>
+  <path d="M14 44 C 20 30, 28 34, 30 28" fill="none" stroke="var(--left)" stroke-width="4" stroke-linecap="round"/><path d="M54 44 C 48 32, 42 36, 38 30" fill="none" stroke="var(--right)" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="30" cy="28" r="5" fill="var(--left)"/><circle cx="38" cy="30" r="5" fill="var(--right)"/></svg>`;
+const bigArt=()=>`<svg width="200" height="170" viewBox="0 0 200 170" aria-hidden="true"><rect x="10" y="50" width="180" height="104" rx="22" fill="var(--card)"/>
+  ${Array.from({length:3},(_,r)=>Array.from({length:8},(_,c)=>`<rect x="${24+c*20+(r===1?8:0)}" y="${66+r*24}" width="14" height="18" rx="4" fill="var(--ice)"/>`).join("")).join("")}
+  <path class="dr" d="M30 140 C 40 96, 70 100, 78 76" fill="none" stroke="var(--left)" stroke-width="7" stroke-linecap="round" stroke-dasharray="140" stroke-dashoffset="140"><animate attributeName="stroke-dashoffset" to="0" dur="1.1s" fill="freeze"/></path>
+  <path d="M170 140 C 160 100, 130 108, 122 84" fill="none" stroke="var(--right)" stroke-width="7" stroke-linecap="round" stroke-dasharray="140" stroke-dashoffset="140"><animate attributeName="stroke-dashoffset" to="0" dur="1.1s" begin=".35s" fill="freeze"/></path>
+  <ellipse cx="100" cy="30" rx="18" ry="22" fill="var(--ink)"/><ellipse cx="100" cy="34" rx="11" ry="15" fill="#fff"/><circle cx="95" cy="24" r="2.2" fill="#fff"/><circle cx="105" cy="24" r="2.2" fill="#fff"/><path d="M96 31 l4 4 4-4z" fill="var(--sun)"/></svg>`;
+
+/* ---------- Effects sketch on the live keyboard ---------- */
+const live=new Set();
+function wireKbd(el,onKey){
+  const cv=el.querySelector("canvas"),g=cv.getContext("2d");const parts=[];const trail=[];let combo=0,comboT=0;
+  const size=()=>{const r=el.getBoundingClientRect();cv.width=r.width*2;cv.height=r.height*2;g.setTransform(2,0,0,2,0,0)};size();
+  const fx=()=>FX[shownFx()];const th=()=>THEMES[shownTheme()][look()];
+  const keyAt=(x,y)=>{const r=el.getBoundingClientRect();for(const k of el.querySelectorAll(".k")){const b=k.getBoundingClientRect();if(x>=b.left-r.left-2&&x<=b.right-r.left+2&&y>=b.top-r.top-2&&y<=b.bottom-r.top+2)return k}return null};
+  const centre=k=>{const r=el.getBoundingClientRect(),b=k.getBoundingClientRect();return{x:b.left-r.left+b.width/2,y:b.top-r.top+b.height/2}};
+  function burst(x,y,side){const f=fx(),c=side==="R"?th().right:th().left;const rm=matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if(f.tap==="none")return;
+    if(f.tap==="ring"||f.tap==="soft")parts.push({k:"ring",x,y,r:4,life:1,c,soft:f.tap==="soft"});
+    if(f.tap==="burst"||f.tap==="stars"||f.tap==="hearts"){const n=rm?4:f.tap==="burst"?14:9;for(let i=0;i<n;i++){const a=Math.random()*Math.PI*2,v=1.5+Math.random()*3.5;
+      parts.push({k:f.tap==="hearts"?"heart":f.tap==="stars"?"star":"dot",x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v-1,life:1,c:f.tap==="burst"?`hsl(${Math.random()*360},90%,60%)`:f.tap==="hearts"?["#FF6FB5","#FFB3D9","#FFC24D"][i%3]:"#FFE88A"})}}
+    if(f.tap==="glitch"){parts.push({k:"glitch",x,y,life:1,c})}
+    if(f.confetti&&!rm){combo++;comboT=900;const cb=el.querySelector(".combo");cb.textContent="×"+combo;cb.style.opacity=1}
+  }
+  function press(k,side){if(!k)return;k.classList.add("hit");setTimeout(()=>k.classList.remove("hit"),140);
+    if(fx().tap==="glitch"){k.classList.add("jolt");setTimeout(()=>k.classList.remove("jolt"),200)}
+    const p=centre(k);burst(p.x,p.y,side);onKey&&onKey(k.dataset.k)}
+  function lit(k,side){if(!k||fx().trail==="none")return;k.style.setProperty("--klit",side==="R"?th().right:th().left);k.classList.add("lit");setTimeout(()=>k.classList.remove("lit"),220)}
+  let ptr=null;
+  el.addEventListener("pointerdown",e=>{size();const r=el.getBoundingClientRect();const x=e.clientX-r.left,y=e.clientY-r.top;const side=x<r.width/2?"L":"R";
+    ptr={side,key:keyAt(x,y),moved:false,keys:[keyAt(x,y)]};trail.length=0;trail.push({x,y,t:performance.now(),side});el.setPointerCapture(e.pointerId)});
+  el.addEventListener("pointermove",e=>{if(!ptr)return;const r=el.getBoundingClientRect();const x=e.clientX-r.left,y=e.clientY-r.top;trail.push({x,y,t:performance.now(),side:ptr.side});
+    const k=keyAt(x,y);if(k&&k!==ptr.key){ptr.moved=true;ptr.key=k;ptr.keys.push(k);lit(k,ptr.side)}});
+  el.addEventListener("pointerup",e=>{if(!ptr)return;if(!ptr.moved)press(ptr.key,ptr.side);else{const r=el.getBoundingClientRect();burst(e.clientX-r.left,e.clientY-r.top,ptr.side);ptr.keys.forEach(k=>k&&onKey&&k.dataset.k.length===1&&onKey(k.dataset.k))}ptr=null});
+  const eng={el,step(dt){const W=cv.width/2,H=cv.height/2;g.clearRect(0,0,W,H);const f=fx();
+    if(comboT>0){comboT-=dt;if(comboT<=0){combo=0;el.querySelector(".combo").style.opacity=0}}
+    const now=performance.now();while(trail.length&&now-trail[0].t>(f.trail==="comet"?380:260))trail.shift();
+    if(f.trail!=="none"&&trail.length>1){for(let i=1;i<trail.length;i++){const a=trail[i-1],b=trail[i],age=1-(now-b.t)/300;
+      g.strokeStyle=f.trail==="rainbow"?`hsl(${(b.t/3)%360},90%,60%)`:(b.side==="R"?th().right:th().left);g.globalAlpha=Math.max(0,age);g.lineWidth=f.trail==="comet"?2+8*age:5*age+1;g.lineCap="round";
+      g.beginPath();g.moveTo(a.x,a.y);g.lineTo(b.x,b.y);g.stroke()}g.globalAlpha=1}
+    for(let i=parts.length-1;i>=0;i--){const p=parts[i];p.life-=dt/(p.soft?900:520);if(p.life<=0){parts.splice(i,1);continue}g.globalAlpha=p.life;
+      if(p.k==="ring"){p.r+=dt*(p.soft?.04:.09);g.strokeStyle=p.c;g.lineWidth=p.soft?2:3;g.beginPath();g.arc(p.x,p.y,p.r,0,7);g.stroke()}
+      else if(p.k==="glitch"){g.fillStyle="#FF2DAA";g.fillRect(p.x-30+Math.random()*8,p.y-6,40,3);g.fillStyle="#00F0FF";g.fillRect(p.x-18+Math.random()*8,p.y+3,48,2);g.fillStyle=p.c;g.fillRect(p.x-12,p.y-1+Math.random()*4-2,28,2)}
+      else{p.x+=p.vx*dt/16;p.y+=p.vy*dt/16;p.vy+=.08*dt/16;g.fillStyle=p.c;
+        if(p.k==="heart"){g.font="12px sans-serif";g.fillText("♥",p.x-4,p.y+4)}else if(p.k==="star"){g.font="11px sans-serif";g.fillText("✦",p.x-4,p.y+4)}else{g.fillRect(p.x-2,p.y-2,4,4)}}
+      g.globalAlpha=1}
+  },press,lit,centre,keyFor:c=>el.querySelector(`.k[data-k="${c}"]`)};
+  live.add(eng);return eng;
+}
+// EffectCard previews: each card loops its own effect around a tiny key (sketch of running the real effect on one key).
+function fxPreviews(){
+  const rm=matchMedia("(prefers-reduced-motion: reduce)").matches;
+  phone.querySelectorAll("[data-fxpic]").forEach(pic=>{
+    const id=pic.dataset.fxpic,f=FX[id],cv=pic.querySelector("canvas"),g=cv.getContext("2d");
+    const W=96,H=64;cv.width=W*2;cv.height=H*2;g.setTransform(2,0,0,2,0,0);
+    const parts=[];let t0=performance.now()+Math.random()*900,trail=[];const key=pic.querySelector(".mk");
+    const eng={el:pic,step(dt,now){g.clearRect(0,0,W,H);const t=(now-t0)%1600;const cx=W/2,cy=H/2;
+      if(id==="off"){return}
+      if(t<dt+1){ // a tap each loop
+        key.animate([{transform:"scale(.86)"},{transform:"none"}],{duration:220,easing:"cubic-bezier(.34,1.56,.64,1)"});
+        if(id==="glitch")key.animate([{transform:"translate(3px,-1px)",filter:"hue-rotate(90deg)"},{transform:"translate(-3px,1px)"},{transform:"none"}],{duration:200,easing:"steps(3)"});
+        const n=rm?3:{arcade:16,space:8,sugar:8,rainbow:0}[id]||0;
+        for(let i=0;i<n;i++){const a=Math.random()*Math.PI*2,v=.6+Math.random()*1.6;parts.push({x:cx,y:cy,vx:Math.cos(a)*v,vy:Math.sin(a)*v-.4,life:1,
+          c:id==="arcade"?`hsl(${Math.random()*360},90%,60%)`:id==="sugar"?["#FF6FB5","#FFB3D9","#FFC24D"][i%3]:"#FFE88A"})}
+        if(["calm","zen","rainbow","glitch"].includes(id))parts.push({ring:1,x:cx,y:cy,r:id==="zen"?6:10,life:1})
+      }
+      // trails swipe across the card
+      if(["calm","rainbow","space","sugar","arcade"].includes(id)&&t>700&&t<1300){const k=(t-700)/600;trail.push({x:8+k*(W-16),y:H-14-Math.sin(k*Math.PI)*24,t:now})}
+      trail=trail.filter(p=>now-p.t<(id==="space"?380:260));
+      for(let i=1;i<trail.length;i++){const a=trail[i-1],b=trail[i],age=1-(now-b.t)/300;g.globalAlpha=Math.max(0,age);
+        g.strokeStyle=id==="rainbow"||id==="arcade"||id==="sugar"?`hsl(${(b.t/3)%360},90%,62%)`:f.c;g.lineWidth=id==="space"?1.5+5*age:1+3.5*age;g.lineCap="round";g.beginPath();g.moveTo(a.x,a.y);g.lineTo(b.x,b.y);g.stroke()}
+      g.globalAlpha=1;
+      for(let i=parts.length-1;i>=0;i--){const p=parts[i];p.life-=dt/(id==="zen"?1100:650);if(p.life<=0){parts.splice(i,1);continue}g.globalAlpha=p.life;
+        if(p.ring){p.r+=dt*(id==="zen"?.025:.05);g.strokeStyle=id==="rainbow"?`hsl(${(now/4)%360},90%,60%)`:f.c;g.lineWidth=id==="zen"?2:3;g.beginPath();g.arc(p.x,p.y,p.r,0,7);g.stroke()}
+        else{p.x+=p.vx*dt/16;p.y+=p.vy*dt/16;p.vy+=.03*dt/16;g.fillStyle=p.c;
+          if(id==="sugar"){g.font="10px sans-serif";g.fillText("♥",p.x-3,p.y+3)}else if(id==="space"){g.font="9px sans-serif";g.fillText("✦",p.x-3,p.y+3)}else g.fillRect(p.x-1.5,p.y-1.5,3,3)}
+        g.globalAlpha=1}
+      if(id==="glitch"&&t<260){g.fillStyle="#FF2DAA";g.fillRect(cx-28+Math.random()*6,cy-8,40,3);g.fillStyle="#00F0FF";g.fillRect(cx-18+Math.random()*6,cy+5,44,2)}
+      if(id==="space"){g.fillStyle="#fff";for(let i=0;i<6;i++){const tw=.4+.6*Math.abs(Math.sin(now/400+i*1.7));g.globalAlpha=tw*.7;g.fillRect((i*37)%W+4,(i*23)%H+3,1.5,1.5)}g.globalAlpha=1}
+    }};
+    live.add(eng);
+  });
+}
+let lastT=performance.now();
+(function loop(t){const dt=Math.min(50,t-lastT);lastT=t;live.forEach(e=>{if(!document.body.contains(e.el))live.delete(e);else e.step(dt,t)});requestAnimationFrame(loop)})(lastT);
+function demo(eng,seq){if(!eng)return;let i=0;const go=()=>{if(i>=seq.length)return;const [c,s]=seq[i++];const k=eng.keyFor(c);if(i===1||seq[i-2][1]!==s)eng.press(k,s);else{eng.lit(k,s)}setTimeout(go,200)};go()}
+
+/* ---------- Pieces ---------- */
+const sec=(t,extra="")=>`<div class="sec">${t}${extra}</div>`;
+const row=o=>`<${o.go?`button data-go="${o.go}"`:"div"} class="r">${o.lead||""}<div class="t"><b>${o.title}</b>${o.sub?`<span>${o.sub}</span>`:""}</div>${o.end||""}${o.go?'<span class="chev" aria-hidden="true">›</span>':""}</${o.go?"button":"div"}>`;
+function speedCard(opts={}){
+  const pts=[31,33,32,36,35,38,37,40,39,42,41,44,43,46];const w=300,h=46;const xs=i=>i*w/(pts.length-1),ys=v=>h-4-(v-28)/20*(h-8);
+  const d=pts.map((v,i)=>`${i?"L":"M"}${xs(i).toFixed(1)},${ys(v).toFixed(1)}`).join("");
+  return `<div class="card" style="display:flex;flex-direction:column;gap:10px">
+    <div class="row"><b style="font-size:17px">Your speed</b><span class="spacer"></span><span class="chip">#1,204 this week</span><span class="chip on">↑ 6</span></div>
+    <div class="row" style="align-items:flex-end;gap:8px"><span class="big">46</span><span class="unit" style="padding-bottom:6px">words a minute, every day</span></div>
+    <svg class="spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none"><path class="fl" d="${d}L${w},${h}L0,${h}Z"/><path class="ln" d="${d}" vector-effect="non-scaling-stroke"/><circle class="pd" cx="${xs(10)}" cy="${ys(49)}" r="5"/><circle class="pd" cx="${xs(12)}" cy="${ys(51)}" r="5"/></svg>
+    <div class="row"><button class="btn small">Practice for speed</button><span class="spacer"></span><button class="btn ghost" style="font-size:14px">History ›</button></div>
+    ${opts.links===false?"":`<div class="lp">
+      <button data-go="learnPractice" data-sec="practice"><span class="ic" style="background:color-mix(in srgb,var(--right) 22%,var(--card))">🎯</span><b>Practice <span class="chev">›</span></b><span>3 drills and your missed words</span><span class="mini-week">${[1,1,0,1,1,0,0].map(y=>`<i class="${y?"y":""}"></i>`).join("")}</span></button>
+      <button data-go="learnPractice" data-sec="learn"><span class="ic" style="background:color-mix(in srgb,var(--left) 22%,var(--card))">🐧</span><b>Learn <span class="chev">›</span></b><span>The two-thumb lesson and tips</span></button>
+    </div>`}
+  </div>`;
+}
+function themeRow(){
+  return `<div class="hscroll" role="listbox" aria-label="Themes">${Object.entries(THEMES).map(([id,th])=>{const locked=!S.pro&&isProTheme(id);
+    return `<button class="tcard" role="option" aria-pressed="${shownTheme()===id}" aria-selected="${shownTheme()===id}" aria-label="${th.name} theme${isProTheme(id)?", Pro":""}${shownTheme()===id?", selected":""}" data-theme-id="${id}" ${locked?'data-locked="1"':""}>${mini(th)}<span class="nm">${th.name}${isProTheme(id)?'<i class="pro">PRO</i>':""}</span></button>`}).join("")}</div>`;
+}
+function fxChips(){
+  return `<div class="hscroll" role="radiogroup" aria-label="Effects">${Object.entries(FX).map(([id,f])=>`<button class="fcard" role="radio" aria-checked="${shownFx()===id}" aria-pressed="${shownFx()===id}" aria-label="${f.name} effects${isProFx(id)?", Pro":""}" data-fx="${id}"><span class="pic" style="--fc:${f.c}" data-fxpic="${id}"><canvas></canvas><span class="mk" aria-hidden="true">a</span></span><span class="nm">${f.name}${isProFx(id)?'<i class="pro">PRO</i>':""}</span></button>`).join("")}</div>`;
+}
+function keyboardCard(opts={}){
+  return `<div class="card kcard">
+    ${opts.inline?kbd({h:40}):""}
+    ${!S.pro?`<div class="resting">Pro looks are resting. Classic and Calm are on. <a href="#" data-go="pro" style="color:var(--accent);font-weight:900;text-decoration:none">See Pro</a></div>`:""}
+    <div class="lbl">THEME</div>${themeRow()}
+    <div class="lbl">EFFECTS</div>${fxChips()}
+    ${opts.height===false?"":`<div class="sl"><div class="top"><b>Height</b><span id="hv">${S.height}%</span></div><div class="ends">Short<input type="range" id="height" min="80" max="120" step="5" value="${S.height}" aria-label="Height">Tall</div></div>`}
+    ${opts.more===false?"":`${S.dockOpen?"":`<button class="more" data-act="showkb"><div style="text-align:left">Try it on the keyboard<br><span>Shows it at the bottom of Home</span></div><span class="chev">⌨︎</span></button>`}<button class="more" data-go="appearance"><div style="text-align:left">More styling<br><span>Your own themes, flow levels, guesses bar, haptics</span></div><span class="chev">›</span></button>`}
+  </div>`;
+}
+function dock(opts={}){
+  const play=S.play||"";
+  return `<div class="dock ${S.dockOpen||opts.fixed?"":"hidden"}" id="dock"><div class="inner">
+    ${opts.fixed?`<div class="dhead"><span class="play ${play?"":"empty"}" id="play">${play||"Tap or swipe to try your look"}</span></div>`
+      :`<span class="grab" aria-hidden="true"></span><div class="dhead"><span class="play ${play?"":"empty"}" id="play">${play||"Type anything. It stays right here."}</span><button class="hide" data-act="hidekb" aria-label="Hide keyboard">Hide ⌄</button></div>`}
+    ${kbd({h:40,bar:opts.fixed?undefined:`<span>I</span><span class="mid">the</span><span>you</span>`})}
+  </div></div>
+  ${opts.fixed?"":`<button class="kpill ${S.dockOpen?"gone":""}" data-act="showkb" aria-label="Show keyboard">⌨︎ Keyboard</button>`}`;
+}
+function practice(){
+  const drills=[["Two-letter swipes","th, in, er, on",true],["Switching thumbs","Start left, finish right",false],["Doubled letters","A tap inside a swipe",false]];
+  return `${sec("Practice")}
+  <div class="group">
+    ${drills.map(([t,s,done],i)=>row({lead:`<span class="badge ${done?"done":""}">${done?"✓":i+1}</span>`,title:t,sub:s,go:"drill",end:S.pro?"":'<i class="pro">PRO</i>'})).join("")}
+    ${row({lead:'<span class="ic" style="background:var(--right)">Aa</span>',title:"Practice words",sub:"Words you've missed, one more time",go:"pw"})}
+    ${row({lead:'<span class="ic" style="background:var(--left)">✌︎</span>',title:"Learn two thumbs again",sub:"The five-word lesson from the start",go:"lesson"})}
+  </div>
+  <div class="card week">${["M","T","W","T","F","S","S"].map((d,i)=>`<div><i class="${i<5&&i!==2?"y":""}">${i<5&&i!==2?"✓":""}</i>${d}</div>`).join("")}</div>`;
+}
+function learnPracticeScreen(){
+  const drills=[["Two-letter swipes","th, in, er, on",true],["Switching thumbs","Start left, finish right",false],["Doubled letters","A tap inside a swipe",false]];
+  return `<div class="nav"><button class="back" data-go="home">‹ Home</button></div><div class="scroll">
+    <div class="h1">Learn and practice</div>
+    <p class="sub">A few minutes a day makes two thumbs feel natural.</p>
+    <div id="sec-practice">${sec("Practice")}</div>
+    <div class="group">
+      ${row({lead:'<span class="ic" style="background:var(--accent)">⏱</span>',title:"Speed practice",sub:"Three sentences, measured against your everyday 46",go:"speedtest"})}
+      ${drills.map(([t,s,done],i)=>row({lead:`<span class="badge ${done?"done":""}">${done?"✓":i+1}</span>`,title:t,sub:s,go:"drill",end:S.pro?"":'<i class="pro">PRO</i>'})).join("")}
+      ${row({lead:'<span class="ic" style="background:var(--right)">Aa</span>',title:"Practice words",sub:"Words you've missed, one more time",go:"pw"})}
+    </div>
+    ${sec("This week")}
+    <div class="card week">${["M","T","W","T","F","S","S"].map((d,i)=>`<div><i class="${i<5&&i!==2?"y":""}">${i<5&&i!==2?"✓":""}</i>${d}</div>`).join("")}</div>
+    <div id="sec-learn">${sec("Learn")}</div>
+    <div class="group">
+      ${row({lead:'<span class="ic" style="background:color-mix(in srgb,var(--left) 22%,var(--card))">🐧</span>',title:"The two-thumb lesson",sub:"Five words with thumb hints, from the start",go:"lesson"})}
+      ${row({lead:'<span class="ic" style="background:var(--sun);color:#3A2600">?</span>',title:"Tips",sub:"Gestures, fixing a word, the 123 panel",go:"tips"})}
+    </div>
+  </div>`;
+}
+function bottomRows(){
+  return `<div class="group" style="margin-top:8px">
+    ${row({lead:'<span class="ic" style="background:var(--sun);color:#3A2600">★</span>',title:S.pro?"Pro trial":"Astrotype Pro",sub:S.pro?"9 days left. Two thumbs, every look, every drill.":"Two-thumb typing is resting. Keep it from $2.99 a month.",go:"pro"})}
+    ${row({lead:'<span class="ic" style="background:var(--muted)">⚙︎</span>',title:"Settings",sub:"Typing, languages, your words, privacy",go:"settings"})}
+  </div>`;
+}
+
+/* ---------- Screens ---------- */
+const wide=()=>S.size==="wide";
+function homeScreen(){
+  const left=wide()?`${speedCard()}${bottomRows()}`:`${speedCard()}${sec("Your keyboard")}${keyboardCard()}${bottomRows()}`;
+  const right=wide()?`${sec("Your keyboard")}${keyboardCard()}`:"";
+  return `<div class="scroll ${S.dockOpen?"docked":""}">
+    <div class="hdr"><div class="h1">Astrotype</div>${thumbsSVG()}</div>
+    <div class="cols"><div class="col">${left}</div><div class="col">${right}</div></div>
+  </div>${dock()}`;
+}
+function beforeScreen(){
+  return `<div class="scroll">
+    <div class="hdr"><div class="h1">Both<br>flippers, go.</div>${thumbsSVG()}</div>
+    ${speedCard()}
+    <div class="group">${row({lead:'<span class="ic" style="background:var(--sun);color:#3A2600">★</span>',title:"Pro trial",sub:"9 days left. Two-thumb typing, gestures, layouts.",end:'<i class="pro">PRO</i>'})}</div>
+    ${sec("Drills")}
+    <div class="group">${[["Two-letter swipes","th, in, er, on"],["Switching thumbs","Start left, finish right"],["Doubled letters","A tap inside a swipe"]].map(([t,s],i)=>row({lead:`<span class="badge">${i+1}</span>`,title:t,sub:s,end:'<span class="chev" style="color:var(--accent)">›</span>'})).join("")}</div>
+    ${sec("This week")}
+    <div class="card week">${["M","T","W","T","F","S","S"].map((d,i)=>`<div><i class="${i<5&&i!==2?"y":""}">${i<5&&i!==2?"✓":""}</i>${d}</div>`).join("")}</div>
+    <div class="group">${row({title:"Settings",sub:"Autospace, gestures, trails, sync",end:'<span style="color:var(--muted);font-weight:900;font-size:14px">Open ›</span>'})}</div>
+    <p class="note">Themes and effects: Settings → Appearance → Styling / Effects.</p>
+  </div>`;
+}
+function wizard(step,{title,body,content="",buttons,dock="",after=""}){
+  const i=STEPS.indexOf(step),n=STEPS.length;
+  const top=step==="hello"?"":S.lesson?`<div class="wtop"><span class="chip">Lesson</span><span class="spacer"></span><button class="skip" data-go="home">Done</button></div>`
+    :`<div class="wtop"><div class="prog" role="progressbar" aria-label="Step ${i+1} of ${n}" aria-valuenow="${i+1}" aria-valuemin="1" aria-valuemax="${n}" style="--p:${(S.prevP??i)/n*100}%"><i></i></div><button class="skip" data-next>Skip</button></div>`;
+  return `${top}<div class="wbody">${title?`<div class="h1">${title}</div>`:""}${body?`<p class="sub">${body}</p>`:""}${content}</div>${dock}<div class="wfoot" ${after?'style="padding-bottom:var(--dockh,300px)"':""}>${buttons}</div>${after}`;
+}
+const SCREENS={
+  before:beforeScreen,
+  home:homeScreen,
+  homeFree:homeScreen,
+  homeHidden:homeScreen,
+  arrive:homeScreen,
+  hello:()=>`<div class="wbody" style="justify-content:center;align-items:center;text-align:center;gap:16px">
+      <div class="art">${bigArt()}</div><div class="h1">Type with both thumbs.</div>
+      <p class="sub">Tap with one, swipe with the other, mix them any way you like. Press space when the word looks right. We'll show you.</p></div>
+      <div class="wfoot"><button class="btn wide" data-next>Let's go</button></div>`,
+  turnOn:()=>wizard("turnOn",{title:"Turn on Astrotype",body:"iPhone keyboards switch on in Settings. It takes three taps, and I'll know when it's done.",
+    content:`<div class="step"><span class="badge">1</span><span>Open <b>Settings</b></span></div><div class="step"><span class="badge">2</span><span>Tap <b>Keyboards</b></span></div><div class="step"><span class="badge">3</span><span>Turn on <b>Astrotype</b></span></div>
+      <div class="card row">${S.keyboardOn?`<span class="chip on">On</span><b>Astrotype is on. Hold 🌐 in any app to pick it.</b>`:`<span class="chip">Not on yet</span><span class="note" style="margin:0">Come back here after Settings.</span>`}</div>`,
+    buttons:S.keyboardOn?`<button class="btn wide" data-next>Next</button>`:`<button class="btn wide" data-act="turnon">Open Settings</button><button class="btn ghost" data-next>I'll do it later</button>`}),
+  languages:()=>wizard("languages",{title:"Which languages do you type in?",body:"With two on, Astrotype guesses from both as you go. No switching. Free types in one; your trial covers both.",
+    content:`<div class="group">${[["en","English","English"],["es","Español","Spanish"]].map(([c,n,e])=>row({lead:`<span class="ic" style="background:${c==="en"?"var(--left)":"var(--right)"}">${c.toUpperCase()}</span>`,title:n,sub:e,end:`<button class="toggle" role="switch" aria-label="${n}" aria-checked="${S.langs[c]}" data-lang="${c}"></button>`})).join("")}</div>`,
+    buttons:`<button class="btn wide" data-next>Continue</button>`}),
+  style:()=>wizard("style",{title:"Make it yours",body:"Pick a look and a little sparkle. You can change it any time on Home.",
+    content:keyboardCard({more:false,height:false}),buttons:`<button class="btn wide" data-next>Looks good</button>`,after:dock({fixed:true})}),
+  tryIt:()=>{const W=WORDS[S.tryIdx];return wizard("tryIt",{title:"",
+    content:`<div class="row"><span class="chip">Try it · word ${S.tryIdx+1} of 5</span></div>
+      <div><div class="note" style="margin:0">Type this word</div><div class="word">${W.w}</div></div>
+      <div class="field" id="field">${S.typed}<span class="caret"></span></div>
+      <div class="hint">${W.hint}</div>
+      <div class="row"><button class="btn small" data-act="showme">Show me</button><span class="note" style="margin:0">or just try it</span></div>`,
+    dock:`<div class="kdock">${kbd({h:40,bar:`<span class="mid">${S.typed||"&nbsp;"}</span>`})}</div>`,buttons:""})},
+  sync:()=>wizard("sync",{title:"Keep your words everywhere",body:"Astrotype just learned your first words. With Full Access they sync over iCloud to your other devices, along with your look. Nothing you type is ever sent anywhere.",
+    content:`<div class="art"><svg width="150" height="110" viewBox="0 0 150 110" aria-hidden="true"><path d="M40 90 a26 26 0 0 1 4-52 a34 34 0 0 1 64 6 a22 22 0 0 1 2 46z" fill="var(--ice)"/><text x="75" y="76" text-anchor="middle" font-size="22" font-weight="900" fill="var(--accent)" font-family="var(--font)">5 words</text></svg></div>
+      <div class="step"><span class="badge">1</span><span>Settings › Keyboards › <b>Astrotype</b></span></div><div class="step"><span class="badge">2</span><span>Turn on <b>Allow Full Access</b></span></div>`,
+    buttons:`<button class="btn wide" data-act="finish">Open Settings</button><button class="btn ghost" data-act="finish">Skip for now</button>`}),
+  lesson:()=>SCREENS.tryIt(),
+  learnPractice:learnPracticeScreen,
+  stub:()=>`<div class="nav"><button class="back" data-go="home">‹ Home</button></div><div class="stub"><div class="h1" style="color:var(--ink)">${S.stub}</div><p>${S.stubWhy}</p></div>`,
+};
+
+/* ---------- Render ---------- */
+function render(anim=true){
+  phone.className="phone "+S.size;
+  const scr=["homeFree"].includes(S.screen)?"home":S.screen;
+  phone.innerHTML=status()+`<div class="screen ${anim?"anim":""}">${SCREENS[S.screen]()}</div>`;
+  if(S.screen==="arrive"&&anim)confetti();
+  document.querySelectorAll(".picker [data-s]").forEach(b=>b.setAttribute("aria-current",b.dataset.s===S.screen));
+  document.querySelectorAll("#sizes button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.size===S.size));
+  document.querySelectorAll("#themes button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.theme===(pageDark()?"dark":"light")));
+  document.getElementById("why").textContent=WHY[S.screen]||"";
+  const kb=phone.querySelector("[data-kb]");
+  S.eng=kb?wireKbd(kb,S.screen==="tryIt"||S.screen==="lesson"?typeKey:playKey):null;
+  syncDock();fxPreviews();
+  const pr=phone.querySelector(".prog");if(pr){requestAnimationFrame(()=>requestAnimationFrame(()=>pr.style.setProperty("--p",(STEPS.indexOf(S.screen)+1)/STEPS.length*100+"%")))}
+  const h=phone.querySelector("#height");if(h)h.oninput=e=>{S.height=+e.target.value;phone.querySelector("#hv").textContent=S.height+"%";const k=phone.querySelector("[data-kb]");k.style.setProperty("--kh",Math.round(40*S.height/100)+"px");syncDock()};
+}
+function go(s){S.prevP=STEPS.includes(S.screen)?STEPS.indexOf(S.screen)+1:0;if(s==="homeFree")S.pro=false;else if(["home","arrive","before"].includes(s)&&S.screen==="homeFree")S.pro=true;
+  if(["home","homeFree","arrive"].includes(s))S.dockOpen=true;if(s==="homeHidden")S.dockOpen=false;
+  if(s==="tryIt"||s==="lesson"){S.tryIdx=0;S.typed=""}S.lesson=s==="lesson";S.screen=s;render()}
+function next(){const i=STEPS.indexOf(S.screen);if(S.screen==="tryIt"&&S.lesson){go("home");return}go(i>=0&&i<STEPS.length-1?STEPS[i+1]:"arrive")}
+function syncDock(){const d=phone.querySelector("#dock");if(!d)return;const h=d.offsetHeight+12;phone.querySelectorAll(".scroll.docked,.wfoot").forEach(e=>e.style.setProperty("--dockh",h+"px"))}
+function playKey(k){if(k==="space")S.play=(S.play||"")+" ";else if(k==="del")S.play=(S.play||"").slice(0,-1);else if(k.length===1)S.play=(S.play||"")+k;else return;
+  const p=phone.querySelector("#play");if(p){const t=S.play.trim()?S.play:"";p.textContent=t?S.play.slice(-40):p.dataset.ph||"Type anything. It stays right here.";p.classList.toggle("empty",!t)}}
+function typeKey(k){
+  if(k==="space"){const W=WORDS[S.tryIdx];if(S.typed===W.w){if(S.tryIdx<4){S.tryIdx++;S.typed="";rerenderTry()}else{confetti();setTimeout(()=>S.lesson?go("home"):next(),1300)}}else{S.typed="";rerenderTry()}return}
+  if(k==="del"){S.typed=S.typed.slice(0,-1);rerenderTry();return}
+  if(k.length===1){S.typed+=k;rerenderTry()}
+}
+function rerenderTry(){const W=WORDS[S.tryIdx];const b=phone.querySelector(".wbody");if(!b)return;
+  b.querySelector(".chip").textContent=`Try it · word ${S.tryIdx+1} of 5`;b.querySelector(".word").textContent=W.w;b.querySelector(".hint").innerHTML=W.hint;
+  b.querySelector("#field").innerHTML=`${S.typed}<span class="caret"></span>`;const m=phone.querySelector(".kbar .mid");if(m)m.innerHTML=S.typed||"&nbsp;"}
+function confetti(){const c=document.createElement("canvas");c.className="confetti";phone.appendChild(c);const r=phone.getBoundingClientRect();c.width=r.width;c.height=r.height;const g=c.getContext("2d");
+  if(matchMedia("(prefers-reduced-motion: reduce)").matches){setTimeout(()=>c.remove(),600);return}
+  const ps=Array.from({length:120},()=>({x:r.width/2+(Math.random()-.5)*80,y:r.height*.35,vx:(Math.random()-.5)*12,vy:-Math.random()*12-4,c:["#139FB5","#FF6F86","#FFC24D","#2FBF96","#7B61FF"][Math.floor(Math.random()*5)],s:4+Math.random()*5,a:Math.random()*6}));
+  let t=0;(function f(){t++;g.clearRect(0,0,c.width,c.height);ps.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.vy+=.35;p.vx*=.99;p.a+=.2;g.save();g.translate(p.x,p.y);g.rotate(p.a);g.fillStyle=p.c;g.fillRect(-p.s/2,-p.s/4,p.s,p.s/2);g.restore()});if(t<140)requestAnimationFrame(f);else c.remove()})()}
+
+phone.addEventListener("click",e=>{
+  const t=e.target.closest("[data-theme-id],[data-fx],[data-go],[data-next],[data-act],[data-lang]");if(!t)return;e.preventDefault();
+  if(t.dataset.themeId){if(t.dataset.locked){stub("Astrotype Pro","Today's Pro screen. Pro looks open from here.");return}
+    S.kbTheme=t.dataset.themeId;const kb=phone.querySelector("[data-kb]");const th=THEMES[S.kbTheme];kb.setAttribute("style",vars(th,look())+`--kh:${kb.style.getPropertyValue("--kh")}`);
+    kb.classList.remove("flip");void kb.offsetWidth;kb.classList.add("flip");
+    phone.querySelectorAll("[data-theme-id]").forEach(b=>{const on=b.dataset.themeId===S.kbTheme;b.setAttribute("aria-pressed",on);b.setAttribute("aria-selected",on)});return}
+  if(t.dataset.fx){if(!S.pro&&isProFx(t.dataset.fx)){stub("Astrotype Pro","Today's Pro screen. Pro effects open from here.");return}
+    S.fx=t.dataset.fx;phone.querySelectorAll("[data-fx]").forEach(b=>{const on=b.dataset.fx===S.fx;b.setAttribute("aria-pressed",on);b.setAttribute("aria-checked",on)});
+    demo(S.eng,[["h","L"],["e","L"],["l","R"],["l","R"],["o","R"]]);setTimeout(()=>demo(S.eng,[["w","L"],["a","L"],["d","L"]]),700);return}
+  if(t.dataset.lang){const c=t.dataset.lang;const on=t.getAttribute("aria-checked")!=="true";if(!on&&Object.values(S.langs).filter(Boolean).length<2)return;S.langs[c]=on;t.setAttribute("aria-checked",on);return}
+  if(t.hasAttribute("data-next")){next();return}
+  if(t.dataset.act==="showkb"||t.dataset.act==="hidekb"){S.dockOpen=t.dataset.act==="showkb";const d=phone.querySelector("#dock");d.classList.toggle("hidden",!S.dockOpen);
+    phone.querySelector(".kpill")?.classList.toggle("gone",S.dockOpen);const sc=phone.querySelector(".scroll");sc.classList.toggle("docked",S.dockOpen);syncDock();
+    const m=phone.querySelectorAll('.more[data-act="showkb"]');m.forEach(x=>x.style.display=S.dockOpen?"none":"");return}
+  if(t.dataset.act==="turnon"){S.keyboardOn=true;render(false);confetti();return}
+  if(t.dataset.act==="finish"){go("arrive");return}
+  if(t.dataset.act==="showme"){const W=WORDS[S.tryIdx];demo(S.eng,W.seq);S.typed="";setTimeout(()=>{S.typed=W.w;rerenderTry()},W.seq.length*200+100);return}
+  const g=t.dataset.go;
+  if(g==="home"){const o=S.dockOpen;go(S.pro?"home":"homeFree");if(!o&&S.screen!=="arrive"){S.dockOpen=false;render(false)}return}
+  if(g==="lesson"){go("lesson");return}
+  if(g==="learnPractice"){go("learnPractice");const sc=t.dataset.sec;if(sc){const el=phone.querySelector("#sec-"+sc);el&&el.scrollIntoView({block:"start"})}return}
+  const STUBS={appearance:["Appearance","Today's Appearance page (General, Styling, Effects), unchanged. It's just one tap from Home now."],settings:["Settings","Today's Settings. Appearance stays there too."],
+    pro:["Astrotype Pro","Today's Pro screen."],drill:["Drill","Today's drill screen."],pw:["Practice words","Today's Practice words."],speedtest:["Speed practice","Today's Speed practice."],tips:["Tips","Short cards: slide on space, swipe left on ⌫, hold a guess, the 123 panel. Later, if you want it."]};
+  if(STUBS[g])stub(...STUBS[g]);
+});
+function stub(t,w){S.stub=t;S.stubWhy=w;S.from=S.screen;S.screen="stub";render()}
+document.querySelector(".picker").addEventListener("click",e=>{
+  const b=e.target.closest("button");if(!b)return;
+  if(b.dataset.s){if(b.dataset.s==="turnOn")S.keyboardOn=false;go(b.dataset.s);return}
+  if(b.dataset.size!==undefined){S.size=b.dataset.size;render(false);return}
+  if(b.dataset.theme){document.documentElement.dataset.theme=b.dataset.theme;render(false)}
+});
+const [h,hs,ht,hk,hf]=location.hash.slice(1).split(",");if(SCREENS[h])S.screen=h;if(S.screen==="homeFree")S.pro=false;
+if(S.screen==="homeHidden")S.dockOpen=false;if(hs)S.size=hs==="iphone"?"":hs;if(ht)document.documentElement.dataset.theme=ht;if(hk&&THEMES[hk])S.kbTheme=hk;if(hf&&FX[hf])S.fx=hf;if(S.screen==="turnOn"&&hk==="on")S.keyboardOn=true;
+render();
+</script>
+</body>
+</html>

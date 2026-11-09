@@ -58,6 +58,14 @@ struct AppEnvironment {
     /// What a recording says about where it was made (no name or account).
     var device: PracticeRecording.Device
     var metrics: Metrics
+    /// Dictation's mic and speech to text (nil before iOS 26), and how it talks to the
+    /// keyboard (features/dictation).
+    var speechListener: SpeechListener?
+    var dictationChannel: DictationChannel
+    /// A step for Sentry's trail before a crash or a report (never anything typed).
+    var breadcrumb: (String) -> Void
+    /// An error that was handled but shouldn't have happened.
+    var report: (Error) -> Void
     var now: () -> Date
     var appVersion: String
     /// Copies the data files aside under this label, before a new version touches them.
@@ -101,6 +109,13 @@ struct AppEnvironment {
             device: PracticeRecording.Device(model: DeviceInfo.model, system: DeviceInfo.system,
                                              app: DeviceInfo.appVersion, writer: DeviceInfo.writerID),
             metrics: LiveMetrics(),
+            speechListener: {
+                if #available(iOS 26, *) { return LiveSpeechListener() }
+                return nil
+            }(),
+            dictationChannel: LiveDictationChannel(),
+            breadcrumb: { Telemetry.breadcrumb($0, category: "dictation") },
+            report: { Telemetry.report($0) },
             now: { Date() },
             appVersion: DeviceInfo.appVersion,
             backup: { label in
@@ -155,6 +170,10 @@ struct AppEnvironment {
         isTestBuild: @escaping @Sendable () async -> Bool = { true },
         device: PracticeRecording.Device = PracticeRecording.Device(model: "iPhone", system: "iOS 26", app: "0.2.0", writer: "test"),
         metrics: Metrics = RecordingMetrics(),
+        speechListener: SpeechListener? = FakeSpeechListener(),
+        dictationChannel: DictationChannel = FakeDictationChannel(),
+        breadcrumb: @escaping (String) -> Void = { _ in },
+        report: @escaping (Error) -> Void = { _ in },
         now: @escaping () -> Date = { Date(timeIntervalSince1970: 1_793_491_200) },
         appVersion: String = "0.2.0",
         backup: @escaping (String) -> Void = { _ in },
@@ -169,7 +188,9 @@ struct AppEnvironment {
                        sharedWords: sharedWords, sharedUploader: sharedUploader,
                        missedWords: missedWords, typingLog: typingLog,
                        speedRuns: speedRuns, speedHistory: speedHistory, typingUploader: typingUploader,
-                       leaderboards: leaderboards, compress: compress, isTestBuild: isTestBuild, device: device, metrics: metrics, now: now,
+                       leaderboards: leaderboards, compress: compress, isTestBuild: isTestBuild, device: device, metrics: metrics,
+                       speechListener: speechListener, dictationChannel: dictationChannel,
+                       breadcrumb: breadcrumb, report: report, now: now,
                        appVersion: appVersion, backup: backup, openSettings: openSettings)
     }
 }

@@ -44,6 +44,9 @@ final class AppModel {
             environment.settingsStore.save(keyboardSettings)
             // Recording off: what the phone kept goes too.
             if oldValue.recordsTyping, !keyboardSettings.recordsTyping { clearTypingRecording() }
+            dictation.minutes = keyboardSettings.dictationMinutes
+            // The mic button off: the mic goes off too.
+            if !keyboardSettings.dictation { dictation.turnOff(why: "user") }
         }
     }
     /// What the keyboard learned from the person, as last read from the shared store.
@@ -72,6 +75,9 @@ final class AppModel {
     private(set) var proChecked = false
     private var proListener: Task<Void, Never>?
 
+    /// Dictation (features/dictation): the mic the keyboard asks to listen.
+    let dictation: DictationModel
+
     @ObservationIgnored private let environment: AppEnvironment
 
     init(environment: AppEnvironment) {
@@ -90,7 +96,11 @@ final class AppModel {
         }
         self.state = state
         self.screen = state.onboardingDone ? .home : .hello
-        self.keyboardSettings = environment.settingsStore.load() ?? KeyboardSettings()
+        let settings = environment.settingsStore.load() ?? KeyboardSettings()
+        self.keyboardSettings = settings
+        self.dictation = DictationModel(listener: environment.speechListener, channel: environment.dictationChannel,
+                                        metrics: environment.metrics, minutes: settings.dictationMinutes,
+                                        note: environment.breadcrumb, report: environment.report, now: environment.now)
         self.learnedWords = environment.wordStore.load() ?? LearnedWords()
         self.personal = environment.personalStore.load() ?? PersonalModel()
         self.speedHistory = environment.speedHistory?.load() ?? SpeedHistory()

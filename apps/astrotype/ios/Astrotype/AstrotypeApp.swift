@@ -23,6 +23,18 @@ struct AstrotypeApp: App {
                 .environment(recognition)
                 .environment(samples)
                 .environment(uploader)
+                // The keyboard's mic, with the mic off (features/dictation).
+                .onOpenURL { url in
+                    guard url.scheme == "astrotype", url.host == DictationLink.openPage else { return }
+                    Task { await model.dictation.openedFromKeyboard() }
+                }
+                .overlay {
+                    if model.dictation.screen != nil {
+                        GoBackView(model: model.dictation) { model.openSettings() }
+                            .transition(.opacity)
+                    }
+                }
+                .animation(.easeOut(duration: 0.2), value: model.dictation.screen)
                 .task {
                     model.startPro()
                     await model.refreshLeaderboards()
@@ -42,6 +54,7 @@ struct AstrotypeApp: App {
                 Task { await model.refreshLeaderboards() }
             } else {
                 uploader.upload()
+                if scenePhase == .background { model.dictation.wentToBackground() }
             }
         }
     }

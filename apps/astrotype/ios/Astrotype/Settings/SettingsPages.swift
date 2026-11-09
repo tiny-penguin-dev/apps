@@ -20,6 +20,7 @@ struct SettingsPageView: View {
                 case .languages: LanguagesSettings(model: model, path: $path)
                 case .appearance: AppearanceSettings(model: model, path: $path)
                 case .words: WordsSettings(model: model, path: $path)
+                case .dictation: DictationSettings(model: model)
                 case .privacy: PrivacySettings(model: model, path: $path)
                 case .about: AboutSettings()
                 case .debug: DebugSettings(model: model)
@@ -42,10 +43,47 @@ struct SettingsPageView: View {
         case .languages: "Languages"
         case .appearance: "Appearance"
         case .words: "Your words"
+        case .dictation: "Dictation"
         case .privacy: "Privacy and sharing"
         case .about: "About"
         case .debug: "Debug"
         }
+    }
+}
+
+/// Dictation (features/dictation): the mic on the keyboard, and how long the mic stays
+/// ready after a dictation.
+private struct DictationSettings: View {
+    @Bindable var model: AppModel
+
+    var body: some View {
+        SettingsGroup {
+            SettingsToggle("Mic button on the keyboard", subtitle: "Top right, when there's no word to fix",
+                           symbol: "mic", tint: Theme.right, isOn: $model.keyboardSettings.dictation)
+        }
+        if model.keyboardSettings.dictation {
+            SectionLabel("Keep the mic ready").padding(.top, Theme.Space.m)
+            SettingsGroup {
+                VStack(alignment: .leading, spacing: Theme.Space.s) {
+                    SettingsRow("After you dictate", subtitle: "The next dictation needs no trip to the app. iOS shows its orange dot while the mic is on.",
+                                symbol: "timer", tint: Theme.mint)
+                    Picker("Keep the mic ready", selection: $model.keyboardSettings.dictationMinutes) {
+                        ForEach(DictationWindow.choices, id: \.self) { minutes in
+                            Text("\(minutes) min").tag(minutes)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .padding(.horizontal, 14).padding(.bottom, Theme.Space.m)
+                }
+                if model.dictation.isMicOn {
+                    SettingsRow("The mic is on", subtitle: "Ready for the keyboard", symbol: "mic.fill", tint: Theme.mint) {
+                        Button("Turn off") { model.dictation.turnOff(why: "user") }.buttonStyle(.small)
+                    }
+                }
+            }
+        }
+        GroupFootnote("Astrotype listens only while you dictate. Speech turns into text on your iPhone; nothing is sent or kept. Dictation needs iOS 26 and Full Access.")
+            .padding(.top, Theme.Space.s)
     }
 }
 

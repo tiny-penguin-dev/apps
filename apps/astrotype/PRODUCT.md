@@ -197,7 +197,11 @@ These shape the design, so they are listed here, not only in the build doc.
   No neural model in the extension in v1; the matcher is dictionary plus dynamic time
   warping, which Kinetica shows decodes in a few milliseconds.
 - **Password fields always switch to Apple's keyboard.** Secure fields never see ours.
-- **No dictation.** Third-party keyboards cannot use Apple's microphone button.
+- **Dictation goes through the app.** A keyboard can't use the microphone, so the
+  mic button on the bar asks the Astrotype app to listen (features/dictation). The
+  first dictation in a while opens the app once to turn the mic on; then the mic stays
+  ready for 5 minutes (1, 5 or 15 in Settings) and iOS shows its orange dot. Speech
+  turns into text on the phone and nothing is kept. It needs iOS 26 and Full Access.
 - **Emoji**: Astrotype has its own emoji page (`features/emoji`), so nobody switches to
   Apple's keyboard for one. Where iOS draws its own globe under the keyboard (Face ID
   iPhones) the emoji key takes our globe's place; Home button phones keep both. Emoji

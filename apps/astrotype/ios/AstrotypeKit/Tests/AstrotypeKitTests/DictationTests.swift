@@ -156,4 +156,17 @@ import Testing
         Self.apply(edit, to: &field)
         #expect(field == "Ok. This is a long one indeed")
     }
+
+    @Test func aFailedListenKeepsTheMic() {
+        let now = Date(timeIntervalSince1970: 0)
+        var session = DictationSession()
+        session.micOn(at: now)
+        session.listen(at: now)
+        session.heard("Hel", level: 0.2, at: now)
+        session.failed(.failed, at: now)
+        #expect(session.state.phase == .ready && session.state.finished && session.state.problem == .failed)
+        #expect(session.state.transcript == "Hel")
+        session.listen(at: now)
+        #expect(session.state.problem == nil)
+    }
 }

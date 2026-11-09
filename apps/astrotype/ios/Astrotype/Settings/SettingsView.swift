@@ -7,7 +7,7 @@ import SwiftUI
 /// goes on the page it belongs to: what a touch does is Typing, what you see or feel is
 /// Appearance, what the keyboard remembers is Your words.
 enum SettingsPage: Hashable, CaseIterable {
-    case typing, languages, appearance, words, privacy, about, debug
+    case typing, languages, appearance, words, dictation, privacy, about, debug
 }
 
 /// DESIGN.md screen 9: the main page of Settings. Status tiles (keyboard, sync, Pro),
@@ -82,6 +82,7 @@ struct SettingsView: View {
                      subtitle: "\(model.keyboardSettings.style(allows: model.entitlement.allows(.styles)).name) theme, height \(Int((model.keyboardSettings.heightScale * 100).rounded()))%, effects",
                      symbol: "paintpalette", tint: Theme.left)
                 link(.words, "Your words", subtitle: wordsSubtitle, symbol: "text.book.closed", tint: Theme.mint)
+                link(.dictation, "Dictation", subtitle: dictationSubtitle, symbol: "mic", tint: Theme.right)
             }
 
             SectionLabel("Account").padding(.top, Theme.Space.m)
@@ -194,6 +195,11 @@ struct SettingsView: View {
     private var debugSubtitle: String {
         guard let last = model.keyboardDebug?.last else { return "Keyboard memory, stats on the keys" }
         return "Keyboard memory \(MemoryReading.mb(last.footprintMB)) of \(Int(MemoryReading.budgetMB)) MB"
+    }
+
+    private var dictationSubtitle: String {
+        guard model.keyboardSettings.dictation else { return "Off" }
+        return "Mic ready for \(model.keyboardSettings.dictationMinutes) min after you dictate"
     }
 
     private var wordsSubtitle: String {

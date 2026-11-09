@@ -264,6 +264,7 @@ public struct DictationSession: Equatable, Sendable {
         state.listen += 1
         state.transcript = ""
         state.finished = false
+        state.problem = nil
         state.level = 0
         touch(at: now)
         return true
@@ -285,6 +286,18 @@ public struct DictationSession: Equatable, Sendable {
         state.phase = .ready
         state.level = 0
         lastUsed = now
+        touch(at: now)
+    }
+
+    /// Speech to text failed: the listen ends with what it had, the mic stays on, and
+    /// the keyboard says why.
+    public mutating func failed(_ problem: DictationProblem, at now: Date) {
+        if state.phase == .listening {
+            state.finished = true
+            state.phase = .ready
+        }
+        state.problem = problem
+        state.level = 0
         touch(at: now)
     }
 

@@ -92,16 +92,22 @@ public final class SettingsPanelView: UIView {
     private let tileGrid = UIStackView()
 
     private let autospaceTile = QuickTile(title: "Autospace", symbol: "space")
-    private let barTile = QuickTile(title: "Guesses bar", symbol: "rectangle.topthird.inset.filled")
+    private let barTile = QuickTile(title: "Top bar", symbol: "rectangle.topthird.inset.filled")
     private let hapticsTile = QuickTile(title: "Haptics", symbol: "iphone.radiowaves.left.and.right")
     private let trailsTile = QuickTile(title: "Effects", symbol: "sparkles")
     private let splitTile = QuickTile(title: "Split", symbol: "rectangle.split.2x1")
-    private let nextTile = QuickTile(title: "Next word", symbol: "text.append")
+    private let nextTile = QuickTile(title: "Predictions", symbol: "text.append")
 
-    private let height = SliderRow(title: "Height", range: KeyboardSettings.heightRange, label: "Keyboard height")
-    private let strict = SliderRow(title: "Real words", range: 0...1, label: "Real words")
-    private let split = SliderRow(title: "Split words", range: 0...1, label: "Split words")
-    private let wait = SliderRow(title: "Wait", range: KeyboardSettings.delayRange, label: "Autospace wait")
+    // Each slider has an ⓘ at its right end that shows what it does under it (Gabriel,
+    // 9 Nov 2026: the sliders weren't clear, "what is it waiting for?").
+    private let height = SliderRow(title: "Height", range: KeyboardSettings.heightRange, label: "Keyboard height",
+                                   info: "How tall the keys are. At 100% every key sits right where Apple's keyboard puts it.")
+    private let strict = SliderRow(title: "Real words", range: 0...1, label: "Real words",
+                                   info: "When letters you tap don't spell a word, how readily it swaps in the closest real word. Higher swaps more often; lower leaves what you typed.")
+    private let split = SliderRow(title: "Split words", range: 0...1, label: "Split words",
+                                  info: "How readily it adds a space you missed (\u{201C}textseparately\u{201D} becomes \u{201C}text separately\u{201D}) or takes out one autospace put inside a word. At 0 it never does.")
+    private let wait = SliderRow(title: "Autospace wait", range: KeyboardSettings.delayRange, label: "Autospace wait",
+                                 info: "After you swipe a word and lift your finger, how long autospace waits before it writes the word and a space. Shorter is faster, but a pause mid-word can cut it in two.")
     private let note = UILabel()
     /// The Languages row: the ones on, and a chevron to the list.
     private let languagesLink = LinkRow(title: "Languages", symbol: "character.bubble")
@@ -176,7 +182,7 @@ public final class SettingsPanelView: UIView {
         wire(trailsTile) { $0.trails.toggle() }
         wire(splitTile) { $0.splitOnWide.toggle() }
         wire(nextTile) { $0.nextWords.toggle() }
-        nextTile.accessibilityHint = "Likely next words in the bar after each word"
+        nextTile.accessibilityHint = "Likely next words in the top bar after each word"
         languagesLink.addAction(UIAction { [weak self] _ in self?.page = .languages }, for: .touchUpInside)
         themeLink.addAction(UIAction { [weak self] _ in self?.page = .themes }, for: .touchUpInside)
         switchRow.accessibilityHint = "Goes to the next keyboard. Touch and hold for the list"
@@ -200,13 +206,9 @@ public final class SettingsPanelView: UIView {
             // In 5% steps, so 100% (Apple's) is easy to land on.
             self?.update { $0.keyboardHeight = (value * 20).rounded() / 20 }
         }
-        height.slider.accessibilityHint = "How tall the keys are. 100 percent puts every key where Apple's keyboard has it"
         strict.onChange = { [weak self] value in self?.update { $0.wordStrictness = (value * 100).rounded() / 100 } }
-        strict.slider.accessibilityHint = "How sure the keyboard must be of a real word before it puts one in for letters you tapped"
         split.onChange = { [weak self] value in self?.update { $0.splitStrictness = (value * 100).rounded() / 100 } }
-        split.slider.accessibilityHint = "How sure the keyboard must be before it puts a space into letters that read as two words. At 0 it never splits"
         wait.onChange = { [weak self] value in self?.update { $0.autospaceDelay = (value * 10).rounded() / 10 } }
-        wait.slider.accessibilityHint = "How long autospace waits before it puts a swiped word in"
 
         note.font = Theme.uiFont(size: 13, weight: .regular, scaledWith: .footnote, upTo: 18)
         note.textColor = Theme.ui(.muted)
@@ -283,7 +285,7 @@ public final class SettingsPanelView: UIView {
         column.spacing = Theme.Space.s
         column.translatesAutoresizingMaskIntoConstraints = false
         let languagesCard = card([languagesLink, themeLink])
-        for view in [actionsCard, tileGrid, languagesCard, sliders, note, markCard, more] { column.addArrangedSubview(view) }
+        for view in [tileGrid, actionsCard, languagesCard, sliders, note, markCard, more] { column.addArrangedSubview(view) }
 
         // The languages page: a card of rows, the free note under it.
         languageList.axis = .vertical
@@ -426,6 +428,9 @@ public final class SettingsPanelView: UIView {
         hapticsTile.isOn = settings.haptics
         trailsTile.isOn = settings.trails
         nextTile.isOn = settings.nextWords
+        // Predictions show in the top bar, or in the column beside the keys on a wide
+        // screen; with the bar off on a phone there is nowhere for them.
+        nextTile.isEnabled = settings.showsBar || showsSplit
         splitTile.isOn = settings.splitOnWide && allowsSplit
         splitTile.isEnabled = allowsSplit
         splitTile.subtitle = allowsSplit ? nil : "PRO"
@@ -736,16 +741,16 @@ private final class SliderRow: UIStackView {
     let label = UILabel()
     let slider = UISlider()
     private let value = UILabel()
+    /// What the slider does, under it, shown and hidden by the ⓘ at the row's end.
+    private let detail = UILabel()
+    private let infoButton = UIButton(configuration: .plain())
     var onChange: ((Double) -> Void)?
 
-    init(title: String, range: ClosedRange<Double>, label accessibilityLabel: String) {
+    init(title: String, range: ClosedRange<Double>, label accessibilityLabel: String, info: String) {
         super.init(frame: .zero)
-        axis = .horizontal
-        alignment = .center
-        spacing = Theme.Space.m
+        axis = .vertical
         isLayoutMarginsRelativeArrangement = true
         directionalLayoutMargins = NSDirectionalEdgeInsets(top: Theme.Space.xs, leading: 0, bottom: Theme.Space.xs, trailing: 0)
-        heightAnchor.constraint(greaterThanOrEqualToConstant: 44).isActive = true
 
         let font = Theme.uiFont(size: 15, weight: .semibold, scaledWith: .body, upTo: 22)
         label.text = title
@@ -767,6 +772,7 @@ private final class SliderRow: UIStackView {
         slider.maximumValue = Float(range.upperBound)
         slider.minimumTrackTintColor = Theme.ui(.accent)
         slider.accessibilityLabel = accessibilityLabel
+        slider.accessibilityHint = info
         slider.setContentHuggingPriority(.defaultLow, for: .horizontal)
         slider.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         slider.addAction(UIAction { [weak self] _ in
@@ -774,10 +780,47 @@ private final class SliderRow: UIStackView {
             self.onChange?(Double(self.slider.value))
         }, for: .valueChanged)
 
-        for view in [label, slider, value] { addArrangedSubview(view) }
+        var config = UIButton.Configuration.plain()
+        config.image = UIImage(systemName: "info.circle", withConfiguration: UIImage.SymbolConfiguration(pointSize: 15, weight: .semibold))
+        config.baseForegroundColor = Theme.ui(.muted)
+        config.contentInsets = NSDirectionalEdgeInsets(top: 8, leading: 4, bottom: 8, trailing: 0)
+        infoButton.configuration = config
+        infoButton.setContentHuggingPriority(.required, for: .horizontal)
+        infoButton.setContentCompressionResistancePriority(.required, for: .horizontal)
+        infoButton.accessibilityLabel = "About \(accessibilityLabel)"
+        infoButton.addAction(UIAction { [weak self] _ in self?.toggleDetail() }, for: .touchUpInside)
+
+        detail.text = info
+        detail.font = Theme.uiFont(size: 13, weight: .regular, scaledWith: .footnote, upTo: 18)
+        detail.textColor = Theme.ui(.muted)
+        detail.adjustsFontForContentSizeCategory = true
+        detail.numberOfLines = 0
+        detail.isHidden = true
+
+        let row = UIStackView(arrangedSubviews: [label, slider, value, infoButton])
+        row.axis = .horizontal
+        row.alignment = .center
+        row.spacing = Theme.Space.m
+        row.setCustomSpacing(Theme.Space.xs, after: value)
+        row.heightAnchor.constraint(greaterThanOrEqualToConstant: 36).isActive = true
+        addArrangedSubview(row)
+        addArrangedSubview(detail)
+        setCustomSpacing(Theme.Space.xs, after: row)
     }
 
     required init(coder: NSCoder) { fatalError("init(coder:) is not supported") }
+
+    private func toggleDetail() {
+        let show = detail.isHidden
+        UIView.animate(withDuration: UIAccessibility.isReduceMotionEnabled ? 0 : 0.2) {
+            self.detail.isHidden = !show
+            self.detail.alpha = show ? 1 : 0
+            self.superview?.layoutIfNeeded()
+        }
+        infoButton.configuration?.image = UIImage(systemName: show ? "info.circle.fill" : "info.circle",
+                                                  withConfiguration: UIImage.SymbolConfiguration(pointSize: 15, weight: .semibold))
+        if show { UIAccessibility.post(notification: .announcement, argument: detail.text) }
+    }
 
     func set(_ number: Double, text: String, spoken: String? = nil) {
         if !slider.isTracking { slider.value = Float(number) }

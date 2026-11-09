@@ -163,7 +163,7 @@ This is the product, so it gets its own section.
 - **Where the guesses go:** where the keys leave a column of 96 pt or more (the middle
   of a split keyboard, the sides of a wide one) the guesses stack there, and the keys
   get the whole height. Otherwise (a phone) they are a bar above the keys, which
-  Settings ("Guesses bar") can turn off to give the keys its room.
+  Settings ("Top bar", 9 Nov 2026; it was "Guesses bar") can turn off to give the keys its room.
 - **The bar** (or column) has three parts that never move (features/guesses-bar, where
   the before and after screenshots are): a 44 pt key at the left end (the Astrotype
   button, the app icon's mark in the bar's grey, which opens the settings panel with

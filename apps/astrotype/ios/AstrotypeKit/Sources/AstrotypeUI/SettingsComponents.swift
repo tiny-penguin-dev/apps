@@ -403,7 +403,7 @@ struct SettingsPressStyle: ButtonStyle {
                 KeyboardPreview(heightScale: height, showsBar: on)
                 SettingsSlider("Height", value: $height, in: 0.8...1.2, step: 0.05, low: "Shorter", high: "Taller",
                                valueText: "\(Int((height * 100).rounded()))%")
-                SettingsToggle("Guesses bar", subtitle: "Above the keys on a phone", symbol: "rectangle.topthird.inset.filled",
+                SettingsToggle("Top bar", subtitle: "Above the keys on a phone", symbol: "rectangle.topthird.inset.filled",
                                tint: Theme.left, isOn: $on)
                 SettingsLink("Learned words", symbol: "book.closed", tint: Theme.mint, value: "214") {}
                 Button {} label: { SettingsRow("Forget what it learned", titleColor: Theme.danger) }

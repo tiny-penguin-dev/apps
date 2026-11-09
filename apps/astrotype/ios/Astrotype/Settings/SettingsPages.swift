@@ -82,7 +82,7 @@ private struct TypingSettings: View {
                            accessibilityLabel: "Autospace wait")
                 .opacity(model.keyboardSettings.autospace ? 1 : 0.45)
                 .disabled(!model.keyboardSettings.autospace)
-            SettingsToggle("Guess the next word", subtitle: "Likely next words in the bar after each word. A tap writes one.",
+            SettingsToggle("Predictions", subtitle: "Likely next words in the top bar after each word. A tap writes one.",
                            symbol: "text.append", tint: Theme.mint, isOn: $model.keyboardSettings.nextWords)
             SettingsSlider("Real words", value: $model.keyboardSettings.wordStrictness, in: 0...1, step: 0.01,
                            low: "As tapped", high: "Words only", valueText: percent(model.keyboardSettings.wordStrictness))
@@ -169,10 +169,10 @@ struct GeneralAppearanceSettings: View {
             KeyboardPreview(heightScale: model.keyboardSettings.heightScale, showsBar: model.keyboardSettings.showsBar)
             SettingsSlider("Height", value: $model.keyboardSettings.keyboardHeight, in: KeyboardSettings.heightRange, step: 0.05,
                            low: "Shorter", high: "Taller", valueText: percent(model.keyboardSettings.heightScale))
-            SettingsToggle("Guesses bar", subtitle: "Above the keys on a phone. Wide screens show them beside the keys.",
+            SettingsToggle("Top bar", subtitle: "Predictions and fixes above the keys on a phone. Wide screens show them beside the keys.",
                            symbol: "rectangle.topthird.inset.filled", tint: Theme.left, isOn: $model.keyboardSettings.showsBar)
         }
-        GroupFootnote("At 100% every key sits where Apple's does. The guesses bar adds to the height.")
+        GroupFootnote("At 100% every key sits where Apple's does. The top bar adds to the height.")
 
         SectionLabel("Look and feel").padding(.top, Theme.Space.m)
         SettingsGroup {

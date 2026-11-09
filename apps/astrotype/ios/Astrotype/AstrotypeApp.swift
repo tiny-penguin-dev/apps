@@ -49,7 +49,8 @@ struct AstrotypeApp: App {
     }
 }
 
-/// Setup (DESIGN.md "First launch"), then Home. Screens slide in with a small
+/// The welcome wizard (features/home-and-welcome: Hello, Turn it on, Languages, Make it
+/// yours, Try it, Keep your words), then Home. Screens slide in with a small
 /// overshoot, or fade under Reduce Motion.
 struct RootView: View {
     var model: AppModel
@@ -71,11 +72,14 @@ struct RootView: View {
             case .languages:
                 LanguagesSetupView(model: model)
                     .transition(slide)
-            case .sync:
-                SyncView(model: model, inSetup: true)
+            case .style:
+                MakeItYoursView(model: model)
                     .transition(slide)
             case .tryIt:
                 TryItView(model: model)
+                    .transition(slide)
+            case .sync:
+                SyncView(model: model, inSetup: true)
                     .transition(reduceMotion ? .opacity : .asymmetric(insertion: .move(edge: .trailing), removal: .opacity))
             case .home:
                 HomeView(model: model)

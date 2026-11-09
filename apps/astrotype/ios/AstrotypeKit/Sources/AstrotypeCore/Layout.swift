@@ -464,6 +464,13 @@ public struct Layout: Sendable, Equatable {
         return nearest.key
     }
 
+    /// The top and bottom of a key row (0 is the top row, 3 the bottom one), for what
+    /// lines up with the keys, like the guesses in the split's middle column.
+    public func rowSpan(_ row: Int) -> ClosedRange<CGFloat> {
+        let y = top + CGFloat(row) * (keyHeight + rowGap)
+        return y...(y + keyHeight)
+    }
+
     /// The key's frame; for a key that is placed twice (space, and the middle letters
     /// on a split keyboard), its own copy: the one on the half it belongs to.
     public func frame(of key: Key) -> CGRect? {

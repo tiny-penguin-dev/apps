@@ -245,6 +245,16 @@ import Testing
 
     // MARK: Wide screens
 
+    @Test func rowSpansMatchTheKeys() {
+        let layout = Layout.qwerty(width: 1000, split: true)
+        for (row, letter) in zip(0..<3, ["q", "a", "z"] as [Character]) {
+            let frame = layout.frame(of: .letter(letter))!
+            #expect(layout.rowSpan(row) == frame.minY...frame.maxY)
+        }
+        let space = layout.frame(of: .space)!
+        #expect(layout.rowSpan(3) == space.minY...space.maxY)
+    }
+
     @Test func splitPullsTheHalvesApart() {
         let layout = Layout.qwerty(width: 1000, split: true)
         #expect(layout.split)

@@ -78,6 +78,12 @@ public final class SettingsPanelView: UIView {
     }
     /// "Open Astrotype" tapped.
     public var onOpenApp: (() -> Void)?
+    /// Whether "Text replacements" shows (the person has some, and they apply here).
+    public var offersSnippets = false {
+        didSet { if offersSnippets != oldValue { render() } }
+    }
+    /// "Text replacements" tapped: the keyboard shows them in place of the keys.
+    public var onSnippets: (() -> Void)?
 
     private static let headerHeight: CGFloat = 48
 
@@ -117,7 +123,10 @@ public final class SettingsPanelView: UIView {
     /// "Switch keyboard" and "Open Astrotype", at the top.
     private let switchRow = LinkRow(title: "Switch keyboard", symbol: "globe", chevron: false)
     private let openRow = LinkRow(title: "Open Astrotype", symbol: "arrow.up.forward.app", chevron: false)
-    private lazy var actionsCard = card([switchRow, openRow])
+    /// The text replacements, to write one (features/text-replacements). They were a
+    /// button on the bar until 9 Nov 2026.
+    private let snippetsRow = LinkRow(title: "Text replacements", symbol: "text.insert", chevron: false)
+    private lazy var actionsCard = card([switchRow, snippetsRow, openRow])
     private var markedAt: Date?
     /// The list of languages, shown in place of the settings when the row is tapped.
     private let languageScroll = PanelScrollView()
@@ -190,6 +199,8 @@ public final class SettingsPanelView: UIView {
         switchRow.addAction(UIAction { [weak self] _ in self?.onSwitched?() }, for: .touchUpInside)
         openRow.accessibilityHint = "Opens the Astrotype app, for the rest of the settings"
         openRow.addAction(UIAction { [weak self] _ in self?.onOpenApp?() }, for: .touchUpInside)
+        snippetsRow.accessibilityHint = "Shows your replacements to write one"
+        snippetsRow.addAction(UIAction { [weak self] _ in self?.onSnippets?() }, for: .touchUpInside)
         markRow.accessibilityHint = "Notes that something went wrong just now, to send from the app's Debug page"
         markRow.addAction(UIAction { [weak self] _ in
             guard let self else { return }
@@ -452,11 +463,16 @@ public final class SettingsPanelView: UIView {
         markCard.isHidden = !isRecording
         switchRow.isHidden = onSwitchTouch == nil
         openRow.isHidden = !canOpenApp
-        // The hairline between the two rows, only when both show.
-        if let stack = actionsCard as? UIStackView, stack.arrangedSubviews.count == 3 {
-            stack.arrangedSubviews[1].isHidden = switchRow.isHidden || openRow.isHidden
+        snippetsRow.isHidden = !offersSnippets
+        // A hairline only between two rows that show.
+        if let stack = actionsCard as? UIStackView {
+            var rowAbove = false
+            for (index, view) in stack.arrangedSubviews.enumerated() where index % 2 == 1 {
+                rowAbove = rowAbove || !stack.arrangedSubviews[index - 1].isHidden
+                view.isHidden = !rowAbove || stack.arrangedSubviews[index + 1].isHidden
+            }
         }
-        actionsCard.isHidden = switchRow.isHidden && openRow.isHidden
+        actionsCard.isHidden = switchRow.isHidden && snippetsRow.isHidden && openRow.isHidden
         // "Open Astrotype" says it already.
         more.isHidden = canOpenApp
         markRow.value = markedAt.map { "Marked \($0.formatted(date: .omitted, time: .shortened))" } ?? "Recording"

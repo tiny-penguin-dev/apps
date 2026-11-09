@@ -147,8 +147,9 @@ This is the product, so it gets its own section.
   and 7 letters, shift and backspace on the third row, `123`, emoji, space and return on
   the fourth, as on Apple's (iOS draws its globe under the keyboard). Where iOS draws
   none (a Home button phone, the iPhone Duo), "Switch keyboard" is in the menu behind
-  the Astrotype button at the left end of the guesses bar (or at the bottom of a split
-  keyboard's middle column), so space keeps its room; with the bar off or in a column
+  the Astrotype button at the left end of the guesses bar (or on the bottom row of a split
+  keyboard's middle column, beside the pencil, with one guess on each
+  letter row, 9 Nov 2026), so space keeps its room; with the bar off or in a column
   at the side of a whole keyboard, our globe goes back before the emoji key
   (`features/space-bar`, 3 Nov 2026; split, 8 Nov 2026; menu, 8 Nov 2026). Space reads "Astrotype" when idle, like Apple's reads the language.
 - **Size:** every key sits where Apple's does, so muscle memory carries over: the top

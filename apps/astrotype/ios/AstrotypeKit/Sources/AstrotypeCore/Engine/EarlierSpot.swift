@@ -64,4 +64,16 @@ public struct EarlierSpot: Sendable, Equatable {
         guard let typedAfter, remaining.hasSuffix(typedAfter) else { return 0 }
         return remaining.count - typedAfter.count
     }
+
+    /// Whether a change the field reported was the person moving the cursor (or
+    /// selecting), rather than text going in or out at the cursor. Another app's
+    /// dictation, a paste or autocorrect changes the text before the cursor and leaves
+    /// the text after it as it was; a tap somewhere else changes what's after it.
+    /// `lastAfter` is the text after the cursor when the keyboard last looked (nil:
+    /// it hasn't yet, so it can't tell).
+    public static func cursorMoved(lastAfter: String?, after: String, selected: String?) -> Bool {
+        if let selected, !selected.isEmpty { return true }
+        guard let lastAfter else { return false }
+        return after != lastAfter
+    }
 }

@@ -11,7 +11,7 @@ be it simple and approachable."
 
 ## Product
 
-Status: Draft
+Status: Approved 2026-11-09 (Gabriel: "go ahead and build it")
 
 - **The problem:**
   - The fun part of Astrotype, how the keyboard looks and feels, is three taps deep
@@ -72,22 +72,20 @@ Status: Draft
 
 ### Open questions
 
-1. **Order on Home:** Your speed first, then Your keyboard (my pick, speed is the main
-   game), or Your keyboard first?
-2. **Height on Home:** keep it on the card, or only themes and effects?
-3. **Full Access after Try it** (my pick, it reads better once it has learned words), or
-   keep it before as today?
+None. Gabriel liked the mockup as shown (9 Nov 2026), so: Your speed first, then Your
+keyboard; Height stays on the card; Full Access comes after Try it. The Home header is
+just "Astrotype" (Gabriel, 9 Nov 2026), not the "Both flippers, go." tagline.
 
 - **Leaderboards** (PR #203, built in another thread): its rank chip sits in Your
   speed's card, which this redesign keeps as is, so the two fit together.
 
 ## Design
 
-Status: Draft
+Status: Approved 2026-11-09 (Gabriel: "go ahead and build it")
 
 - **Mockups:** `design/mockups/home-and-welcome.html` (Artifact: https://claude.ai/artifact/CYaxjuqLHErz1c2uJtQgsm) (tap through it; every button in the phone works)
 - **What changes:**
-  - **Home** (`screens/01-before-home.png` → `02-home.png`): header and Your speed stay.
+  - **Home** (`screens/01-before-home.png` → `02-home.png`): the header becomes just "Astrotype"; Your speed stays.
     New Your keyboard card. Drills, Practice words and the week move to the new Learn and
     practice screen, linked from the bottom of Your speed. The old "Settings · Autospace, gestures, trails, sync" row becomes a plain
     Settings row at the bottom, next to Pro.

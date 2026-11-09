@@ -528,7 +528,7 @@ function homeScreen(){
   const left=wide()?`${speedCard()}${bottomRows()}`:`${speedCard()}${sec("Your keyboard")}${keyboardCard()}${bottomRows()}`;
   const right=wide()?`${sec("Your keyboard")}${keyboardCard()}`:"";
   return `<div class="scroll ${S.dockOpen?"docked":""}">
-    <div class="hdr"><div class="h1">${wide()?"Both flippers, go.":"Both<br>flippers, go."}</div>${thumbsSVG()}</div>
+    <div class="hdr"><div class="h1">Astrotype</div>${thumbsSVG()}</div>
     <div class="cols"><div class="col">${left}</div><div class="col">${right}</div></div>
   </div>${dock()}`;
 }

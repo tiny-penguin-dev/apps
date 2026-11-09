@@ -2,7 +2,8 @@
 import AstrotypeCore
 import UIKit
 
-/// The in-keyboard settings under a held "123" (features/settings/FEATURE.md): the core
+/// The in-keyboard settings behind the guesses bar's Astrotype button (or a held "123"
+/// where that button has no place; features/settings/FEATURE.md): the core
 /// few, so they can change without leaving the app being typed in, and so people
 /// without Full Access (where the app's Settings can't reach the keyboard) can still
 /// change them. Quick tiles (autospace, next word, the guesses bar, haptics, effects,
@@ -10,6 +11,9 @@ import UIKit
 /// and autospace's wait), a Languages row that opens the list of languages
 /// (features/languages: any one free, two at once Pro), and a Theme row that opens the
 /// themes (features/customization: Classic free, the rest Pro). The rest lives in the app.
+/// Above them, "Switch keyboard" (iOS's own: a tap goes to the next keyboard, a hold
+/// shows the list) and "Open Astrotype", which opens the app for the rest (Gabriel,
+/// 8 Nov 2026: the globe moved in here).
 ///
 /// Shown over the keys, on the keyboard's own backdrop (glass on iOS 26). The title and
 /// Done head the tiles and sliders and scroll away with them when the keys' space is
@@ -60,6 +64,20 @@ public final class SettingsPanelView: UIView {
     }
     /// Mark tapped.
     public var onMark: (() -> Void)?
+    /// Every touch on "Switch keyboard" with its event, for iOS's
+    /// `handleInputModeList(from:with:)` (`KeyboardView.onGlobeTouch`). Nil, the row
+    /// doesn't show.
+    public var onSwitchTouch: ((UIView, UIEvent) -> Void)? {
+        didSet { if (onSwitchTouch == nil) != (oldValue == nil) { render() } }
+    }
+    /// A finger lifted on "Switch keyboard".
+    public var onSwitched: (() -> Void)?
+    /// Whether "Open Astrotype" shows (the keyboard extension can open its app).
+    public var canOpenApp = false {
+        didSet { if canOpenApp != oldValue { render() } }
+    }
+    /// "Open Astrotype" tapped.
+    public var onOpenApp: (() -> Void)?
 
     private static let headerHeight: CGFloat = 48
 
@@ -90,6 +108,10 @@ public final class SettingsPanelView: UIView {
     /// "Mark this moment", while recording.
     private let markRow = LinkRow(title: "Mark this moment", symbol: "record.circle", chevron: false)
     private lazy var markCard = card([markRow])
+    /// "Switch keyboard" and "Open Astrotype", at the top.
+    private let switchRow = LinkRow(title: "Switch keyboard", symbol: "globe", chevron: false)
+    private let openRow = LinkRow(title: "Open Astrotype", symbol: "arrow.up.forward.app", chevron: false)
+    private lazy var actionsCard = card([switchRow, openRow])
     private var markedAt: Date?
     /// The list of languages, shown in place of the settings when the row is tapped.
     private let languageScroll = PanelScrollView()
@@ -157,6 +179,11 @@ public final class SettingsPanelView: UIView {
         nextTile.accessibilityHint = "Likely next words in the bar after each word"
         languagesLink.addAction(UIAction { [weak self] _ in self?.page = .languages }, for: .touchUpInside)
         themeLink.addAction(UIAction { [weak self] _ in self?.page = .themes }, for: .touchUpInside)
+        switchRow.accessibilityHint = "Goes to the next keyboard. Touch and hold for the list"
+        switchRow.addTarget(self, action: #selector(switchTouched(_:with:)), for: .allTouchEvents)
+        switchRow.addAction(UIAction { [weak self] _ in self?.onSwitched?() }, for: .touchUpInside)
+        openRow.accessibilityHint = "Opens the Astrotype app, for the rest of the settings"
+        openRow.addAction(UIAction { [weak self] _ in self?.onOpenApp?() }, for: .touchUpInside)
         markRow.accessibilityHint = "Notes that something went wrong just now, to send from the app's Debug page"
         markRow.addAction(UIAction { [weak self] _ in
             guard let self else { return }
@@ -212,6 +239,10 @@ public final class SettingsPanelView: UIView {
 
     public required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 
+    @objc private func switchTouched(_ sender: UIView, with event: UIEvent) {
+        onSwitchTouch?(sender, event)
+    }
+
     private func wire(_ tile: QuickTile, _ change: @escaping (inout KeyboardSettings) -> Void) {
         tile.addAction(UIAction { [weak self] _ in self?.update(change) }, for: .touchUpInside)
     }
@@ -252,7 +283,7 @@ public final class SettingsPanelView: UIView {
         column.spacing = Theme.Space.s
         column.translatesAutoresizingMaskIntoConstraints = false
         let languagesCard = card([languagesLink, themeLink])
-        for view in [tileGrid, languagesCard, sliders, note, markCard, more] { column.addArrangedSubview(view) }
+        for view in [actionsCard, tileGrid, languagesCard, sliders, note, markCard, more] { column.addArrangedSubview(view) }
 
         // The languages page: a card of rows, the free note under it.
         languageList.axis = .vertical
@@ -414,6 +445,15 @@ public final class SettingsPanelView: UIView {
         note.isHidden = lines.isEmpty
 
         markCard.isHidden = !isRecording
+        switchRow.isHidden = onSwitchTouch == nil
+        openRow.isHidden = !canOpenApp
+        // The hairline between the two rows, only when both show.
+        if let stack = actionsCard as? UIStackView, stack.arrangedSubviews.count == 3 {
+            stack.arrangedSubviews[1].isHidden = switchRow.isHidden || openRow.isHidden
+        }
+        actionsCard.isHidden = switchRow.isHidden && openRow.isHidden
+        // "Open Astrotype" says it already.
+        more.isHidden = canOpenApp
         markRow.value = markedAt.map { "Marked \($0.formatted(date: .omitted, time: .shortened))" } ?? "Recording"
     }
 

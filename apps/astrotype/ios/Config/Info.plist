@@ -9,6 +9,18 @@
 	<true/>
 	<key>LSSupportsOpeningDocumentsInPlace</key>
 	<true/>
+	<!-- astrotype://settings: the keyboard's "Open Astrotype" opens the app on Settings. -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.tinypenguin.astrotype</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>astrotype</string>
+			</array>
+		</dict>
+	</array>
 	<!-- Sentry DSN, filled in at build time. See docs/telemetry.md. -->
 	<key>SentryDSN</key>
 	<string>$(SENTRY_DSN)</string>

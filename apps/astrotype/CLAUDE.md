@@ -52,7 +52,7 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
     `KeyboardDebugRecorder` writes its live memory (`KeyboardDebug`) to the App Group
     for Settings → Debug whenever it has Full Access (never sent). With Full Access and
     "Keep recording" on it gives `KeyboardModel.recorder` a `TypingRecorder` over
-    `KeyboardFiles.typing` (red dot on the keys, Mark in the held-123 panel; turning it
+    `KeyboardFiles.typing` (red dot on the keys, Mark in the settings panel; turning it
     off deletes what was kept). `MemorySampler` takes one `MemorySample` a second
     while the keyboard shows and hands it to the stats overlay, the Debug page's file,
     `KeyboardHealthRecorder` and the log (`mem` events: on show, hide and memory
@@ -217,7 +217,7 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
   it for debugging; built),
   `field-types` (the keyboard following email, web, search and number fields),
   `next-word` (the likely next words on the bar after each word, with the FIX chip),
-  `guesses-bar` (the bar in three parts: globe key left, words centred, pencil right with the
+  `guesses-bar` (the bar in three parts: the Astrotype menu button left (the settings panel, with Switch keyboard and Open Astrotype; was the globe until 8 Nov 2026), words centred, pencil right with the
   fix row behind it; built 3 Nov 2026),
   `customization` (Appearance split into General, Styling and Effects: themes, your own
   theme, tap and swipe effects and flow levels; in design),

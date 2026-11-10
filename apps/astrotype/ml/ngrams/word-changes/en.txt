@@ -1,0 +1,13 @@
+# Words we add to and take out of the English word list
+# (ios/AstrotypeKit/Sources/AstrotypeCore/Resources/en/lexicon.tsv).
+#
+# One word per line: "+ word" adds it, "+ word 2e-6" adds it as that common
+# (the frequency the list ranks by; "rookies" is about 2e-6), "- word" takes it out.
+# Say why after a "#". Run apply_word_changes.py after any rebuild of the list;
+# LanguagesTests checks the shipped list keeps every change here.
+
+# Added
++ astrotype 2e-6        # the app's own name (Gabriel, 10 Nov 2026)
+
+# Taken out
+- thr                   # a slip for "the", not a word (Gabriel, 10 Nov 2026)

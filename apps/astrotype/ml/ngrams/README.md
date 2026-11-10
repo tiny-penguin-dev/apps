@@ -44,6 +44,20 @@ words that the Hunspell en_US dictionary spells, to 78,024 in all ("overwritten"
 that wordfreq lists past that point. Its docstring has the commands. The word pairs
 above were counted on the 40,000; the new words have none yet.
 
+## Words we add and take out
+
+`word-changes/<code>.txt` lists, per language, the words we add to the list
+("+ astrotype 2e-6", with how common it is) and take out of it ("- thr", a slip for
+"the"), each with why. It lives in the repo and changes only the lists we ship, not
+anything in the app. After editing it, or after rebuilding a list, run:
+
+```bash
+python3 apply_word_changes.py en
+python3 apply_word_changes.py es
+```
+
+`LanguagesTests.wordChangesAreInTheShippedList` fails if a shipped list misses a change.
+
 ## Spanish
 
 The word list comes from `wordfreq`'s Spanish counts, with accents as they are

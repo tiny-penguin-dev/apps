@@ -24,6 +24,23 @@ import Testing
         return Composer(language: language, layout: Synth.layout, settings: settings)
     }
 
+    /// The words we add to and take out of each language's list (ml/ngrams/word-changes,
+    /// Gabriel 10 Nov 2026) are in the lists the app ships.
+    @Test(arguments: Language.bundledCodes) func wordChangesAreInTheShippedList(code: String) throws {
+        let url = URL(fileURLWithPath: #filePath)
+            .appendingPathComponent("../../../../../ml/ngrams/word-changes/\(code).txt").standardized
+        let text = try String(contentsOf: url, encoding: .utf8)
+        let lexicon = try Language.bundled(code).lexicon
+        for line in text.split(separator: "\n") {
+            let parts = line.split(separator: "#", maxSplits: 1, omittingEmptySubsequences: false)[0]
+                .split(separator: " ").map(String.init)
+            guard parts.count >= 2 else { continue }
+            let word = Lexicon.fold(parts[1].lowercased())
+            if parts[0] == "+" { #expect(lexicon.contains(word), "\(code): \(word) should be in") }
+            if parts[0] == "-" { #expect(!lexicon.contains(word), "\(code): \(word) should be out") }
+        }
+    }
+
     @Test func foldTakesAccentsOff() {
         #expect(Lexicon.fold("Mañana") == "manana")
         #expect(Lexicon.fold("pingüino") == "pinguino")

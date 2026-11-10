@@ -340,3 +340,34 @@ import Testing
         #expect(right >= 13, "\(right) of \(words.count); misses: \(misses)")
     }
 }
+
+/// Gabriel's real tries at "separated" (10 Nov 2026): wiggly 33-key swipes whose search
+/// ran out of room one letter short, so "separate" and "spayed" came out instead.
+@Suite struct WigglyLongSwipeTests {
+    struct Recorded: Decodable {
+        var width: Double
+        var height: Double
+        var tries: [[[[Double]]]]
+    }
+
+    @Test func gabrielsSeparatedComesOut() throws {
+        let url = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("Fixtures/separated-swipes.json")
+        let recorded = try JSONDecoder().decode(Recorded.self, from: Data(contentsOf: url))
+        let layout = Layout.qwerty(width: recorded.width, height: recorded.height)
+        for (index, touches) in recorded.tries.enumerated() {
+            var composer = Composer(language: ContextMatcherTests.english, layout: layout, settings: Replay.settings)
+            composer.setContext(before: "For my learned words feature, it is not ")
+            for (id, points) in touches.enumerated() {
+                for (n, p) in points.enumerated() {
+                    let point = CGPoint(x: p[0], y: p[1])
+                    switch n {
+                    case 0: _ = composer.touchDown(id: id + 1, at: point, time: p[2])
+                    case points.count - 1: _ = composer.touchUp(id: id + 1, at: point, time: p[2])
+                    default: _ = composer.touchMoved(id: id + 1, to: point, time: p[2])
+                    }
+                }
+            }
+            #expect(composer.state.openWord?.lowercased() == "separated", "try \(index + 1): \(composer.state.bar)")
+        }
+    }
+}

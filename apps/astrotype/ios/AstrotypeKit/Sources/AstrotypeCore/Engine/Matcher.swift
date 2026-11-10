@@ -173,8 +173,12 @@ public struct Matcher: Sendable {
     /// What a letter taken a whole `swapWindow` after its finger had moved on costs,
     /// when both thumbs swipe at once (`together`): less for less.
     public var latePenalty = 0.2
-    /// How many trie states a search may expand before it stops.
-    public var budget = 40_000
+    /// How many trie states a search may expand before it stops. The search goes one
+    /// letter deeper at a time, so a cut-off search loses the longest words first. A
+    /// real, wiggly 33-key swipe of "separated" needed about 48,000 and lost it to
+    /// "separate" and "spayed" at 40,000 (Gabriel, 10 Nov 2026); clean swipes need
+    /// under 10,000.
+    public var budget = 100_000
 
     public init(dictionary: Lexicon, ngrams: NgramModel? = nil, layout: Layout, learned: LearnedWords = LearnedWords()) {
         self.dictionary = dictionary

@@ -708,7 +708,7 @@ final class ProxyTarget: TextTarget {
     }
 
     func insert(_ text: String) {
-        if !text.isEmpty { deleteSelection() }
+        if !text.isEmpty { replaceSelection() }
         proxy.insertText(text)
     }
     func deleteBackward() {
@@ -720,7 +720,7 @@ final class ProxyTarget: TextTarget {
         guard text != open else { return }
         if open.isEmpty {
             openDocument = documentID
-            if !text.isEmpty { deleteSelection() }
+            if !text.isEmpty { replaceSelection() }
         }
         // Take the old reading out, unless the cursor moved away from it (then it stays
         // as typed). A field that hides its text (nil) is trusted to be where we left it.
@@ -784,21 +784,18 @@ final class ProxyTarget: TextTarget {
         openDocument = nil
     }
 
-    /// Deletes the selected text, if any, so what is typed next takes its place.
+    /// What is typed next goes over the selected text, if any: `insertText` replaces
+    /// the selection. Only notes that it is gone, as the proxy reports it a while longer.
     ///
-    /// Deleting a selected word also takes the space before it in most fields (iOS's
-    /// smart delete), so typing over "sentence" in "This is a sentence" gave "This is
-    /// ahello" (a typing recording, Gabriel, 7 Nov 2026). The word is being replaced,
-    /// so that space is put back.
-    private func deleteSelection() {
+    /// It used to delete the selection first. Deleting a selected word also takes the
+    /// space before it in most fields (iOS's smart delete), so typing over "sentence"
+    /// in "This is a sentence" gave "This is ahello" (a typing recording, Gabriel,
+    /// 7 Nov 2026). Putting the space back after the delete did not work on a phone
+    /// (Gabriel, 10 Nov 2026), most likely because the proxy still reads the old text,
+    /// space and all, right after the delete. Typing over the selection never deletes,
+    /// so the space stays, as in the app's own field (`TextViewTarget`).
+    private func replaceSelection() {
         guard !clearedSelection, let selected = proxy.selectedText, !selected.isEmpty else { return }
-        let spaceBefore = proxy.documentContextBeforeInput?.last?.isWhitespace == true
-            && selected.first?.isWhitespace != true
-        proxy.deleteBackward()
-        if spaceBefore, let before = proxy.documentContextBeforeInput,
-           let last = before.last, !last.isWhitespace {
-            proxy.insertText(" ")
-        }
         clearedSelection = true
         Task { @MainActor [weak self] in self?.clearedSelection = false }
     }

@@ -1,0 +1,8 @@
+# Words we add to and take out of the Spanish word list
+# (ios/AstrotypeKit/Sources/AstrotypeCore/Resources/es/lexicon.tsv).
+# Same format as en.txt.
+
+# Added
++ astrotype 2e-6        # the app's own name (Gabriel, 10 Nov 2026)
+
+# Taken out

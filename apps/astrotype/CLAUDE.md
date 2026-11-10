@@ -217,7 +217,7 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
   `download_samples.py --type PracticeSession` fetches them for `astrotype-tools
   replay`. Typing logs (Settings → Debug) are `PracticeSession` records of kind
   `typing.log` in parts; `download_samples.py --typing` puts them together into
-  `samples/typing/<id>.json` for `astrotype-tools typing`. `ml/ngrams/` makes a language's word list (`make_lexicon.py`) and counts a
+  `samples/typing/<id>.json` for `astrotype-tools typing`. `ml/ngrams/` makes a language's word list (`make_lexicon.py`; `word-changes/<code>.txt` with `apply_word_changes.py` for the words we add or take out by hand) and counts a
   corpus's word pairs for `build-ngrams` (its README has the commands and the data sources).
 - `features/`: the bigger features after the v2 build, one folder each with a
   `FEATURE.md` (product, design, build and its phases, notes as they ship):

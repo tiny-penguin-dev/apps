@@ -70,9 +70,9 @@ said. You can start building.")
     - *Bottom right:* a mic key left of return, near where iOS puts its own; space gets
       a little shorter. The bar's right end keeps only the pencil.
     - Either way, a small mint dot on the mic means the mic is on and ready.
-  - **Listening state:** the bar turns into a listening strip: ✕ at the left (stop and
-    take back what was said), a wide live sound wave across the middle, and a mint ✓
-    at the right (stop and keep). The words go straight into the field as you speak, so
+  - **Listening state:** the bar turns into a listening strip: a wide live sound wave
+    across the middle and a mint ✓ at the right (stop and keep). No ✕: it was
+    confusing next to ✓, and backspace takes words back (Gabriel, 10 Nov 2026). The words go straight into the field as you speak, so
     the bar doesn't repeat them (Gabriel, 9 Nov 2026).
   - **Talk and type together** (Gabriel, 9 Nov 2026): the keys keep working while it
     listens. A key freezes what was said so far, as it stands, and types as usual; the
@@ -107,12 +107,12 @@ said. You can start building.")
     while you dictate, on your phone."
 - **Design system:** reuses the bar's three parts, `Icon` buttons, `PrimaryButton`,
   `SettingsGroup`, `SettingsToggle`, `Segmented`, `Trails`. Adds `MicButton` (idle,
-  ready, listening, held), `ListeningStrip` (wave, words, ✕, ✓) and `SwipeHint` (a
+  ready, listening, held), `ListeningStrip` (wave, ✓) and `SwipeHint` (a
   looping trail along an edge).
 - **Sizes:** the wave fills whatever width the middle has. On the
   Duo's inner screen the go-back screen centres its text in a narrower column and the
   trail still runs along the full bottom edge. In a column layout (split keyboard) the
-  strip stacks: the wave, then ✕ and ✓.
+  strip stacks: the wave, then ✓.
 - **Accessibility:** the mic button reads "Dictate" ("Dictate, mic ready" when on), with
   the hint "Double tap to start. Double tap and hold to talk." The strip's buttons read
   "Stop and discard" and "Done". VoiceOver hears "Listening" when it starts. The

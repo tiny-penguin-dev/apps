@@ -120,7 +120,7 @@ public final class BarView: UIView {
     }
 
     /// The mic (features/dictation): at the right end when the pencil has nothing to
-    /// fix, and the listening strip while it listens (✕, the wave, and the mic as ✓).
+    /// fix, and the listening strip while it listens (the wave, and the mic as ✓).
     public var mic: MicStatus = .hidden {
         didSet {
             guard mic != oldValue else { return }
@@ -401,9 +401,7 @@ public final class BarView: UIView {
     }
 
     private func tappedClose() {
-        if listening {
-            onMic?(.cancel)
-        } else if case .correcting = bar {
+        if case .correcting = bar {
             onCancelCorrection?()
         } else {
             showsFixes = false
@@ -415,7 +413,29 @@ public final class BarView: UIView {
     /// to the keys.
     public override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
         let hit = super.hitTest(point, with: event)
-        return hit === self || hit === stack ? nil : hit
+        let empty = hit == nil || hit === self || hit === stack
+        if empty, !micButton.isHidden, micButton.isUserInteractionEnabled, micHitArea.contains(point) {
+            return micButton
+        }
+        return empty ? nil : hit
+    }
+
+    /// Where a finger reaches the mic (Gabriel, 10 Nov 2026): at least 44 by 44 and a
+    /// little more around it; on the bar out to its right end and down to its bottom,
+    /// and while listening, where only the ✓ takes touches, over the right third too.
+    /// Only empty parts of the bar: a word or another button keeps its own touch.
+    private var micHitArea: CGRect {
+        let frame = micButton.frame
+        let grow = Theme.Space.s
+        var area = frame.insetBy(dx: min(0, (frame.width - 44) / 2) - grow, dy: min(0, (frame.height - 44) / 2) - grow)
+        if axis == .horizontal, keyRows.isEmpty {
+            area = CGRect(x: area.minX, y: 0, width: bounds.maxX - area.minX, height: bounds.height)
+            if listening {
+                let third = bounds.maxX - bounds.width / 3
+                area = CGRect(x: min(area.minX, third), y: 0, width: bounds.maxX - min(area.minX, third), height: bounds.height)
+            }
+        }
+        return area
     }
 
     public override func layoutSubviews() {
@@ -441,7 +461,7 @@ public final class BarView: UIView {
         pencilButton.frame = CGRect(x: inset.maxX - end, y: 0, width: end, height: inset.height)
         micButton.frame = pencilButton.frame
         if listening {
-            // ✕, the wave as wide as the middle allows, and the mic as ✓ (or held).
+            // The wave as wide as the middle allows, and the mic as ✓ (or held).
             var middle = inset.insetBy(dx: end + Theme.Space.xs, dy: 0)
             if !heldLabel.isHidden {
                 let fit = heldLabel.sizeThatFits(middle.size)
@@ -524,10 +544,7 @@ public final class BarView: UIView {
         closeButton.frame = bottom
         micButton.frame = bottom
         if listening {
-            // The wave, then ✕ and ✓ side by side under it.
-            let width = min(end, area.width / 2)
-            closeButton.frame = CGRect(x: area.midX - width, y: area.maxY - end, width: width, height: end)
-            micButton.frame = CGRect(x: area.midX, y: area.maxY - end, width: width, height: end)
+            // The wave, then ✓ under it.
             wave.frame = CGRect(x: area.minX, y: area.minY, width: area.width, height: 30)
             return
         }
@@ -618,11 +635,11 @@ public final class BarView: UIView {
         wave.isHidden = true
         heldLabel.isHidden = true
         if listening {
-            // The listening strip: ✕, the wave, the mic as ✓. The words go straight into
-            // the field, so the bar doesn't repeat them (Gabriel, 9 Nov 2026).
+            // The listening strip: the wave and the mic as ✓. The words go straight into
+            // the field, so the bar doesn't repeat them (Gabriel, 9 Nov 2026). No ✕: it
+            // was confusing next to ✓; backspace takes words back (Gabriel, 10 Nov 2026).
             pencilButton.isHidden = true
-            closeButton.isHidden = false
-            closeButton.accessibilityLabel = "Stop and discard"
+            closeButton.isHidden = true
             micButton.isHidden = false
             leadingKey?.isHidden = true
             wave.isHidden = false

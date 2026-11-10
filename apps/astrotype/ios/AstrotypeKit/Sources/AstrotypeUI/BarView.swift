@@ -413,7 +413,29 @@ public final class BarView: UIView {
     /// to the keys.
     public override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
         let hit = super.hitTest(point, with: event)
-        return hit === self || hit === stack ? nil : hit
+        let empty = hit == nil || hit === self || hit === stack
+        if empty, !micButton.isHidden, micButton.isUserInteractionEnabled, micHitArea.contains(point) {
+            return micButton
+        }
+        return empty ? nil : hit
+    }
+
+    /// Where a finger reaches the mic (Gabriel, 10 Nov 2026): at least 44 by 44 and a
+    /// little more around it; on the bar out to its right end and down to its bottom,
+    /// and while listening, where only the ✓ takes touches, over the right third too.
+    /// Only empty parts of the bar: a word or another button keeps its own touch.
+    private var micHitArea: CGRect {
+        let frame = micButton.frame
+        let grow = Theme.Space.s
+        var area = frame.insetBy(dx: min(0, (frame.width - 44) / 2) - grow, dy: min(0, (frame.height - 44) / 2) - grow)
+        if axis == .horizontal, keyRows.isEmpty {
+            area = CGRect(x: area.minX, y: 0, width: bounds.maxX - area.minX, height: bounds.height)
+            if listening {
+                let third = bounds.maxX - bounds.width / 3
+                area = CGRect(x: min(area.minX, third), y: 0, width: bounds.maxX - min(area.minX, third), height: bounds.height)
+            }
+        }
+        return area
     }
 
     public override func layoutSubviews() {

@@ -17,12 +17,18 @@ public struct LearnedWords: Sendable, Equatable, Codable {
         public var uses: Int
         /// Added by hand in Settings → Learned words; nil otherwise.
         public var added: Bool?
+        /// The language the word belongs to ("en", "es"): it is offered only in a
+        /// sentence in that language. Nil for every language: words learned while the
+        /// sentence's language wasn't clear, written in two languages, set to both by
+        /// hand, or kept from before languages were told apart (10 Nov 2026).
+        public var language: String?
 
-        public init(weight: Double, changed: Date, uses: Int = 0, added: Bool = false) {
+        public init(weight: Double, changed: Date, uses: Int = 0, added: Bool = false, language: String? = nil) {
             self.weight = weight
             self.changed = changed
             self.uses = uses
             self.added = added ? true : nil
+            self.language = language
         }
 
         /// Entries saved before uses were counted: learning set the weight to 1 and a
@@ -32,6 +38,7 @@ public struct LearnedWords: Sendable, Equatable, Codable {
             weight = try c.decode(Double.self, forKey: .weight)
             changed = try c.decode(Date.self, forKey: .changed)
             added = try c.decodeIfPresent(Bool.self, forKey: .added)
+            language = try c.decodeIfPresent(String.self, forKey: .language)
             if let uses = try c.decodeIfPresent(Int.self, forKey: .uses) {
                 self.uses = uses
             } else {
@@ -51,14 +58,19 @@ public struct LearnedWords: Sendable, Equatable, Codable {
     /// A word the person put in that the dictionary does not know: typed letter by
     /// letter the first time, then each time it goes in again. A blocked word stays
     /// blocked (Never suggest); only `allow`, `teach` or `add` bring it back.
-    public mutating func learn(_ word: String, at date: Date = Date()) {
+    /// `language` is the sentence's language when it was clear (nil otherwise): a new
+    /// word belongs to it, and a word of one language written in the other belongs to
+    /// both from then on.
+    public mutating func learn(_ word: String, language: String? = nil, at date: Date = Date()) {
         let w = word.lowercased()
         guard let old = entries[w] else {
-            entries[w] = Entry(weight: 0, changed: date, uses: 1)
+            entries[w] = Entry(weight: 0, changed: date, uses: 1, language: language)
             return
         }
         guard old.weight >= 0 else { return }
-        entries[w] = Entry(weight: old.weight, changed: date, uses: old.uses + 1, added: old.added == true)
+        let both = old.uses == 0 && old.weight == 0 ? language : (old.language == language ? language : nil)
+        entries[w] = Entry(weight: old.weight, changed: date, uses: old.uses + 1, added: old.added == true,
+                           language: language == nil ? old.language : both)
     }
 
     /// The word just learned was deleted straight away: one use fewer, and a word with
@@ -69,15 +81,39 @@ public struct LearnedWords: Sendable, Equatable, Codable {
             forget(w, at: date)
             return
         }
-        entries[w] = Entry(weight: old.weight, changed: date, uses: old.uses - 1, added: old.added == true)
+        entries[w] = Entry(weight: old.weight, changed: date, uses: old.uses - 1, added: old.added == true, language: old.language)
     }
 
     /// Typed in by hand (Settings → Learned words, +): learned and kept, as if pecked
-    /// out and boosted, and marked as added. A forgotten word comes back.
-    public mutating func add(_ word: String, at date: Date = Date()) {
+    /// out and boosted, and marked as added, in `language` (nil: every language). A
+    /// forgotten word comes back.
+    public mutating func add(_ word: String, language: String? = nil, at date: Date = Date()) {
         let w = word.lowercased()
         let old = entries[w]
-        entries[w] = Entry(weight: max(old?.weight ?? 0, 0) + 1.5, changed: date, uses: max(old?.uses ?? 0, 1), added: true)
+        entries[w] = Entry(weight: max(old?.weight ?? 0, 0) + 1.5, changed: date, uses: max(old?.uses ?? 0, 1), added: true,
+                           language: language)
+    }
+
+    /// The language `word` is offered in, nil for every language.
+    public func language(of word: String) -> String? {
+        entries[word.lowercased()]?.language
+    }
+
+    /// Moves a learned word to one language, or to every language with nil
+    /// (Settings → Learned words). Dated, so the move reaches every device.
+    public mutating func setLanguage(_ word: String, to language: String?, at date: Date = Date()) {
+        let w = word.lowercased()
+        guard var entry = entries[w], entry.language != language else { return }
+        entry.language = language
+        entry.changed = date
+        entries[w] = entry
+    }
+
+    /// Whether the keyboard offers `word` in a sentence in `language` (nil: any).
+    public func contains(_ word: String, in language: String?) -> Bool {
+        guard contains(word) else { return false }
+        guard let language, let own = entries[word]?.language else { return true }
+        return own == language
     }
 
     /// What `add` takes: one word of letters (an apostrophe or hyphen inside is fine),
@@ -99,7 +135,8 @@ public struct LearnedWords: Sendable, Equatable, Codable {
     public mutating func boost(_ word: String, at date: Date = Date()) {
         let w = word.lowercased()
         let old = entries[w]
-        entries[w] = Entry(weight: max(old?.weight ?? 0, 0) + 1.5, changed: date, uses: old?.uses ?? 0, added: old?.added == true)
+        entries[w] = Entry(weight: max(old?.weight ?? 0, 0) + 1.5, changed: date, uses: old?.uses ?? 0, added: old?.added == true,
+                           language: old?.language)
     }
 
     /// "Suggest more" or "Learn it" from the bar's word menu (features/word-control):
@@ -107,7 +144,8 @@ public struct LearnedWords: Sendable, Equatable, Codable {
     public mutating func teach(_ word: String, at date: Date = Date()) {
         let w = word.lowercased()
         let old = entries[w]
-        entries[w] = Entry(weight: max(old?.weight ?? 0, 0) + 1.5, changed: date, uses: max(old?.uses ?? 0, 1), added: old?.added == true)
+        entries[w] = Entry(weight: max(old?.weight ?? 0, 0) + 1.5, changed: date, uses: max(old?.uses ?? 0, 1), added: old?.added == true,
+                           language: old?.language)
     }
 
     /// Stop offering a guess (slide down on the bar).
@@ -115,8 +153,8 @@ public struct LearnedWords: Sendable, Equatable, Codable {
         entries[word.lowercased()] = Entry(weight: -10, changed: date, uses: 0)
     }
 
-    /// "Never suggest": the word is never offered again, as a guess, a fix or a next
-    /// word, though typing it letter by letter still types it (features/word-control).
+    /// "Never suggest": the word is never offered or typed again, as a guess, a fix or
+    /// a next word, in any language (features/word-control).
     public mutating func block(_ word: String, at date: Date = Date()) {
         forget(word, at: date)
     }

@@ -1124,7 +1124,8 @@ public final class KeyboardModel {
             case .learn(let word):
                 guard learningAllowed else { continue }
                 var words = composer.learned
-                words.learn(word, at: Date())
+                // In the sentence's language when it is clear (features/languages).
+                words.learn(word, language: composer.lockedLanguage, at: Date())
                 composer.learned = words
                 wordStore?.save(words)
                 onWordsChange?(words)

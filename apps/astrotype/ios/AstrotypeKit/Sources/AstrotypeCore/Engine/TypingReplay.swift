@@ -117,7 +117,7 @@ public struct TypingReplay: Sendable {
                         composer?.personal = learner.index
                     }
                 case .learn(let word) where hostField.learns && !searching:
-                    learned.learn(word, at: log.from)
+                    learned.learn(word, language: composer?.lockedLanguage, at: log.from)
                     composer?.learned = learned
                 case .unlearn(let word):
                     learned.unlearn(word, at: log.from)

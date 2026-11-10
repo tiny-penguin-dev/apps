@@ -6,22 +6,34 @@ import SwiftUI
 /// "learned words", and features/learned-words). Swipe one away, or Select several, and
 /// they are not offered again, here or on any synced device; + adds one by hand.
 /// "Used once" shows the words it picked up a single time, where old typos hide
-/// (features/word-control).
+/// (features/word-control). With two languages on, each word says the language it is
+/// offered in (or Both), a tab per language shows that language's words, and holding a
+/// word moves it (Gabriel, 10 Nov 2026). With one language none of that shows.
 struct LearnedWordsView: View {
     var model: AppModel
     @State private var editMode: EditMode = .inactive
     @State private var picked: Set<String> = []
     @State private var adding = false
     @State private var filter = Filter.all
+    @State private var language: String?
 
     enum Filter: String, CaseIterable, Identifiable {
         case all = "All", usedOnce = "Used once"
         var id: Self { self }
     }
 
+    /// The languages on, when there are two; empty with one.
+    private var languages: [String] {
+        let on = model.activeLanguages
+        return on.count > 1 ? on : []
+    }
+
     var body: some View {
         let all = model.learnedWords.recent
-        let words = filter == .all ? all : all.filter(model.learnedWords.isUsedOnce)
+        let languages = self.languages
+        let inLanguage = languages.isEmpty || language == nil ? all
+            : all.filter { model.learnedWords.contains($0, in: language) }
+        let words = filter == .all ? inLanguage : inLanguage.filter(model.learnedWords.isUsedOnce)
         Group {
             if all.isEmpty {
                 VStack(alignment: .leading, spacing: Theme.Space.m) {
@@ -35,6 +47,15 @@ struct LearnedWordsView: View {
             } else {
                 List(selection: $picked) {
                     Section {
+                        if !languages.isEmpty {
+                            Picker("Language", selection: $language) {
+                                Text("All languages").tag(String?.none)
+                                ForEach(languages, id: \.self) { Text(Language.names[$0] ?? $0).tag(String?.some($0)) }
+                            }
+                            .pickerStyle(.segmented)
+                            .listRowBackground(Color.clear)
+                            .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: Theme.Space.s, trailing: 0))
+                        }
                         Picker("Show", selection: $filter) {
                             ForEach(Filter.allCases) { Text($0.rawValue).tag($0) }
                         }
@@ -53,8 +74,30 @@ struct LearnedWordsView: View {
                                 } else if model.learnedWords.isBoosted(word) {
                                     Chip("More", tint: Theme.sun)
                                 }
+                                if !languages.isEmpty {
+                                    Text(Self.name(of: model.learnedWords.language(of: word)))
+                                        .font(.sw(.small)).foregroundStyle(Theme.muted)
+                                }
                             }
                             .listRowBackground(Theme.card)
+                            .contextMenu {
+                                if !languages.isEmpty {
+                                    let current = model.learnedWords.language(of: word)
+                                    Section("Offer it in") {
+                                        ForEach([String?.none] + languages.map(Optional.some), id: \.self) { code in
+                                            Button {
+                                                model.setLanguage(of: word, to: code)
+                                            } label: {
+                                                if code == current {
+                                                    Label(Self.name(of: code), systemImage: "checkmark")
+                                                } else {
+                                                    Text(Self.name(of: code))
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
                         .onDelete { offsets in
                             model.forget(offsets.map { words[$0] }, how: .swipe)
@@ -62,7 +105,8 @@ struct LearnedWordsView: View {
                     } footer: {
                         Text(editMode.isEditing ? "Tap the words to delete."
                              : filter == .usedOnce ? (words.isEmpty ? "No words it has seen only once." : "Words it has seen you write only once. Typos tend to end up here: tap Select to drop several.")
-                             : "Swipe a word left to drop it, or tap Select to drop several. Tap + to add one.")
+                             : languages.isEmpty ? "Swipe a word left to drop it, or tap Select to drop several. Tap + to add one."
+                             : "A word is offered in the language you wrote it in. Hold a word to offer it in another language or in both. Swipe it left to drop it.")
                             .font(.sw(.small)).foregroundStyle(Theme.muted)
                     }
                 }
@@ -94,9 +138,14 @@ struct LearnedWordsView: View {
             }
         }
         .sheet(isPresented: $adding) {
-            AddWordSheet(model: model)
+            AddWordSheet(model: model, languages: languages, language: language)
         }
         .onAppear { model.reloadWords() }
+    }
+
+    /// A language's name, or "Both" for a word offered in every language.
+    static func name(of code: String?) -> String {
+        code.map { Language.names[$0] ?? $0 } ?? "Both"
     }
 }
 
@@ -104,6 +153,10 @@ struct LearnedWordsView: View {
 /// keyboard from then on.
 private struct AddWordSheet: View {
     var model: AppModel
+    /// The languages on, when there are two (empty with one: nothing to pick).
+    var languages: [String]
+    /// The one it goes in, nil for both.
+    @State var language: String?
     @Environment(\.dismiss) private var dismiss
     @State private var text = ""
     @FocusState private var focused: Bool
@@ -123,6 +176,13 @@ private struct AddWordSheet: View {
                     .onSubmit { add(word, known: known) }
                     .padding(.horizontal, Theme.Space.m).padding(.vertical, 10)
                     .background(RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous).fill(Theme.card))
+                if !languages.isEmpty {
+                    Picker("Language", selection: $language) {
+                        Text("Both").tag(String?.none)
+                        ForEach(languages, id: \.self) { Text(Language.names[$0] ?? $0).tag(String?.some($0)) }
+                    }
+                    .pickerStyle(.segmented)
+                }
                 Text(!typed ? "The keyboard offers it from now on, on all your devices."
                      : word == nil ? "One word, letters only."
                      : known ? "It already knows that one."
@@ -144,12 +204,12 @@ private struct AddWordSheet: View {
                 }
             }
         }
-        .presentationDetents([.height(220), .medium])
+        .presentationDetents([.height(languages.isEmpty ? 220 : 270), .medium])
         .onAppear { focused = true }
     }
 
     private func add(_ word: String?, known: Bool) {
-        guard let word, !known, model.addWord(word) else { return }
+        guard let word, !known, model.addWord(word, language: language) else { return }
         dismiss()
     }
 }

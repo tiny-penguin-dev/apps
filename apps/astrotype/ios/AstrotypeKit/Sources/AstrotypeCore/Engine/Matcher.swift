@@ -46,13 +46,18 @@ public struct Matcher: Sendable {
     /// What the person taught the keyboard: a weight on dictionary words, and words of
     /// their own, which a swipe can land on like any other (`learnedPrior`).
     public var learned: LearnedWords {
-        didSet { learnedLexicon = Self.lexicon(of: learned, shortcuts: shortcuts) }
+        didSet { learnedLexicon = Self.lexicon(of: learned, shortcuts: shortcuts, language: learnedLanguage) }
+    }
+    /// The sentence's language when it is clear (`Composer.lockedLanguage`): only the
+    /// person's words of that language, or of every language, are searched. Nil: all.
+    public var learnedLanguage: String? {
+        didSet { if learnedLanguage != oldValue { learnedLexicon = Self.lexicon(of: learned, shortcuts: shortcuts, language: learnedLanguage) } }
     }
     /// The text replacements' shortcuts (features/text-replacements), lowercase: searched
     /// with the person's own words, so a swipe or taps can land on one, ranked like a
     /// word they write often (`shortcutPrior`).
     public var shortcuts: Set<String> = [] {
-        didSet { if shortcuts != oldValue { learnedLexicon = Self.lexicon(of: learned, shortcuts: shortcuts) } }
+        didSet { if shortcuts != oldValue { learnedLexicon = Self.lexicon(of: learned, shortcuts: shortcuts, language: learnedLanguage) } }
     }
     /// The log frequency a shortcut counts as: a fairly common word.
     public var shortcutPrior: Float = -5
@@ -246,8 +251,8 @@ public struct Matcher: Sendable {
         return min(bonus, personalCap)
     }
 
-    static func lexicon(of learned: LearnedWords, shortcuts: Set<String> = []) -> Lexicon {
-        let own = Set(learned.entries.keys.filter { learned.contains($0) })
+    static func lexicon(of learned: LearnedWords, shortcuts: Set<String> = [], language: String? = nil) -> Lexicon {
+        let own = Set(learned.entries.keys.filter { learned.contains($0, in: language) })
             .union(shortcuts.filter { !learned.isBlocked($0) })
         return Lexicon(entries: own.sorted().map { Lexicon.Entry(word: $0, frequency: 1) })
     }

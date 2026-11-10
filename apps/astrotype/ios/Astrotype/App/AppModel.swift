@@ -891,15 +891,26 @@ final class AppModel {
     /// Typed in with + on the learned words list: learned and kept, on every device.
     /// Returns false for text that isn't one word (`LearnedWords.addable`). Counted as
     /// `words.added`.
+    /// `language` is the one it is offered in, nil for every language (only asked when
+    /// two languages are on).
     @discardableResult
-    func addWord(_ text: String) -> Bool {
+    func addWord(_ text: String, language: String? = nil) -> Bool {
         guard let word = LearnedWords.addable(text) else { return false }
         var learned = learnedWords
-        learned.add(word, at: now)
+        learned.add(word, language: activeLanguages.count > 1 ? language : nil, at: now)
         saveWords(learned)
         environment.metrics.count("words.added")
         sync()
         return true
+    }
+
+    /// Moved to one language, or to every language with nil, from the learned words
+    /// list (two languages on): offered only there, on every device.
+    func setLanguage(of word: String, to language: String?) {
+        var learned = learnedWords
+        learned.setLanguage(word, to: language, at: now)
+        saveWords(learned)
+        sync()
     }
 
     /// How a list entry was deleted, for the metrics.

@@ -467,6 +467,7 @@ public struct Composer: Sendable {
         let typing = language.part(code)
         matcher.dictionary = typing.lexicon
         matcher.ngramModels = typing.ngramModels
+        matcher.learnedLanguage = code
     }
 
     public mutating func touchCancelled(id: Int, time: TimeInterval) -> [Effect] {

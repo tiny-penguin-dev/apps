@@ -235,3 +235,19 @@ sentence" on the Languages page, only with two on; off by default) keeps the mer
 ones for every word. Locked, the straight-swipe fixtures come out as with one
 language: English 50 of 50, Spanish 19 of 20. Costs a second copy of each trie in
 memory with two on (about as much again as the merged one).
+
+#### Learned words per language (10 Nov 2026)
+
+Gabriel: learned words weren't told apart by language; "Just build directly", and with
+one language keep it simple.
+
+- Each learned word has a language (`LearnedWords.Entry.language`, synced with the
+  word). A word learned in a sentence whose language is clear
+  (`Composer.lockedLanguage`) belongs to it; one learned where it isn't clear, written in
+  both languages, or kept from before belongs to both (nil).
+- `Matcher.learnedLanguage` (set with the lock) searches only that language's words
+  and the both ones; with the sentence open, or one language on, every word.
+- Your words → Learned words, with two languages on: a language tab row, each word's
+  language (or Both) on its row, hold a word to offer it in English, Español or Both,
+  and + asks the language. With one language none of it shows.
+- Blocked words stay blocked in every language.

@@ -258,12 +258,19 @@ public struct Matcher: Sendable {
     public func candidates(for pieces: [Piece], limit: Int = 3, final: Bool = true) -> [Candidate] {
         let all = allCandidates(for: pieces, limit: limit, final: final)
         guard !learned.entries.isEmpty else { return all }
-        // Blocked words (Never suggest) are never offered, except the letters exactly as
-        // tapped: typing a word out still types it (features/word-control).
-        let tapped = pieces.allSatisfy(\.isTap)
+        // Blocked words (Never suggest) are never offered or written. While the word is
+        // still being typed, the letters exactly as tapped stay ("thr" on the way to
+        // "three"); on space a blocked word gives way to the next reading ("thr" goes
+        // in as "the"). Gabriel, 10 Nov 2026: blocking "thr" still typed "thr".
+        let tapped = !final && pieces.allSatisfy(\.isTap)
             ? String(pieces.sorted { $0.start < $1.start }.flatMap(\.keys)).lowercased() : nil
         let kept = all.filter { !learned.isBlocked($0.word) || $0.word.lowercased() == tapped }
-        return kept.isEmpty ? Array(all.prefix(1)) : kept
+        if !kept.isEmpty { return kept }
+        guard final else { return Array(all.prefix(1)) }
+        // Every reading in the short list is blocked: look further for one that isn't.
+        let wider = allCandidates(for: pieces, limit: limit + 6, final: final)
+            .filter { !learned.isBlocked($0.word) }
+        return wider.isEmpty ? Array(all.prefix(1)) : Array(wider.prefix(limit))
     }
 
     private func allCandidates(for pieces: [Piece], limit: Int, final: Bool) -> [Candidate] {
@@ -435,8 +442,10 @@ public struct Matcher: Sendable {
     }
 
     /// In the dictionary or the person's own words.
+    /// A word the keyboard knows and may write: in the dictionary or the person's own,
+    /// and not blocked (Never suggest), so a blocked "thr" reads like a slip for "the".
     func isKnown(_ word: String) -> Bool {
-        dictionary.contains(word) || learnedLexicon.contains(word)
+        (dictionary.contains(word) || learnedLexicon.contains(word)) && !learned.isBlocked(word)
     }
 
     /// What was tapped, then common words that continue it, the context deciding among them.

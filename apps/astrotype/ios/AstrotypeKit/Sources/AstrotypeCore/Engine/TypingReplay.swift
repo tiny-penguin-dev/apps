@@ -83,6 +83,11 @@ public struct TypingReplay: Sendable {
         var layout = Layout.qwerty(width: 390)
         var field = Field()
         var learned = log.learned ?? LearnedWords()
+        // The words are as they were when the log was sent: a word taught or blocked
+        // during it would steer the replay before the moment it happened ("separated",
+        // taught after it failed, came out on every try). What it was before is not
+        // known, so it starts as unknown.
+        for (word, entry) in learned.entries where entry.changed >= log.from { learned.restore(word, to: nil) }
         var lastWordChange: (word: String, before: LearnedWords.Entry?)?
         var learner = PersonalLearner(model: log.personal ?? PersonalModel(), device: "replay", now: log.from)
         var effects: [Int: [String]] = [:]

@@ -189,8 +189,9 @@ import Testing
         #expect(!effects.contains { if case .learn = $0 { true } else { false } })
     }
 
-    /// Never suggest: a blocked word is not offered, but tapping it out still types it,
-    /// and that does not unblock it.
+    /// Never suggest: a blocked word is never offered or written, not even when its
+    /// letters are tapped out exactly (Gabriel, 10 Nov 2026: blocking "thr" still typed
+    /// "thr"). Mid-word the tapped letters still show, and it stays blocked.
     @Test func aBlockedWordIsNeverOffered() {
         var words = LearnedWords()
         words.block("bring")
@@ -203,8 +204,23 @@ import Testing
         var exact = Self.composer()
         exact.learned = words
         let u = Synth.taps(&exact, "bring")
-        #expect(exact.press(.space, time: u + 0.1).contains(.commit("bring")))
+        #expect(!exact.press(.space, time: u + 0.1).contains(.commit("bring")))
         #expect(exact.learned.isBlocked("bring"))
+    }
+
+    /// Blocking a typo of a common word ("thr") makes tapping it out type the word.
+    @Test func aBlockedTypoTypesTheWord() {
+        var words = LearnedWords()
+        words.block("thr")
+        var composer = Self.composer()
+        composer.learned = words
+        let t = Synth.taps(&composer, "thr")
+        // Mid-word the letters stay as tapped: "thr" may become "three".
+        guard case .guesses(let typing, chosen: 0) = composer.state.bar else { Issue.record("no guesses"); return }
+        #expect(typing.first == "thr")
+        let effects = composer.press(.space, time: t + 0.1)
+        #expect(!effects.contains(.commit("thr")))
+        #expect(effects.contains(.commit("the")))
     }
 
     /// A word of your own written once ranks like a rare word; written often, like a

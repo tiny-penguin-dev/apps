@@ -155,6 +155,11 @@ Status: Approved 2026-11-07 (Gabriel: "Build it", in the project thread)
     (today it's dropped), never first.
   - `Matcher`: a blocked word is never a candidate, unless its letters were tapped out
     exactly (today a -10 score can still win when it's the only reading).
+    *10 Nov 2026 (Gabriel: blocking "thr" still typed "thr"):* a blocked word is never
+    written, even tapped out exactly. Tapped letters still show while the word is
+    being typed ("thr" on the way to "three"), but on space it reads as a slip, so
+    "thr" goes in as "the". `Matcher.isKnown` is false for blocked words. To type one
+    again, allow it in Never suggest.
   - `LearnedWords`: `block(_:)` (today's `forget`, kept as an alias), `allow(_:)`
     (drops the entry), `teach(_:)` (learned now and boosted), `blocked` (the list with
     the day), `usedOnce`.

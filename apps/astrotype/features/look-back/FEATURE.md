@@ -23,10 +23,16 @@ Status: Draft
 - **How it works:**
   - **When it looks back:** when a word goes in (space, autospace or punctuation), the
     keyboard checks the word before it, only if:
-    - you were **typing fast**: you started the new word soon after the one before went
-      in (about 1 second, tuned from real recordings), so you most likely didn't read
-      it. If you paused, you saw the word and kept it, so it stays. (Gabriel, 11 Nov
-      2026: "only when typing fast".)
+    - you were **typing fast**, which is the most important rule (Gabriel, 11 Nov
+      2026: "it should only happen when typing fast… for small corrections"). Two hard
+      limits, both must hold:
+      - **Started fast:** the new word began within **1 second** of the earlier word
+        going in. If you paused, you likely saw the word and kept it, so it stays.
+      - **Fixed fast:** the earlier word can only change in the first **2 seconds**
+        after it went in. Once the new word ends later than that (a long or slow word),
+        the earlier one is final. A word on screen longer than that never changes.
+      Both numbers are checked against Gabriel's recordings in phase 1 and can only get
+      stricter, not looser.
     - the word before was the **keyboard's own guess** from a swipe or taps, and had
       other close readings. Never a word you picked from the bar, fixed, typed with
       "Not it?", a text shortcut, a word typed with "Type taps exactly" on, or a word
@@ -43,7 +49,11 @@ Status: Draft
     an earlier word yourself.
   - **Undo** puts the old word back and the keyboard won't swap that word again. You
     can also tap into the word later and pick from its readings, as today.
-  - It looks back **one word**, using the one word after it. Your own habits
+  - **Small fixes only, never a sentence:** it looks back exactly **one word**, using
+    the one word after it. At most **one word changes** per check, a word it already
+    changed is never changed again, and the word right after a changed word is never
+    changed (no chain of changes). It only swaps between the readings your swipe or
+    taps already had, so it's never a different-looking word. Your own habits
     (Learns from you) count, so a phrase you write a lot isn't "fixed" away.
 - **What it changes:** what happens when a word goes in (one more check), the
   guesses bar (the change note), when a word "settles" and is learned (it waits for this
@@ -61,7 +71,7 @@ Status: Draft
   - *Later:* looking two words ahead or two words back; fixing the earlier word when
     you end the sentence right after it.
   - *Never:* changing a word you chose or fixed yourself; changing words after you
-    paused on them.
+    paused on them or after 2 seconds; rewriting more than one word.
 - **What we measure** (`docs/telemetry.md`, counts only, never the words):
   - `lookback.changed`: the keyboard swapped an earlier word.
   - `lookback.undone`: Undo after one of those swaps.

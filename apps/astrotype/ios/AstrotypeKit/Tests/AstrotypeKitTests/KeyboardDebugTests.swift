@@ -30,10 +30,18 @@ import Testing
         #expect(LiveCount.line(controllers: 1, models: 3, loads: 3, syncs: 4, waiting: 2) == "1 keyboard · 3 models · 3 loads · 4 syncs, 2 waiting")
     }
 
-    @Test func limitAndBudget() {
+    @Test func limitAndLevel() {
         #expect(reading(20, 30).limitMB == 50)
         #expect(reading(20, 0).limitMB == nil)
-        #expect(reading(30).budgetFraction == 0.75)
+        // Judged against iOS's limit, not our 40 MB target: 48 MB of 177 is fine.
+        let phone = reading(48, 129)
+        #expect(phone.scaleMB == 177)
+        #expect(phone.level(of: 48) == .fine)
+        #expect(phone.level(of: 140) == .high)
+        #expect(phone.level(of: 160) == .near)
+        // Where iOS doesn't say, twice the target.
+        #expect(reading(40, 0).scaleMB == 80)
+        #expect(reading(40, 0).limitFraction == 0.5)
     }
 
     @Test func sessionKeepsPeaksAndWritesOnlyWhenWorthIt() {

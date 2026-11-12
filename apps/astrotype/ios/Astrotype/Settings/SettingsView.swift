@@ -141,7 +141,7 @@ struct SettingsView: View {
 
     private var debugSubtitle: String {
         guard let last = model.keyboardDebug?.last else { return "Keyboard memory, stats on the keys" }
-        return "Keyboard memory \(MemoryReading.mb(last.footprintMB)) of \(Int(MemoryReading.budgetMB)) MB"
+        return "Keyboard memory \(MemoryReading.mb(last.footprintMB)) MB"
     }
 
 }

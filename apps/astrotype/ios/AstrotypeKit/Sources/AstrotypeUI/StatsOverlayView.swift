@@ -7,8 +7,8 @@ import UIKit
 /// line centred in the strip below the keys, "23.4 MB · peak 48.1", with more only when
 /// something is out of range (`MemorySample.brief`). The full reading goes to the typing
 /// log. It shows the keyboard's once-a-second reading (`MemorySample`), the same one the
-/// Debug page and the typing log get. It takes no touches. Turns amber past 75% of the
-/// 40 MB budget and red past it.
+/// Debug page and the typing log get. It takes no touches. Turns amber from 75% of
+/// iOS's limit and red from 90% (`MemoryReading.level`).
 ///
 ///     let stats = StatsOverlayView()
 ///     stats.isRunning = settings.showsStats
@@ -50,8 +50,11 @@ public final class StatsOverlayView: UILabel {
             // The keyboard sizes the overlay to its text.
             superview?.setNeedsLayout()
         }
-        textColor = reading.budgetFraction >= 1 ? Theme.ui(.danger)
-            : reading.budgetFraction >= 0.75 ? Theme.ui(.sun) : Theme.ui(.muted)
+        switch reading.level(of: reading.footprintMB) {
+        case .near: textColor = Theme.ui(.danger)
+        case .high: textColor = Theme.ui(.sun)
+        case .fine: textColor = Theme.ui(.muted)
+        }
     }
 }
 

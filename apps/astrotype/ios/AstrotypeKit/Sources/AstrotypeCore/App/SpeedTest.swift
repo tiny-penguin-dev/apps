@@ -30,14 +30,19 @@ public struct SpeedResult: Codable, Sendable, Equatable {
 }
 
 /// The speed test as it runs (DESIGN.md screens 6 and 7): three sentences, the typed
-/// words turning mint one by one, a wrong word typed again. Pure state with the time
-/// passed in; the screen owns one and the keyboard's commits drive it.
+/// words turning mint one by one, a wrong word red. Pure state with the time passed
+/// in; the screen owns one and hands it the field's text after every change.
 ///
 ///     var test = SpeedTest(sentences: SpeedTest.pick())
 ///     test.start(at: t0)                        // the first touch on the keys
-///     test.commit("the", at: t1)                // .next, .sentence or .finished; a wrong
-///                                               // word moves on too, marked (`isMissed`)
+///     test.follow(field: "the cat ", at: t1)    // .next, .sentence or .finished
 ///     test.result(date: Date(), keyboard: .astrotype)
+///
+/// The test reads the words in the field rather than counting words as they go in, so
+/// it can't lose its place: a word fixed with backspace, swapped from the bar or by
+/// look-back, two words run together or one typed twice all line up again with the
+/// sentence (`align`). It used to count commits, and after a wrong word on the Duo it
+/// fell out of step with the field (Gabriel, 12 Nov 2026).
 ///
 /// Words per minute is the usual measure: characters typed (letters and the spaces
 /// between words) over five, per minute, so long words count for more than short ones.
@@ -69,27 +74,28 @@ public struct SpeedTest: Sendable, Equatable {
     }
 
     public enum Outcome: Sendable, Equatable {
-        /// The word was right; on to the next.
+        /// Still in this sentence.
         case next
-        /// The word was right and finished its sentence; on to the next sentence.
+        /// The sentence is done; on to the next one (the screen empties the field).
         case sentence
-        /// The word was right and finished the test.
+        /// The last sentence is done.
         case finished
     }
 
     /// The sentences, as words.
     public let sentences: [[String]]
     public private(set) var sentence = 0
+    /// How many words of the current sentence the field has got to.
     public private(set) var word = 0
     public private(set) var started: TimeInterval?
     public private(set) var finished: TimeInterval?
     public private(set) var fixes = 0
-    public private(set) var misses = 0
-    /// Words typed wrong, by place in the whole test (`typedWords` when they went in):
-    /// marked red and left out of the speed. The test moves on instead of clearing the
-    /// field (Gabriel, 8 Nov 2026).
-    public private(set) var missed: Set<Int> = []
-    /// Whether the last word that went in was wrong.
+    /// Words typed wrong in the sentences already done, by place in the whole test.
+    private var missedBefore: Set<Int> = []
+    /// Words of the current sentence that are wrong in the field right now. Fixing one
+    /// makes it right again.
+    private var missedNow: Set<Int> = []
+    /// Whether the last call to `follow` moved on past a wrong word (the screen shakes).
     public private(set) var lastMissed = false
     /// The sentences this test was seeded from, for a second run on Apple's keyboard.
     public let seed: UInt64?
@@ -119,26 +125,42 @@ public struct SpeedTest: Sendable, Equatable {
     public var expectedWord: String? { remaining.first }
 
     public var totalWords: Int { sentences.reduce(0) { $0 + $1.count } }
-    public var typedWords: Int { sentences.prefix(sentence).reduce(0) { $0 + $1.count } + word }
+    public var typedWords: Int { wordsBefore + word }
     /// 0 to 1.
     public var progress: Double { totalWords == 0 ? 0 : Double(typedWords) / Double(totalWords) }
+
+    /// Words typed wrong, by place in the whole test: marked red and left out of the
+    /// speed. The test moves on instead of clearing the field (Gabriel, 8 Nov 2026).
+    public var missed: Set<Int> { missedBefore.union(missedNow.map { wordsBefore + $0 }) }
+    /// Wrong words: the ones left wrong in sentences already done, and the ones wrong
+    /// in the field now.
+    public var misses: Int { missedBefore.count + missedNow.count }
+
+    private var wordsBefore: Int { sentences.prefix(sentence).reduce(0) { $0 + $1.count } }
 
     /// The clock starts at the first touch on the keys, not when the screen opens.
     public mutating func start(at time: TimeInterval) {
         if started == nil { started = time }
     }
 
-    /// A word went into the field.
-    public mutating func commit(_ typed: String, at time: TimeInterval) -> Outcome {
-        guard let expected = expectedWord else { return .finished }
-        start(at: time)
-        lastMissed = Self.normalize(typed) != expected
-        if lastMissed {
-            misses += 1
-            missed.insert(typedWords)
-        }
-        word += 1
-        if word < current.count { return .next }
+    /// The field changed: `field` is everything in it, for the current sentence (the
+    /// screen empties it when a sentence is done). A word counts once a space (or
+    /// punctuation) follows it; the word being typed doesn't count yet.
+    @discardableResult
+    public mutating func follow(field: String, at time: TimeInterval) -> Outcome {
+        lastMissed = false
+        guard !isFinished else { return .finished }
+        guard !current.isEmpty else { return .next }
+        if !field.isEmpty { start(at: time) }
+        let done = Self.doneWords(in: field)
+        let line = Self.align(done, to: current)
+        let before = word
+        word = line.count
+        missedNow = line.wrong
+        if word > before, missedNow.contains(word - 1) { lastMissed = true }
+        guard word >= current.count else { return .next }
+        missedBefore.formUnion(missedNow.map { wordsBefore + $0 })
+        missedNow = []
         sentence += 1
         word = 0
         if sentence < sentences.count { return .sentence }
@@ -146,9 +168,9 @@ public struct SpeedTest: Sendable, Equatable {
         return .finished
     }
 
-    /// Whether word `index` of the current sentence was typed wrong.
+    /// Whether word `index` of the current sentence is typed wrong.
     public func isMissed(word index: Int) -> Bool {
-        missed.contains(sentences.prefix(sentence).reduce(0) { $0 + $1.count } + index)
+        missedNow.contains(index)
     }
 
     /// A word was corrected from the bar after it was written.
@@ -165,6 +187,7 @@ public struct SpeedTest: Sendable, Equatable {
     /// Characters typed so far, letters and the spaces between words: the measure
     /// words per minute is made from (five characters to a word). Wrong words don't count.
     public var charactersTyped: Int {
+        let missed = missed
         var count = 0
         var index = 0
         for (i, words) in sentences.enumerated() {
@@ -193,6 +216,89 @@ public struct SpeedTest: Sendable, Equatable {
     /// Lowercase letters only, as the sentences are.
     public static func normalize(_ word: String) -> String {
         String(word.lowercased().filter { $0.isLetter })
+    }
+
+    /// The finished words in the field, normalized: every word with a space after it,
+    /// and the last one too when punctuation closes it. Bits with no letters are left out.
+    public static func doneWords(in field: String) -> [String] {
+        var pieces = field.split(whereSeparator: \.isWhitespace).map(String.init)
+        if let last = field.last, !last.isWhitespace, !last.isPunctuation, !pieces.isEmpty {
+            pieces.removeLast()
+        }
+        return pieces.map(normalize).filter { !$0.isEmpty }
+    }
+
+    /// Lines the words typed up with the sentence's words: how far into the sentence
+    /// they got, and which of its words are wrong. A word-level edit distance, so one
+    /// slip doesn't throw out every word after it. A wrong word, an extra word and a
+    /// skipped word cost 1 each; two words run together or one typed in two pieces line
+    /// up with both only when the letters are nearly the same (so "a a jacket" is an
+    /// extra "a", not "a" and "jacket" split); and a tie goes to the reading that got
+    /// further, so a wrong word stands in for the one asked for and the test moves on.
+    public static func align(_ typed: [String], to target: [String]) -> (count: Int, wrong: Set<Int>) {
+        let n = typed.count, m = target.count
+        guard n > 0, m > 0 else { return (0, []) }
+        enum Step { case pair, extra, skip, joined, split }
+        let infinity = Double.greatestFiniteMagnitude
+        var cost = Array(repeating: Array(repeating: infinity, count: m + 1), count: n + 1)
+        var step = Array(repeating: Array(repeating: Step.pair, count: m + 1), count: n + 1)
+        cost[0][0] = 0
+        func offer(_ i: Int, _ j: Int, _ value: Double, _ how: Step) {
+            if value < cost[i][j] - 1e-9 { cost[i][j] = value; step[i][j] = how }
+        }
+        for i in 0...n {
+            for j in 0...m where i + j > 0 {
+                if i > 0, j > 0 { offer(i, j, cost[i - 1][j - 1] + (typed[i - 1] == target[j - 1] ? 0 : 1), .pair) }
+                if i > 0 { offer(i, j, cost[i - 1][j] + 1, .extra) }
+                if j > 0 { offer(i, j, cost[i][j - 1] + 1, .skip) }
+                if i > 0, j > 1 {
+                    offer(i, j, cost[i - 1][j - 2] + 0.8 + 2 * closeness(typed[i - 1], target[j - 2] + target[j - 1]), .joined)
+                }
+                if i > 1, j > 0 {
+                    offer(i, j, cost[i - 2][j - 1] + 0.8 + 2 * closeness(typed[i - 2] + typed[i - 1], target[j - 1]), .split)
+                }
+            }
+        }
+        var count = 0
+        for j in 0...m where cost[n][j] <= cost[n][count] + 1e-9 { count = j }
+        var wrong: Set<Int> = []
+        var i = n, j = count
+        while i > 0 || j > 0 {
+            switch step[i][j] {
+            case .pair:
+                if typed[i - 1] != target[j - 1] { wrong.insert(j - 1) }
+                i -= 1; j -= 1
+            case .extra:
+                i -= 1
+            case .skip:
+                wrong.insert(j - 1)
+                j -= 1
+            case .joined:
+                wrong.insert(j - 1); wrong.insert(j - 2)
+                i -= 1; j -= 2
+            case .split:
+                wrong.insert(j - 1)
+                i -= 2; j -= 1
+            }
+        }
+        return (count, wrong)
+    }
+
+    /// Letters apart over the longer word's length: 0 the same, 1 nothing alike.
+    static func closeness(_ a: String, _ b: String) -> Double {
+        let a = Array(a), b = Array(b)
+        guard !a.isEmpty || !b.isEmpty else { return 0 }
+        var row = Array(0...b.count)
+        for i in a.indices {
+            var previous = row[0]
+            row[0] = i + 1
+            for j in b.indices {
+                let above = row[j + 1]
+                row[j + 1] = min(above + 1, row[j] + 1, previous + (a[i] == b[j] ? 0 : 1))
+                previous = above
+            }
+        }
+        return Double(row[b.count]) / Double(max(a.count, b.count))
     }
 }
 

@@ -16,6 +16,8 @@ final class KeyboardSession: NSObject, UITextViewDelegate {
     let target = TextViewTarget()
     /// A word went into the field.
     var onCommit: ((String) -> Void)?
+    /// The field's text changed (the speed test reads it after each change).
+    var onTextChange: (() -> Void)?
     /// The keyboard learned, boosted or forgot a word.
     var onWordsChange: ((LearnedWords) -> Void)?
     /// A written word was swapped from the bar (the speed test counts fixes).
@@ -160,6 +162,7 @@ final class KeyboardSession: NSObject, UITextViewDelegate {
     func textViewDidEndEditing(_ textView: UITextView) { onFocusChange?(false) }
 
     func textViewDidChange(_ textView: UITextView) {
+        onTextChange?()
         guard !target.isSwappingWord else { return }
         model.contextChanged()
     }

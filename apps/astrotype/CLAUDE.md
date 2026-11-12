@@ -143,7 +143,7 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
       `ProStore` with `MemoryProStore`, `TrialStore` and `ProCache` as files),
       `StoreKitProStore` (the live `ProStore`), `KeyboardStatus` (is the keyboard on),
       `Metrics` (protocol; the app's live one is `Telemetry`), `TryWord` (the Try it
-      words and their strokes), `Week`, `SpeedTest` (the test as it runs, `SpeedResult`), `TypingSpeed` (`SpeedMeter`,
+      words and their strokes), `Week`, `SpeedTest` (the test as it runs, reading the field and lining its words up with the sentence, `SpeedTest.align`; `SpeedResult`), `TypingSpeed` (`SpeedMeter`,
       `SpeedRun`, `SpeedRunStore`, `SpeedHistory`: the everyday speed, features/typing-speed), `Leaderboards`
       (`LeaderboardRules`: what gets posted; `LeaderboardPage`, `LeaderboardService` with its fake,
       features/leaderboards; the boards themselves are in `store/game-center.json`),

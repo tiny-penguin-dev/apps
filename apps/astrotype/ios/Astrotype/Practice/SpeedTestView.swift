@@ -4,7 +4,8 @@ import SwiftUI
 import UIKit
 
 /// DESIGN.md screen 6: three sentences to type, the typed words turning mint, a timer
-/// that starts on the first touch, a wrong word turning red while you keep going. On the Astrotype
+/// that starts on the first touch, a wrong word turning red while you keep going (and
+/// mint again if you fix it: the test reads the field, `SpeedTest.follow`). On the Astrotype
 /// keyboard, or on Apple's for the comparison on Home (the same three sentences,
 /// through the system keyboard). Ends in the result screen.
 struct SpeedTestView: View {
@@ -18,6 +19,8 @@ struct SpeedTestView: View {
     @State private var result: SpeedResult?
     @State private var newBest = false
     @State private var appleText = ""
+    /// A look at the field is waiting for the keyboard to finish its edit.
+    @State private var followPending = false
     @FocusState private var appleFocused: Bool
 
     init(model: AppModel, keyboard: PracticeKeyboard, seed: UInt64?, path: Binding<[HomeView.Route]>) {
@@ -118,26 +121,38 @@ struct SpeedTestView: View {
         session.onWordsChange = { words in model.learnedWordsChanged(words) }
         session.onFirstTouch = { test.start(at: Self.uptime) }
         session.onFix = { test.fixed() }
-        session.onCommit = { word in committed(word) }
+        session.onCommit = { _ in
+            model.recordPractice()
+            followSoon()
+        }
+        session.onTextChange = { followSoon() }
         if model.sharePractice { session.startRecording(kind: "speedtest") }
         self.session = session
     }
 
-    /// Apple's keyboard: each space (or return) hands over the word before it.
+    /// Apple's keyboard: the test follows the field the same way.
     private func appleTyped(_ text: String) {
         guard !text.isEmpty else { return }
-        test.start(at: Self.uptime)
-        guard let last = text.last, last == " " || last == "\n" else { return }
-        let word = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        appleText = ""
-        if !word.isEmpty { committed(word) }
+        if text.last == " " || text.last == "\n" { model.recordPractice() }
+        follow(text)
     }
 
-    private func committed(_ word: String) {
+    /// The keyboard's edits come in pieces (a word swapped by look-back is deleted
+    /// back and written again), so the test looks at the field once they're all in.
+    private func followSoon() {
+        guard !followPending else { return }
+        followPending = true
+        Task { @MainActor in
+            followPending = false
+            follow(session?.text ?? "")
+        }
+    }
+
+    /// The test lines the field's words up with the sentence: a wrong word turns red
+    /// and the test moves on; fixing it turns it mint again.
+    private func follow(_ field: String) {
         guard result == nil else { return }
-        model.recordPractice()
-        let outcome = test.commit(word, at: Self.uptime)
-        // A wrong word stays in the field and turns red in the sentence; the test moves on.
+        let outcome = test.follow(field: field, at: Self.uptime)
         if test.lastMissed { shake() }
         switch outcome {
         case .next:

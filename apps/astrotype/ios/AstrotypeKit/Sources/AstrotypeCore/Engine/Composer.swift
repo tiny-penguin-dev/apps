@@ -1788,6 +1788,9 @@ public struct Composer: Sendable {
 
     /// Closes a touch into a piece: a tap on the key it landed on, or a swipe with the
     /// letter keys its path crossed, in order.
+    /// How long a touch can last and still read as a tap however it slid (see `piece`).
+    static let quickTouch: TimeInterval = 0.1
+
     private static func piece(from touch: Open, id: Int, end: TimeInterval, layout: Layout, tapThreshold: CGFloat,
                               personal: PersonalIndex) -> Piece {
         let raw = touch.points
@@ -1802,7 +1805,11 @@ public struct Composer: Sendable {
                 if keys.last != letter { keys.append(letter) }
             }
         }
-        let isTap = travel < tapThreshold || keys.count <= 1
+        // A quick touch that slid less than a key is a tap that rolled as the thumb
+        // lifted: "home" tapped fast read its "h" as a swipe from h to j and came out
+        // "hulks" (12 Nov 2026). A real swipe takes longer or goes further.
+        let flick = end - touch.start < quickTouch && travel < layout.distanceUnit
+        let isTap = travel < tapThreshold || keys.count <= 1 || flick
         if isTap { keys = [touch.startKey] }
         return Piece(id: id, side: touch.side, start: touch.start, end: end, points: points, times: touch.times, keys: keys,
                      isTap: isTap, raw: raw)

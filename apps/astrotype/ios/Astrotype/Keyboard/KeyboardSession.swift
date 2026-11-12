@@ -41,7 +41,7 @@ final class KeyboardSession: NSObject, UITextViewDelegate {
         // Practice measures typing and records each word's touches: no next words.
         model.offersNextWords = false
         keyboard = AstrotypeUI.KeyboardView(model: model)
-        inputFrame = KeyboardFrame(keyboard: keyboard, safeArea: Self.windowInsets)
+        inputFrame = KeyboardFrame(keyboard: keyboard, safeArea: Self.windowInsets, width: Self.windowWidth)
         super.init()
         keyboard.onHeightChange = { [weak self] height in
             guard let self else { return }
@@ -99,7 +99,7 @@ final class KeyboardSession: NSObject, UITextViewDelegate {
     /// the resize after the first layout came too late (Gabriel, 1 Nov 2026).
     func fit(width: CGFloat, safeArea: UIEdgeInsets = KeyboardSession.windowInsets) {
         guard width > 0 else { return }
-        inputFrame.setSafeArea(safeArea)
+        inputFrame.setSafeArea(safeArea, width: width)
         let height = inputFrame.height(forWidth: width)
         guard inputFrame.frame.size.height != height || inputFrame.frame.size.width != width else { return }
         inputFrame.frame = CGRect(x: 0, y: 0, width: width, height: height)
@@ -114,9 +114,8 @@ final class KeyboardSession: NSObject, UITextViewDelegate {
         return scene.keyWindow?.bounds.width ?? scene.screen.bounds.width
     }
 
-    /// The window's safe area: the bottom is the strip under the keys (the home
-    /// indicator's, 0 with a home button), the sides keep wide keys off the screen's
-    /// edges, as iOS does for the extension.
+    /// The window's safe area: its bottom is the strip under the keys (the home
+    /// indicator's, 0 with a home button).
     static var windowInsets: UIEdgeInsets {
         let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first { $0.activationState == .foregroundActive }
             ?? UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first

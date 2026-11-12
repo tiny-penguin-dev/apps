@@ -78,8 +78,8 @@ Status: Draft
   Undone vs changed tells us if it's too eager. `earlier.fixed` (people still fixing
   earlier words by hand) tells us what it misses.
 - **Open questions** for Gabriel:
-  1. When it's sure, should it **swap the word and show Undo** (recommended, like
-     Gboard), or **only offer it** on the bar for you to tap?
+  1. ~~Swap the word and show Undo, or only offer it on the bar?~~ Decided 12 Nov
+     2026 (Gabriel): **swap it and show Undo**.
   2. A switch on the Typing page, on by default ("Fix words as you go")? Recommended.
 
 ## Design

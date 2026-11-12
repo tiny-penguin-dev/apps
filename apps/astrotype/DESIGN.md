@@ -220,7 +220,8 @@ This is the product, so it gets its own section.
     word menu. Any key or touch types at the cursor as always and closes it. Not in
     fields that never learn, nor the app's practice fields.
 - **Pieces:** a touch is a tap if it lifts within 18 pt of where it landed and crossed no
-  other key, otherwise a swipe. Taps flash the key in the thumb's color and leave a ring
+  other key, otherwise a swipe. A touch that lifts within 0.1 s having slid less than a key is
+  a tap too (a fast thumb rolls as it lifts). Taps flash the key in the thumb's color and leave a ring
   that pings out. Swipes draw a 9 pt rounded trail in the thumb's color that fades over a
   second after lift. Which thumb: left half of the keyboard is teal, right half coral.
   (The real engine will tell thumbs apart by touch identity and position, not only by

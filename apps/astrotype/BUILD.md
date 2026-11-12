@@ -199,7 +199,7 @@ sketch above. `Composer`'s effects are only text edits and haptics (`insert`,
 rings are drawn by the key surface itself, which already has the touches. The open
 word is marked text (`setMarkedText`), so the field underlines it and a commit is
 `unmarkText`. (Later the open word became plain text, and on 8 Nov 2026 the underline
-was removed everywhere: see DESIGN.md "The open word".) A tap is a touch that stays within 18 pt; a swipe's keys are the letters
+was removed everywhere: see DESIGN.md "The open word".) A tap is a touch that stays within 18 pt, or lifts within 0.1 s having slid less than a key (a thumb rolling as it lifts, 12 Nov 2026); a swipe's keys are the letters
 under a 4 pt walk along its path, runs collapsed, and the matcher may use a crossed key
 twice for a doubled letter, so "hello" and "coffee" come from one swipe each (a tap
 inside a swipe for a double is Phase 3, with the second thumb). The matcher's score adds

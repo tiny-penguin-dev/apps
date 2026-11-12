@@ -43,6 +43,35 @@ import Testing
         }
     }
 
+    @Test func aQuickTapThatRollsIsStillATap() {
+        // From a recording (12 Nov 2026): "home" tapped fast, the "h" slid 21 pt toward
+        // "u" in 54 ms as the thumb lifted, read as a swipe h→j and came out "hulks".
+        var composer = Synth.composer()
+        let h = Synth.center("h")
+        let rolled = CGPoint(x: h.x + 11, y: h.y - 17.4)
+        _ = composer.touchDown(id: 1, at: h, time: 0)
+        _ = composer.touchMoved(id: 1, to: CGPoint(x: h.x + 6, y: h.y - 10.7), time: 0.046)
+        _ = composer.touchUp(id: 1, at: rolled, time: 0.054)
+        #expect(composer.pieces.last?.isTap == true)
+        #expect(composer.pieces.last?.keys == ["h"])
+        Synth.tap(&composer, "o", at: 0.2)
+        Synth.tap(&composer, "m", at: 0.35)
+        Synth.tap(&composer, "e", at: 0.45)
+        #expect(composer.state.openWord == "home")
+
+        // A short slide onto the next key: a tap when quick, a swipe when slow.
+        let j = CGPoint(x: h.x + 24, y: h.y)
+        var quick = Synth.composer()
+        _ = quick.touchDown(id: 1, at: h, time: 0)
+        _ = quick.touchUp(id: 1, at: j, time: 0.06)
+        #expect(quick.pieces.last?.keys == ["h"])
+        var slow = Synth.composer()
+        _ = slow.touchDown(id: 1, at: h, time: 0)
+        _ = slow.touchUp(id: 1, at: j, time: 0.25)
+        #expect(slow.pieces.last?.isTap == false)
+        #expect(slow.pieces.last?.keys == ["h", "j"])
+    }
+
     @Test func freeModeTakesOneThumbAtATime() {
         var composer = Synth.composer()
         composer.settings.twoThumbs = false

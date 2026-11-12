@@ -36,8 +36,14 @@ struct DebugSettings: View {
                 }
                 SettingsValue("Memory warnings", subtitle: "From iOS, since it opened", value: "\(debug.memoryWarnings)",
                               valueColor: debug.memoryWarnings > 0 ? Theme.sun : Theme.muted)
-                SettingsValue("Ended while showing", subtitle: endedSubtitle(debug), value: "\(debug.endedWhileShowing)",
-                              valueColor: debug.endedWhileShowing > 0 ? Theme.danger : Theme.muted)
+                let ends = model.recentEnds
+                SettingsValue("Ended while showing", subtitle: endedSubtitle(ends), value: "\(ends.count)",
+                              valueColor: ends.isEmpty ? Theme.muted : Theme.danger)
+                if !ends.isEmpty {
+                    SettingsRow("Start the count again", symbol: "arrow.counterclockwise", tint: Theme.slate) {
+                        Button("Clear") { model.clearEnds() }.buttonStyle(.small)
+                    }
+                }
             } else {
                 SettingsRow("No readings yet", subtitle: model.isFullAccessOn
                             ? "Open the keyboard in any app, then come back."
@@ -189,12 +195,12 @@ struct DebugSettings: View {
         last.limitMB.map { "iOS's limit on this phone is about \(Int($0.rounded())) MB" }
     }
 
-    private func endedSubtitle(_ debug: KeyboardDebug) -> String {
-        guard let last = debug.lastEndedWhileShowing else { return "A crash or iOS's memory limit. None so far." }
-        var text = "A crash or iOS's memory limit. Last \(last.formatted(.relative(presentation: .named)))."
-        if debug.crashedWhileShowing + debug.killedWhileShowing > 0 {
-            text += " Since 6 Nov: \(debug.crashedWhileShowing) crashed, \(debug.killedWhileShowing) ended by iOS."
-        }
+    private func endedSubtitle(_ ends: [KeyboardDebug.Ended]) -> String {
+        guard let last = ends.last?.at else { return "A crash or iOS's memory limit, in the last 30 days. None." }
+        let crashed = ends.filter { $0.crashed == true }.count
+        let killed = ends.filter { $0.crashed == false }.count
+        var text = "A crash or iOS's memory limit, in the last 30 days. Last \(last.formatted(.relative(presentation: .named)))."
+        if crashed + killed > 0 { text += " \(crashed) crashed, \(killed) ended by iOS." }
         return text
     }
 

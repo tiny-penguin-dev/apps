@@ -238,6 +238,31 @@ public struct KeyboardDebug: Codable, Sendable, Equatable {
     public var crashedWhileShowing = 0
     public var killedWhileShowing = 0
 
+    /// One time the process was found ended while the keyboard was showing: when the
+    /// next one started, and whether it crashed (nil when unknown).
+    public struct Ended: Codable, Sendable, Equatable {
+        public var at: Date
+        public var crashed: Bool?
+
+        public init(at: Date, crashed: Bool? = nil) {
+            self.at = at
+            self.crashed = crashed
+        }
+    }
+
+    /// Each time it ended while showing in the last 30 days, oldest first. Kept from
+    /// 12 Nov 2026; the counts above are every one since the file began.
+    public var ends: [Ended] = []
+    /// How long `ends` keeps one (Gabriel, 12 Nov 2026).
+    public static let endsKept: TimeInterval = 30 * 24 * 3600
+
+    /// The ends in the last 30 days, after `cleared` (Settings → Debug → Clear) when
+    /// there is one.
+    public func recentEnds(after cleared: Date?, now: Date) -> [Ended] {
+        let since = max(cleared ?? .distantPast, now.addingTimeInterval(-Self.endsKept))
+        return ends.filter { $0.at > since }
+    }
+
     public init() {}
 
     public init(from decoder: Decoder) throws {
@@ -258,6 +283,7 @@ public struct KeyboardDebug: Codable, Sendable, Equatable {
         lastEndedWhileShowing = try c.decodeIfPresent(Date.self, forKey: .lastEndedWhileShowing)
         crashedWhileShowing = try c.decodeIfPresent(Int.self, forKey: .crashedWhileShowing) ?? 0
         killedWhileShowing = try c.decodeIfPresent(Int.self, forKey: .killedWhileShowing) ?? 0
+        ends = try c.decodeIfPresent([Ended].self, forKey: .ends) ?? []
     }
 
     /// The extension's process started. Returns whether the one before it was ended
@@ -275,7 +301,9 @@ public struct KeyboardDebug: Codable, Sendable, Equatable {
             case false?: killedWhileShowing += 1
             case nil: break
             }
+            ends.append(Ended(at: date, crashed: crashed))
         }
+        ends.removeAll { $0.at < date.addingTimeInterval(-Self.endsKept) }
         loadedAt = date
         shows = 0
         processPeakMB = 0

@@ -648,6 +648,9 @@ final class KeyboardViewController: UIInputViewController {
         opening = nil
         if timing.steps.last?.name != "layout" { timing.step("shown", now: uptime) }
         var notes: [String] = []
+        // The keyboard before this one ended while it was up (KeyboardDebug.ends): the log
+        // says so on the first line of the new one (Gabriel, 12 Nov 2026).
+        if let ended = debug?.takeEndedBefore() { notes.append("the last keyboard \(ended) while showing") }
         if KeyboardView.metalLoadMillis > 0 {
             notes.append("metal \(KeyboardView.metalLoadMillis) off the main thread"
                          + (KeyboardView.metalCompiledOnPhone ? ", compiled on the phone" : ""))

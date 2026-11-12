@@ -37,7 +37,7 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
     `Keyboard/KeyboardSession` (a text view whose input view is the shared keyboard,
     with Try it's replay), `Keyboard/KeyboardFrame` (that input view: the keys inside the
     margin iOS draws around the extension, so practice looks like the real keyboard: on
-    iOS 26 the glass panel with rounded top corners, 5 pt sides and 4 pt top; on every
+    iOS 26 the glass panel with rounded top corners, fixed sides (10 pt, 76 pt on a wide screen) and 4 pt top; on every
     version the home indicator strip under the keys),
     `Dictation/` (features/dictation: `DictationModel`, owned by `AppModel`, runs the
     mic for the keyboard; `SpeechListener` (live: `AVAudioEngine` plus iOS 26's

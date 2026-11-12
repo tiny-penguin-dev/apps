@@ -1,3 +1,4 @@
+import AstrotypeCore
 import AstrotypeUI
 import UIKit
 
@@ -19,13 +20,15 @@ final class KeyboardFrame: UIView {
     private let panel: UIView
 
     /// Room around the keys. Sides and top only on iOS 26, where the system's panel has
-    /// them (5 pt and 4 pt on his phone); the bottom is the home indicator's strip. The
-    /// sides are a fixed padding on every screen, not the window's side safe areas
-    /// (Gabriel, 12 Nov 2026: following the safe area squeezed the keys on the Duo
-    /// closed, where the status bar runs down one side).
-    static func margins(bottom: CGFloat) -> UIEdgeInsets {
+    /// them; the bottom is the home indicator's strip. The sides are a fixed padding,
+    /// not the window's side safe areas (Gabriel, 12 Nov 2026: following the safe area
+    /// squeezed the keys on the Duo closed, where the status bar runs down one side).
+    /// Measured from his screenshots of the real keyboard on the iPhone Duo, 12 Nov 2026:
+    /// 10 pt each side closed (466 pt wide), 76 pt each side open (951 pt wide).
+    static func margins(bottom: CGFloat, width: CGFloat) -> UIEdgeInsets {
         if #available(iOS 26, *) {
-            return UIEdgeInsets(top: 4, left: 5, bottom: bottom, right: 5)
+            let side: CGFloat = width >= Layout.wideWidth ? 76 : 10
+            return UIEdgeInsets(top: 4, left: side, bottom: bottom, right: side)
         }
         return UIEdgeInsets(top: 0, left: 0, bottom: bottom, right: 0)
     }
@@ -35,9 +38,9 @@ final class KeyboardFrame: UIView {
 
     private(set) var margins: UIEdgeInsets
 
-    init(keyboard: AstrotypeUI.KeyboardView, safeArea: UIEdgeInsets) {
+    init(keyboard: AstrotypeUI.KeyboardView, safeArea: UIEdgeInsets, width: CGFloat) {
         self.keyboard = keyboard
-        margins = Self.margins(bottom: safeArea.bottom)
+        margins = Self.margins(bottom: safeArea.bottom, width: width)
         panel = Self.makePanel()
         super.init(frame: CGRect(x: 0, y: 0, width: keyboard.bounds.width, height: keyboard.bounds.height + margins.top + margins.bottom))
         autoresizingMask = [.flexibleWidth]
@@ -70,9 +73,10 @@ final class KeyboardFrame: UIView {
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
 
-    /// The window's safe area changed (known now, or the screen turned).
-    func setSafeArea(_ safeArea: UIEdgeInsets) {
-        let new = Self.margins(bottom: safeArea.bottom)
+    /// The window's safe area or width changed (known now, the screen turned, or the
+    /// Duo opened or closed).
+    func setSafeArea(_ safeArea: UIEdgeInsets, width: CGFloat) {
+        let new = Self.margins(bottom: safeArea.bottom, width: width)
         guard margins != new else { return }
         margins = new
         setNeedsLayout()

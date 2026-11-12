@@ -65,8 +65,15 @@ struct PracticeWordsView: View {
     }
 
     private func committed(_ word: String) {
-        guard let session, prompt.indices.contains(index) else { return }
+        guard let session else { return }
         model.recordPractice()
+        // Where the field is, not a count of words that went in: a right word taken back
+        // with backspace and typed again, or one swapped from the bar, counted twice and
+        // every word after was checked against the wrong prompt (Gabriel, 12 Nov 2026).
+        // The word just written has no space after it yet, so it isn't among these.
+        let before = SpeedTest.doneWords(in: session.text)
+        index = zip(before, prompt).prefix { $0 == $1 }.count
+        guard prompt.indices.contains(index) else { return }
         guard SpeedTest.normalize(word) == prompt[index] else {
             shaking = true
             UINotificationFeedbackGenerator().notificationOccurred(.error)

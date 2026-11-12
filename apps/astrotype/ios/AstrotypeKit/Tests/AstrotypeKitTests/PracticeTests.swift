@@ -21,28 +21,32 @@ import Testing
         #expect(test.totalWords == 8)
         #expect(!test.isStarted)
         test.start(at: 10)
-        #expect(test.commit("The", at: 11) == .next)
+        // The word being typed doesn't count until a space follows it.
+        #expect(test.follow(field: "The", at: 10.5) == .next)
+        #expect(test.typed.isEmpty)
+        #expect(test.follow(field: "The ", at: 11) == .next)
         #expect(test.typed == ["the"])
         #expect(test.remaining == ["cat", "sat"])
         // A wrong word moves on, marked, and counts as a miss (Gabriel, 8 Nov 2026).
-        #expect(test.commit("cot", at: 12) == .next)
+        #expect(test.follow(field: "The cot ", at: 12) == .next)
         #expect(test.lastMissed)
         #expect(test.misses == 1)
         #expect(test.isMissed(word: 1))
         #expect(!test.isMissed(word: 0))
         #expect(test.expectedWord == "sat")
-        #expect(test.commit("sat", at: 14) == .sentence)
+        #expect(test.follow(field: "The cot sat ", at: 14) == .sentence)
         #expect(!test.lastMissed)
         #expect(test.sentence == 1)
         #expect(test.typed.isEmpty)
         test.fixed()
-        #expect(test.commit("on", at: 15) == .next)
-        #expect(test.commit("a", at: 16) == .next)
-        #expect(test.commit("mat", at: 17) == .sentence)
-        #expect(test.commit("and", at: 18) == .next)
-        #expect(test.commit("slept", at: 40) == .finished)
+        #expect(test.follow(field: "", at: 14) == .next)
+        #expect(test.follow(field: "on ", at: 15) == .next)
+        #expect(test.follow(field: "on a ", at: 16) == .next)
+        #expect(test.follow(field: "on a mat ", at: 17) == .sentence)
+        #expect(test.follow(field: "and ", at: 18) == .next)
+        #expect(test.follow(field: "and slept ", at: 40) == .finished)
         #expect(test.isFinished)
-        #expect(test.commit("more", at: 41) == .finished)
+        #expect(test.follow(field: "and slept more ", at: 41) == .finished)
         // "the cat sat" (11, less the missed "cat": 8) + "on a mat" (8) + "and slept" (9)
         // = 25 characters over 30 s.
         #expect(test.charactersTyped == 25)
@@ -56,13 +60,95 @@ import Testing
         #expect(result?.seconds == 30)
     }
 
-    @Test func theClockStartsOnTheFirstTouchOrCommit() {
+    @Test func theClockStartsOnTheFirstTouchOrWord() {
         var test = SpeedTest(sentences: ["hi there"])
         #expect(test.elapsed(at: 5) == 0)
         #expect(test.wordsPerMinute(at: 5) == 0)
-        #expect(test.commit("hi", at: 20) == .next)
+        #expect(test.follow(field: "hi ", at: 20) == .next)
         #expect(test.started == 20)
         #expect(test.result(date: Date(), keyboard: .apple) == nil)
+    }
+
+    /// Gabriel, 12 Nov 2026: after a wrong word the test lost its place, a fixed word
+    /// stayed wrong and later right words turned red. It reads the field now.
+    @Test func aWrongWordFixedWithBackspaceTurnsRight() {
+        var test = SpeedTest(sentences: ["we should go out for coffee"])
+        test.follow(field: "we shoild ", at: 1)
+        #expect(test.word == 2)
+        #expect(test.isMissed(word: 1))
+        // Backspace back into it: the test steps back with the field.
+        test.follow(field: "we shoil", at: 2)
+        #expect(test.word == 1)
+        #expect(!test.isMissed(word: 1))
+        test.follow(field: "we should ", at: 3)
+        #expect(test.word == 2)
+        #expect(test.misses == 0)
+        #expect(!test.lastMissed)
+        test.follow(field: "we should go ", at: 4)
+        #expect(test.word == 3)
+        #expect(test.misses == 0)
+    }
+
+    @Test func aWordSwappedLaterTurnsRight() {
+        // Look-back or the bar changes a word already written; nothing new goes in.
+        var test = SpeedTest(sentences: ["this is a small park"])
+        test.follow(field: "thai is ", at: 1)
+        #expect(test.isMissed(word: 0))
+        test.follow(field: "this is ", at: 1.1)
+        #expect(!test.isMissed(word: 0))
+        #expect(test.word == 2)
+    }
+
+    @Test func keepsItsPlaceAfterSlips() {
+        let target = SpeedTest.sentences[0].split(separator: " ").map(String.init)
+        // the cat went to the store for some bread ...
+        func line(_ field: String) -> (count: Int, wrong: Set<Int>) {
+            SpeedTest.align(SpeedTest.doneWords(in: field), to: target)
+        }
+        // A wrong word stands in for the one asked for, and the next right one is right.
+        #expect(line("the dog went to ") == (4, [1]))
+        #expect(line("the cst went ") == (3, [1]))
+        // A word typed twice is an extra, not a wrong word after it.
+        #expect(line("the the cat went ") == (3, []))
+        // A skipped word is wrong; the words after still line up.
+        #expect(line("the went to ") == (4, [1]))
+        // Two words run together, or one in two pieces.
+        #expect(line("the catwent to ") == (4, [1, 2]))
+        #expect(line("the ca t went ") == (3, [1]))
+        // A wrong last word still moves the test on.
+        #expect(line("the cat xyzq ") == (3, [2]))
+        #expect(line("") == (0, []))
+    }
+
+    @Test func oneSlipNeverMarksTheWordsAfterIt() {
+        // Every sentence, every place, every kind of slip: the words after it stay right.
+        for sentence in SpeedTest.sentences {
+            let words = sentence.split(separator: " ").map(String.init)
+            for at in words.indices.dropLast() {
+                let slips: [[String]] = [
+                    [String(words[at].reversed()) + "x"],          // wrong word
+                    [words[at], words[at]],                        // typed twice
+                    [],                                            // skipped
+                    [words[at] + words[at + 1]],                   // run together
+                ]
+                for slip in slips {
+                    let after = slip.count == 1 && slip[0] == words[at] + words[at + 1] ? at + 2 : at + 1
+                    let typed = Array(words[..<at]) + slip + Array(words[after...])
+                    let line = SpeedTest.align(typed, to: words)
+                    #expect(line.count == words.count, "\(typed)")
+                    #expect(line.wrong.allSatisfy { $0 < after }, "\(typed) \(line.wrong)")
+                    #expect(line.wrong.allSatisfy { $0 >= at }, "\(typed) \(line.wrong)")
+                }
+            }
+        }
+    }
+
+    @Test func countsOnlyFinishedWords() {
+        #expect(SpeedTest.doneWords(in: "the cat") == ["the"])
+        #expect(SpeedTest.doneWords(in: "the cat ") == ["the", "cat"])
+        #expect(SpeedTest.doneWords(in: "The cat.") == ["the", "cat"])
+        #expect(SpeedTest.doneWords(in: "the  , cat ") == ["the", "cat"])
+        #expect(SpeedTest.doneWords(in: "") == [])
     }
 
     @Test func normalizesWhatTheFieldGot() {

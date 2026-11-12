@@ -167,7 +167,9 @@ import Testing
         var effects = composer.press(.space, time: t)
         #expect(!effects.contains { if case .settled = $0 { true } else { false } })
         composer.setContext(before: "I hope ")
-        effects = Synth.tap(&composer, "s", at: t + 1)
+        // After a pause: typed fast, it would wait for the next word to be in
+        // (features/look-back, `LookBackTests.aWordTypedFastSettlesOnceTheNextIsIn`).
+        effects = Synth.tap(&composer, "s", at: t + 1.5)
         let settled = effects.compactMap { effect -> SettledWord? in
             if case .settled(let word) = effect { word } else { nil }
         }
@@ -223,7 +225,7 @@ import Testing
         var composer = ContextMatcherTests.composer()
         let t = Synth.taps(&composer, "hope")
         _ = composer.press(.space, time: t)
-        let effects = Synth.tap(&composer, "s", at: t + 1)
+        let effects = Synth.tap(&composer, "s", at: t + 1.5)
         let settled = effects.compactMap { effect -> SettledWord? in
             if case .settled(let word) = effect { word } else { nil }
         }

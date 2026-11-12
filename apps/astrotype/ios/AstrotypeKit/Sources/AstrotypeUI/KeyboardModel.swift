@@ -184,6 +184,8 @@ public final class KeyboardModel {
     private func applyComposerSettings() {
         var settings = field.composerSettings(keyboardSettings.composerSettings(from: composer.settings))
         settings.nextWords = settings.nextWords && learningAllowed && offersNextWords
+        // Not in passwords and codes, where nothing is guessed (features/look-back).
+        settings.fixesAsYouGo = settings.fixesAsYouGo && learningAllowed
         settings.replacements = TextReplacements(own: keyboardSettings.textReplacements,
                                                  phone: keyboardSettings.usesPhoneReplacements ? phoneReplacements : [])
         // The app's practice fields measure typing word by word: no replacements there.
@@ -657,9 +659,10 @@ public final class KeyboardModel {
     /// Undo on the bar after a word written earlier was swapped: it goes back.
     public func undoEarlierFix() {
         guard composer.canUndoEarlierFix else { return }
+        let lookedBack = composer.undoesLookBack
         log(TypingEvent(t: now, e: .earlierUndo))
         apply(composer.undoEarlierFix())
-        onWordAction?("earlier.undone", nil)
+        onWordAction?(lookedBack ? "lookback.undone" : "earlier.undone", nil)
     }
 
     /// Another reading of the last word, picked from the bar's fix row while next words
@@ -1150,6 +1153,15 @@ public final class KeyboardModel {
             lastAfter = typedAfter
         }
         composer.setContext(before: output?.textBeforeCursor)
+        if composer.lookBackCount != lookBacksSeen {
+            // The word before was swapped by looking back (features/look-back): the bar
+            // says so with Undo, as for a word fixed earlier by hand.
+            lookBacksSeen = composer.lookBackCount
+            if let change = composer.lookBackChange {
+                onWordAction?("lookback.changed", nil)
+                onEarlierFixed?(change.old, change.new)
+            }
+        }
         if recording {
             let codes = TypingEvent.codes(of: effects)
             if !codes.isEmpty { recorder?.record(TypingEvent(t: now, e: .effects, fx: codes)) }
@@ -1163,6 +1175,8 @@ public final class KeyboardModel {
     // MARK: Typing speed
 
     private var speed = SpeedMeter()
+    /// The composer's `lookBackCount` when the bar last said a swap.
+    private var lookBacksSeen = 0
     /// How long the open word shown in the field is, to count what a new mark adds.
     private var markLength = 0
     /// Timing runs: someone takes them, the setting is on, the field learns (no

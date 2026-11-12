@@ -114,7 +114,8 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
       time passed in), `Matcher` (pieces to ranked candidates: trie search plus DTW,
       two-thumb orderings and split swipes, both thumbs swiping at once in
       `Matcher+Together` (letters woven by when each key was reached), the words before the open one from
-      `WordContext` and the person's `PersonalIndex`, and the next-word model's say on each word when one is loaded, `Matcher.nextWords`), `NextWords` (the likely next words for
+      `WordContext` and the person's `PersonalIndex`, and the next-word model's say on each word when one is loaded, `Matcher.nextWords`), `LookBack` (which reading of the word before fits the word
+      just typed, features/look-back; `Composer.lookBack()` swaps it), `NextWords` (the likely next words for
       the bar, from the word pairs and the person's own), `PersonalModel` (what the keyboard
       learns from the person: word and pair counts that fade, thumb offsets per key, one
       shard per install, merged and forgotten across devices; `SettledWord`, which the
@@ -193,7 +194,7 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
       with `#if canImport(UIKit)` so `swift test` still builds the package on macOS.
     - `AstrotypeKitTests`: Swift Testing. `ComposerTests`, `NextWordTests`, `FieldTests`, `LanguagesTests` (Spanish, accents, both at once, picked accents, which languages are on), `PersonalModelTests`, `SharedWordTests`, `TuningTests`, `MatcherTests` (the 50-word
       fixture in `Fixtures/swipes.json`, through `Synth`'s straight-line swipes, and
-      `ContextMatcherTests`), `WordContextTests`, `NgramModelTests`, `ReplayTests`, `MissedWordTests` (the bar's "Not it?"), `WrongSpaceTests` (autospace taken back out of a word, punctuation before the space), `TwoThumbTests` (two-thumb accuracy from `SyntheticTyping`'s `.two` and `.together`, Gabriel's real both-at-once swipes in `Fixtures/together-*.json`, compounds, tap places, two-thumb Not it?)
+      `ContextMatcherTests`), `WordContextTests`, `NgramModelTests`, `ReplayTests`, `MissedWordTests` (the bar's "Not it?"), `LookBackTests` (fixing a word from the next one; `measureMargins` with `LOOKBACK_MEASURE=1`), `WrongSpaceTests` (autospace taken back out of a word, punctuation before the space), `TwoThumbTests` (two-thumb accuracy from `SyntheticTyping`'s `.two` and `.together`, Gabriel's real both-at-once swipes in `Fixtures/together-*.json`, compounds, tap places, two-thumb Not it?)
       (recordings made from `Synth` strokes replay to the live result),
       `GeometryTests`, `LayoutTests`, `EmojiTests`, `EmojiSearchTests`, `KeyboardSettingsTests`, `KeyboardDebugTests`, `TypingLogTests` (the typing recorder: format, files, windows, replay), `AppCoreTests` (the
       `App/` pieces), `ProTests` (`Entitlement`, the trial and Pro files, the memory
@@ -225,6 +226,8 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
   `languages` (Spanish and the next languages, both at once; built),
   `emoji` (the emoji key and page, skin tones; built 3 Nov 2026),
   `emoji-search` (search the emoji page by name, English and Spanish; built 3 Nov 2026),
+  `look-back` (a word typed fast swapped once the next word shows it was wrong, with
+  Undo; built 12 Nov 2026),
   `missed-words` (the bar's "Not it?": type the word meant, learn from the swipe, keep
   it for debugging; built),
   `field-types` (the keyboard following email, web, search and number fields),

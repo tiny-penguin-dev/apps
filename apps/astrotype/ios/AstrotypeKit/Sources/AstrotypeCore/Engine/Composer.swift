@@ -72,6 +72,9 @@ public struct Composer: Sendable {
         public var autofills = true
         /// The details the field wants while it is empty, best first (`Field.autofillSlots`).
         public var autofill: [Autofill.Slot] = []
+        /// When the next word, typed fast, shows the word before was the wrong reading
+        /// of its swipe or taps, swap it for the right one (features/look-back).
+        public var fixesAsYouGo = true
         public init() {}
     }
 
@@ -200,6 +203,18 @@ public struct Composer: Sendable {
         /// The shortcut typed, when the word in the field is its replacement's phrase:
         /// nothing is learned from it.
         var replaced: String?
+        /// Its readings with their scores, lowercase, for looking back at it once the
+        /// next word is in (features/look-back). Empty when it had no other.
+        var readings: [Candidate] = []
+        /// When it went in.
+        var time: TimeInterval?
+        /// The text before it, for the next-word model to read each reading after.
+        var before = ""
+        /// Picked from the bar while it was open, not the keyboard's own guess.
+        var byHand = false
+        /// Swapped by looking back (features/look-back): never looked back at again,
+        /// and the word after it isn't either.
+        var lookedBack = false
     }
 
     enum Casing: Sendable, Equatable {
@@ -319,6 +334,17 @@ public struct Composer: Sendable {
     static let recentLimit = 20
     /// The last earlier word swapped, until anything else happens: Undo puts it back.
     private var lastEarlierFix: EarlierFix?
+    /// The word before the open one, when it may still be looked back at: it settles
+    /// (and is learned) only once the next word is in and the check is done, so a
+    /// swapped word teaches the right word (features/look-back).
+    private var waiting: Committed?
+    /// The last swap by looking back, until anything else happens: Undo puts it back.
+    private var lastLookBack: LookBackFix?
+    /// How many swaps looking back has made, for the host to notice a new one and say so.
+    public private(set) var lookBackCount = 0
+    /// How much better another reading must fit to replace the one written
+    /// (`LookBack.margin`); the harness tries others.
+    public var lookBackMargin = LookBack.margin
 
     public init(dictionary: Lexicon, learned: LearnedWords = LearnedWords(), layout: Layout, settings: Settings = Settings()) {
         self.layout = layout
@@ -394,7 +420,7 @@ public struct Composer: Sendable {
             joinable = committed.flatMap { last in
                 last.autospaced.map { time - $0 <= Self.joinWindow } == true && contextBefore.hasSuffix(last.word + last.trailing) ? last : nil
             }
-            if committed != nil { effects += settle() }
+            if committed != nil { effects += settle(nextAt: time) }
             leaveEarlier()
             state.bar = .idle
         }
@@ -723,7 +749,7 @@ public struct Composer: Sendable {
         cancelCorrection()
         leaveEarlier()
         recentWords = []
-        guard !hasOpenWord, committed != nil else { return [] }
+        guard !hasOpenWord, committed != nil || waiting != nil else { return [] }
         let effects = settle()
         state.bar = .idle
         refreshState()
@@ -1165,6 +1191,7 @@ public struct Composer: Sendable {
     /// Undo after a swap: the word that was there goes back, the cursor where it is.
     /// Nothing once anything else happened.
     public mutating func undoEarlierFix() -> [Effect] {
+        if lastLookBack != nil { return undoLookBack() }
         guard let fix = lastEarlierFix else { return [] }
         lastEarlierFix = nil
         var effects: [Effect] = []
@@ -1177,7 +1204,15 @@ public struct Composer: Sendable {
     }
 
     /// Whether Undo can still put back the last earlier word swapped.
-    public var canUndoEarlierFix: Bool { lastEarlierFix != nil }
+    public var canUndoEarlierFix: Bool { lastEarlierFix != nil || lastLookBack != nil }
+
+    /// The last swap Undo would put back was made by looking back (features/look-back),
+    /// not by the person.
+    public var undoesLookBack: Bool { lastLookBack != nil }
+
+    /// The last swap made by looking back, while Undo can still put it back: the word
+    /// that was there and the one that went in.
+    public var lookBackChange: (old: String, new: String)? { lastLookBack.map { ($0.old, $0.new) } }
 
     /// The word written earlier that the bar shows, as it stands in the field.
     public var earlierWord: String? { earlier?.spot.word }
@@ -1185,9 +1220,113 @@ public struct Composer: Sendable {
     /// Anything else happened: the bar stops showing the earlier word, and Undo is gone.
     private mutating func leaveEarlier() {
         lastEarlierFix = nil
+        lastLookBack = nil
         guard earlier != nil else { return }
         earlier = nil
         if case .earlier = state.bar { state.bar = .idle }
+    }
+
+    // MARK: Looking back
+
+    /// A swap made by looking back, for Undo: the word that was there, the one that went
+    /// in, and what was typed after it (its space, the next word and what followed).
+    private struct LookBackFix {
+        var old: String
+        var new: String
+        var rest: String
+    }
+
+    /// How soon after a word went in the next one must start for the keyboard to look
+    /// back at it: later, the person had time to read it and kept it (Gabriel, 11 Nov
+    /// 2026: "it should only happen when typing fast").
+    public static let lookBackStart: TimeInterval = 1.0
+    /// How soon after a word went in the next one must be finished (its last finger up):
+    /// a word on screen longer than this never changes.
+    public static let lookBackEnd: TimeInterval = 2.0
+
+    /// Whether `last`, about to settle as the next word starts, may still be looked back
+    /// at once that word is in: the keyboard's own guess, with other readings, typed
+    /// as one word with a space after it, and not right after a word already swapped.
+    private func mayLookBack(at last: Committed) -> Bool {
+        guard settings.fixesAsYouGo, !settings.exactTaps, last.readings.count > 1, !last.byHand, !last.picked,
+              !last.missed, last.fixedFrom == nil, last.replaced == nil, !last.lookedBack, last.trailing == " " else { return false }
+        return recentWords.last?.lookedBack != true
+    }
+
+    /// The open word's readings with their scores, lowercase, for looking back at it
+    /// later (`chosen` is the one going in). Pecked letters that spell a word have only
+    /// longer words behind them on the bar, so the real words their taps were close to
+    /// are added ("thai" tapped for "this").
+    private func lookBackReadings(chosen: String) -> [Candidate] {
+        guard !pieces.isEmpty else { return [] }
+        var best: [String: Double] = [:]
+        for candidate in candidates { best[candidate.word.lowercased()] = max(best[candidate.word.lowercased()] ?? -.infinity, candidate.score) }
+        let taps = pieces.sorted { $0.start < $1.start }
+        if taps.allSatisfy(\.isTap) {
+            let letters = String(taps.flatMap(\.keys)).lowercased()
+            if letters.count >= 2, letters.count == taps.count {
+                for candidate in matcher.tappedReadings(of: letters, points: taps.map { $0.landing ?? $0.points.first }, limit: 3) {
+                    // Scored alike, the context included: these replace what the bar had.
+                    best[candidate.word] = candidate.score
+                }
+            }
+        }
+        let lower = chosen.lowercased()
+        guard best[lower] != nil, best.count > 1 else { return [] }
+        return Matcher.ranked(best).filter { !matcher.learned.isBlocked($0.word) }
+    }
+
+    /// The text before the open word: the context without the word shown in the field.
+    static func withoutOpenWord(_ text: String) -> String {
+        var rest = Substring(text)
+        while let last = rest.last, !(last.isWhitespace || last.isNewline) { rest = rest.dropLast() }
+        return String(rest)
+    }
+
+    /// The word just written (`committed`) went in fast after the one before
+    /// (`waiting`): when it shows that word was a wrong reading, swap it
+    /// (features/look-back). One word back, from the readings it already had; the text
+    /// is deleted back to it and written again, so the cursor stays where it is.
+    private mutating func lookBack() -> [Effect] {
+        guard settings.fixesAsYouGo, var earlier = waiting, var last = committed, let went = earlier.time,
+              let start = last.pieces.map(\.start).min(), let end = last.pieces.map(\.end).max(),
+              start - went <= Self.lookBackStart, end - went <= Self.lookBackEnd,
+              last.replaced == nil, Self.withoutOpenWord(contextBefore).hasSuffix(earlier.word + earlier.trailing),
+              let current = earlier.readings.firstIndex(where: { $0.word == earlier.word.lowercased() }) else { return [] }
+        let models = nextWordModels.filter { lockedLanguage == nil || $0.code == lockedLanguage }
+        let next = last.word
+        let before = earlier.before
+        let reader = matcher
+        let pick = LookBack.choose(readings: earlier.readings, current: current, margin: lookBackMargin) { reading in
+            let scores = models.compactMap { $0.scores(before: before + reading + " ") }
+            return reader.followBonus(next, after: reading, models: scores)
+        }
+        guard let pick else { return [] }
+        let old = earlier.word
+        let new = Self.cased(earlier.readings[pick].word, as: earlier.casing)
+        guard new != old else { return [] }
+        let rest = earlier.trailing + last.word + last.trailing
+        earlier.word = new
+        earlier.firstGuess = new
+        earlier.learned = nil
+        earlier.lookedBack = true
+        last.previous = Lexicon.fold(new.lowercased())
+        waiting = earlier
+        committed = last
+        lastLookBack = LookBackFix(old: old, new: new, rest: rest)
+        lookBackCount += 1
+        return [.deleteBackward(old.count + rest.count), .insert(new + rest)]
+    }
+
+    /// Undo after a swap by looking back: the word that was there goes back, when the
+    /// text after it is still what was typed.
+    private mutating func undoLookBack() -> [Effect] {
+        guard let fix = lastLookBack else { return [] }
+        lastLookBack = nil
+        guard contextBefore.hasSuffix(fix.new + fix.rest) else { return [] }
+        if waiting?.word == fix.new { waiting?.word = fix.old }
+        if committed != nil { committed?.previous = Lexicon.fold(fix.old.lowercased()) }
+        return [.deleteBackward(fix.new.count + fix.rest.count), .insert(fix.old + fix.rest), .haptic(.key)]
     }
 
     // MARK: Words
@@ -1262,13 +1401,16 @@ public struct Composer: Sendable {
         if !byHand, let before, let joined = join(word, to: before, trailing: trailing) { return joined }
         let learn = wordToLearn(word)
         committed = Committed(word: word, trailing: trailing, pieces: pieces, guesses: words, casing: casing,
-                              previous: matcher.context.last, firstGuess: words.first, learned: learn)
+                              previous: matcher.context.last, firstGuess: words.first, learned: learn,
+                              readings: settings.fixesAsYouGo && !byHand ? lookBackReadings(chosen: word) : [],
+                              time: time, before: Self.withoutOpenWord(contextBefore), byHand: byHand)
         pieces = []
         candidates = []
         autospaceDue = nil
         state.bar = words.count > 1 ? .fix(words, chosen: chosen) : .idle
         refreshState()
-        let effects: [Effect] = [.commit(word)] + (trailing.isEmpty ? [] : [.insert(trailing)]) + [.haptic(.commit)]
+        var effects: [Effect] = [.commit(word)] + (trailing.isEmpty ? [] : [.insert(trailing)]) + [.haptic(.commit)]
+        effects += lookBack()
         return effects
     }
 
@@ -1656,9 +1798,28 @@ public struct Composer: Sendable {
     }
 
     /// The last word is final: what to learn from it, if anything.
-    private mutating func settle() -> [Effect] {
-        guard let last = committed else { return [] }
+    /// `nextAt` is when the next word started, when that is why: a word it may still be
+    /// looked back at from waits for it (features/look-back).
+    private mutating func settle(nextAt: TimeInterval? = nil) -> [Effect] {
+        let effects = settleWaiting()
+        guard let last = committed else { return effects }
         committed = nil
+        if let nextAt, let went = last.time, nextAt - went <= Self.lookBackStart, mayLookBack(at: last) {
+            waiting = last
+            return effects
+        }
+        return effects + finish(last)
+    }
+
+    /// The word waiting for the look-back check is final now.
+    private mutating func settleWaiting() -> [Effect] {
+        guard let last = waiting else { return [] }
+        waiting = nil
+        return finish(last)
+    }
+
+    /// Keeps `last` among the recent words and says what to learn from it.
+    private mutating func finish(_ last: Committed) -> [Effect] {
         recentWords.append(last)
         if recentWords.count > Self.recentLimit { recentWords.removeFirst(recentWords.count - Self.recentLimit) }
         // Learned only now, so a word fixed before the next one began (backspace into

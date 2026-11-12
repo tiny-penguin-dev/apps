@@ -752,11 +752,13 @@ final class ProxyTarget: TextTarget {
     var lostOpenWord: Bool {
         guard !open.isEmpty else { return false }
         if documentID != openDocument { return true }
-        if let before = proxy.documentContextBeforeInput {
-            // Empty context in a field that still has text is a field that tells
-            // nothing, not one that was emptied.
-            if before.isEmpty ? !proxy.hasText : !before.hasSuffix(open) { return true }
-        }
+        // An empty field. Messages reports an emptied field as nil, not "", after Send,
+        // and the word came back with the next letter ("repeated" sent, then "repeated
+        // he"; recording, Gabriel, 12 Nov 2026).
+        if !proxy.hasText { return true }
+        // Empty or no context in a field that still has text is a field that tells
+        // nothing, not one that was emptied.
+        if let before = proxy.documentContextBeforeInput, !before.isEmpty, !before.hasSuffix(open) { return true }
         guard !clearedSelection, let selected = proxy.selectedText else { return false }
         return !selected.isEmpty
     }

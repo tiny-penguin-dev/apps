@@ -41,9 +41,11 @@ import Testing
         var debug = KeyboardDebug()
         debug.loaded(at: t0)
         debug.shown(at: t0, reading: reading(20))
-        #expect(debug.loaded(at: t0.addingTimeInterval(60), crashed: false))
+        let first = debug.loaded(at: t0.addingTimeInterval(60), crashed: false)
+        #expect(first)
         debug.shown(at: t0.addingTimeInterval(70), reading: reading(20))
-        #expect(debug.loaded(at: t0.addingTimeInterval(10 * day), crashed: true))
+        let second = debug.loaded(at: t0.addingTimeInterval(10 * day), crashed: true)
+        #expect(second)
         #expect(debug.ends == [.init(at: t0.addingTimeInterval(60), crashed: false),
                                .init(at: t0.addingTimeInterval(10 * day), crashed: true)])
         #expect(debug.endedWhileShowing == 2)

@@ -28,6 +28,9 @@ public struct PrimaryButtonStyle: ButtonStyle {
             configuration.label
                 .font(small ? .system(.subheadline, design: .rounded, weight: .heavy)
                             : .system(.headline, design: .rounded, weight: .heavy))
+                // A small pill in a row never wraps its word ("Sen/d"); the row's text gives way instead.
+                .lineLimit(small ? 1 : nil)
+                .fixedSize(horizontal: small, vertical: false)
                 .foregroundStyle(Theme.accentInk)
                 .padding(.horizontal, small ? Theme.Space.l : Theme.Space.gutter)
                 .padding(.vertical, small ? 10 : 17)

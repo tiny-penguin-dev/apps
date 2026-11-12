@@ -24,7 +24,7 @@ behind `Flags.handwritingPad` (PRODUCT.md "Later").
     the weekly Game Center boards, features/leaderboards, with `App/GameCenterLeaderboards`, the live
     `LeaderboardService`), `Settings/` (`SettingsView`, the main page (status tiles, account rows; Typing, Languages and Your words open from Home) with its
     `SettingsPage`s, and `SettingsPages`, one view per page; `StyleSettings`, Appearance's hub and its General, Styling, theme editor and Effects pages with the live `StylePreview` (features/customization); `DebugSettings`, the Debug page:
-    the keyboard's memory against 40 MB from `KeyboardDebug`, the switch for the
+    the keyboard's memory against 80 MB from `KeyboardDebug`, "Ended while showing" over the last 30 days (`KeyboardDebug.ends`, with Clear; the typing log's `open` line says when the keyboard before ended), the switch for the
     stats overlay on the keys, and in TestFlight builds the typing recorder: "Keep
     recording", send the last 1/5/30 minutes or from a mark, share as a file, delete
     what was sent), `LearnedWordsView` (+ to add a word, Select to drop several, a Used once filter; with two languages on, a tab per language and hold a word to offer it in one language or both, features/languages), `NeverSuggestView` (blocked words: allow again, + to block one; features/word-control), `TextReplacementsView` (shortcuts and their phrases, the variable chips, Your details, copy the iPhone's own in, the iPhone's own on/off; features/text-replacements), `YourDetailsSheet` (the person's details for autofill and `{name}`…, Fill from contacts; features/autofill; also from Settings → Typing → Autofill), `WordPairsView` ("Word pairs", what Learns from you learned, features/learned-words), `MissedWordsView` ("Words it missed", features/missed-words), `SharingView` ("What
@@ -279,7 +279,7 @@ xcodebuild build -project Astrotype.xcodeproj -scheme Astrotype \
   (`KeyboardTelemetry`: Full Access and usage sharing on, no breadcrumbs, logs, replay,
   traces, messages or IDs, crash reasons stripped) and never metrics; its memory
   readings and first-guess counts go to the app (`KeyboardHealthRecorder` →
-  `keyboard-health.json` → `AppModel.sendKeyboardHealth`). Keep the extension under 40 MB; the bar's memory
+  `keyboard-health.json` → `AppModel.sendKeyboardHealth`). Keep the extension under 80 MB (our target; iOS's limit is about 177 MB); the bar's memory
   readout (Phase 1) and `keyboard.memory_peak` in Sentry say where it stands.
 - Nothing typed ever leaves the phone. Practice sessions upload only from the app, only
   when the person turns it on. The typing recorder is the one exception, for Gabriel's

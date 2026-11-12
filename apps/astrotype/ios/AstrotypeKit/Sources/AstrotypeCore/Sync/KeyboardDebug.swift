@@ -14,8 +14,10 @@ import os
 ///     now?.footprintMB                    // 23.4
 public struct MemoryReading: Codable, Sendable, Equatable {
     /// What we keep the keyboard extension under (CLAUDE.md, BUILD.md). iOS's real limit
-    /// is a little higher and differs by phone; `limitMB` says what it is right now.
-    public static let budgetMB = 40.0
+    /// is higher and differs by phone; `limitMB` says what it is right now.
+    /// 40 MB until 12 Nov 2026, when Gabriel raised it to 80: iOS's limit on his iPhone
+    /// is about 177 MB, and 40 made normal use look like trouble.
+    public static let budgetMB = 80.0
 
     /// The memory iOS counts against the process (its physical footprint), in MB.
     public var footprintMB: Double
@@ -31,7 +33,7 @@ public struct MemoryReading: Codable, Sendable, Equatable {
     /// where iOS doesn't say (not iOS, or no limit).
     public var limitMB: Double? { headroomMB > 0 ? footprintMB + headroomMB : nil }
 
-    /// How much of the 40 MB budget is in use, 0 to 1 and past it.
+    /// How much of the 80 MB budget is in use, 0 to 1 and past it.
     public var budgetFraction: Double { footprintMB / Self.budgetMB }
 
     /// This process's memory now. Nil on Linux, where only the tools and tests run.
@@ -76,7 +78,7 @@ public struct MemoryReading: Codable, Sendable, Equatable {
         #endif
     }
 
-    /// The keyboard's stats overlay: "23.4/40 MB · peak 25.1 · 31 left", small enough
+    /// The keyboard's stats overlay: "23.4/80 MB · peak 25.1 · 31 left", small enough
     /// to sit in a corner of the keys.
     public func overlay(peakMB: Double) -> String {
         var text = "\(Self.mb(footprintMB))/\(Int(Self.budgetMB)) MB · peak \(Self.mb(max(peakMB, footprintMB)))"
@@ -236,6 +238,31 @@ public struct KeyboardDebug: Codable, Sendable, Equatable {
     public var crashedWhileShowing = 0
     public var killedWhileShowing = 0
 
+    /// One time the process was found ended while the keyboard was showing: when the
+    /// next one started, and whether it crashed (nil when unknown).
+    public struct Ended: Codable, Sendable, Equatable {
+        public var at: Date
+        public var crashed: Bool?
+
+        public init(at: Date, crashed: Bool? = nil) {
+            self.at = at
+            self.crashed = crashed
+        }
+    }
+
+    /// Each time it ended while showing in the last 30 days, oldest first. Kept from
+    /// 12 Nov 2026; the counts above are every one since the file began.
+    public var ends: [Ended] = []
+    /// How long `ends` keeps one (Gabriel, 12 Nov 2026).
+    public static let endsKept: TimeInterval = 30 * 24 * 3600
+
+    /// The ends in the last 30 days, after `cleared` (Settings → Debug → Clear) when
+    /// there is one.
+    public func recentEnds(after cleared: Date?, now: Date) -> [Ended] {
+        let since = max(cleared ?? .distantPast, now.addingTimeInterval(-Self.endsKept))
+        return ends.filter { $0.at > since }
+    }
+
     public init() {}
 
     public init(from decoder: Decoder) throws {
@@ -256,6 +283,7 @@ public struct KeyboardDebug: Codable, Sendable, Equatable {
         lastEndedWhileShowing = try c.decodeIfPresent(Date.self, forKey: .lastEndedWhileShowing)
         crashedWhileShowing = try c.decodeIfPresent(Int.self, forKey: .crashedWhileShowing) ?? 0
         killedWhileShowing = try c.decodeIfPresent(Int.self, forKey: .killedWhileShowing) ?? 0
+        ends = try c.decodeIfPresent([Ended].self, forKey: .ends) ?? []
     }
 
     /// The extension's process started. Returns whether the one before it was ended
@@ -273,7 +301,9 @@ public struct KeyboardDebug: Codable, Sendable, Equatable {
             case false?: killedWhileShowing += 1
             case nil: break
             }
+            ends.append(Ended(at: date, crashed: crashed))
         }
+        ends.removeAll { $0.at < date.addingTimeInterval(-Self.endsKept) }
         loadedAt = date
         shows = 0
         processPeakMB = 0

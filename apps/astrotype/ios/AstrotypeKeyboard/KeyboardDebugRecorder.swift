@@ -11,18 +11,30 @@ import Foundation
 final class KeyboardDebugRecorder {
     private let store: FileKeyboardDebugStore?
     private var debug: KeyboardDebug
+    /// The last process ended while the keyboard was showing, for the typing log's open
+    /// line: "crashed", "ended by iOS" or "ended" (unknown). Nil when it didn't.
+    private var endedBefore: String?
 
     init(fullAccess: Bool) {
         if fullAccess, let url = KeyboardFiles.shared(KeyboardFiles.debug) {
             let store = FileKeyboardDebugStore(url: url)
             self.store = store
             debug = store.load() ?? KeyboardDebug()
-            debug.loaded(at: Date(), crashed: KeyboardTelemetry.crashedLastRun)
+            let crashed = KeyboardTelemetry.crashedLastRun
+            if debug.loaded(at: Date(), crashed: crashed) {
+                endedBefore = crashed == true ? "crashed" : crashed == false ? "ended by iOS" : "ended"
+            }
             store.save(debug)
         } else {
             store = nil
             debug = KeyboardDebug()
         }
+    }
+
+    /// How the last process ended while showing, once (nil if it didn't).
+    func takeEndedBefore() -> String? {
+        defer { endedBefore = nil }
+        return endedBefore
     }
 
     func appeared() {

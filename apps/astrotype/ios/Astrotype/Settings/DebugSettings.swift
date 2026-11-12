@@ -2,7 +2,7 @@ import AstrotypeCore
 import AstrotypeUI
 import SwiftUI
 
-/// Settings → Debug: how much memory the keyboard uses against its 40 MB budget, how
+/// Settings → Debug: how much memory the keyboard uses against its 80 MB budget, how
 /// close it came to iOS's limit, whether iOS ended it, and the switch for the tiny
 /// readout on the keys (Gabriel, 3 Nov 2026). Re-read every second while open. The
 /// readings come from the keyboard through the App Group (`KeyboardDebug`), so they need
@@ -36,8 +36,14 @@ struct DebugSettings: View {
                 }
                 SettingsValue("Memory warnings", subtitle: "From iOS, since it opened", value: "\(debug.memoryWarnings)",
                               valueColor: debug.memoryWarnings > 0 ? Theme.sun : Theme.muted)
-                SettingsValue("Ended while showing", subtitle: endedSubtitle(debug), value: "\(debug.endedWhileShowing)",
-                              valueColor: debug.endedWhileShowing > 0 ? Theme.danger : Theme.muted)
+                let ends = model.recentEnds
+                SettingsValue("Ended while showing", subtitle: endedSubtitle(ends), value: "\(ends.count)",
+                              valueColor: ends.isEmpty ? Theme.muted : Theme.danger)
+                if !ends.isEmpty {
+                    SettingsRow("Start the count again", symbol: "arrow.counterclockwise", tint: Theme.slate) {
+                        Button("Clear") { model.clearEnds() }.buttonStyle(.small)
+                    }
+                }
             } else {
                 SettingsRow("No readings yet", subtitle: model.isFullAccessOn
                             ? "Open the keyboard in any app, then come back."
@@ -54,7 +60,7 @@ struct DebugSettings: View {
                            isOn: $model.keyboardSettings.showsStats)
         }
         GroupFootnote(model.isFullAccessOn
-                      ? "Now, peak since it loaded, and what's left before iOS's limit. Amber past 30 MB, red past 40. The second line splits it: heap is the keyboard's own objects, other is drawing and images, and the layer count should stay flat while you type."
+                      ? "Now, peak since it loaded, and what's left before iOS's limit. Amber past 60 MB, red past 80. The second line splits it: heap is the keyboard's own objects, other is drawing and images, and the layer count should stay flat while you type."
                       : "Without Full Access the keyboard in other apps keeps its own settings, so this only shows on the practice keyboard here.")
 
         if model.isTestBuild {
@@ -189,12 +195,12 @@ struct DebugSettings: View {
         last.limitMB.map { "iOS's limit on this phone is about \(Int($0.rounded())) MB" }
     }
 
-    private func endedSubtitle(_ debug: KeyboardDebug) -> String {
-        guard let last = debug.lastEndedWhileShowing else { return "A crash or iOS's memory limit. None so far." }
-        var text = "A crash or iOS's memory limit. Last \(last.formatted(.relative(presentation: .named)))."
-        if debug.crashedWhileShowing + debug.killedWhileShowing > 0 {
-            text += " Since 6 Nov: \(debug.crashedWhileShowing) crashed, \(debug.killedWhileShowing) ended by iOS."
-        }
+    private func endedSubtitle(_ ends: [KeyboardDebug.Ended]) -> String {
+        guard let last = ends.last?.at else { return "A crash or iOS's memory limit, in the last 30 days. None." }
+        let crashed = ends.filter { $0.crashed == true }.count
+        let killed = ends.filter { $0.crashed == false }.count
+        var text = "A crash or iOS's memory limit, in the last 30 days. Last \(last.formatted(.relative(presentation: .named)))."
+        if crashed + killed > 0 { text += " \(crashed) crashed, \(killed) ended by iOS." }
         return text
     }
 

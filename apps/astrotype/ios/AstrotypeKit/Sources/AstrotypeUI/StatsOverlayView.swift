@@ -8,7 +8,7 @@ import UIKit
 /// something is out of range (`MemorySample.brief`). The full reading goes to the typing
 /// log. It shows the keyboard's once-a-second reading (`MemorySample`), the same one the
 /// Debug page and the typing log get. It takes no touches. Turns amber past 75% of the
-/// 40 MB budget and red past it.
+/// 80 MB budget and red past it.
 ///
 ///     let stats = StatsOverlayView()
 ///     stats.isRunning = settings.showsStats

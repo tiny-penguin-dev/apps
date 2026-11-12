@@ -224,6 +224,17 @@ final class AppModel {
         appMemory = environment.readMemory()
     }
 
+    /// The times the keyboard ended while showing in the last 30 days, since they were
+    /// last cleared (Settings → Debug).
+    var recentEnds: [KeyboardDebug.Ended] {
+        keyboardDebug?.recentEnds(after: state.endedCleared, now: environment.now()) ?? []
+    }
+
+    /// Settings → Debug → Clear: "Ended while showing" counts from now on.
+    func clearEnds() {
+        state.endedCleared = environment.now()
+    }
+
     /// Whether the keyboard has run with Full Access, as far as the app can tell.
     var isFullAccessOn: Bool { extensionStatus?.fullAccess == true }
 

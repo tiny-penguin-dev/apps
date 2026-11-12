@@ -10,9 +10,9 @@ import Testing
     }
 
     @Test func overlayIsOneShortLine() {
-        #expect(reading(23.44, 31.9).overlay(peakMB: 25.12) == "23.4/40 MB · peak 25.1 · 31 left")
+        #expect(reading(23.44, 31.9).overlay(peakMB: 25.12) == "23.4/80 MB · peak 25.1 · 31 left")
         // The peak is never below now, and no headroom (not iOS) leaves it out.
-        #expect(reading(26, 0).overlay(peakMB: 20) == "26.0/40 MB · peak 26.0")
+        #expect(reading(26, 0).overlay(peakMB: 20) == "26.0/80 MB · peak 26.0")
     }
 
     @Test func breakdownSplitsHeapFromTheRest() {
@@ -33,7 +33,32 @@ import Testing
     @Test func limitAndBudget() {
         #expect(reading(20, 30).limitMB == 50)
         #expect(reading(20, 0).limitMB == nil)
-        #expect(reading(30).budgetFraction == 0.75)
+        #expect(reading(60).budgetFraction == 0.75)
+    }
+
+    @Test func endsKeepThirtyDaysAndClear() {
+        let day: TimeInterval = 24 * 3600
+        var debug = KeyboardDebug()
+        debug.loaded(at: t0)
+        debug.shown(at: t0, reading: reading(20))
+        let first = debug.loaded(at: t0.addingTimeInterval(60), crashed: false)
+        #expect(first)
+        debug.shown(at: t0.addingTimeInterval(70), reading: reading(20))
+        let second = debug.loaded(at: t0.addingTimeInterval(10 * day), crashed: true)
+        #expect(second)
+        #expect(debug.ends == [.init(at: t0.addingTimeInterval(60), crashed: false),
+                               .init(at: t0.addingTimeInterval(10 * day), crashed: true)])
+        #expect(debug.endedWhileShowing == 2)
+        let now = t0.addingTimeInterval(11 * day)
+        #expect(debug.recentEnds(after: nil, now: now).count == 2)
+        // Cleared after the first: only the second counts.
+        #expect(debug.recentEnds(after: t0.addingTimeInterval(day), now: now).count == 1)
+        // A month on, the first has gone from the window.
+        #expect(debug.recentEnds(after: nil, now: t0.addingTimeInterval(31 * day)).count == 1)
+        // And a new process drops ones older than 30 days from the file.
+        debug.loaded(at: t0.addingTimeInterval(45 * day))
+        #expect(debug.ends.isEmpty)
+        #expect(debug.endedWhileShowing == 2)
     }
 
     @Test func sessionKeepsPeaksAndWritesOnlyWhenWorthIt() {

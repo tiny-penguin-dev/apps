@@ -300,7 +300,7 @@ and `guess.*` rows below).
 | `earlier.shown` (`how`: `cursor` / `select`), `earlier.fixed` (`how`: `reading` / `typed`), `earlier.undone` | Whether people fix words written earlier from the bar, and whether it shows up when they don't want it (features/fix-earlier-word) |
 | `lookback.changed`, `lookback.undone` | Words the keyboard swapped once the next word showed they were wrong, and how often people undid that, so whether it is too eager (features/look-back) |
 | `languages.enabled` (`set`: `en`, `es`, `en+es`) | Which languages people turn on, and how many want two at once (features/languages) |
-| `keyboard.memory_peak` (MB, per time the keyboard is shown; `parts`: what was open, like `keys`, `emoji`, `emoji+settings`, `metal`) | Memory regressions before they hit the extension's limit (budget: 40 MB), and which part of the keyboard caused them |
+| `keyboard.memory_peak` (MB, per time the keyboard is shown; `parts`: what was open, like `keys`, `emoji`, `emoji+settings`, `metal`) | Memory regressions before they hit the extension's limit (budget: 80 MB, raised from 40 on 12 Nov 2026), and which part of the keyboard caused them |
 | `miss.saved` (count) | Words typed with "Not it?" because a swipe missed them (features/missed-words). Falling over time means the matcher is getting better |
 | `keyboard.memory_headroom` (MB, the least left; `parts`) | How close the keyboard gets to iOS ending it |
 | `keyboard.ended_while_showing` (`parts`; `how`: `crash`, `killed`, `unknown`) | Keyboards ended while on screen: crashes, and the memory kills no crash report sees (`killed`: no crash report, so most likely memory). A keyboard whose app went to the background with it up and was ended there is not counted: iOS ends suspended keyboards as it likes |

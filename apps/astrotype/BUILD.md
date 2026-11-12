@@ -38,7 +38,7 @@ Builds on `PRODUCT.md` (approved 2026-11-01) and `DESIGN.md` (approved 2026-11-0
   reads StoreKit's current entitlements itself if that works inside an extension
   (checked first thing in Phase 1); otherwise the app writes the status to the App
   Group and the keyboard falls back to it, which needs Full Access.
-- **Memory budget: 40 MB in the extension**, measured on a phone every phase. The
+- **Memory budget: 80 MB in the extension** (40 MB until 12 Nov 2026; iOS's own limit is about 177 MB on a recent iPhone), measured on a phone every phase. The
   dictionary is a trie over 40,000 words (about 2 MB), the matcher works on resampled
   paths, there is no Core ML model in the extension.
 - **Crash reports and metrics** use Sentry through `Telemetry` (`docs/telemetry.md`),
@@ -160,7 +160,7 @@ with the dictionary loaded.
 
 **Done when:** the TestFlight build opens to the Hello screen, the keyboard can be
 turned on in Settings and types letters into Notes, the key surface fits the three sizes
-with Apple's proportions, and the extension sits under 40 MB.
+with Apple's proportions, and the extension sits under 80 MB.
 
 Notes (1 Nov 2026, the Phase 1 PR): built as planned, with two things deferred. The App Group
 entitlement waits for Phase 5, because the group has to be registered in the developer
@@ -495,7 +495,7 @@ submitting.
 ## Risks
 
 - **Memory in the extension.** iOS kills keyboards quietly. Phase 1 measures with the
-  real dictionary loaded and keeps a margin; if 40 MB is tight, the dictionary shrinks
+  real dictionary loaded and keeps a margin; if 80 MB is tight, the dictionary shrinks
   to 20,000 words before anything else gives.
 - **Matching quality.** Dynamic time warping over a trie is proven (Kinetica) but needs
   tuning on real thumbs. Fixtures from Gabriel's own typing from Phase 2 on, and the

@@ -10,9 +10,9 @@ import Testing
     }
 
     @Test func overlayIsOneShortLine() {
-        #expect(reading(23.44, 31.9).overlay(peakMB: 25.12) == "23.4/40 MB · peak 25.1 · 31 left")
+        #expect(reading(23.44, 31.9).overlay(peakMB: 25.12) == "23.4/80 MB · peak 25.1 · 31 left")
         // The peak is never below now, and no headroom (not iOS) leaves it out.
-        #expect(reading(26, 0).overlay(peakMB: 20) == "26.0/40 MB · peak 26.0")
+        #expect(reading(26, 0).overlay(peakMB: 20) == "26.0/80 MB · peak 26.0")
     }
 
     @Test func breakdownSplitsHeapFromTheRest() {
@@ -30,18 +30,10 @@ import Testing
         #expect(LiveCount.line(controllers: 1, models: 3, loads: 3, syncs: 4, waiting: 2) == "1 keyboard · 3 models · 3 loads · 4 syncs, 2 waiting")
     }
 
-    @Test func limitAndLevel() {
+    @Test func limitAndBudget() {
         #expect(reading(20, 30).limitMB == 50)
         #expect(reading(20, 0).limitMB == nil)
-        // Judged against iOS's limit, not our 40 MB target: 48 MB of 177 is fine.
-        let phone = reading(48, 129)
-        #expect(phone.scaleMB == 177)
-        #expect(phone.level(of: 48) == .fine)
-        #expect(phone.level(of: 140) == .high)
-        #expect(phone.level(of: 160) == .near)
-        // Where iOS doesn't say, twice the target.
-        #expect(reading(40, 0).scaleMB == 80)
-        #expect(reading(40, 0).limitFraction == 0.5)
+        #expect(reading(60).budgetFraction == 0.75)
     }
 
     @Test func sessionKeepsPeaksAndWritesOnlyWhenWorthIt() {

@@ -2,8 +2,8 @@ import AstrotypeCore
 import AstrotypeUI
 import SwiftUI
 
-/// Settings → Debug: how much memory the keyboard uses against iOS's limit (our own
-/// 40 MB target is only mentioned; going past it isn't trouble, Gabriel 12 Nov 2026), whether iOS ended it, and the switch for the tiny
+/// Settings → Debug: how much memory the keyboard uses against its 80 MB budget, how
+/// close it came to iOS's limit, whether iOS ended it, and the switch for the tiny
 /// readout on the keys (Gabriel, 3 Nov 2026). Re-read every second while open. The
 /// readings come from the keyboard through the App Group (`KeyboardDebug`), so they need
 /// Full Access; nothing here is sent anywhere, except a typing recording the person
@@ -18,7 +18,7 @@ struct DebugSettings: View {
             if let debug = model.keyboardDebug, let last = debug.last {
                 VStack(alignment: .leading, spacing: Theme.Space.s) {
                     Meter(leading: "\(MemoryReading.mb(last.footprintMB)) MB",
-                          trailing: "\(Int(last.scaleMB.rounded())) MB", fraction: last.limitFraction)
+                          trailing: "\(Int(MemoryReading.budgetMB)) MB", fraction: last.budgetFraction)
                     if let updated = debug.updated {
                         Text(!debug.showing ? "Keyboard closed · last read \(updated, style: .relative) ago"
                              : debug.suspended ? "Keyboard is up in an app in the background · read \(updated, style: .relative) ago"
@@ -27,9 +27,9 @@ struct DebugSettings: View {
                     }
                 }
                 .padding(.horizontal, 14).padding(.vertical, Theme.Space.m)
-                SettingsValue("Peak since it opened", value: mb(debug.peakMB), valueColor: color(debug.peakMB, last))
+                SettingsValue("Peak since it opened", value: mb(debug.peakMB), valueColor: color(debug.peakMB))
                 SettingsValue("Peak since it loaded", subtitle: loadedSubtitle(debug),
-                              value: mb(debug.processPeakMB), valueColor: color(debug.processPeakMB, last))
+                              value: mb(debug.processPeakMB), valueColor: color(debug.processPeakMB))
                 if debug.lowestHeadroomMB > 0 {
                     SettingsValue("Least left before iOS's limit", subtitle: limitSubtitle(last),
                                   value: mb(debug.lowestHeadroomMB))
@@ -45,7 +45,7 @@ struct DebugSettings: View {
                             symbol: "memorychip", tint: Theme.slate)
             }
         }
-        GroupFootnote(memoryFootnote)
+        GroupFootnote("We keep the keyboard under \(Int(MemoryReading.budgetMB)) MB. iOS ends a keyboard that goes past its limit without a crash report, so \"Ended while showing\" is the one to watch.")
 
         SectionLabel("On the keyboard").padding(.top, Theme.Space.m)
         SettingsGroup {
@@ -54,7 +54,7 @@ struct DebugSettings: View {
                            isOn: $model.keyboardSettings.showsStats)
         }
         GroupFootnote(model.isFullAccessOn
-                      ? "Now, peak since it loaded, and what's left before iOS's limit. Amber from 75% of iOS's limit, red from 90%. The second line splits it: heap is the keyboard's own objects, other is drawing and images, and the layer count should stay flat while you type."
+                      ? "Now, peak since it loaded, and what's left before iOS's limit. Amber past 60 MB, red past 80. The second line splits it: heap is the keyboard's own objects, other is drawing and images, and the layer count should stay flat while you type."
                       : "Without Full Access the keyboard in other apps keeps its own settings, so this only shows on the practice keyboard here.")
 
         if model.isTestBuild {
@@ -173,20 +173,10 @@ struct DebugSettings: View {
 
     private func mb(_ value: Double) -> String { "\(MemoryReading.mb(value)) MB" }
 
-    /// Amber from 75% of iOS's limit, red from 90%.
-    private func color(_ value: Double, _ last: MemoryReading) -> Color {
-        switch last.level(of: value) {
-        case .near: Theme.danger
-        case .high: Theme.sun
-        case .fine: Theme.muted
-        }
-    }
-
-    private var memoryFootnote: String {
-        let limit = model.keyboardDebug?.last?.limitMB.map { "about \(Int($0.rounded())) MB on this phone" } ?? "different on each phone"
-        return "The bar runs up to iOS's limit for keyboards, \(limit). We aim to stay under \(Int(MemoryReading.budgetMB)) MB, "
-            + "but going past that is fine. iOS ends a keyboard that reaches its limit without a crash report, "
-            + "so \"Ended while showing\" is the one to watch."
+    /// Amber from 75% of the budget, red past it.
+    private func color(_ value: Double) -> Color {
+        let fraction = value / MemoryReading.budgetMB
+        return fraction >= 1 ? Theme.danger : fraction >= 0.75 ? Theme.sun : Theme.muted
     }
 
     private func loadedSubtitle(_ debug: KeyboardDebug) -> String? {

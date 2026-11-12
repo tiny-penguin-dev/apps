@@ -57,7 +57,7 @@ final class ExtensionChecks {
     }
 
     /// How much memory the extension can still use before iOS kills it. The budget in
-    /// BUILD.md is 40 MB in use; this says how much headroom is left under the limit.
+    /// BUILD.md is 80 MB in use; this says how much headroom is left under the limit.
     nonisolated static func availableBytes() -> Int {
         os_proc_available_memory()
     }

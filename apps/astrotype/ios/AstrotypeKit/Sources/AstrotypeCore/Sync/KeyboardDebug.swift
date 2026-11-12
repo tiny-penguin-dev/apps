@@ -13,10 +13,11 @@ import os
 ///     let now = MemoryReading.current()   // nil off iOS and macOS
 ///     now?.footprintMB                    // 23.4
 public struct MemoryReading: Codable, Sendable, Equatable {
-    /// What we aim to keep the keyboard extension under (CLAUDE.md, BUILD.md). It's our
-    /// own target, not iOS's: iOS's limit is much higher and differs by phone (about
-    /// 177 MB on Gabriel's iPhone); `limitMB` says what it is right now.
-    public static let budgetMB = 40.0
+    /// What we keep the keyboard extension under (CLAUDE.md, BUILD.md). iOS's real limit
+    /// is higher and differs by phone; `limitMB` says what it is right now.
+    /// 40 MB until 12 Nov 2026, when Gabriel raised it to 80: iOS's limit on his iPhone
+    /// is about 177 MB, and 40 made normal use look like trouble.
+    public static let budgetMB = 80.0
 
     /// The memory iOS counts against the process (its physical footprint), in MB.
     public var footprintMB: Double
@@ -32,22 +33,8 @@ public struct MemoryReading: Codable, Sendable, Equatable {
     /// where iOS doesn't say (not iOS, or no limit).
     public var limitMB: Double? { headroomMB > 0 ? footprintMB + headroomMB : nil }
 
-    /// What memory is judged against: iOS's limit right now, or twice the 40 MB target
-    /// where iOS doesn't say.
-    public var scaleMB: Double { limitMB ?? Self.budgetMB * 2 }
-
-    /// How much of iOS's limit is in use, 0 to 1 (`scaleMB`).
-    public var limitFraction: Double { footprintMB / scaleMB }
-
-    /// How close an amount of memory is to iOS's limit: fine below 75% of it, high from
-    /// 75%, near from 90%. Going past our own 40 MB target is fine; only iOS's limit
-    /// ends the keyboard (Gabriel, 12 Nov 2026).
-    public enum Level: Sendable, Equatable { case fine, high, near }
-
-    public func level(of mb: Double) -> Level {
-        let fraction = mb / scaleMB
-        return fraction >= 0.9 ? .near : fraction >= 0.75 ? .high : .fine
-    }
+    /// How much of the 80 MB budget is in use, 0 to 1 and past it.
+    public var budgetFraction: Double { footprintMB / Self.budgetMB }
 
     /// This process's memory now. Nil on Linux, where only the tools and tests run.
     public static func current() -> MemoryReading? {
@@ -91,7 +78,7 @@ public struct MemoryReading: Codable, Sendable, Equatable {
         #endif
     }
 
-    /// The keyboard's stats overlay: "23.4/40 MB · peak 25.1 · 31 left", small enough
+    /// The keyboard's stats overlay: "23.4/80 MB · peak 25.1 · 31 left", small enough
     /// to sit in a corner of the keys.
     public func overlay(peakMB: Double) -> String {
         var text = "\(Self.mb(footprintMB))/\(Int(Self.budgetMB)) MB · peak \(Self.mb(max(peakMB, footprintMB)))"

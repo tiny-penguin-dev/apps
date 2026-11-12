@@ -109,6 +109,7 @@ public struct TypingReplay: Sendable {
             let current = searching ? AstrotypeCore.Field.emojiSearch : hostField
             var s = current.composerSettings(settings.composerSettings(from: c.settings))
             s.nextWords = s.nextWords && current.learns
+            s.fixesAsYouGo = s.fixesAsYouGo && current.learns
             s.twoThumbs = pro
             c.settings = s
             composer = c

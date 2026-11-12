@@ -127,6 +127,8 @@ private struct TypingSettings: View {
                            low: "As tapped", high: "Words only", valueText: percent(model.keyboardSettings.wordStrictness))
             SettingsSlider("Split words", value: $model.keyboardSettings.splitStrictness, in: 0...1, step: 0.01,
                            low: "Never", high: "Whenever it's sure", valueText: percent(model.keyboardSettings.splitStrictness))
+            SettingsToggle("Fix words as you go", subtitle: "When the next word shows the one before was wrong, Astrotype changes it. Only while you're typing fast.",
+                           symbol: "arrow.uturn.backward", tint: Theme.right, isOn: $model.keyboardSettings.fixesAsYouGo)
         }
         GroupFootnote("Real words: how sure the keyboard must be before it swaps letters you tapped for a word. Split words: how sure before it puts a space into letters that read as two words, like textseparately, or takes out a space autospace put inside a word, like some thing.")
 

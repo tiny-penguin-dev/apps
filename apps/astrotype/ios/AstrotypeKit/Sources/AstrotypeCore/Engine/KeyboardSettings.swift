@@ -56,6 +56,9 @@ public struct KeyboardSettings: Codable, Sendable, Equatable {
     /// (`Matcher.splitStrictness`), and that two words autospace wrote apart are one
     /// ("some thing", `Matcher.join`) before it joins them. At 0 it does neither.
     public var splitStrictness = 0.8
+    /// When the next word, typed fast, shows the word before was the wrong reading of
+    /// its swipe or taps, swap it and say so with Undo (features/look-back). On by default.
+    public var fixesAsYouGo = true
     /// How tall the keys are against Apple's, 0.8 to 1.2. At 1 every key sits where
     /// Apple's does; other heights move the top row and keep the bottom row in place.
     /// The guesses bar adds to the height either way (Gabriel, 3 Nov 2026).
@@ -172,6 +175,7 @@ public struct KeyboardSettings: Codable, Sendable, Equatable {
         shareCorrections = try c.decodeIfPresent(Bool.self, forKey: .shareCorrections) ?? false
         wordStrictness = try c.decodeIfPresent(Double.self, forKey: .wordStrictness) ?? 0.8
         splitStrictness = try c.decodeIfPresent(Double.self, forKey: .splitStrictness) ?? 0.8
+        fixesAsYouGo = try c.decodeIfPresent(Bool.self, forKey: .fixesAsYouGo) ?? true
         keyboardHeight = try c.decodeIfPresent(Double.self, forKey: .keyboardHeight) ?? 1.0
         nextWords = try c.decodeIfPresent(Bool.self, forKey: .nextWords) ?? true
         languages = try c.decodeIfPresent([String].self, forKey: .languages)
@@ -241,6 +245,7 @@ public struct KeyboardSettings: Codable, Sendable, Equatable {
         out.autospaceDelay = autospace ? min(max(autospaceDelay, Self.delayRange.lowerBound), Self.delayRange.upperBound) : nil
         out.strictness = min(max(wordStrictness, 0), 1)
         out.splitStrictness = min(max(splitStrictness, 0), 1)
+        out.fixesAsYouGo = fixesAsYouGo
         out.nextWords = nextWords
         out.mixesLanguages = mixesLanguages
         out.replacements = TextReplacements(own: textReplacements)

@@ -219,6 +219,10 @@ This is the product, so it gets its own section.
     for 4 seconds. The pencil opens Not it? for that word; holding a word opens the
     word menu. Any key or touch types at the cursor as always and closes it. Not in
     fields that never learn, nor the app's practice fields.
+  - *Fixed as you go* (features/look-back): when the next word, typed fast, shows the
+    word before was a wrong reading of its swipe or taps, the keyboard swaps it and
+    the bar says "Changed “thai” to “this”" with Undo (the same note), until typing
+    goes on. Switch: Settings → Typing → "Fix words as you go", on by default.
 - **Pieces:** a touch is a tap if it lifts within 18 pt of where it landed and crossed no
   other key, otherwise a swipe. A touch that lifts within 0.1 s having slid less than a key is
   a tap too (a fast thumb rolls as it lifts). Taps flash the key in the thumb's color and leave a ring

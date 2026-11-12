@@ -237,6 +237,42 @@ public struct Matcher: Sendable {
         return Double(best ?? 0)
     }
 
+    /// How well `next` follows `reading`, as score (features/look-back): the next-word
+    /// models' say on it after the sentence with `reading` in it (`models`, one per
+    /// language, read after `reading`), or the word pairs' without them, plus how often
+    /// the person wrote the two together. Nil when no dictionary knows `next`.
+    func followBonus(_ next: String, after reading: String, models: [NextWordScores]) -> Double? {
+        let key = Lexicon.fold(next.lowercased())
+        guard let prior = dictionary.logPrior(of: key) else { return nil }
+        var bonus: Double
+        if !models.isEmpty {
+            let unigram = exp(prior + dictionary.logProbabilityOffset)
+            var best: Float?
+            for scores in models {
+                guard let logP = scores.logProbability(of: key) else { continue }
+                let mixed = modelMix * exp(logP) + (1 - modelMix) * unigram
+                best = max(best ?? -.infinity, min(NgramModel.maximumBonus, log(mixed) - log(unigram)))
+            }
+            bonus = modelWeight * Double(best ?? 0)
+        } else {
+            bonus = contextWeight * pairModelsBonus(key, after: Lexicon.fold(reading.lowercased()), prior: prior)
+        }
+        if !personal.isEmpty {
+            bonus += personalPairWeight * log(1 + Double(personal.pairCount(Lexicon.fold(reading.lowercased()), key)))
+        }
+        return bonus
+    }
+
+    /// Pecked letters that spell a word, and the real words their taps were close to,
+    /// scored alike (the context before them included), for looking back at the word
+    /// once the next one is in (features/look-back).
+    func tappedReadings(of letters: String, points: [CGPoint?], limit: Int) -> [Candidate] {
+        guard isKnown(letters), let own = dictionary.logPrior(of: letters) ?? (learnedLexicon.contains(letters) ? ownPrior(letters) : nil) else { return [] }
+        let typed = Candidate(word: letters, score: priorWeight * Double(own) + contextScore(for: letters, prior: own)
+                              + personalBonus(for: letters, prior: own) + learned.weight(of: letters))
+        return [typed] + nearestWords(to: letters, points: points, limit: limit)
+    }
+
     /// The person's say on `word`: how much more they use it than the dictionary
     /// expects, and how often they wrote it after the previous word. Never negative, so
     /// a word they have not used yet loses nothing.

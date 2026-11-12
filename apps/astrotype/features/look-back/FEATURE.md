@@ -5,7 +5,7 @@ keyboard swaps it for the right one ("thai" becomes "this" once "is" follows).
 
 ## Product
 
-Status: Draft
+Status: Approved 2026-11-12 (Gabriel: "Rebase and build it", in the project thread)
 
 - **The problem** (Gabriel, 11 Nov 2026): "When typing a word, our model looks
   backwards to see which word is the highest probability… But sometimes it is still
@@ -80,19 +80,20 @@ Status: Draft
 - **Open questions** for Gabriel:
   1. ~~Swap the word and show Undo, or only offer it on the bar?~~ Decided 12 Nov
      2026 (Gabriel): **swap it and show Undo**.
-  2. A switch on the Typing page, on by default ("Fix words as you go")? Recommended.
+  2. ~~A switch on the Typing page?~~ Built as recommended ("Rebase and build it",
+     12 Nov 2026): **Fix words as you go**, on by default.
 
 ## Design
 
-Status: Draft
+Status: Approved 2026-11-12 (Gabriel: "Rebase and build it", in the project thread)
 
 - **Mockups:** none new. It reuses the change note from features/fix-earlier-word:
   `features/fix-earlier-word/design/screens/swapped.png` ("Changed “cage” to “cafe”",
   Undo). Here it reads "Changed “thai” to “this”".
 - **What changes:**
-  - The guesses bar: after a swap, the change note with Undo shows for 3 seconds, then
-    the bar goes back to what it would show (the next words, or the FIX readings for the
-    word just typed).
+  - The guesses bar: after a swap, the change note with Undo shows for up to 4 seconds
+    (the note fix-earlier-word uses), and goes as soon as typing goes on; Undo works
+    until the next touch.
   - Typing settings: a new switch, **Fix words as you go**, with the footer "When the
     next word shows the one before was wrong, Astrotype changes it. Only while you're
     typing fast." Under the other autocorrect switches (Real words, Split words).
@@ -107,7 +108,7 @@ Status: Draft
 
 ## Build
 
-Status: Draft
+Status: Approved 2026-11-12 (Gabriel: "Rebase and build it", in the project thread)
 
 - **Approach:** all in the core (`Composer`); the keyboard model only shows the note
   and plays the text edits it already knows.
@@ -146,3 +147,34 @@ Status: Draft
   keyboard (it never sends metrics itself) and sent by the app with `Telemetry`, like
   `earlier.*`.
 - **Last step:** fold this feature into `PRODUCT.md` and `DESIGN.md`.
+
+## Notes as built (12 Nov 2026)
+
+- **Measured (phase 1)** with `LookBackTests.measureMargins` (`LOOKBACK_MEASURE=1 swift
+  test -c release -Xswiftc -enable-testing --filter LookBackTests`): 146 everyday
+  sentences (`Tests/.../Fixtures/look-back-sentences.txt`, about 920 words) typed by
+  `SyntheticTyping` fast (the next word 0.3 s after the space), with the word pairs as
+  the follow score (no Core ML on Linux; the phone uses the next-word model). At the
+  shipped margin 0.3:
+
+  | Typing | Wrong without | Fixed | Broken |
+  | --- | --- | --- | --- |
+  | One swipe, neat (noise 0.2) | 8 (0.9%) | 2 | 0 |
+  | One swipe, sloppy (0.35) | 90 (12.0%) | 1 | 0 |
+  | Two thumbs, neat (0.2) | 22 (2.4%) | 9 | 0 |
+  | Two thumbs, sloppy (0.35) | 152 (16.5%) | 45 | 0 |
+
+  57 fixed, none broken: well inside the ship rule. Margin 0.1 broke 3 and 0.2 broke 1;
+  0.4 and 0.5 fixed fewer. Typical fixes: "teh is" → "the", "ro be" → "to", "os" →
+  "is", "to expensive" → "too", "tried of" → "tired". With a 1.2 s pause before each
+  next word: no swaps (`aPauseKeepsTheWord`).
+- **Pecked words that spell a word** ("thai") had only longer words behind them on the
+  bar, so their check also reads the real words the taps were close to
+  (`Matcher.tappedReadings`).
+- **Code:** `LookBack.choose` (the pick), `Matcher.followBonus` (the next word's say:
+  the model, else the pairs, plus the person's own pairs) and `tappedReadings`;
+  `Composer.lookBack()` runs as each word goes in, `waiting` holds the word before
+  until then (a word whose next word started over 1 s later settles at once),
+  `lookBackStart` 1 s, `lookBackEnd` 2 s. Undo goes through `undoEarlierFix()`
+  (`undoesLookBack` tells the two apart); `KeyboardModel` says the swap when
+  `lookBackCount` goes up. Only a space after the word counts as the same sentence.

@@ -1296,10 +1296,14 @@ public final class TextViewTarget: TextTarget {
         guard let textView, text != open else { return }
         isSwappingWord = true
         defer { isSwappingWord = false }
+        // Only the end that differs, as in the keyboard's `ProxyTarget`.
+        var kept = 0
         if !open.isEmpty, (beforeCursor ?? "").hasSuffix(open) {
-            for _ in 0..<open.count { textView.deleteBackward() }
+            kept = zip(open, text).prefix { $0 == $1 }.count
+            for _ in 0..<(open.count - kept) { textView.deleteBackward() }
         }
-        if !text.isEmpty { textView.insertText(text) }
+        let added = String(text.dropFirst(kept))
+        if !added.isEmpty { textView.insertText(added) }
         open = text
     }
     public func unmark() { open = "" }

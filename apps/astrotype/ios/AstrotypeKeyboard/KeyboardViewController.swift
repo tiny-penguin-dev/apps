@@ -722,13 +722,27 @@ final class ProxyTarget: TextTarget {
             openDocument = documentID
             if !text.isEmpty { replaceSelection() }
         }
-        // Take the old reading out, unless the cursor moved away from it (then it stays
-        // as typed). A field that hides its text (nil) is trusted to be where we left it.
+        // Take out only the end of the old reading that differs, unless the cursor moved
+        // away from it (then it stays as typed). A field that hides its text (nil) is
+        // trusted to be where we left it.
+        //
+        // The whole word used to be deleted and typed again on every letter. In some
+        // apps the field fell behind those edits while typing fast and showed the
+        // word twice ("Jajajaja Jajajaja veremos"; Gabriel, 11 Nov 2026). Most letters
+        // now just add one letter.
+        var kept = 0
         if !open.isEmpty, proxy.documentContextBeforeInput.map({ $0.hasSuffix(open) }) ?? true {
-            for _ in 0..<open.count { proxy.deleteBackward() }
+            kept = Self.shared(open, text)
+            for _ in 0..<(open.count - kept) { proxy.deleteBackward() }
         }
-        if !text.isEmpty { proxy.insertText(text) }
+        let added = String(text.dropFirst(kept))
+        if !added.isEmpty { proxy.insertText(added) }
         open = text
+    }
+
+    /// How many characters `old` and `new` start with in common.
+    static func shared(_ old: String, _ new: String) -> Int {
+        zip(old, new).prefix { $0 == $1 }.count
     }
 
     /// The open word is already in the field as ordinary text: just let go of it.

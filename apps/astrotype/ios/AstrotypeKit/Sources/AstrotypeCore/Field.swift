@@ -59,6 +59,10 @@ public struct Field: Sendable, Equatable, Codable {
         /// An action: drawn on blue, like Apple's. Next and the arrow stay grey.
         public var isAction: Bool { self != .return && self != .next }
 
+        /// Return does something in the app (search, go, send, next, ...) instead of
+        /// starting a new line. The app only does it when the "\n" reaches it alone.
+        public var acts: Bool { self != .return }
+
         /// What VoiceOver says for the key.
         public var spokenName: String { label.map { $0.prefix(1).uppercased() + $0.dropFirst() } ?? "Return" }
     }
@@ -173,6 +177,7 @@ public struct Field: Sendable, Equatable, Codable {
         out.spacesWords = spacesWords
         out.replacesText = replacesText
         out.autofill = autofillSlots
+        out.returnActs = returnKey.acts
         return out
     }
 }

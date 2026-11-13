@@ -62,11 +62,12 @@ import Testing
     /// `margin` nil types with looking back off. `pause` is added before each word after
     /// the first. Returns the words in the field and how many swaps were made.
     static func type(_ recording: PracticeRecording, margin: Double?, pause: TimeInterval = 0,
-                     undo: Bool = false) -> (words: [String], swaps: Int) {
+                     undo: Bool = false, returnActs: Bool? = nil) -> (words: [String], swaps: Int, onReturn: Int) {
         let layout = Layout.qwerty(width: recording.layoutWidth, split: recording.split, height: recording.layoutHeight)
         var settings = Replay.settings
         settings.autospaceDelay = nil
         settings.fixesAsYouGo = margin != nil
+        settings.returnActs = returnActs ?? false
         var composer = Composer(language: english, layout: layout, settings: settings)
         if let margin { composer.lookBackMargin = margin }
         var field = Field()
@@ -74,12 +75,14 @@ import Testing
         events.sort { $0.time == $1.time ? $0.order < $1.order : $0.time < $1.time }
         var shift = 0.0
         var spaced = false
+        var onReturn = 0
+        let last = events.lastIndex { if case .commit = $0.kind { true } else { false } }
         func apply(_ effects: [Composer.Effect]) {
             field.apply(effects)
             composer.setContext(before: field.text)
         }
         composer.setContext(before: "")
-        for event in events {
+        for (index, event) in events.enumerated() {
             switch event.kind {
             case .down(let point):
                 if spaced { shift += pause; spaced = false }
@@ -88,7 +91,10 @@ import Testing
             case .up(let point): apply(composer.touchUp(id: event.id, at: point, time: event.time + shift))
             case .commit:
                 let swaps = composer.lookBackCount
-                apply(composer.press(.space, time: event.time + shift))
+                // With `returnActs` set, the last word goes in with return, as in a search.
+                let key: Key = returnActs != nil && index == last ? .returnKey : .space
+                apply(composer.press(key, time: event.time + shift))
+                if key == .returnKey { onReturn = composer.lookBackCount - swaps }
                 if undo, composer.lookBackCount > swaps {
                     #expect(composer.undoesLookBack)
                     apply(composer.undoEarlierFix())
@@ -98,7 +104,7 @@ import Testing
             }
         }
         apply(composer.reset())
-        return (field.words, composer.lookBackCount)
+        return (field.words, composer.lookBackCount, onReturn)
     }
 
     static let sentences: [[String]] = {
@@ -173,6 +179,21 @@ import Testing
                                               sentences: Array(Self.sentences.prefix(30)))[LookBack.margin])
         #expect(count.swaps >= 3)
         #expect(count.fixed == 0 && count.broken == 0, "\(count.examples)")
+    }
+
+    /// Return in a search or a message field: the app has already searched or sent
+    /// by the time the next word could fix the one before, so look-back leaves it
+    /// (13 Nov 2026). As a plain new line it still looks back.
+    @Test func noLookingBackOnceReturnActs() {
+        var typing = SyntheticTyping(layout: Synth.layout, noise: 0.35, thumbs: .two(wobble: 0.04), seed: 11)
+        var newLine = 0, acting = 0
+        for words in Self.sentences.prefix(60) {
+            let recording = typing.record(words)
+            newLine += Self.type(recording, margin: LookBack.margin, returnActs: false).onReturn
+            acting += Self.type(recording, margin: LookBack.margin, returnActs: true).onReturn
+        }
+        #expect(newLine > 0)
+        #expect(acting == 0)
     }
 
     /// A word typed fast waits to settle (and be learned) until the next word is in and

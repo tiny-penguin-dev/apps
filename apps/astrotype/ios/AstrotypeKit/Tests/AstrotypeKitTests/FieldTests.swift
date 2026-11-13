@@ -19,6 +19,15 @@ import Testing
         #expect(Field(keyboard: .phone).kind == .numbers)
     }
 
+    /// Return acts (search, go, send, next...) everywhere but the plain return key, and
+    /// the composer is told, so nothing changes the text after the "\n" has gone.
+    @Test func returnActsUnlessItIsAPlainReturn() {
+        for key in Field.ReturnKey.allCases {
+            let settings = Field(returnKey: key).composerSettings(Composer.Settings())
+            #expect(settings.returnActs == (key != .return))
+        }
+    }
+
     @Test func addressesAndNumbersAreTypedExactlyWithNoSpacesOrCapitals() {
         for field in [Field(keyboard: .email), Field(keyboard: .url), Field(keyboard: .numbers)] {
             #expect(field.exactTaps)

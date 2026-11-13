@@ -1098,6 +1098,47 @@ public final class KeyboardModel {
     private var now: TimeInterval { ProcessInfo.processInfo.systemUptime }
 
     private func apply(_ effects: [Composer.Effect]) {
+        // A return in a field whose return key acts (search, go, send): the "\n" goes to
+        // the app on its own, a moment after the word before it. iOS hands the app what
+        // the keyboard typed in one turn as one piece, so a word fixed as it went in
+        // and the "\n" reached the app together as "word\n": text, not the key, and
+        // the field got a new line and needed a second return (Gabriel, 13 Nov 2026).
+        sendReturn()
+        if field.returnKey.acts, let cut = Self.returnCut(effects) {
+            let typed = perform(effects[..<cut])
+            pendingReturn = { [weak self] in
+                guard let self else { return }
+                self.finish(effects, typed: typed + self.perform(effects[cut...]))
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + Self.returnWait) { [weak self] in self?.sendReturn() }
+            return
+        }
+        finish(effects, typed: perform(effects[...]))
+    }
+
+    /// The return held back by `apply`, waiting for iOS to hand the word before it over.
+    private var pendingReturn: (() -> Void)?
+    /// Long enough for iOS to send what was typed before it on its own.
+    private static let returnWait: TimeInterval = 0.05
+
+    /// Sends a held-back return now: when its wait is over, or before anything else is
+    /// typed, so nothing goes in ahead of it.
+    private func sendReturn() {
+        guard let pendingReturn else { return }
+        self.pendingReturn = nil
+        pendingReturn()
+    }
+
+    /// Where a return's "\n" must wait for the next turn: after something else that
+    /// changed the field's text in the same effects.
+    static func returnCut(_ effects: [Composer.Effect]) -> Int? {
+        guard let cut = effects.firstIndex(of: .insert("\n")) else { return nil }
+        return effects[..<cut].contains(where: editsField) ? cut : nil
+    }
+
+    /// Writes the effects into the field and keeps the learned words; returns how many
+    /// characters that typed (deletes count against it).
+    private func perform(_ effects: ArraySlice<Composer.Effect>) -> Int {
         var typed = 0
         for effect in effects {
             switch effect {
@@ -1146,6 +1187,12 @@ public final class KeyboardModel {
                 output?.moveCursor(by: offset)
             }
         }
+        return typed
+    }
+
+    /// After the effects are in: the speed, the context, look-back's note, the log and
+    /// the autospace timer.
+    private func finish(_ effects: [Composer.Effect], typed: Int) {
         if measuringSpeed { speed.edited(characters: typed, at: now) }
         if effects.contains(where: Self.editsField) {
             lastOwnEdit = now

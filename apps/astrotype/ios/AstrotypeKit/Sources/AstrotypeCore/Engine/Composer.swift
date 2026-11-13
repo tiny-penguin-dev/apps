@@ -75,6 +75,10 @@ public struct Composer: Sendable {
         /// When the next word, typed fast, shows the word before was the wrong reading
         /// of its swipe or taps, swap it for the right one (features/look-back).
         public var fixesAsYouGo = true
+        /// Return is the field's action key (search, go, send, next, ...), not a new
+        /// line (`Field.ReturnKey.acts`). Nothing may change the text once the "\n" has
+        /// gone, since the app has already acted on it.
+        public var returnActs = false
         public init() {}
     }
 
@@ -1292,6 +1296,8 @@ public struct Composer: Sendable {
               let start = last.pieces.map(\.start).min(), let end = last.pieces.map(\.end).max(),
               start - went <= Self.lookBackStart, end - went <= Self.lookBackEnd,
               last.replaced == nil, Self.withoutOpenWord(contextBefore).hasSuffix(earlier.word + earlier.trailing),
+              // The app has acted on the return already (searched, sent): leave the text.
+              !(settings.returnActs && last.trailing.contains("\n")),
               let current = earlier.readings.firstIndex(where: { $0.word == earlier.word.lowercased() }) else { return [] }
         let models = nextWordModels.filter { lockedLanguage == nil || $0.code == lockedLanguage }
         let next = last.word
@@ -1384,8 +1390,17 @@ public struct Composer: Sendable {
         return String(pieces.sorted { $0.start < $1.start }.flatMap(\.keys))
     }
 
+    /// What goes in after a word: nothing, or its own insert, so a return's "\n" reaches
+    /// the app alone and the app runs its action (search, go, send) instead of taking it
+    /// as a new line.
+    static func trailing(_ trailing: String) -> [Effect] { trailing.isEmpty ? [] : [.insert(trailing)] }
+
     private mutating func commit(trailing: String, time: TimeInterval, byHand: Bool = false) -> [Effect] {
-        if !byHand { settleGuesses() }
+        // A return that acts (search, go, send) takes pecked letters as they are: "sli"
+        // searched once the app offered Slickdeals, not fixed to a word ("i"; Gabriel,
+        // 13 Nov 2026). A search is often the start of a word or a name.
+        let searched = settings.returnActs && trailing == "\n"
+        if !byHand, !searched { settleGuesses() }
         guard case .guesses(let words, let chosen) = state.bar, words.indices.contains(chosen) else {
             pieces = []
             candidates = []
@@ -1399,7 +1414,9 @@ public struct Composer: Sendable {
         joinable = nil
         if let found = shortcut(for: word) { return replace(word, with: found, guesses: words, chosen: chosen, trailing: trailing) }
         if !byHand, let before, let joined = join(word, to: before, trailing: trailing) { return joined }
-        let learn = wordToLearn(word)
+        // Letters searched as they are are not learned as a new word: they are mostly
+        // the start of one.
+        let learn = searched && !matcher.learned.contains(word.lowercased()) ? nil : wordToLearn(word)
         committed = Committed(word: word, trailing: trailing, pieces: pieces, guesses: words, casing: casing,
                               previous: matcher.context.last, firstGuess: words.first, learned: learn,
                               readings: settings.fixesAsYouGo && !byHand ? lookBackReadings(chosen: word) : [],
@@ -1409,7 +1426,7 @@ public struct Composer: Sendable {
         autospaceDue = nil
         state.bar = words.count > 1 ? .fix(words, chosen: chosen) : .idle
         refreshState()
-        var effects: [Effect] = [.commit(word)] + (trailing.isEmpty ? [] : [.insert(trailing)]) + [.haptic(.commit)]
+        var effects: [Effect] = [.commit(word)] + Self.trailing(trailing) + [.haptic(.commit)]
         effects += lookBack()
         return effects
     }
@@ -1726,9 +1743,8 @@ public struct Composer: Sendable {
         let effects: [Effect] = [
             .commit(word),
             .deleteBackward(before.word.count + before.trailing.count + word.count),
-            .insert(joined + trailing),
-            .haptic(.commit),
-        ]
+            .insert(joined),
+        ] + Self.trailing(trailing) + [.haptic(.commit)]
         return effects
     }
 

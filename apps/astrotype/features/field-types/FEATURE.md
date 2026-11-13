@@ -172,3 +172,12 @@ Status: Approved 2026-11-03 (built with the design, as Gabriel asked)
 - **Metrics:** none (see Product).
 - **Last step:** folded into `DESIGN.md` ("The keyboard", "Field types") and
   `PRODUCT.md` in this PR.
+
+## Notes as it shipped
+
+- **Return that acts (13 Nov 2026, PR #236).** Where return is Search, Go, Send, Next
+  and the rest, the app only acts on a "\n" that arrives alone, so the keyboard sends
+  the word first and the "\n" a moment later (`KeyboardModel.apply`). Pecked letters go
+  in as typed on such a return ("sli" searched once the app offered Slickdeals, not
+  fixed to "i"), aren't learned, and look-back leaves the word before alone
+  (`Composer.Settings.returnActs`).

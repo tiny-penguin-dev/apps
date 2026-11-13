@@ -1396,7 +1396,11 @@ public struct Composer: Sendable {
     static func trailing(_ trailing: String) -> [Effect] { trailing.isEmpty ? [] : [.insert(trailing)] }
 
     private mutating func commit(trailing: String, time: TimeInterval, byHand: Bool = false) -> [Effect] {
-        if !byHand { settleGuesses() }
+        // A return that acts (search, go, send) takes pecked letters as they are: "sli"
+        // searched once the app offered Slickdeals, not fixed to a word ("i"; Gabriel,
+        // 13 Nov 2026). A search is often the start of a word or a name.
+        let searched = settings.returnActs && trailing == "\n"
+        if !byHand, !searched { settleGuesses() }
         guard case .guesses(let words, let chosen) = state.bar, words.indices.contains(chosen) else {
             pieces = []
             candidates = []
@@ -1410,7 +1414,9 @@ public struct Composer: Sendable {
         joinable = nil
         if let found = shortcut(for: word) { return replace(word, with: found, guesses: words, chosen: chosen, trailing: trailing) }
         if !byHand, let before, let joined = join(word, to: before, trailing: trailing) { return joined }
-        let learn = wordToLearn(word)
+        // Letters searched as they are are not learned as a new word: they are mostly
+        // the start of one.
+        let learn = searched && !matcher.learned.contains(word.lowercased()) ? nil : wordToLearn(word)
         committed = Committed(word: word, trailing: trailing, pieces: pieces, guesses: words, casing: casing,
                               previous: matcher.context.last, firstGuess: words.first, learned: learn,
                               readings: settings.fixesAsYouGo && !byHand ? lookBackReadings(chosen: word) : [],

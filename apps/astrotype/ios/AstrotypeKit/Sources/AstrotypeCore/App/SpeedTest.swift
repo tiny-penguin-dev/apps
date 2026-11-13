@@ -145,7 +145,10 @@ public struct SpeedTest: Sendable, Equatable {
 
     /// The field changed: `field` is everything in it, for the current sentence (the
     /// screen empties it when a sentence is done). A word counts once a space (or
-    /// punctuation) follows it; the word being typed doesn't count yet.
+    /// punctuation) follows it; the word being typed doesn't count yet, except the
+    /// sentence's last word: once it's typed right, the sentence is done without a
+    /// space after it (Gabriel, 13 Nov 2026). Only the whole word ends it, so "ho" on
+    /// the way to "home" waits.
     @discardableResult
     public mutating func follow(field: String, at time: TimeInterval) -> Outcome {
         lastMissed = false
@@ -153,7 +156,11 @@ public struct SpeedTest: Sendable, Equatable {
         guard !current.isEmpty else { return .next }
         if !field.isEmpty { start(at: time) }
         let done = Self.doneWords(in: field)
-        let line = Self.align(done, to: current)
+        var line = Self.align(done, to: current)
+        if let open = Self.openWord(in: field), open == current.last {
+            let closed = Self.align(done + [open], to: current)
+            if closed.count == current.count { line = closed }
+        }
         let before = word
         word = line.count
         missedNow = line.wrong
@@ -226,6 +233,15 @@ public struct SpeedTest: Sendable, Equatable {
             pieces.removeLast()
         }
         return pieces.map(normalize).filter { !$0.isEmpty }
+    }
+
+    /// The word still being typed at the end of the field (no space or punctuation
+    /// after it yet), normalized; nil when there's none.
+    public static func openWord(in field: String) -> String? {
+        guard let last = field.last, !last.isWhitespace, !last.isPunctuation,
+              let piece = field.split(whereSeparator: \.isWhitespace).last else { return nil }
+        let word = normalize(String(piece))
+        return word.isEmpty ? nil : word
     }
 
     /// Lines the words typed up with the sentence's words: how far into the sentence

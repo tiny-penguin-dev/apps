@@ -60,6 +60,34 @@ import Testing
         #expect(result?.seconds == 30)
     }
 
+    /// The last word of a sentence ends it as soon as it's typed right, no space needed
+    /// (Gabriel, 13 Nov 2026); part of it, or a wrong word, waits for more.
+    @Test func theLastWordEndsTheSentenceWithoutASpace() {
+        var test = SpeedTest(sentences: ["walk home", "we did"])
+        #expect(test.follow(field: "walk ho", at: 1) == .next)
+        #expect(test.typed == ["walk"])
+        #expect(test.follow(field: "walk homs", at: 2) == .next)
+        #expect(test.typed == ["walk"])
+        #expect(test.follow(field: "walk Home", at: 3) == .sentence)
+        #expect(test.misses == 0)
+        // Mid sentence, a right word still waits for its space.
+        #expect(test.follow(field: "we", at: 4) == .next)
+        #expect(test.typed.isEmpty)
+        #expect(test.follow(field: "we di", at: 5) == .next)
+        #expect(test.follow(field: "we did", at: 6) == .finished)
+        #expect(test.finished == 6)
+        // A wrong word earlier stays a miss; the right last word still ends it.
+        var slip = SpeedTest(sentences: ["walk home"])
+        #expect(slip.follow(field: "wake home", at: 1) == .finished)
+        #expect(slip.misses == 1)
+        // The last word typed too early in the sentence doesn't end it.
+        var early = SpeedTest(sentences: ["go home now home"])
+        #expect(early.follow(field: "go home", at: 1) == .next)
+        #expect(SpeedTest.openWord(in: "go ho") == "ho")
+        #expect(SpeedTest.openWord(in: "go ho ") == nil)
+        #expect(SpeedTest.openWord(in: "go ho.") == nil)
+    }
+
     @Test func theClockStartsOnTheFirstTouchOrWord() {
         var test = SpeedTest(sentences: ["hi there"])
         #expect(test.elapsed(at: 5) == 0)

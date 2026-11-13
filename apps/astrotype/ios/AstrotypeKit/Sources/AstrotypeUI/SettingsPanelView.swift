@@ -7,8 +7,9 @@ import UIKit
 /// few, so they can change without leaving the app being typed in, and so people
 /// without Full Access (where the app's Settings can't reach the keyboard) can still
 /// change them. Quick tiles (autospace, next word, the guesses bar, haptics, effects,
-/// and the split on a wide screen) and four sliders (height, real words, split words,
-/// and autospace's wait), a Languages row that opens the list of languages
+/// and the split on a wide screen), the height slider, Autocorrect's four levels with the
+/// Fix missed spaces switch (Gabriel, 13 Nov 2026: in place of two sliders), autospace's
+/// wait, a Languages row that opens the list of languages
 /// (features/languages: any one free, two at once Pro), and a Theme row that opens the
 /// themes (features/customization: Classic free, the rest Pro). The rest lives in the app.
 /// Above them, "Switch keyboard" (iOS's own: a tap goes to the next keyboard, a hold
@@ -108,10 +109,10 @@ public final class SettingsPanelView: UIView {
     // 9 Nov 2026: the sliders weren't clear, "what is it waiting for?").
     private let height = SliderRow(title: "Height", range: KeyboardSettings.heightRange, label: "Keyboard height",
                                    info: "How tall the keys are. At 100% every key sits right where Apple's keyboard puts it.")
-    private let strict = SliderRow(title: "Real words", range: 0...1, label: "Real words",
-                                   info: "When letters you tap don't spell a word, how readily it swaps in the closest real word. Higher swaps more often; lower leaves what you typed.")
-    private let split = SliderRow(title: "Split words", range: 0...1, label: "Split words",
-                                  info: "How readily it adds a space you missed (\u{201C}textseparately\u{201D} becomes \u{201C}text separately\u{201D}) or takes out one autospace put inside a word. At 0 it never does.")
+    private let strict = ChoiceRow(title: "Autocorrect", choices: KeyboardSettings.Autocorrect.allCases.map(\.shortTitle),
+                                   info: "When letters you tap don't spell a word, how readily it swaps in a real word. It holds back on its own: slow taps only get a one-letter slip fixed, and letters right after @ or # stay as you tap them.")
+    private let split = SwitchRow(title: "Fix missed spaces",
+                                  info: "Adds a space you missed (\u{201C}textseparately\u{201D} becomes \u{201C}text separately\u{201D}) or takes out one autospace put inside a word, as readily as Autocorrect says.")
     private let wait = SliderRow(title: "Autospace wait", range: KeyboardSettings.delayRange, label: "Autospace wait",
                                  info: "After you swipe a word and lift your finger, how long autospace waits before it writes the word and a space. Shorter is faster, but a pause mid-word can cut it in two.")
     private let note = UILabel()
@@ -217,8 +218,8 @@ public final class SettingsPanelView: UIView {
             // In 5% steps, so 100% (Apple's) is easy to land on.
             self?.update { $0.keyboardHeight = (value * 20).rounded() / 20 }
         }
-        strict.onChange = { [weak self] value in self?.update { $0.wordStrictness = (value * 100).rounded() / 100 } }
-        split.onChange = { [weak self] value in self?.update { $0.splitStrictness = (value * 100).rounded() / 100 } }
+        strict.onChange = { [weak self] index in self?.update { $0.autocorrect = KeyboardSettings.Autocorrect.allCases[index] } }
+        split.onChange = { [weak self] isOn in self?.update { $0.fixesSpaces = isOn } }
         wait.onChange = { [weak self] value in self?.update { $0.autospaceDelay = (value * 10).rounded() / 10 } }
 
         note.font = Theme.uiFont(size: 13, weight: .regular, scaledWith: .footnote, upTo: 18)
@@ -278,7 +279,7 @@ public final class SettingsPanelView: UIView {
         sliders.layer.cornerCurve = .continuous
         sliders.isLayoutMarginsRelativeArrangement = true
         sliders.directionalLayoutMargins = NSDirectionalEdgeInsets(top: 0, leading: Theme.Space.m, bottom: 0, trailing: Theme.Space.m)
-        for (index, row) in [height, strict, split, wait].enumerated() {
+        for (index, row) in ([height, strict, split, wait] as [UIStackView]).enumerated() {
             if index > 0 {
                 let line = UIView()
                 line.backgroundColor = Theme.ui(.kb)
@@ -288,9 +289,7 @@ public final class SettingsPanelView: UIView {
             sliders.addArrangedSubview(row)
         }
         // The sliders start at the same place.
-        for row in [strict, split, wait] {
-            row.label.widthAnchor.constraint(equalTo: height.label.widthAnchor).isActive = true
-        }
+        wait.label.widthAnchor.constraint(equalTo: height.label.widthAnchor).isActive = true
 
         column.axis = .vertical
         column.spacing = Theme.Space.s
@@ -447,8 +446,9 @@ public final class SettingsPanelView: UIView {
         splitTile.subtitle = allowsSplit ? nil : "PRO"
 
         height.set(Double(settings.heightScale), text: percent(Double(settings.heightScale)))
-        strict.set(settings.wordStrictness, text: percent(settings.wordStrictness))
-        split.set(settings.splitStrictness, text: percent(settings.splitStrictness))
+        strict.set(KeyboardSettings.Autocorrect.allCases.firstIndex(of: settings.autocorrect) ?? 1)
+        split.set(settings.fixesSpaces)
+        split.isEnabled = settings.autocorrect != .never
         wait.set(settings.autospaceDelay, text: "\(String(format: "%.1f", settings.autospaceDelay)) s",
                  spoken: "\(String(format: "%.1f", settings.autospaceDelay)) seconds")
         wait.slider.isEnabled = settings.autospace
@@ -842,6 +842,141 @@ private final class SliderRow: UIStackView {
         if !slider.isTracking { slider.value = Float(number) }
         value.text = text
         slider.accessibilityValue = spoken ?? text
+    }
+}
+
+/// The ⓘ at a row's end and the note it shows under the row.
+@MainActor
+private func infoParts(label: String, info: String, onTap: @escaping () -> Void) -> (UIButton, UILabel) {
+    let button = UIButton(configuration: .plain())
+    var config = UIButton.Configuration.plain()
+    config.image = UIImage(systemName: "info.circle", withConfiguration: UIImage.SymbolConfiguration(pointSize: 15, weight: .semibold))
+    config.baseForegroundColor = Theme.ui(.muted)
+    config.contentInsets = NSDirectionalEdgeInsets(top: 8, leading: 4, bottom: 8, trailing: 0)
+    button.configuration = config
+    button.setContentHuggingPriority(.required, for: .horizontal)
+    button.setContentCompressionResistancePriority(.required, for: .horizontal)
+    button.accessibilityLabel = "About \(label)"
+    button.addAction(UIAction { _ in onTap() }, for: .touchUpInside)
+    let detail = UILabel()
+    detail.text = info
+    detail.font = Theme.uiFont(size: 13, weight: .regular, scaledWith: .footnote, upTo: 18)
+    detail.textColor = Theme.ui(.muted)
+    detail.adjustsFontForContentSizeCategory = true
+    detail.numberOfLines = 0
+    detail.isHidden = true
+    return (button, detail)
+}
+
+@MainActor
+private func toggle(_ detail: UILabel, button: UIButton, in view: UIView) {
+    let show = detail.isHidden
+    UIView.animate(withDuration: UIAccessibility.isReduceMotionEnabled ? 0 : 0.2) {
+        detail.isHidden = !show
+        detail.alpha = show ? 1 : 0
+        view.superview?.layoutIfNeeded()
+    }
+    button.configuration?.image = UIImage(systemName: show ? "info.circle.fill" : "info.circle",
+                                          withConfiguration: UIImage.SymbolConfiguration(pointSize: 15, weight: .semibold))
+    if show { UIAccessibility.post(notification: .announcement, argument: detail.text) }
+}
+
+private func rowLabel(_ title: String) -> UILabel {
+    let label = UILabel()
+    label.text = title
+    label.font = Theme.uiFont(size: 15, weight: .semibold, scaledWith: .body, upTo: 22)
+    label.textColor = Theme.ui(.ink)
+    label.adjustsFontForContentSizeCategory = true
+    label.numberOfLines = 0
+    label.isAccessibilityElement = false
+    return label
+}
+
+/// A few choices in a segmented control under the row's title, with an ⓘ.
+private final class ChoiceRow: UIStackView {
+    let control: UISegmentedControl
+    private var detail = UILabel()
+    private var infoButton = UIButton()
+    var onChange: ((Int) -> Void)?
+
+    init(title: String, choices: [String], info: String) {
+        control = UISegmentedControl(items: choices)
+        super.init(frame: .zero)
+        axis = .vertical
+        spacing = Theme.Space.xs
+        isLayoutMarginsRelativeArrangement = true
+        directionalLayoutMargins = NSDirectionalEdgeInsets(top: Theme.Space.xs, leading: 0, bottom: Theme.Space.s, trailing: 0)
+        (infoButton, detail) = infoParts(label: title, info: info) { [weak self] in
+            guard let self else { return }
+            toggle(self.detail, button: self.infoButton, in: self)
+        }
+        let label = rowLabel(title)
+        let header = UIStackView(arrangedSubviews: [label, UIView(), infoButton])
+        header.axis = .horizontal
+        header.alignment = .center
+        header.heightAnchor.constraint(greaterThanOrEqualToConstant: 32).isActive = true
+        control.accessibilityLabel = title
+        control.addAction(UIAction { [weak self] _ in
+            guard let self else { return }
+            self.onChange?(self.control.selectedSegmentIndex)
+        }, for: .valueChanged)
+        addArrangedSubview(header)
+        addArrangedSubview(control)
+        addArrangedSubview(detail)
+    }
+
+    required init(coder: NSCoder) { fatalError("init(coder:) is not supported") }
+
+    func set(_ index: Int) {
+        if control.selectedSegmentIndex != index { control.selectedSegmentIndex = index }
+    }
+}
+
+/// A title and a switch, with an ⓘ.
+private final class SwitchRow: UIStackView {
+    let toggleSwitch = UISwitch()
+    private var detail = UILabel()
+    private var infoButton = UIButton()
+    var onChange: ((Bool) -> Void)?
+    var isEnabled = true {
+        didSet {
+            toggleSwitch.isEnabled = isEnabled
+            alpha = isEnabled ? 1 : 0.45
+        }
+    }
+
+    init(title: String, info: String) {
+        super.init(frame: .zero)
+        axis = .vertical
+        isLayoutMarginsRelativeArrangement = true
+        directionalLayoutMargins = NSDirectionalEdgeInsets(top: Theme.Space.xs, leading: 0, bottom: Theme.Space.xs, trailing: 0)
+        (infoButton, detail) = infoParts(label: title, info: info) { [weak self] in
+            guard let self else { return }
+            toggle(self.detail, button: self.infoButton, in: self)
+        }
+        let label = rowLabel(title)
+        toggleSwitch.onTintColor = Theme.ui(.accent)
+        toggleSwitch.accessibilityLabel = title
+        toggleSwitch.accessibilityHint = info
+        toggleSwitch.setContentHuggingPriority(.required, for: .horizontal)
+        toggleSwitch.addAction(UIAction { [weak self] _ in
+            guard let self else { return }
+            self.onChange?(self.toggleSwitch.isOn)
+        }, for: .valueChanged)
+        let row = UIStackView(arrangedSubviews: [label, UIView(), toggleSwitch, infoButton])
+        row.axis = .horizontal
+        row.alignment = .center
+        row.spacing = Theme.Space.s
+        row.heightAnchor.constraint(greaterThanOrEqualToConstant: 36).isActive = true
+        addArrangedSubview(row)
+        addArrangedSubview(detail)
+        setCustomSpacing(Theme.Space.xs, after: row)
+    }
+
+    required init(coder: NSCoder) { fatalError("init(coder:) is not supported") }
+
+    func set(_ isOn: Bool) {
+        if toggleSwitch.isOn != isOn { toggleSwitch.setOn(isOn, animated: false) }
     }
 }
 

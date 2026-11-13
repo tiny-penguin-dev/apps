@@ -323,8 +323,8 @@ with Full Access, in the App Group too through `MirroredWordStore` and
 reads and writes the App Group copies. A word pecked out tap by tap that neither the
 dictionary nor the person's words know comes back from `Composer` as `.learn` on
 commit; `KeyboardModel` adds it with the time and saves. Since 2 Nov 2026 such letters
-only go in when no real word is close enough to them ("Real words" in Settings,
-`Matcher.strictness`, default 80%): otherwise the nearest real word does, with the
+only go in when no real word is close enough to them (Autocorrect in Settings,
+`Matcher.strictness`, "Most of the time" by default): otherwise the nearest real word does, with the
 letters behind it on the bar, so only letters typed on purpose are learned. Learned
 words also count their uses (`LearnedWords.Entry.uses`): written once a word ranks as
 rare (`learnedPrior`, -10), each e-fold of uses lifts it 1.5 (`LearnedWords.logPrior`,

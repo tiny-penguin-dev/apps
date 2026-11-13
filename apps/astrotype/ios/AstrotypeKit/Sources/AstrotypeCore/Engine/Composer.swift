@@ -1383,10 +1383,20 @@ public struct Composer: Sendable {
         return rest.isEmpty ? nil : cased(rest)
     }
 
-    /// The open word's letters exactly as tapped, when taps are typed exactly and
-    /// every piece is a tap.
+    /// The open word comes right after an @ or a # ("@vady" on the way to a GitHub
+    /// handle, "#tbt"): a name or a tag, rarely a dictionary word, so taps go in
+    /// exactly as tapped (the nearest words wait in the bar), are never learned, and
+    /// are never looked back at. Swipes still read as words (Gabriel, 13 Nov 2026:
+    /// "@vady" kept turning into "day").
+    var afterTag: Bool {
+        guard let last = tokenBefore.last else { return false }
+        return last == "@" || last == "#"
+    }
+
+    /// The open word's letters exactly as tapped, when taps are typed exactly (the
+    /// field says so, or the word follows an @ or a #) and every piece is a tap.
     private var tappedLetters: String? {
-        guard settings.exactTaps, !pieces.isEmpty, pieces.allSatisfy(\.isTap) else { return nil }
+        guard settings.exactTaps || afterTag, !pieces.isEmpty, pieces.allSatisfy(\.isTap) else { return nil }
         return String(pieces.sorted { $0.start < $1.start }.flatMap(\.keys))
     }
 
@@ -1419,7 +1429,7 @@ public struct Composer: Sendable {
         let learn = searched && !matcher.learned.contains(word.lowercased()) ? nil : wordToLearn(word)
         committed = Committed(word: word, trailing: trailing, pieces: pieces, guesses: words, casing: casing,
                               previous: matcher.context.last, firstGuess: words.first, learned: learn,
-                              readings: settings.fixesAsYouGo && !byHand ? lookBackReadings(chosen: word) : [],
+                              readings: settings.fixesAsYouGo && !byHand && !afterTag ? lookBackReadings(chosen: word) : [],
                               time: time, before: Self.withoutOpenWord(contextBefore), byHand: byHand)
         pieces = []
         candidates = []
@@ -1766,7 +1776,7 @@ public struct Composer: Sendable {
     /// letters that read as two words with the space missed ("textseparately"), which
     /// wait in the bar for "Learn it".
     private func wordToLearn(_ word: String) -> String? {
-        guard !settings.exactTaps else { return nil }
+        guard !settings.exactTaps, !afterTag else { return nil }
         let lower = word.lowercased()
         let key = Lexicon.fold(lower)
         guard lower.count >= 2, key.utf8.allSatisfy({ $0 >= 97 && $0 <= 122 }),

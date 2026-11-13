@@ -48,14 +48,80 @@ public struct KeyboardSettings: Codable, Sendable, Equatable {
     /// (features/smart-matching Phase C). Off by default; needs Full Access.
     public var shareCorrections = false
     /// How sure the keyboard must be of a real word before it writes it in place of
-    /// pecked letters that spell none, 0 to 1 (`Matcher.strictness`). At 1 it only
-    /// ever writes real words.
-    public var wordStrictness = 0.8
-    /// How sure the keyboard must be that pecked letters are two words with the space
-    /// missed ("textseparately") before it writes them split, 0 to 1
-    /// (`Matcher.splitStrictness`), and that two words autospace wrote apart are one
-    /// ("some thing", `Matcher.join`) before it joins them. At 0 it does neither.
-    public var splitStrictness = 0.8
+    /// pecked letters that spell none, 0 to 1 (`Matcher.strictness`). Set through
+    /// `autocorrect`, one of four levels; kept as a number so older settings read.
+    public var wordStrictness = Autocorrect.mostOfTheTime.strictness
+    /// Put the space into pecked letters that read as two words with it missed
+    /// ("textseparately", `Matcher.splitStrictness`), and take out a space autospace
+    /// put inside a word ("some thing", `Matcher.join`), as sure as `autocorrect` asks.
+    /// Off, it does neither (Gabriel, 13 Nov 2026: was the "Split words" slider).
+    public var fixesSpaces = true
+
+    /// How readily the keyboard swaps pecked letters for a word (Gabriel, 13 Nov 2026:
+    /// four choices in place of a slider). "Always" still bends to how the word was
+    /// typed: slow taps only get a one-letter slip fixed, and taps after an @ or a #
+    /// stay as tapped (`Matcher.slowTapGap`, `Composer.afterTag`).
+    public enum Autocorrect: String, CaseIterable, Sendable {
+        case always, mostOfTheTime, whenSure, never
+
+        public var title: String {
+            switch self {
+            case .always: "Always"
+            case .mostOfTheTime: "Most of the time"
+            case .whenSure: "Only when sure"
+            case .never: "Never"
+            }
+        }
+
+        /// Short, for the keyboard's own settings panel.
+        public var shortTitle: String {
+            switch self {
+            case .always: "Always"
+            case .mostOfTheTime: "Mostly"
+            case .whenSure: "When sure"
+            case .never: "Never"
+            }
+        }
+
+        /// What the level does, in a line.
+        public var detail: String {
+            switch self {
+            case .always: "Swaps in the nearest word whenever one is close"
+            case .mostOfTheTime: "Swaps in a word when it's fairly sure"
+            case .whenSure: "Fixes only clear typos"
+            case .never: "Types exactly what you tap. Words wait in the bar."
+            }
+        }
+
+        /// `Matcher.strictness`: at least this sure of a word, as 1 minus it.
+        public var strictness: Double {
+            switch self {
+            case .always: 1
+            case .mostOfTheTime: 0.8
+            case .whenSure: 0.3
+            case .never: 0
+            }
+        }
+
+        /// `Matcher.splitStrictness` with spaces fixed: never quite always, since a
+        /// split changes two words.
+        public var splitStrictness: Double { min(strictness, 0.9) }
+
+        /// The level a number from the old slider is closest to.
+        public init(strictness: Double) {
+            switch strictness {
+            case 0.9...: self = .always
+            case 0.55..<0.9: self = .mostOfTheTime
+            case 0.05..<0.55: self = .whenSure
+            default: self = .never
+            }
+        }
+    }
+
+    public var autocorrect: Autocorrect {
+        get { Autocorrect(strictness: wordStrictness) }
+        set { wordStrictness = newValue.strictness }
+    }
     /// When the next word, typed fast, shows the word before was the wrong reading of
     /// its swipe or taps, swap it and say so with Undo (features/look-back). On by default.
     public var fixesAsYouGo = true
@@ -157,6 +223,8 @@ public struct KeyboardSettings: Codable, Sendable, Equatable {
 
     public init() {}
 
+    private enum OldKeys: String, CodingKey { case splitStrictness }
+
     /// Reads older saved settings too: a key that is missing keeps its default.
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -174,7 +242,13 @@ public struct KeyboardSettings: Codable, Sendable, Equatable {
         forgetPersonalAt = try c.decodeIfPresent(Date.self, forKey: .forgetPersonalAt)
         shareCorrections = try c.decodeIfPresent(Bool.self, forKey: .shareCorrections) ?? false
         wordStrictness = try c.decodeIfPresent(Double.self, forKey: .wordStrictness) ?? 0.8
-        splitStrictness = try c.decodeIfPresent(Double.self, forKey: .splitStrictness) ?? 0.8
+        if let fixes = try c.decodeIfPresent(Bool.self, forKey: .fixesSpaces) {
+            fixesSpaces = fixes
+        } else {
+            // Before 13 Nov 2026: the Split words slider, off only at 0.
+            let old = try decoder.container(keyedBy: OldKeys.self)
+            fixesSpaces = (try old.decodeIfPresent(Double.self, forKey: .splitStrictness) ?? 0.8) > 0
+        }
         fixesAsYouGo = try c.decodeIfPresent(Bool.self, forKey: .fixesAsYouGo) ?? true
         keyboardHeight = try c.decodeIfPresent(Double.self, forKey: .keyboardHeight) ?? 1.0
         nextWords = try c.decodeIfPresent(Bool.self, forKey: .nextWords) ?? true
@@ -243,8 +317,8 @@ public struct KeyboardSettings: Codable, Sendable, Equatable {
     public func composerSettings(from base: Composer.Settings = Composer.Settings()) -> Composer.Settings {
         var out = base
         out.autospaceDelay = autospace ? min(max(autospaceDelay, Self.delayRange.lowerBound), Self.delayRange.upperBound) : nil
-        out.strictness = min(max(wordStrictness, 0), 1)
-        out.splitStrictness = min(max(splitStrictness, 0), 1)
+        out.strictness = autocorrect.strictness
+        out.splitStrictness = fixesSpaces ? autocorrect.splitStrictness : 0
         out.fixesAsYouGo = fixesAsYouGo
         out.nextWords = nextWords
         out.mixesLanguages = mixesLanguages

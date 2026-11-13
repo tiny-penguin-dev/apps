@@ -156,6 +156,11 @@ public struct Matcher: Sendable {
     /// (the dictionary's or the person's); at 0 it writes what was tapped. A swipe that
     /// fits no word comes out as the nearest real word at any strictness.
     public var strictness = 0.8
+    /// Taps this far apart or more (the middle gap of the word's) are slow pecking: each
+    /// letter was meant, so only a one-letter slip (`isOneSlip`) is fixed, whatever
+    /// `strictness` says; otherwise the letters stay as tapped (Gabriel, 13 Nov 2026:
+    /// "autocorrect less intensely when typing slow").
+    public var slowTapGap: TimeInterval = 0.3
     /// The log prior that letters spelling no word count as: below the dictionary's
     /// rarest word (about -11.6), so a real word close by wins a close call.
     public var unknownPrior: Float = -13
@@ -365,7 +370,8 @@ public struct Matcher: Sendable {
             if isKnown(typed) || typed.count < 2 || (!final && !dictionary.completions(of: typed, limit: 1).isEmpty) {
                 return exactly(typed, limit: limit)
             }
-            return resolve(typed, points: orderings[index].map { $0.points.first }, limit: limit, pecked: true)
+            return resolve(typed, points: orderings[index].map { $0.points.first }, limit: limit, pecked: true,
+                           slow: isSlow(orderings[index]))
         }
 
         let out = remembered(Self.ranked(matches(orderings)), for: ordered)
@@ -514,16 +520,26 @@ public struct Matcher: Sendable {
     /// stay in the bar behind it (unless strictness is 1), so they can still be chosen.
     /// Letters a swipe fell back to (`pecked` false) were never spelled on purpose, so
     /// any near word beats them.
-    private func resolve(_ letters: String, points: [CGPoint?], limit: Int, pecked: Bool) -> [Candidate] {
+    private func resolve(_ letters: String, points: [CGPoint?], limit: Int, pecked: Bool, slow: Bool = false) -> [Candidate] {
         var near = nearestWords(to: letters, points: points, limit: limit)
         let literal = Candidate(word: letters, score: priorWeight * Double(unknownPrior))
         let split = pecked ? split(letters) : nil
+        var splitSure = false
         if let split {
             near = Array(Self.ranked(Dictionary(uniqueKeysWithValues: (near + [split]).map { ($0.word, $0.score) })).prefix(limit))
+            splitSure = splitStrictness > 0 && confidence(of: split, over: literal) >= 1 - splitStrictness
             // Not sure enough to split: the split waits behind what else there is.
-            if splitStrictness <= 0 || confidence(of: split, over: literal) < 1 - splitStrictness, near.first == split {
+            if !splitSure, near.first == split {
                 near = Array(near.dropFirst()) + [split]
             }
+        }
+        // Slow pecking: the letters were meant. A word one slip away (or the letters
+        // split into two words, when sure) may still go in as strictness says;
+        // anything that rewrites more of them only waits in the bar, behind the letters.
+        if slow {
+            let fixes = near.filter { ($0 == split && splitSure) || isOneSlip(letters, $0.word) }
+            guard !fixes.isEmpty else { return Array(([literal] + near).prefix(limit)) }
+            near = fixes + near.filter { !fixes.contains($0) }
         }
         // "Words only": the nearest word always goes in, but the letters as pecked stay
         // last in the bar, so they can still be picked or held and learned
@@ -544,6 +560,41 @@ public struct Matcher: Sendable {
         var ordered: [Candidate] = sure ? [best, literal] : [literal, best]
         ordered.append(contentsOf: near.dropFirst())
         return Array(ordered.prefix(limit))
+    }
+
+    /// Whether these taps came slowly enough to be pecking (`slowTapGap`): the middle
+    /// gap between one tap and the next, so one pause to think doesn't make a word slow.
+    func isSlow(_ taps: [Piece]) -> Bool {
+        guard taps.count >= 2 else { return false }
+        let starts = taps.map(\.start).sorted()
+        let gaps = zip(starts.dropFirst(), starts).map { $0 - $1 }.sorted()
+        return gaps[gaps.count / 2] >= slowTapGap
+    }
+
+    /// Whether `word` is `letters` with one slip fixed: one letter for a key next to
+    /// it, two letters side by side swapped, or one letter missing or extra.
+    func isOneSlip(_ letters: String, _ word: String) -> Bool {
+        let a = Array(letters), b = Array(Lexicon.fold(word.lowercased()))
+        guard a != b else { return true }
+        if a.count == b.count {
+            let differ = a.indices.filter { a[$0] != b[$0] }
+            if differ.count == 1 { return areNeighbours(a[differ[0]], b[differ[0]]) }
+            return differ.count == 2 && differ[1] == differ[0] + 1 && a[differ[0]] == b[differ[1]] && a[differ[1]] == b[differ[0]]
+        }
+        let (long, short) = a.count > b.count ? (a, b) : (b, a)
+        guard long.count == short.count + 1 else { return false }
+        let i = zip(long, short).prefix { $0 == $1 }.count
+        return Array(long[(i + 1)...]) == Array(short[i...])
+    }
+
+    /// Keys next to each other on the layout, diagonals included.
+    private func areNeighbours(_ a: Character, _ b: Character) -> Bool {
+        guard let one = layout.frame(of: .letter(a)), let other = layout.frame(of: .letter(b)),
+              let q = layout.frame(of: .letter("q")), let w = layout.frame(of: .letter("w")),
+              let row = layout.frame(of: .letter("a")) else { return false }
+        // One key along (centre to centre) and one row up or down, with a little slack.
+        let across = (w.midX - q.midX) * 1.1, down = abs(row.midY - q.midY) * 1.1
+        return abs(one.midX - other.midX) <= across && abs(one.midY - other.midY) <= down
     }
 
     /// How sure the keyboard is of `word` rather than `other`, 0 to 1, from their scores.

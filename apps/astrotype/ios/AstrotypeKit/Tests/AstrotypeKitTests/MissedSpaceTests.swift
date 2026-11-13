@@ -58,13 +58,24 @@ import Testing
         #expect(result.bar.map { $0.lowercased() }.contains("text separately"))
     }
 
-    @Test func settingsCarryTheSlider() throws {
+    /// Fixing spaces follows the Autocorrect level, with its own switch to turn it off
+    /// (Gabriel, 13 Nov 2026); the old slider read as on unless it was at 0.
+    @Test func settingsCarryTheSwitch() throws {
         var settings = KeyboardSettings()
-        #expect(settings.splitStrictness == 0.8)
-        settings.splitStrictness = 0.3
+        #expect(settings.fixesSpaces)
+        #expect(settings.composerSettings().splitStrictness == 0.8)
+        settings.autocorrect = .whenSure
         #expect(settings.composerSettings().splitStrictness == 0.3)
+        settings.autocorrect = .always
+        #expect(settings.composerSettings().splitStrictness == 0.9)
+        settings.fixesSpaces = false
+        #expect(settings.composerSettings().splitStrictness == 0)
         let old = try JSONDecoder().decode(KeyboardSettings.self, from: Data("{}".utf8))
-        #expect(old.splitStrictness == 0.8)
+        #expect(old.fixesSpaces)
+        let off = try JSONDecoder().decode(KeyboardSettings.self, from: Data(#"{"splitStrictness":0}"#.utf8))
+        #expect(!off.fixesSpaces)
+        let saved = try JSONDecoder().decode(KeyboardSettings.self, from: JSONEncoder().encode(settings))
+        #expect(!saved.fixesSpaces)
     }
 
     // MARK: Between swipes and taps

@@ -255,6 +255,23 @@ stay while typing goes on and are decided on space. A swipe that fits nothing al
 becomes the nearest word. At strictness 1 letters that are not a word never go in.
 The setting is "Real words" in Settings and the keyboard's panel, 0–100% in 1% steps, default 80%.
 
+**Autocorrect levels, slow taps, @ and # (2026-11-13).** Gabriel typed "@vady" in
+GitHub, for a handle, with Real words at 100%, and every few taps the nearest word
+replaced it ("day", "vary"; "kiril" became "kill"). Three changes:
+- The slider became **Autocorrect**, four levels (`KeyboardSettings.Autocorrect`):
+  Always (strictness 1), Most of the time (0.8, the default), Only when sure (0.3),
+  Never (0). Old values read as the closest level. "Split words" became the switch
+  **Fix missed spaces** (`fixesSpaces`), which follows the same level (capped at 0.9);
+  Never turns it off too.
+- **Slow pecking** (`Matcher.slowTapGap` 0.3 s, the middle gap between the word's taps,
+  so one pause doesn't count): only a word one slip away may replace the letters
+  (`Matcher.isOneSlip`: one letter for a neighbouring key, two side by side swapped,
+  one missing or extra), or a split the keyboard is sure of; otherwise the letters go
+  in and the near words wait in the bar. This holds at "Always" too.
+- **After @ or #** (the character right before the word, `Composer.afterTag`): taps go
+  in exactly as tapped, like an email field, are never learned and never looked back
+  at. Swipes still read as words. Swipes are otherwise unchanged.
+
 **Missed spaces (2026-11-03).** Pecked letters that spell no word but read as two
 words with the space missed ("textseparately") go in split, when it is obvious
 (Gabriel asked for it): both halves are real words (the dictionary's or the person's),

@@ -123,14 +123,25 @@ private struct TypingSettings: View {
                 .disabled(!model.keyboardSettings.autospace)
             SettingsToggle("Predictions", subtitle: "Likely next words in the top bar after each word. A tap writes one.",
                            symbol: "text.append", tint: Theme.mint, isOn: $model.keyboardSettings.nextWords)
-            SettingsSlider("Real words", value: $model.keyboardSettings.wordStrictness, in: 0...1, step: 0.01,
-                           low: "As tapped", high: "Words only", valueText: percent(model.keyboardSettings.wordStrictness))
-            SettingsSlider("Split words", value: $model.keyboardSettings.splitStrictness, in: 0...1, step: 0.01,
-                           low: "Never", high: "Whenever it's sure", valueText: percent(model.keyboardSettings.splitStrictness))
+            VStack(alignment: .leading, spacing: Theme.Space.s) {
+                SettingsRow("Autocorrect", subtitle: model.keyboardSettings.autocorrect.detail,
+                            symbol: "textformat.abc", tint: Theme.sun)
+                Picker("Autocorrect", selection: $model.keyboardSettings.autocorrect) {
+                    ForEach(KeyboardSettings.Autocorrect.allCases, id: \.self) { level in
+                        Text(level.shortTitle).tag(level).accessibilityLabel(level.title)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .padding(.horizontal, 14).padding(.bottom, Theme.Space.m)
+            }
+            SettingsToggle("Fix missed spaces", subtitle: "Puts the space into letters that read as two words, like textseparately",
+                           symbol: "arrow.left.and.right", tint: Theme.left, isOn: $model.keyboardSettings.fixesSpaces)
+                .opacity(model.keyboardSettings.autocorrect == .never ? 0.45 : 1)
+                .disabled(model.keyboardSettings.autocorrect == .never)
             SettingsToggle("Fix words as you go", subtitle: "When the next word shows the one before was wrong, Astrotype changes it. Only while you're typing fast.",
                            symbol: "arrow.uturn.backward", tint: Theme.right, isOn: $model.keyboardSettings.fixesAsYouGo)
         }
-        GroupFootnote("Real words: how sure the keyboard must be before it swaps letters you tapped for a word. Split words: how sure before it puts a space into letters that read as two words, like textseparately, or takes out a space autospace put inside a word, like some thing.")
+        GroupFootnote("Autocorrect holds back on its own: when you tap slowly it only fixes a one-letter slip, and letters right after @ or # stay as you tap them. Swipes always become words.")
 
         SectionLabel("Autofill").padding(.top, Theme.Space.m)
         SettingsGroup {

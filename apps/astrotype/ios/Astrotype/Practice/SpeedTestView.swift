@@ -65,7 +65,7 @@ struct SpeedTestView: View {
                 .animation(Theme.Motion.quickSpring(reduceMotion: reduceMotion), value: test.typedWords)
             Text(keyboard == .apple
                  ? "Sentence \(test.sentence + 1) of \(test.sentences.count), on Apple's keyboard. Space after each word."
-                 : "Sentence \(test.sentence + 1) of \(test.sentences.count). Space after each word; a wrong word turns red and you keep going.")
+                 : "Sentence \(test.sentence + 1) of \(test.sentences.count). Space after each word (not the last); a wrong word turns red and you keep going.")
                 .font(.sw(.small)).foregroundStyle(Theme.muted)
             field
                 .frame(minHeight: 96, maxHeight: 150)

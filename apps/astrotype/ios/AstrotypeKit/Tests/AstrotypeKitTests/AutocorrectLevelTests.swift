@@ -89,6 +89,42 @@ import Testing
         #expect(!matcher.isOneSlip("kiril", "kill"))
     }
 
+    // MARK: Fast pecking
+
+    static func taps(gap: TimeInterval, count: Int = 4) -> [Piece] {
+        (0..<count).map { i in
+            let t = Double(i) * gap
+            return Piece(id: i, side: .left, start: t, end: t + 0.05, points: [.zero], keys: ["a"], isTap: true)
+        }
+    }
+
+    /// Faster taps lean harder on real words, up towards the next level but never to
+    /// it; Never and Always don't move (Gabriel, 13 Nov 2026).
+    @Test func fastTapsRaiseStrictnessShortOfTheNextLevel() {
+        var matcher = StrictnessTests.composer().matcher
+        for (level, next) in [(0.8, 1.0), (0.3, 0.8)] {
+            matcher.strictness = level
+            let relaxed = matcher.strictness(for: Self.taps(gap: 0.25))
+            let quick = matcher.strictness(for: Self.taps(gap: 0.15))
+            let fastest = matcher.strictness(for: Self.taps(gap: 0.08))
+            #expect(relaxed == level)
+            #expect(quick > level && quick < fastest)
+            #expect(fastest < next)
+            #expect(abs(fastest - (level + (next - level) * 0.75)) < 1e-9)
+        }
+        for level in [0.0, 1.0] {
+            matcher.strictness = level
+            #expect(matcher.strictness(for: Self.taps(gap: 0.05)) == level)
+        }
+        // One tap has no speed.
+        matcher.strictness = 0.8
+        #expect(matcher.strictness(for: Self.taps(gap: 0.05, count: 1)) == 0.8)
+    }
+
+    @Test func neverStaysNeverHoweverFast() {
+        #expect(Self.peck("bting", gap: 0.06, strictness: 0) == "bting")
+    }
+
     // MARK: The setting
 
     @Test func oldSliderValuesReadAsTheClosestLevel() throws {

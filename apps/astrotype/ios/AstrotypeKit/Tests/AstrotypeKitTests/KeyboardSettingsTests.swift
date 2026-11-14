@@ -26,8 +26,19 @@ import Testing
         var settings = KeyboardSettings()
         settings.autospaceDelay = 3
         #expect(settings.composerSettings().autospaceDelay == 1.5)
-        settings.autospaceDelay = 0.05
-        #expect(settings.composerSettings().autospaceDelay == 0.1)
+        settings.autospaceDelay = -0.5
+        #expect(settings.composerSettings().autospaceDelay == 0)
+    }
+
+    @Test func theKeyboardLetsPecksWaitForASwipe() {
+        #expect(KeyboardSettings().composerSettings().pecksWaitForSwipe)
+        #expect(!Composer.Settings().pecksWaitForSwipe)
+    }
+
+    @Test func aZeroWaitReadsRightAway() {
+        #expect(KeyboardSettings.waitText(0).shown == "Right away")
+        #expect(KeyboardSettings.waitText(0.9).shown == "0.9 s")
+        #expect(KeyboardSettings.waitText(1.2).spoken == "1.2 seconds")
     }
 
     @Test func olderSettingsKeepTheirDefaultsForNewKeys() throws {

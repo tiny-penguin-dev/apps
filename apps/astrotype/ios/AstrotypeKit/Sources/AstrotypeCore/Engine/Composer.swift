@@ -24,8 +24,15 @@ import Foundation
 /// the person's taps and selections from the keyboard (removed 8 Nov 2026).
 public struct Composer: Sendable {
     public struct Settings: Sendable, Equatable {
-        /// Commit the open word after this long with no finger down. Nil turns autospace off.
+        /// Commit the open word after this long with no finger down. Nil turns autospace off;
+        /// 0 commits a swiped word as the finger lifts.
         public var autospaceDelay: TimeInterval? = 0.9
+        /// Pecked words wait for a swipe (Gabriel, 14 Nov 2026): autospace leaves tapped
+        /// words alone, so pecking works with autospace on, until a swiped word wakes it
+        /// for pecked words too (`autospacesPecks`), at no less than `peckWait`. Off, every
+        /// word autospaces after `autospaceDelay`, the engine's older rule that tests and
+        /// replays keep; the keyboard turns it on (`KeyboardSettings.composerSettings`).
+        public var pecksWaitForSwipe = false
         /// A touch that lifts within this distance of where it landed is a tap.
         public var tapThreshold: CGFloat = 18
         /// Capitalise the first word of a sentence.
@@ -396,9 +403,29 @@ public struct Composer: Sendable {
         }
     }
 
-    /// Autospace is for every word, swiped or pecked: a pecked-only rule broke one-word
-    /// pecks and one-letter words like "I" and "a" (Gabriel, 2 Nov 2026).
-    private var autospaceApplies: Bool { !pieces.isEmpty }
+    /// Autospace follows pecked words too: a swiped word woke it and the person has not
+    /// gone back to spacing pecked words by hand since (`Settings.pecksWaitForSwipe`).
+    /// It sleeps again when the keyboard goes away or after `handSpacesToSleep` pecked
+    /// words in a row spaced by hand.
+    public private(set) var autospacesPecks = false
+    /// Pecked words in a row the person spaced by hand while `autospacesPecks`.
+    private var handSpacedPecks = 0
+    /// Pecked words spaced by hand in a row that put autospace back to sleep for pecks.
+    static let handSpacesToSleep = 2
+    /// The shortest wait before autospace writes a pecked word, whatever the setting: a
+    /// short or zero wait would cut pecked words between taps (slow pecks are ~0.4-0.75 s
+    /// apart, Gabriel's recordings).
+    static let peckWait: TimeInterval = 0.7
+
+    /// How long after the last lift autospace writes the open word, or nil when it does
+    /// not. Swiped words always follow the setting. Pecked words do too with
+    /// `pecksWaitForSwipe` off (a pecked-only rule once broke one-word pecks and "I" and
+    /// "a", Gabriel 2 Nov 2026); with it on, only once a swipe woke autospace for them.
+    private var autospaceWait: TimeInterval? {
+        guard let delay = settings.autospaceDelay, !pieces.isEmpty else { return nil }
+        guard settings.pecksWaitForSwipe, pieces.allSatisfy(\.isTap) else { return delay }
+        return autospacesPecks ? max(delay, Self.peckWait) : nil
+    }
 
     // MARK: Touches
 
@@ -457,6 +484,11 @@ public struct Composer: Sendable {
         }
         pieces.append(piece)
         pieces.sort { $0.start < $1.start }
+        if !piece.isTap {
+            // A swipe: autospace wakes for pecked words too.
+            autospacesPecks = true
+            handSpacedPecks = 0
+        }
         return reguess(time: time)
     }
 
@@ -502,13 +534,14 @@ public struct Composer: Sendable {
 
     public mutating func touchCancelled(id: Int, time: TimeInterval) -> [Effect] {
         open[id] = nil
-        if open.isEmpty, autospaceApplies, correction == nil { autospaceDue = settings.autospaceDelay.map { time + $0 } }
+        if open.isEmpty, !pieces.isEmpty, correction == nil { autospaceDue = autospaceWait.map { time + $0 } }
         return []
     }
 
     /// Time passed: commits the open word by autospace when it is due.
     public mutating func tick(time: TimeInterval) -> [Effect] {
         guard let due = autospaceDue, time >= due, open.isEmpty, !pieces.isEmpty, correction == nil else { return [] }
+        handSpacedPecks = 0
         let effects = commit(trailing: " ", time: time)
         autoSpaced = true
         wordSpace = true
@@ -539,6 +572,7 @@ public struct Composer: Sendable {
             return touchDown(id: -1, at: center, time: time) + touchUp(id: -1, at: center, time: time + 0.05)
         case .space:
             if hasOpenWord {
+                notePeckSpacedByHand()
                 effects += commit(trailing: " ", time: time)
                 wordSpace = settings.spacesWords
                 lastSpace = time
@@ -751,6 +785,8 @@ public struct Composer: Sendable {
     /// this extension. An open word is left as it is.
     public mutating func keyboardWillHide() -> [Effect] {
         cancelCorrection()
+        autospacesPecks = false
+        handSpacedPecks = 0
         leaveEarlier()
         recentWords = []
         guard !hasOpenWord, committed != nil || waiting != nil else { return [] }
@@ -772,7 +808,7 @@ public struct Composer: Sendable {
         }
         open = [:]
         state.bar = barBeforeCorrection
-        if hasOpenWord { autospaceDue = settings.autospaceDelay.map { time + $0 } }
+        if hasOpenWord { autospaceDue = autospaceWait.map { time + $0 } }
         refreshState()
     }
 
@@ -1337,10 +1373,23 @@ public struct Composer: Sendable {
 
     // MARK: Words
 
+    /// Space pressed on the open word: a pecked word spaced by hand while autospace is
+    /// awake for pecks counts toward putting it back to sleep (the person is clearly
+    /// pecking again); a swiped one starts the count over.
+    private mutating func notePeckSpacedByHand() {
+        guard settings.pecksWaitForSwipe, autospacesPecks else { return }
+        guard pieces.allSatisfy(\.isTap) else { handSpacedPecks = 0; return }
+        handSpacedPecks += 1
+        if handSpacedPecks >= Self.handSpacesToSleep {
+            autospacesPecks = false
+            handSpacedPecks = 0
+        }
+    }
+
     private mutating func reguess(time: TimeInterval) -> [Effect] {
         let words = guesses(final: false)
         committed = nil
-        autospaceDue = open.isEmpty && autospaceApplies ? settings.autospaceDelay.map { time + $0 } : nil
+        autospaceDue = open.isEmpty ? autospaceWait.map { time + $0 } : nil
         guard let first = words.first else {
             state.bar = .idle
             refreshState()

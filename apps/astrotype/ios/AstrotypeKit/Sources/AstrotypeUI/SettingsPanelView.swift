@@ -114,7 +114,7 @@ public final class SettingsPanelView: UIView {
     private let split = SwitchRow(title: "Fix missed spaces",
                                   info: "Adds a space you missed (\u{201C}textseparately\u{201D} becomes \u{201C}text separately\u{201D}) or takes out one autospace put inside a word, as readily as Autocorrect says.")
     private let wait = SliderRow(title: "Autospace wait", range: KeyboardSettings.delayRange, label: "Autospace wait",
-                                 info: "After you swipe a word and lift your finger, how long autospace waits before it writes the word and a space. Shorter is faster, but a pause mid-word can cut it in two.")
+                                 info: "After you swipe a word and lift your finger, how long autospace waits before it adds a space. All the way left adds it right away, so each swipe is a word. Tapped words get no space until you swipe one; then they do too, until the keyboard closes or you space two tapped words yourself.")
     private let note = UILabel()
     /// The Languages row: the ones on, and a chevron to the list.
     private let languagesLink = LinkRow(title: "Languages", symbol: "character.bubble")
@@ -449,8 +449,8 @@ public final class SettingsPanelView: UIView {
         strict.set(KeyboardSettings.Autocorrect.allCases.firstIndex(of: settings.autocorrect) ?? 1)
         split.set(settings.fixesSpaces)
         split.isEnabled = settings.autocorrect != .never
-        wait.set(settings.autospaceDelay, text: "\(String(format: "%.1f", settings.autospaceDelay)) s",
-                 spoken: "\(String(format: "%.1f", settings.autospaceDelay)) seconds")
+        let waitText = KeyboardSettings.waitText(settings.autospaceDelay)
+        wait.set(settings.autospaceDelay, text: waitText.shown, spoken: waitText.spoken)
         wait.slider.isEnabled = settings.autospace
         wait.alpha = settings.autospace ? 1 : 0.45
 

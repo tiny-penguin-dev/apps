@@ -109,7 +109,8 @@ on day one.
    lights its keys and leaves a short trail.
 2. The bar shows the best guesses as pieces arrive. The first one is what space will write.
 3. Press space, or type punctuation, and the word goes in. Or pause, and autospace writes
-   it for you (on by default, with a delay you can change).
+   it for you (on by default, with a delay you can change, down to right away). Tapped
+   words get no autospace until you swipe one, so you can still peck with it on.
 4. Wrong word? Tap another guess in the bar, and it replaces the last word. Backspace to
    the end of a word reopens it, so you can add a tap or a swipe.
 

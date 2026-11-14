@@ -161,6 +161,15 @@ public struct Matcher: Sendable {
     /// `strictness` says; otherwise the letters stay as tapped (Gabriel, 13 Nov 2026:
     /// "autocorrect less intensely when typing slow").
     public var slowTapGap: TimeInterval = 0.3
+    /// Fast pecking leans harder on real words (Gabriel, 13 Nov 2026: "the faster you go,
+    /// the more it tries to match a real word"): from taps `fastTapGaps.upperBound` apart
+    /// (the middle gap) down to `lowerBound` apart, strictness rises from its level
+    /// towards the next one (`levels`), at most `fastBoost` of the way, so "Most of the
+    /// time" never becomes "Always". Never (0) and Always (1) stay as they are.
+    public var fastTapGaps: ClosedRange<TimeInterval> = 0.1...0.2
+    public var fastBoost = 0.75
+    /// The Autocorrect levels' strictness (`KeyboardSettings.Autocorrect`), lowest first.
+    public static let levels: [Double] = [0, 0.3, 0.8, 1]
     /// The log prior that letters spelling no word count as: below the dictionary's
     /// rarest word (about -11.6), so a real word close by wins a close call.
     public var unknownPrior: Float = -13
@@ -371,7 +380,7 @@ public struct Matcher: Sendable {
                 return exactly(typed, limit: limit)
             }
             return resolve(typed, points: orderings[index].map { $0.points.first }, limit: limit, pecked: true,
-                           slow: isSlow(orderings[index]))
+                           slow: isSlow(orderings[index]), strictness: strictness(for: orderings[index]))
         }
 
         let out = remembered(Self.ranked(matches(orderings)), for: ordered)
@@ -520,7 +529,9 @@ public struct Matcher: Sendable {
     /// stay in the bar behind it (unless strictness is 1), so they can still be chosen.
     /// Letters a swipe fell back to (`pecked` false) were never spelled on purpose, so
     /// any near word beats them.
-    private func resolve(_ letters: String, points: [CGPoint?], limit: Int, pecked: Bool, slow: Bool = false) -> [Candidate] {
+    private func resolve(_ letters: String, points: [CGPoint?], limit: Int, pecked: Bool, slow: Bool = false,
+                         strictness: Double? = nil) -> [Candidate] {
+        let strictness = strictness ?? self.strictness
         var near = nearestWords(to: letters, points: points, limit: limit)
         let literal = Candidate(word: letters, score: priorWeight * Double(unknownPrior))
         let split = pecked ? split(letters) : nil
@@ -562,13 +573,29 @@ public struct Matcher: Sendable {
         return Array(ordered.prefix(limit))
     }
 
+    /// The middle gap between one tap and the next, nil for a single tap.
+    static func middleGap(_ taps: [Piece]) -> TimeInterval? {
+        guard taps.count >= 2 else { return nil }
+        let starts = taps.map(\.start).sorted()
+        let gaps = zip(starts.dropFirst(), starts).map { $0 - $1 }.sorted()
+        return gaps[gaps.count / 2]
+    }
+
+    /// `strictness` for these taps: raised when they came fast (`fastTapGaps`), never as
+    /// far as the next level up, and never at all from 0 or 1.
+    func strictness(for taps: [Piece]) -> Double {
+        guard strictness > 0, strictness < 1, let gap = Self.middleGap(taps), gap < fastTapGaps.upperBound else { return strictness }
+        let next = Self.levels.first { $0 > strictness } ?? 1
+        let span = fastTapGaps.upperBound - fastTapGaps.lowerBound
+        let speed = min(max((fastTapGaps.upperBound - gap) / span, 0), 1)
+        return strictness + (next - strictness) * fastBoost * speed
+    }
+
     /// Whether these taps came slowly enough to be pecking (`slowTapGap`): the middle
     /// gap between one tap and the next, so one pause to think doesn't make a word slow.
     func isSlow(_ taps: [Piece]) -> Bool {
-        guard taps.count >= 2 else { return false }
-        let starts = taps.map(\.start).sorted()
-        let gaps = zip(starts.dropFirst(), starts).map { $0 - $1 }.sorted()
-        return gaps[gaps.count / 2] >= slowTapGap
+        guard let gap = Self.middleGap(taps) else { return false }
+        return gap >= slowTapGap
     }
 
     /// Whether `word` is `letters` with one slip fixed: one letter for a key next to

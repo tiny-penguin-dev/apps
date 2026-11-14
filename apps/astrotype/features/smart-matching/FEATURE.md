@@ -271,6 +271,11 @@ replaced it ("day", "vary"; "kiril" became "kill"). Three changes:
 - **After @ or #** (the character right before the word, `Composer.afterTag`): taps go
   in exactly as tapped, like an email field, are never learned and never looked back
   at. Swipes still read as words. Swipes are otherwise unchanged.
+- **Fast pecking** (same day, Gabriel: "the faster you go, the more it tries to match
+  a real word"): when the middle gap between taps is under 0.2 s, strictness rises from
+  its level towards the next one, reaching 75% of the way at 0.1 s or faster
+  (`Matcher.strictness(for:)`, `fastTapGaps`, `fastBoost`): Most of the time up to
+  0.95, Only when sure up to 0.675. Never and Always don't move.
 
 **Missed spaces (2026-11-03).** Pecked letters that spell no word but read as two
 words with the space missed ("textseparately") go in split, when it is obvious

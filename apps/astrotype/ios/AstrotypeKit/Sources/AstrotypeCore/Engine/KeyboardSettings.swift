@@ -9,14 +9,17 @@ import Foundation
 ///     composer.settings = settings.composerSettings(from: composer.settings)
 public struct KeyboardSettings: Codable, Sendable, Equatable {
     public static let version = 1
-    public static let delayRange: ClosedRange<TimeInterval> = 0.1...1.5
+    public static let delayRange: ClosedRange<TimeInterval> = 0...1.5
     /// How much taller or shorter than Apple's the keys can be made.
     public static let heightRange: ClosedRange<Double> = 0.8...1.2
 
     public var version = KeyboardSettings.version
-    /// Write a swiped word after a pause with no finger down (never a pecked one).
+    /// Write a swiped word and a space after a pause with no finger down. Pecked words
+    /// only once a swipe woke it, until the keyboard closes or the person spaces pecked
+    /// words by hand again (`Composer.Settings.pecksWaitForSwipe`).
     public var autospace = true
-    /// How long that pause is, 0.1 to 1.5 s.
+    /// How long that pause is, 0 (as the finger lifts) to 1.5 s. Pecked words wait at
+    /// least `Composer.peckWait`.
     public var autospaceDelay: TimeInterval = 0.9
     /// Effects on: key flashes, taps and trails, as `effects` says (features/customization;
     /// the setting was "Trails and flashes"). Off is the battery saver.
@@ -313,10 +316,20 @@ public struct KeyboardSettings: Codable, Sendable, Equatable {
         return true
     }
 
+    /// The autospace wait as the settings show it and VoiceOver reads it: "Right away"
+    /// at 0, else "0.9 s".
+    public static func waitText(_ delay: TimeInterval) -> (shown: String, spoken: String) {
+        let seconds = (delay * 10).rounded() / 10
+        guard seconds > 0 else { return ("Right away", "Right away") }
+        let number = String(format: "%.1f", seconds)
+        return ("\(number) s", "\(number) seconds")
+    }
+
     /// `base` with these settings applied; the rest of the engine's settings stay.
     public func composerSettings(from base: Composer.Settings = Composer.Settings()) -> Composer.Settings {
         var out = base
         out.autospaceDelay = autospace ? min(max(autospaceDelay, Self.delayRange.lowerBound), Self.delayRange.upperBound) : nil
+        out.pecksWaitForSwipe = true
         out.strictness = autocorrect.strictness
         out.splitStrictness = fixesSpaces ? autocorrect.splitStrictness : 0
         out.fixesAsYouGo = fixesAsYouGo

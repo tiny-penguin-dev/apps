@@ -302,7 +302,11 @@ bottom. `Layout.qwerty(split:)` adds the split layout as an option on wide scree
 (`KeyboardSettings.splitOnWide`, in the app's Settings and the in-keyboard panel): two
 blocks of five keys at the edges, the home row half a key in, space on both sides (the
 key surface keeps several views per key for that). Autospace is now for swiped words
-only, and its delay goes down to 0.1 s (Gabriel, 1 Nov 2026).
+only, and its delay goes down to 0.1 s (Gabriel, 1 Nov 2026). Later pecked words got it
+too (2 Nov). Since 14 Nov 2026 the delay goes down to 0 (a space as the swipe lifts), and
+pecked words wait for a swipe: none until a swiped word wakes autospace for them, waiting
+at least 0.7 s, until the keyboard closes or two pecked words in a row are spaced by hand
+(`Composer.Settings.pecksWaitForSwipe`).
 
 ### Phase 5: Learned words and sync
 

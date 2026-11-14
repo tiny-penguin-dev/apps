@@ -112,12 +112,12 @@ private struct TypingSettings: View {
                     Button("See Pro") { path.append(.pro) }.buttonStyle(.small)
                 }
             }
-            SettingsToggle("Autospace", subtitle: "Puts a swiped word in after a pause", symbol: "space",
+            SettingsToggle("Autospace", subtitle: "Adds a space after a swiped word. Tap typing stays yours until you swipe.", symbol: "space",
                            tint: Theme.left, isOn: $model.keyboardSettings.autospace)
             SettingsSlider(nil, value: $model.keyboardSettings.autospaceDelay, in: KeyboardSettings.delayRange, step: 0.1,
                            low: "Quick", high: "Relaxed",
-                           valueText: "\(model.keyboardSettings.autospaceDelay.formatted(.number.precision(.fractionLength(1)))) s",
-                           spokenValue: "\(model.keyboardSettings.autospaceDelay.formatted(.number.precision(.fractionLength(1)))) seconds",
+                           valueText: KeyboardSettings.waitText(model.keyboardSettings.autospaceDelay).shown,
+                           spokenValue: KeyboardSettings.waitText(model.keyboardSettings.autospaceDelay).spoken,
                            accessibilityLabel: "Autospace wait")
                 .opacity(model.keyboardSettings.autospace ? 1 : 0.45)
                 .disabled(!model.keyboardSettings.autospace)

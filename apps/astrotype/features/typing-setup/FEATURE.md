@@ -31,7 +31,7 @@ Status: Draft
       you never want. It learns your words, so it keeps getting better.
     - **Autospace**: Off or On. Recommended: **Off**. Why: you can start a word with one
       thumb and finish it with the other, or stop to fix it, and nothing jumps ahead of
-      you. Turn it on if you'd rather not press space.
+      you. Turn it on if you'd rather not press space after a swipe; it stays out of the way while you tap (PR #240).
   - "Sounds good" moves on. Skip keeps what's ticked, so skipping gets our picks too.
   - **Run setup again** (Settings) shows your current choices ticked, with the same
     Recommended tags.
@@ -54,11 +54,7 @@ Status: Draft
 
 ### Open questions
 
-1. **Autospace's new behaviour:** the "Let autospace work with tap typing" thread is
-   changing how autospace works (off while you tap-type, on after a swiped word, and a
-   0-second wait). The Autospace rows and Why note here will be reworded to match once
-   that lands, before this is built.
-2. **New defaults:** OK to make Always and Autospace off the defaults for new installs
+1. **New defaults:** OK to make Always and Autospace off the defaults for new installs
    (my recommendation), or keep today's defaults and only tick our picks on this step?
 
 ## Design
@@ -75,7 +71,9 @@ Status: Draft
     words as Typing), a tick on the picked one, a **RECOMMENDED** tag on Always.
   - A **Why we pick Always** note under it (pale ice card with an info dot).
   - **Autospace** label, two rows: Off ("You press space when the word looks right",
-    RECOMMENDED) and On ("Puts a space after a swiped word when you pause").
+    RECOMMENDED) and On ("Adds a space after each swiped word. Tapping? It stays out
+    of your way until you swipe."), matching how autospace works since PR #240: tapped
+    words get no space until you swipe one.
   - A **Why we pick Off** note.
   - "Sounds good" at the bottom; Skip in the corner, as on every step. A thin line above
     the button while there's more to scroll.
@@ -87,7 +85,7 @@ Status: Draft
     block one you never want. It learns your words as you go, so it keeps getting better."
   - "You can start a word with one thumb and finish it with the other, or stop to fix
     it, and nothing jumps ahead of you. Space becomes part of the rhythm. Turn it on if
-    you'd rather not press it."
+    you'd rather not press it after a swipe. It won't get in the way while you tap."
 - **Design system:** uses `WizardPage`, `StepProgress`, `SectionLabel`, the settings
   group card and `Theme` tokens. New: `ChoiceRow` (a row in a pick-one group: tick,
   title, line, optional Recommended tag) and `WhyNote` (the ice note with an info dot).

@@ -124,7 +124,7 @@ const LEVELS=[
 ];
 const SPACE=[
   ["off","Off","You press space when the word looks right"],
-  ["on","On","Puts a space after a swiped word when you pause"],
+  ["on","On","Adds a space after each swiped word. Tapping? It stays out of your way until you swipe."],
 ];
 const STEPS=["hello","turnOn","languages","style","typing","tryIt","sync"];
 const S={screen:"typing",size:"",theme:"",ac:"always",sp:"off",prevP:null};
@@ -157,7 +157,7 @@ const SCREENS={
       ${whynote("Why we pick Always","Type fast and loose, and it lands on the word you meant. At first it may change a word it doesn't know yet, like a name. Hold that word on the bar to teach it, or block one you never want. It learns your words as you go, so it keeps getting better.")}
       <div class="sec">Autospace</div>
       ${choices("Autospace",SPACE,S.sp,"off")}
-      ${whynote("Why we pick Off","You can start a word with one thumb and finish it with the other, or stop to fix it, and nothing jumps ahead of you. Space becomes part of the rhythm. Turn it on if you'd rather not press it.")}
+      ${whynote("Why we pick Off","You can start a word with one thumb and finish it with the other, or stop to fix it, and nothing jumps ahead of you. Space becomes part of the rhythm. Turn it on if you'd rather not press it after a swipe. It won't get in the way while you tap.")}
     </div>
     <div class="wfoot"><button class="btn wide" data-next="typing">Sounds good</button></div>`,
   tryIt:()=>`${wizTop("tryIt")}<div class="stub"><div class="h1">Try it</div><p>The five-word lesson, as now.<br>Autocorrect: <b>${LEVELS.find(l=>l[0]===S.ac)[1]}</b> · Autospace: <b>${S.sp==="on"?"On":"Off"}</b></p><button class="btn" data-s="typing">Back to How it types</button></div>`,

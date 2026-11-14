@@ -1,0 +1,199 @@
+<title>Astrotype Typing Setup</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;700;800;900&display=swap">
+<style>
+/* One phone on a pale ice stage with a screen picker beside it. Tokens and components are Astrotype's
+   (DESIGN.md "Design system"), same names as features/home-and-welcome's mockup.
+   New here: ChoiceRow (a picked-one row with a Recommended chip) and WhyNote (the short reason under a group). */
+:root{
+  --stage:#E6F0F4; --bg:#F3F8FA; --card:#FFFFFF; --ink:#1E2945; --muted:#67748F; --line:#DCE6EC;
+  --accent:#139FB5; --accent-ink:#FFFFFF; --left:#139FB5; --right:#FF6F86; --sun:#FFC24D; --mint:#2FBF96; --ice:#D9EDF3;
+  --font:ui-rounded,"SF Pro Rounded","Nunito",system-ui,sans-serif;
+  --r-lg:28px; --r-md:18px; --r-sm:12px;
+  --spring:cubic-bezier(.34,1.56,.64,1);
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --stage:#0A1118; --bg:#111A24; --card:#1A2634; --ink:#EEF4F8; --muted:#97A6B8; --line:#2A3B4C;
+  --accent:#2FC6DC; --accent-ink:#06202A; --left:#2FC6DC; --right:#FF8A9E; --sun:#FFCD66; --mint:#45D3AA; --ice:#1D3240; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --stage:#0A1118; --bg:#111A24; --card:#1A2634; --ink:#EEF4F8; --muted:#97A6B8; --line:#2A3B4C;
+  --accent:#2FC6DC; --accent-ink:#06202A; --left:#2FC6DC; --right:#FF8A9E; --sun:#FFCD66; --mint:#45D3AA; --ice:#1D3240; color-scheme:dark}
+html,body{height:100%;margin:0}
+body{background:var(--stage);color:var(--ink);font-family:var(--font);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+*{box-sizing:border-box}
+button{font:inherit;color:inherit}
+.stage{display:flex;gap:32px;justify-content:center;align-items:flex-start;padding-block:24px;flex-wrap:wrap}
+.picker{display:flex;flex-direction:column;gap:6px;max-width:270px;min-width:0}
+.picker h1{font-size:28px;font-weight:900;margin:0}
+.picker p{margin:0 0 10px;color:var(--muted);font-size:13px;line-height:1.45}
+.picker button{font-weight:700;font-size:14px;text-align:left;border:0;background:transparent;color:var(--muted);padding:7px 12px;border-radius:10px;cursor:pointer}
+.picker button[aria-current="true"]{background:var(--card);color:var(--ink)}
+.picker small{color:var(--muted);font-size:11px;letter-spacing:.06em;text-transform:uppercase;font-weight:800;margin-top:10px;padding-left:12px}
+.picker button:focus-visible,.phone :focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.seg-mini{display:flex;gap:4px;margin-top:4px;padding-left:8px;flex-wrap:wrap}
+.seg-mini button{padding:5px 10px;font-size:12px;background:var(--line)}
+.seg-mini button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.why-side{font-size:13px;color:var(--muted);line-height:1.45;background:var(--card);border-radius:12px;padding:10px 12px;margin-top:10px}
+.phone{width:390px;max-width:100%;height:844px;background:var(--bg);border-radius:48px;position:relative;overflow:hidden;
+  box-shadow:0 0 0 10px var(--ink),0 30px 60px rgba(20,30,60,.25);flex:none}
+.phone.small{width:375px;height:667px;border-radius:36px}
+.phone.wide{width:744px;height:1024px;border-radius:40px}
+@media (max-width:700px){.picker{max-width:100%;flex-direction:row;flex-wrap:wrap;align-items:center}.picker h1,.picker p,.why-side{width:100%}.picker small{display:none}
+  .phone{box-shadow:none;border-radius:32px}.phone.wide{display:none}}
+.status{position:absolute;top:14px;left:30px;right:30px;display:flex;justify-content:space-between;font-weight:800;font-size:15px;z-index:3}
+.phone.small .status{top:8px}
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;padding:54px 0 0}
+.phone.small .screen{padding-top:34px}
+.screen.anim{animation:in .45s var(--spring)}
+@keyframes in{from{transform:translateX(28px);opacity:0}to{transform:none;opacity:1}}
+.h1{font-size:30px;font-weight:900;line-height:1.1;margin:4px 0 6px;text-wrap:balance}
+.phone.small .h1{font-size:26px}
+.sub{color:var(--muted);font-size:15px;line-height:1.45;margin:0}
+.sec{font-size:13px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:8px 0 -6px 6px}
+.card{background:var(--card);border-radius:var(--r-md);padding:16px}
+.spacer{flex:1}
+.chip{display:inline-flex;align-items:center;gap:4px;font-weight:800;font-size:13px;padding:5px 10px;border-radius:999px;background:var(--ice);color:var(--ink);white-space:nowrap}
+.btn{font-weight:800;border:0;border-radius:999px;background:var(--accent);color:var(--accent-ink);cursor:pointer;font-size:14px;padding:10px 16px;
+  box-shadow:0 4px 0 color-mix(in srgb,var(--accent) 60%,#000 25%);transition:transform .25s var(--spring)}
+.btn:active{transform:translateY(3px) scale(.98)}
+.btn.ghost{background:transparent;color:var(--muted);box-shadow:none;padding:8px}
+.btn.wide{width:100%;font-size:17px;padding:15px}
+.group{background:var(--card);border-radius:var(--r-md);overflow:hidden}
+.group>.r+.r{border-top:1px solid var(--line)}
+.r{display:flex;align-items:center;gap:12px;padding:11px 14px;min-height:52px;width:100%;color:inherit;text-align:left;background:none;border:0}
+.r .t{flex:1;min-width:0}
+.r .t b{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:16px;font-weight:800}
+.r .t span{display:block;color:var(--muted);font-size:13px;line-height:1.35;margin-top:1px}
+
+/* ChoiceRow: one of a few, the picked one ticked; the recommended one carries a chip */
+button.r{cursor:pointer;transition:background .2s}
+button.r:active{background:color-mix(in srgb,var(--ink) 5%,transparent)}
+.tick{width:24px;height:24px;border-radius:50%;flex:none;border:2px solid var(--line);display:grid;place-items:center;transition:background .2s,border-color .2s,transform .3s var(--spring)}
+.r[aria-checked="true"] .tick{background:var(--accent);border-color:var(--accent);transform:scale(1.08)}
+.r[aria-checked="true"] .tick::after{content:"";width:9px;height:5px;border:3px solid var(--accent-ink);border-top:0;border-right:0;transform:translate(0,-1px) rotate(-45deg)}
+.rec{font-size:11px;font-weight:900;letter-spacing:.04em;padding:3px 8px;border-radius:999px;background:color-mix(in srgb,var(--mint) 22%,transparent);color:var(--ink)}
+
+/* WhyNote: the reason for the recommendation, under its group */
+.whynote{display:flex;gap:10px;align-items:flex-start;background:var(--ice);border-radius:var(--r-sm);padding:12px 14px;font-size:14px;line-height:1.45}
+.whynote b{display:block;font-weight:900;margin-bottom:2px}
+.whynote svg{flex:none;margin-top:2px}
+
+/* Wizard (WizardPage + StepProgress), as in home-and-welcome */
+.wtop{display:flex;align-items:center;gap:14px;padding:6px 22px 0;height:40px;flex:none}
+.prog{flex:1;height:8px;border-radius:999px;background:var(--line);overflow:hidden}
+.prog i{display:block;height:100%;border-radius:999px;background:var(--accent);width:var(--p);transition:width .6s var(--spring)}
+.wtop .skip{font-weight:800;color:var(--muted);background:none;border:0;font-size:15px;cursor:pointer;padding:6px 0}
+.wbody{flex:1;overflow-y:auto;padding:8px 22px 12px;display:flex;flex-direction:column;gap:14px}
+.wbody>*{flex-shrink:0}
+.phone.small .wbody{padding:4px 14px 8px}
+.phone.small .wtop{padding:6px 14px 0}
+.phone.wide .wbody,.phone.wide .wfoot,.phone.wide .wtop{width:560px;align-self:center}
+.wfoot{padding:10px 22px 34px;display:flex;flex-direction:column;gap:4px;flex:none;border-top:1px solid transparent}
+.wbody.scrolled+.wfoot{border-top-color:var(--line)}
+.phone.small .wfoot{padding:8px 14px 18px}
+.stub{display:flex;flex-direction:column;gap:12px;flex:1;justify-content:center;align-items:center;text-align:center;color:var(--muted);padding:30px}
+.stub .h1{color:var(--ink)}
+@media (prefers-reduced-motion:reduce){.screen.anim{animation:none}.prog i,.tick{transition:none}}
+</style>
+
+<div class="stage">
+  <div class="picker" role="navigation" aria-label="Screens">
+    <h1>Typing setup</h1>
+    <p>A new welcome step that sets Autocorrect and Autospace, each with our pick and why. Tap through: the buttons in the phone work.</p>
+    <small>Welcome wizard</small>
+    <button data-s="style">4 · Make it yours (as now)</button>
+    <button data-s="typing">5 · How it types (new)</button>
+    <button data-s="typingOther">5 · Something else picked</button>
+    <button data-s="tryIt">6 · Try it (as now)</button>
+    <small>Look</small>
+    <div class="seg-mini" id="sizes"><button data-size="">iPhone</button><button data-size="small">Small</button><button data-size="wide">Wide</button></div>
+    <div class="seg-mini" id="themes"><button data-theme="light">Light</button><button data-theme="dark">Dark</button></div>
+    <div class="why-side" id="why"></div>
+  </div>
+  <div class="phone" id="phone"></div>
+</div>
+
+<script>
+const LEVELS=[
+  ["always","Always","Swaps in the nearest word whenever one is close"],
+  ["mostOfTheTime","Most of the time","Swaps in a word when it's fairly sure"],
+  ["whenSure","Only when sure","Fixes only clear typos"],
+  ["never","Never","Types exactly what you tap. Words wait in the bar."],
+];
+const SPACE=[
+  ["off","Off","You press space when the word looks right"],
+  ["on","On","Adds a space after each swiped word. Tapping? It stays out of your way until you swipe."],
+];
+const STEPS=["hello","turnOn","languages","style","typing","tryIt","sync"];
+const S={screen:"typing",size:"",theme:"",ac:"always",sp:"off",prevP:null};
+const WHY={
+  style:"Step 4, unchanged. 'Looks good' now goes to the new step.",
+  typing:"New step 5, between Make it yours and Try it, so the lesson types the way you just chose. Our picks start ticked, so 'Sounds good' or Skip both keep them.",
+  typingOther:"Picking something else just moves the tick. The reason stays, so you know what you're trading. Either can be changed later in Typing on Home.",
+  tryIt:"Step 6, unchanged. It types with what was picked on the step before.",
+};
+const phone=document.getElementById("phone");
+const icon=`<svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="9" fill="var(--accent)"/><rect x="9" y="8.5" width="2" height="6" rx="1" fill="var(--accent-ink)"/><circle cx="10" cy="5.8" r="1.2" fill="var(--accent-ink)"/></svg>`;
+
+function status(){return `<div class="status"><span>9:41</span><span>●●● ▮</span></div>`}
+function wizTop(step){const i=STEPS.indexOf(step),n=STEPS.length;
+  return `<div class="wtop"><div class="prog" role="progressbar" aria-label="Step ${i+1} of ${n}" aria-valuenow="${i+1}" aria-valuemin="1" aria-valuemax="${n}" style="--p:${(S.prevP??i)/n*100}%"><i></i></div><button class="skip" data-next="${step}">Skip</button></div>`}
+function choices(name,list,picked,rec){
+  return `<div class="group" role="radiogroup" aria-label="${name}">${list.map(([id,t,s])=>
+    `<button class="r" role="radio" aria-checked="${id===picked}" data-pick="${name}" data-v="${id}"><span class="tick"></span><span class="t"><b>${t}${id===rec?'<i class="rec">RECOMMENDED</i>':""}</b><span>${s}</span></span></button>`).join("")}</div>`}
+function whynote(title,text){return `<div class="whynote">${icon}<div><b>${title}</b>${text}</div></div>`}
+
+const SCREENS={
+  style:()=>`${wizTop("style")}<div class="wbody"><div class="h1">Make it yours</div><p class="sub">Pick a look and a little sparkle. You can change it any time on Home.</p>
+    <div class="card stub" style="flex:1;min-height:300px"><b>Themes, effects and the docked keyboard, as now</b></div></div>
+    <div class="wfoot"><button class="btn wide" data-next="style">Looks good</button></div>`,
+  typing:()=>`${wizTop("typing")}<div class="wbody" id="wb">
+      <div class="h1">How it types</div>
+      <p class="sub">Two settings shape how Astrotype feels. We've ticked the ones we like best. You can change them any time in Typing.</p>
+      <div class="sec">Autocorrect</div>
+      ${choices("Autocorrect",LEVELS,S.ac,"always")}
+      ${whynote("Why we pick Always","Type fast and loose, and it lands on the word you meant. At first it may change a word it doesn't know yet, like a name. Hold that word on the bar to teach it, or block one you never want. It learns your words as you go, so it keeps getting better.")}
+      <div class="sec">Autospace</div>
+      ${choices("Autospace",SPACE,S.sp,"off")}
+      ${whynote("Why we pick Off","You can start a word with one thumb and finish it with the other, or stop to fix it, and nothing jumps ahead of you. Space becomes part of the rhythm. Turn it on if you'd rather not press it after a swipe. It won't get in the way while you tap.")}
+    </div>
+    <div class="wfoot"><button class="btn wide" data-next="typing">Sounds good</button></div>`,
+  tryIt:()=>`${wizTop("tryIt")}<div class="stub"><div class="h1">Try it</div><p>The five-word lesson, as now.<br>Autocorrect: <b>${LEVELS.find(l=>l[0]===S.ac)[1]}</b> · Autospace: <b>${S.sp==="on"?"On":"Off"}</b></p><button class="btn" data-s="typing">Back to How it types</button></div>`,
+};
+SCREENS.typingOther=SCREENS.typing;
+
+function render(anim=true){
+  phone.className="phone "+S.size;
+  phone.innerHTML=status()+`<div class="screen ${anim?"anim":""}">${SCREENS[S.screen]()}</div>`;
+  document.querySelectorAll(".picker [data-s]").forEach(b=>b.setAttribute("aria-current",b.dataset.s===S.screen));
+  document.querySelectorAll("#sizes button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.size===S.size));
+  const dark=S.theme?S.theme==="dark":matchMedia("(prefers-color-scheme: dark)").matches;
+  document.querySelectorAll("#themes button").forEach(b=>b.setAttribute("aria-pressed",(b.dataset.theme==="dark")===dark));
+  document.getElementById("why").textContent=WHY[S.screen]||"";
+  const p=phone.querySelector(".prog");
+  if(p){const i=STEPS.indexOf(S.screen==="typingOther"?"typing":S.screen);requestAnimationFrame(()=>requestAnimationFrame(()=>p.style.setProperty("--p",(i+1)/STEPS.length*100+"%")))}
+  const wb=phone.querySelector(".wbody");
+  if(wb){const f=()=>wb.classList.toggle("scrolled",wb.scrollHeight-wb.scrollTop-wb.clientHeight>2);wb.addEventListener("scroll",f);f()}
+  S.prevP=null;
+}
+function go(s){const cur=STEPS.indexOf(S.screen==="typingOther"?"typing":S.screen);S.prevP=cur>=0?cur+1:null;
+  if(s==="typingOther"){S.ac="whenSure";S.sp="on"}else if(s==="typing"&&S.screen!=="tryIt"){S.ac="always";S.sp="off"}
+  S.screen=s;render()}
+document.addEventListener("click",e=>{
+  const t=e.target.closest("button");if(!t)return;
+  if(t.dataset.s){go(t.dataset.s);return}
+  if(t.dataset.size!==undefined){S.size=t.dataset.size;render(false);return}
+  if(t.dataset.theme){S.theme=t.dataset.theme;document.documentElement.setAttribute("data-theme",S.theme);render(false);return}
+  if(t.dataset.pick){const wb=phone.querySelector(".wbody"),y=wb?wb.scrollTop:0;
+    if(t.dataset.pick==="Autocorrect")S.ac=t.dataset.v;else S.sp=t.dataset.v;
+    S.screen=(S.ac==="always"&&S.sp==="off")?"typing":"typingOther";render(false);const nb=phone.querySelector(".wbody");if(nb)nb.scrollTop=y;return}
+  if(t.dataset.next){const n={style:"typing",typing:"tryIt",tryIt:"tryIt"}[t.dataset.next];
+    S.prevP=STEPS.indexOf(t.dataset.next)+1;S.screen=n;render()}
+});
+const [h,sz,th]=location.hash.slice(1).split(",");
+if(SCREENS[h])S.screen=h;if(h==="typingOther"){S.ac="whenSure";S.sp="on"}
+if(sz)S.size=sz==="phone"?"":sz;if(th){S.theme=th;document.documentElement.setAttribute("data-theme",th)}
+render(false);
+</script>
